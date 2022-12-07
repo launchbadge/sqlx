@@ -104,7 +104,7 @@ where
         };
 
         #[cfg(feature = "_tls-rustls")]
-        let host = webpki::DNSNameRef::try_from_ascii_str(host)?;
+        let host = ::rustls::ServerName::try_from(host).map_err(|err| Error::Tls(err.into()))?;
 
         *self = MaybeTlsStream::Tls(connector.connect(host, stream).await?);
 
@@ -190,7 +190,7 @@ where
         }
     }
 
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+    #[cfg(feature = "_rt-tokio")]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             MaybeTlsStream::Raw(s) => Pin::new(s).poll_shutdown(cx),

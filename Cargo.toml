@@ -8,6 +8,8 @@ members = [
     "sqlx-cli",
     "sqlx-bench",
     "examples/mysql/todos",
+    "examples/postgres/axum-social-with-tests",
+    "examples/postgres/files",
     "examples/postgres/json",
     "examples/postgres/listen",
     "examples/postgres/todos",
@@ -18,13 +20,13 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.5.11"
+version = "0.6.2"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
 documentation = "https://docs.rs/sqlx"
 description = "🧰 The Rust SQL Toolkit. An async, pure Rust SQL crate featuring compile-time checked queries without a DSL. Supports PostgreSQL, MySQL, and SQLite."
-edition = "2018"
+edition = "2021"
 keywords = ["database", "async", "postgres", "mysql", "sqlite"]
 categories = ["database", "asynchronous"]
 authors = [
@@ -35,7 +37,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = ["all", "runtime-async-std-native-tls"]
+features = ["all", "runtime-tokio-native-tls"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -74,11 +76,7 @@ runtime-async-std = []
 runtime-tokio = []
 
 # actual runtimes
-runtime-actix-native-tls = [
-    "sqlx-core/runtime-actix-native-tls",
-    "sqlx-macros/runtime-actix-native-tls",
-    "_rt-actix",
-]
+runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx-core/runtime-async-std-native-tls",
     "sqlx-macros/runtime-async-std-native-tls",
@@ -90,11 +88,7 @@ runtime-tokio-native-tls = [
     "_rt-tokio",
 ]
 
-runtime-actix-rustls = [
-    "sqlx-core/runtime-actix-rustls",
-    "sqlx-macros/runtime-actix-rustls",
-    "_rt-actix",
-]
+runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = [
     "sqlx-core/runtime-async-std-rustls",
     "sqlx-macros/runtime-async-std-rustls",
@@ -107,7 +101,6 @@ runtime-tokio-rustls = [
 ]
 
 # for conditional compilation
-_rt-actix = []
 _rt-async-std = []
 _rt-tokio = []
 
@@ -132,14 +125,14 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { version = "0.5.10", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.5.10", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.6.2", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.6.2", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
-time_ = { version = "0.2.27", package = "time" }
+time_ = { version = "0.3.2", package = "time" }
 futures = "0.3.19"
-env_logger = "0.8.4"
+env_logger = "0.9.0"
 async-std = { version = "1.10.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenv = "0.15.0"
@@ -153,6 +146,10 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
+tempdir = "0.3.7"
+# Needed to test SQLCipher
+libsqlite3-sys = { version = "0.24", features = ["bundled-sqlcipher"] }
+
 #
 # Any
 #
@@ -205,6 +202,21 @@ name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
+[[test]]
+name = "sqlcipher"
+path = "tests/sqlite/sqlcipher.rs"
+required-features = ["sqlite"]
+
+[[test]]
+name = "sqlite-test-attr"
+path = "tests/sqlite/test-attr.rs"
+required-features = ["sqlite", "macros", "migrate"]
+
+[[test]]
+name = "sqlite-migrate"
+path = "tests/sqlite/migrate.rs"
+required-features = ["sqlite", "macros", "migrate"]
+
 #
 # MySQL
 #
@@ -228,6 +240,16 @@ required-features = ["mysql"]
 name = "mysql-macros"
 path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
+
+[[test]]
+name = "mysql-test-attr"
+path = "tests/mysql/test-attr.rs"
+required-features = ["mysql", "macros", "migrate"]
+
+[[test]]
+name = "mysql-migrate"
+path = "tests/mysql/migrate.rs"
+required-features = ["mysql", "macros", "migrate"]
 
 #
 # PostgreSQL
@@ -257,6 +279,16 @@ required-features = ["postgres", "macros"]
 name = "postgres-derives"
 path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
+
+[[test]]
+name = "postgres-test-attr"
+path = "tests/postgres/test-attr.rs"
+required-features = ["postgres", "macros", "migrate"]
+
+[[test]]
+name = "postgres-migrate"
+path = "tests/postgres/migrate.rs"
+required-features = ["postgres", "macros", "migrate"]
 
 #
 # Microsoft SQL Server (MSSQL)

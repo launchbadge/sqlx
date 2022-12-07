@@ -8,6 +8,7 @@ use crate::postgres::message::{
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::PgType;
+use crate::postgres::types::Oid;
 use crate::postgres::{
     statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo,
     PgValueFormat, Postgres,
@@ -24,9 +25,9 @@ async fn prepare(
     sql: &str,
     parameters: &[PgTypeInfo],
     metadata: Option<Arc<PgStatementMetadata>>,
-) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
+) -> Result<(Oid, Arc<PgStatementMetadata>), Error> {
     let id = conn.next_statement_id;
-    conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
+    conn.next_statement_id.incr_one();
 
     // build a list of type OIDs to send to the database in the PARSE command
     // we have not yet started the query sequence, so we are *safe* to cleanly make
@@ -133,7 +134,6 @@ impl PgConnection {
                 message if message.format == MessageFormat::PortalSuspended => {
                     // there was an open portal
                     // this can happen if the last time a statement was used it was not fully executed
-                    // such as in [fetch_one]
                 }
 
                 message if message.format == MessageFormat::CloseComplete => {
@@ -169,7 +169,7 @@ impl PgConnection {
         // optional metadata that was provided by the user, this means they are reusing
         // a statement object
         metadata: Option<Arc<PgStatementMetadata>>,
-    ) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
+    ) -> Result<(Oid, Arc<PgStatementMetadata>), Error> {
         if let Some(statement) = self.cache_statement.get_mut(sql) {
             return Ok((*statement).clone());
         }
@@ -218,8 +218,7 @@ impl PgConnection {
             // patch holes created during encoding
             arguments.apply_patches(self, &metadata.parameters).await?;
 
-            // apply patches use fetch_optional thaht may produce `PortalSuspended` message,
-            // consume messages til `ReadyForQuery` before bind and execute
+            // consume messages till `ReadyForQuery` before bind and execute
             self.wait_until_ready().await?;
 
             // bind to attach the arguments to the statement and create a portal
@@ -238,6 +237,16 @@ impl PgConnection {
                 portal: None,
                 limit: limit.into(),
             });
+            // From https://www.postgresql.org/docs/current/protocol-flow.html:
+            //
+            // "An unnamed portal is destroyed at the end of the transaction, or as
+            // soon as the next Bind statement specifying the unnamed portal as
+            // destination is issued. (Note that a simple Query message also
+            // destroys the unnamed portal."
+
+            // we ask the database server to close the unnamed portal and free the associated resources
+            // earlier - after the execution of the current query.
+            self.stream.write(message::Close::Portal(None));
 
             // finally, [Sync] asks postgres to process the messages that we sent and respond with
             // a [ReadyForQuery] message when it's completely done. Theoretically, we could send
@@ -270,22 +279,36 @@ impl PgConnection {
                     MessageFormat::BindComplete
                     | MessageFormat::ParseComplete
                     | MessageFormat::ParameterDescription
-                    | MessageFormat::NoData => {
+                    | MessageFormat::NoData
+                    // unnamed portal has been closed
+                    | MessageFormat::CloseComplete
+                    => {
                         // harmless messages to ignore
                     }
 
+                    // "Execute phase is always terminated by the appearance of
+                    // exactly one of these messages: CommandComplete,
+                    // EmptyQueryResponse (if the portal was created from an
+                    // empty query string), ErrorResponse, or PortalSuspended"
                     MessageFormat::CommandComplete => {
                         // a SQL command completed normally
                         let cc: CommandComplete = message.decode()?;
 
+                        let rows_affected = cc.rows_affected();
+                        logger.increase_rows_affected(rows_affected);
                         r#yield!(Either::Left(PgQueryResult {
-                            rows_affected: cc.rows_affected(),
+                            rows_affected,
                         }));
                     }
 
                     MessageFormat::EmptyQueryResponse => {
                         // empty query string passed to an unprepared execute
                     }
+
+                    // Message::ErrorResponse is handled in self.stream.recv()
+
+                    // incomplete query execution has finished
+                    MessageFormat::PortalSuspended => {}
 
                     MessageFormat::RowDescription => {
                         // indicates that a *new* set of rows are about to be returned
@@ -301,7 +324,7 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
-                        logger.increment_rows();
+                        logger.increment_rows_returned();
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

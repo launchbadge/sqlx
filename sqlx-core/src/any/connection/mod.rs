@@ -33,7 +33,9 @@ mod executor;
 pub struct AnyConnection(pub(super) AnyConnectionKind);
 
 #[derive(Debug)]
-pub(crate) enum AnyConnectionKind {
+// Used internally in `sqlx-macros`
+#[doc(hidden)]
+pub enum AnyConnectionKind {
     #[cfg(feature = "postgres")]
     Postgres(postgres::PgConnection),
 
@@ -68,6 +70,12 @@ impl AnyConnectionKind {
 impl AnyConnection {
     pub fn kind(&self) -> AnyKind {
         self.0.kind()
+    }
+
+    // Used internally in `sqlx-macros`
+    #[doc(hidden)]
+    pub fn private_get_mut(&mut self) -> &mut AnyConnectionKind {
+        &mut self.0
     }
 }
 
@@ -128,6 +136,22 @@ impl Connection for AnyConnection {
         }
     }
 
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        match self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.close_hard(),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(conn) => conn.close_hard(),
+        }
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         delegate_to_mut!(self.ping())
     }
@@ -181,5 +205,33 @@ impl Connection for AnyConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         delegate_to!(self.should_flush())
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl From<postgres::PgConnection> for AnyConnection {
+    fn from(conn: postgres::PgConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Postgres(conn))
+    }
+}
+
+#[cfg(feature = "mssql")]
+impl From<mssql::MssqlConnection> for AnyConnection {
+    fn from(conn: mssql::MssqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Mssql(conn))
+    }
+}
+
+#[cfg(feature = "mysql")]
+impl From<mysql::MySqlConnection> for AnyConnection {
+    fn from(conn: mysql::MySqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::MySql(conn))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl From<sqlite::SqliteConnection> for AnyConnection {
+    fn from(conn: sqlite::SqliteConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Sqlite(conn))
     }
 }

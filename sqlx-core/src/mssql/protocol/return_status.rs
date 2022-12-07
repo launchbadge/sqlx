@@ -4,6 +4,7 @@ use crate::error::Error;
 
 #[derive(Debug)]
 pub(crate) struct ReturnStatus {
+    #[allow(dead_code)]
     value: i32,
 }
 

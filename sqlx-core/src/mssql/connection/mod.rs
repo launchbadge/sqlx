@@ -45,7 +45,7 @@ impl Connection for MssqlConnection {
             ready(self.stream.shutdown(Shutdown::Both).map_err(Into::into)).boxed()
         }
 
-        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        #[cfg(feature = "_rt-tokio")]
         {
             use sqlx_rt::AsyncWriteExt;
 
@@ -53,6 +53,10 @@ impl Connection for MssqlConnection {
             // https://docs.rs/tokio/1.0.1/tokio/io/trait.AsyncWriteExt.html#method.shutdown
             async move { self.stream.shutdown().await.map_err(Into::into) }.boxed()
         }
+    }
+
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        self.close()
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {

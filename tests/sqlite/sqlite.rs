@@ -194,12 +194,27 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
         .min_connections(2)
         .max_connections(2)
         .test_before_acquire(false)
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
 
     assert_eq!(rows.len(), 2);
+
+    Ok(())
+}
+
+#[cfg(sqlite_ipaddr)]
+#[sqlx_macros::test]
+async fn it_opens_with_extension() -> anyhow::Result<()> {
+    use std::str::FromStr;
+
+    let opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?.extension("ipaddr");
+
+    let mut conn = SqliteConnection::connect_with(&opts).await?;
+    conn.execute("SELECT ipmasklen('192.168.16.12/24');")
+        .await?;
+    conn.close().await?;
 
     Ok(())
 }
@@ -234,7 +249,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
     let err = res.unwrap_err().to_string();
 
     assert_eq!(
-        "error returned from database: near \"SEELCT\": syntax error",
+        "error returned from database: (code: 1) near \"SEELCT\": syntax error",
         err
     );
 
@@ -456,7 +471,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     assert_eq!(0, conn.cached_statements_size());
 
     // `Query` is not persistent if `.persistent(false)` is used
-    // explicity.
+    // explicitly.
     let mut conn = new::<Sqlite>().await?;
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")
@@ -661,4 +676,61 @@ async fn issue_1467() -> anyhow::Result<()> {
         tx.commit().await?;
     }
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn concurrent_read_and_write() {
+    let pool: SqlitePool = SqlitePoolOptions::new()
+        .min_connections(2)
+        .connect(":memory:")
+        .await
+        .unwrap();
+
+    sqlx::query("CREATE TABLE kv (k PRIMARY KEY, v)")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let n = 100;
+
+    let read = sqlx_rt::spawn({
+        let mut conn = pool.acquire().await.unwrap();
+
+        async move {
+            for i in 0u32..n {
+                sqlx::query("SELECT v FROM kv")
+                    .bind(i)
+                    .fetch_all(&mut conn)
+                    .await
+                    .unwrap();
+            }
+        }
+    });
+
+    let write = sqlx_rt::spawn({
+        let mut conn = pool.acquire().await.unwrap();
+
+        async move {
+            for i in 0u32..n {
+                sqlx::query("INSERT INTO kv (k, v) VALUES (?, ?)")
+                    .bind(i)
+                    .bind(i * i)
+                    .execute(&mut conn)
+                    .await
+                    .unwrap();
+            }
+        }
+    });
+
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    {
+        read.await.unwrap();
+        write.await.unwrap();
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    {
+        read.await;
+        write.await;
+    }
 }

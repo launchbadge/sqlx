@@ -5,7 +5,7 @@ use crate::sqlite::type_info::DataType;
 use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
 use crate::types::Type;
 use std::borrow::Cow;
-use uuid::{adapter::Hyphenated, Uuid};
+use uuid::{fmt::Hyphenated, Uuid};
 
 impl Type<Sqlite> for Uuid {
     fn type_info() -> SqliteTypeInfo {
@@ -53,6 +53,6 @@ impl Decode<'_, Sqlite> for Hyphenated {
         let uuid: Result<Uuid, BoxDynError> =
             Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);
 
-        Ok(uuid?.to_hyphenated())
+        Ok(uuid?.hyphenated())
     }
 }

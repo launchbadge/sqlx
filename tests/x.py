@@ -5,6 +5,8 @@ import os
 import sys
 import time
 import argparse
+import platform
+import urllib.request
 from glob import glob
 from docker import start_database
 
@@ -21,6 +23,36 @@ dir_workspace = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 # dir of tests
 dir_tests = os.path.join(dir_workspace, "tests")
+
+
+def maybe_fetch_sqlite_extension():
+    """
+    For supported platforms, if we're testing SQLite and the file isn't
+    already present, grab a simple extension for testing.
+
+    Returns the extension name if it was downloaded successfully or `None` if not.
+    """
+    BASE_URL = "https://github.com/nalgeon/sqlean/releases/download/0.15.2/"
+    if platform.system() == "Darwin":
+        if platform.machine() == "arm64":
+            download_url = BASE_URL + "/ipaddr.arm64.dylib"
+            filename = "ipaddr.dylib"
+        else:
+            download_url = BASE_URL + "/ipaddr.dylib"
+            filename = "ipaddr.dylib"
+    elif platform.system() == "Linux":
+        download_url = BASE_URL + "/ipaddr.so"
+        filename = "ipaddr.so"
+    else:
+        # Unsupported OS
+        return None
+
+    if not os.path.exists(filename):
+        content = urllib.request.urlopen(download_url).read()
+        with open(filename, "wb") as fd:
+            fd.write(content)
+
+    return filename.split(".")[0]
 
 
 def run(command, comment=None, env=None, service=None, tag=None, args=None, database_url_args=None):
@@ -40,6 +72,13 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None, data
         print(f"\x1b[2m # {comment}\x1b[0m")
 
     environ = env or {}
+
+    if service == "sqlite":
+        if maybe_fetch_sqlite_extension() is not None:
+            if environ.get("RUSTFLAGS"):
+                environ["RUSTFLAGS"] += " --cfg sqlite_ipaddr"
+            else:
+                environ["RUSTFLAGS"] = "--cfg sqlite_ipaddr"
 
     if service is not None:
         database_url = start_database(service, database="sqlite/sqlite.db" if service == "sqlite" else "sqlx", cwd=dir_tests)
@@ -130,7 +169,7 @@ for runtime in ["async-std", "tokio", "actix"]:
         # postgres
         #
 
-        for version in ["14", "13", "12", "11", "10", "9_6"]:
+        for version in ["14", "13", "12", "11", "10"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
                 comment=f"test postgres {version}",
@@ -139,7 +178,7 @@ for runtime in ["async-std", "tokio", "actix"]:
             )
 
         ## +ssl
-        for version in ["14", "13", "12", "11", "10", "9_6"]:
+        for version in ["14", "13", "12", "11", "10"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
                 comment=f"test postgres {version} ssl",
@@ -152,7 +191,7 @@ for runtime in ["async-std", "tokio", "actix"]:
         # mysql
         #
 
-        for version in ["8", "5_7", "5_6"]:
+        for version in ["8", "5_7"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
                 comment=f"test mysql {version}",

@@ -5,7 +5,6 @@ use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 use byteorder::{ByteOrder, LittleEndian};
-use std::convert::TryInto;
 
 fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
     MySqlTypeInfo {

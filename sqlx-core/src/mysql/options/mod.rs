@@ -9,7 +9,7 @@ pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
-/// A value of `MySqlConnectOptions` can be parsed from a connection URI,
+/// A value of `MySqlConnectOptions` can be parsed from a connection URL,
 /// as described by [MySQL](https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html).
 ///
 /// The generic format of the connection URL:
@@ -37,7 +37,7 @@ pub use ssl_mode::MySqlSslMode;
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
-/// // URI connection string
+/// // URL connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
 /// // Manually-constructed options
@@ -65,6 +65,7 @@ pub struct MySqlConnectOptions {
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) pipes_as_concat: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -89,6 +90,7 @@ impl MySqlConnectOptions {
             ssl_ca: None,
             statement_cache_capacity: 100,
             log_settings: Default::default(),
+            pipes_as_concat: true,
         }
     }
 
@@ -210,6 +212,16 @@ impl MySqlConnectOptions {
     /// the `charset`.
     pub fn collation(mut self, collation: &str) -> Self {
         self.collation = Some(collation.to_owned());
+        self
+    }
+
+    /// Sets the flag that enables or disables the `PIPES_AS_CONCAT` connection setting
+    ///
+    /// The default value is set to true, but some MySql databases such as PlanetScale
+    /// error out with this connection setting so it needs to be set false in such
+    /// cases.
+    pub fn pipes_as_concat(mut self, flag_val: bool) -> Self {
+        self.pipes_as_concat = flag_val;
         self
     }
 }

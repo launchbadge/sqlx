@@ -1,8 +1,10 @@
 use futures::TryStreamExt;
-use sqlx::mssql::Mssql;
+use sqlx::mssql::{Mssql, MssqlPoolOptions};
 use sqlx::{Column, Connection, Executor, MssqlConnection, Row, Statement, TypeInfo};
 use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::time::Duration;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -41,7 +43,7 @@ async fn it_can_select_expression_by_name() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_fail_to_connect() -> anyhow::Result<()> {
-    let mut url = dotenv::var("DATABASE_URL")?;
+    let mut url = dotenvy::var("DATABASE_URL")?;
     url = url.replace("Password", "NotPassword");
 
     let res = MssqlConnection::connect(&url).await;
@@ -322,6 +324,138 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let tweet_text: String = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
+
+    Ok(())
+}
+
+// MSSQL-specific copy of the test case in `tests/any/pool.rs`
+// because MSSQL has its own bespoke syntax for temporary tables.
+#[sqlx_macros::test]
+async fn test_pool_callbacks() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    struct ConnStats {
+        id: i32,
+        before_acquire_calls: i32,
+        after_release_calls: i32,
+    }
+
+    sqlx_test::setup_if_needed();
+
+    let current_id = AtomicI32::new(0);
+
+    let pool = MssqlPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(5))
+        .after_connect(move |conn, meta| {
+            assert_eq!(meta.age, Duration::ZERO);
+            assert_eq!(meta.idle_for, Duration::ZERO);
+
+            let id = current_id.fetch_add(1, Ordering::AcqRel);
+
+            Box::pin(async move {
+                let statement = format!(
+                    // language=MSSQL
+                    r#"
+                    CREATE TABLE #conn_stats(
+                        id int primary key,
+                        before_acquire_calls int default 0,
+                        after_release_calls int default 0 
+                    );
+                    INSERT INTO #conn_stats(id) VALUES ({});
+                    "#,
+                    // Until we have generalized bind parameters
+                    id
+                );
+
+                conn.execute(&statement[..]).await?;
+                Ok(())
+            })
+        })
+        .before_acquire(|conn, meta| {
+            // `age` and `idle_for` should both be nonzero
+            assert_ne!(meta.age, Duration::ZERO);
+            assert_ne!(meta.idle_for, Duration::ZERO);
+
+            Box::pin(async move {
+                // MSSQL doesn't support UPDATE ... RETURNING either
+                sqlx::query(
+                    r#"
+                        UPDATE #conn_stats 
+                        SET before_acquire_calls = before_acquire_calls + 1
+                    "#,
+                )
+                .execute(&mut *conn)
+                .await?;
+
+                let stats: ConnStats = sqlx::query_as("SELECT * FROM #conn_stats")
+                    .fetch_one(conn)
+                    .await?;
+
+                // For even IDs, cap by the number of before_acquire calls.
+                // Ignore the check for odd IDs.
+                Ok((stats.id & 1) == 1 || stats.before_acquire_calls < 3)
+            })
+        })
+        .after_release(|conn, meta| {
+            // `age` should be nonzero but `idle_for` should be zero.
+            assert_ne!(meta.age, Duration::ZERO);
+            assert_eq!(meta.idle_for, Duration::ZERO);
+
+            Box::pin(async move {
+                sqlx::query(
+                    r#"
+                        UPDATE #conn_stats 
+                        SET after_release_calls = after_release_calls + 1
+                    "#,
+                )
+                .execute(&mut *conn)
+                .await?;
+
+                let stats: ConnStats = sqlx::query_as("SELECT * FROM #conn_stats")
+                    .fetch_one(conn)
+                    .await?;
+
+                // For odd IDs, cap by the number of before_release calls.
+                // Ignore the check for even IDs.
+                Ok((stats.id & 1) == 0 || stats.after_release_calls < 4)
+            })
+        })
+        // Don't establish a connection yet.
+        .connect_lazy(&std::env::var("DATABASE_URL")?)?;
+
+    // Expected pattern of (id, before_acquire_calls, after_release_calls)
+    let pattern = [
+        // The connection pool starts empty.
+        (0, 0, 0),
+        (0, 1, 1),
+        (0, 2, 2),
+        (1, 0, 0),
+        (1, 1, 1),
+        (1, 2, 2),
+        // We should expect one more `acquire` because the ID is odd
+        (1, 3, 3),
+        (2, 0, 0),
+        (2, 1, 1),
+        (2, 2, 2),
+        (3, 0, 0),
+    ];
+
+    for (id, before_acquire_calls, after_release_calls) in pattern {
+        let conn_stats: ConnStats = sqlx::query_as("SELECT * FROM #conn_stats")
+            .fetch_one(&pool)
+            .await?;
+
+        assert_eq!(
+            conn_stats,
+            ConnStats {
+                id,
+                before_acquire_calls,
+                after_release_calls
+            }
+        );
+    }
+
+    pool.close().await;
 
     Ok(())
 }

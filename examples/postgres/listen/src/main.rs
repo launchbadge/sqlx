@@ -1,4 +1,3 @@
-use async_std::stream;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use sqlx::postgres::PgListener;
@@ -6,7 +5,7 @@ use sqlx::{Executor, PgPool};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Building PG pool.");
     let conn_str =

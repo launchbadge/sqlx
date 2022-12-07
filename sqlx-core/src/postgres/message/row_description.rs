@@ -2,6 +2,7 @@ use bytes::{Buf, Bytes};
 
 use crate::error::Error;
 use crate::io::{BufExt, Decode};
+use crate::postgres::types::Oid;
 
 #[derive(Debug)]
 pub struct RowDescription {
@@ -22,7 +23,7 @@ pub struct Field {
     pub relation_attribute_no: Option<i16>,
 
     /// The object ID of the field's data type.
-    pub data_type_id: u32,
+    pub data_type_id: Oid,
 
     /// The data type size (see pg_type.typlen). Note that negative values denote
     /// variable-width types.
@@ -45,7 +46,7 @@ impl Decode<'_> for RowDescription {
             let name = buf.get_str_nul()?.to_owned();
             let relation_id = buf.get_i32();
             let relation_attribute_no = buf.get_i16();
-            let data_type_id = buf.get_u32();
+            let data_type_id = Oid(buf.get_u32());
             let data_type_size = buf.get_i16();
             let type_modifier = buf.get_i32();
             let format = buf.get_i16();

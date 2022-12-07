@@ -39,6 +39,35 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_does_not_stop_stream_after_decoding_error() -> anyhow::Result<()> {
+    use futures::stream::StreamExt;
+    // see https://github.com/launchbadge/sqlx/issues/1884
+    let pool = sqlx_test::pool::<Any>().await?;
+
+    #[derive(Debug, PartialEq)]
+    struct MyType;
+    impl<'a> sqlx::FromRow<'a, AnyRow> for MyType {
+        fn from_row(row: &'a AnyRow) -> sqlx::Result<Self> {
+            let n = row.try_get::<i32, _>(0)?;
+            if n == 1 {
+                Err(sqlx::Error::RowNotFound)
+            } else {
+                Ok(MyType)
+            }
+        }
+    }
+
+    let rows = sqlx::query_as("SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2")
+        .fetch(&pool)
+        .map(|r| r.ok())
+        .collect::<Vec<_>>()
+        .await;
+
+    assert_eq!(rows, vec![Some(MyType), None, Some(MyType)]);
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_gets_by_name() -> anyhow::Result<()> {
     let mut conn = new::<Any>().await?;
 

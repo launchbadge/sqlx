@@ -13,15 +13,15 @@ static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 impl FromStr for SqliteConnectOptions {
     type Err = Error;
 
-    fn from_str(mut uri: &str) -> Result<Self, Self::Err> {
+    fn from_str(mut url: &str) -> Result<Self, Self::Err> {
         let mut options = Self::new();
 
-        // remove scheme from the URI
-        uri = uri
+        // remove scheme from the URL
+        url = url
             .trim_start_matches("sqlite://")
             .trim_start_matches("sqlite:");
 
-        let mut database_and_params = uri.splitn(2, '?');
+        let mut database_and_params = url.splitn(2, '?');
 
         let database = database_and_params.next().unwrap_or_default();
 
@@ -108,10 +108,12 @@ impl FromStr for SqliteConnectOptions {
                         }
                     },
 
+                    "vfs" => options.vfs = Some(Cow::Owned(value.into_owned())),
+
                     _ => {
                         return Err(Error::Configuration(
                             format!(
-                                "unknown query parameter `{}` while parsing connection URI",
+                                "unknown query parameter `{}` while parsing connection URL",
                                 key
                             )
                             .into(),

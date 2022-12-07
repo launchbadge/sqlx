@@ -10,6 +10,20 @@ use std::ops::Bound;
 #[sqlx(transparent)]
 struct Transparent(i32);
 
+#[sqlx_macros::test]
+async fn test_transparent_slice_to_array() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let values = vec![Transparent(1), Transparent(2), Transparent(3)];
+
+    sqlx::query("SELECT 2 = ANY($1);")
+        .bind(&values)
+        .fetch_one(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
 // "Weak" enums map to an integer type indicated by #[repr]
 #[derive(PartialEq, Copy, Clone, Debug, sqlx::Type)]
 #[repr(i32)]
@@ -556,6 +570,47 @@ async fn test_default() -> anyhow::Result<()> {
 
     assert_eq!(has_default.not_default, 1);
     assert_eq!(has_default.default, None);
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_flatten() -> anyhow::Result<()> {
+    #[derive(Debug, Default, sqlx::FromRow)]
+    struct AccountDefault {
+        default: Option<i32>,
+    }
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct UserInfo {
+        name: String,
+        surname: String,
+    }
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct AccountKeyword {
+        id: i32,
+        #[sqlx(flatten)]
+        info: UserInfo,
+        #[sqlx(default)]
+        #[sqlx(flatten)]
+        default: AccountDefault,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let account: AccountKeyword = sqlx::query_as(
+        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts("id", "name", "surname")"#,
+    )
+    .fetch_one(&mut conn)
+    .await?;
+    println!("{:?}", account);
+
+    assert_eq!(1, account.id);
+    assert_eq!("foo", account.info.name);
+    assert_eq!("bar", account.info.surname);
+    assert_eq!(None, account.default.default);
 
     Ok(())
 }

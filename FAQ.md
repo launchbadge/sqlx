@@ -1,6 +1,23 @@
 SQLx Frequently Asked Questions
 ===============================
 
+### What database versions does SQLx support?
+
+This is a difficult question to answer because it depends on which features of the databases are used and when those features were introduced. SQL databases tend to be very strongly backwards-compatible so it's likely that SQLx will work with some very old versions. 
+
+TLS support is one of the features that ages most quickly with databases, since old SSL/TLS versions are deprecated over time as they become insecure due to weaknesses being discovered; this is especially important to consider when using RusTLS, as it only supports the latest TLS version for security reasons (see the question below mentioning RusTLS for details).
+
+As a rule, however, we only officially support the range of versions for each database that are still actively maintained, and will drop support for versions as they reach their end-of-life.
+
+* Postgres has a page to track these versions and give their end-of-life dates: https://www.postgresql.org/support/versioning/
+* MariaDB has a similar list here (though it doesn't show the dates at which old versions were EOL'd): https://mariadb.com/kb/en/mariadb-server-release-dates/
+* MySQL's equivalent page is more concerned with what platforms are supported by the newest and oldest maintained versions: https://www.mysql.com/support/supportedplatforms/database.html
+    * However, its Wikipedia page helpfully tracks its versions and their announced EOL dates: https://en.wikipedia.org/wiki/MySQL#Release_history
+* SQLite is easy as only SQLite 3 is supported and the current version depends on the version of the `libsqlite3-sys` crate being used.
+
+For each database and where applicable, we test against the latest and oldest versions that we intend to support. You can see the current versions being tested against by looking at our CI config: https://github.com/launchbadge/sqlx/blob/main/.github/workflows/sqlx.yml#L168
+
+-------------------------------------------------------------------
 ### What versions of Rust does SQLx support? What is SQLx's MSRV\*?
 
 Officially, we will only ever support the latest stable version of Rust. 
@@ -26,10 +43,37 @@ and we don't factor MSRV bumps into our semantic versioning.
 [`rust-version`]: https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-rust-version-field
 
 ----------------------------------------------------------------
+### I'm getting `HandshakeFailure` or `CorruptMessage` when trying to connect to a server over TLS using RusTLS. What gives?
+
+To encourage good security practices and limit cruft, RusTLS does not support older versions of TLS or cryptographic algorithms 
+that are considered insecure. `HandshakeFailure` is a normal error returned when RusTLS and the server cannot agree on parameters for
+a secure connection. 
+
+Check the supported TLS versions for the database server version you're running. If it does not support TLS 1.2 or greater, then
+you likely will not be able to connect to it with RusTLS.
+
+The ideal solution, of course, is to upgrade your database server to a version that supports at least TLS 1.2.  
+
+* MySQL: [has supported TLS 1.2 since 5.6.46](https://dev.mysql.com/doc/refman/5.6/en/encrypted-connection-protocols-ciphers.html#encrypted-connection-supported-protocols). 
+* PostgreSQL: depends on the system OpenSSL version.
+* MSSQL: TLS is not supported yet.
+
+If you're running a third-party database that talks one of these protocols, consult its documentation for supported TLS versions.
+
+If you're stuck on an outdated version, which is unfortunate but tends to happen for one reason or another, try switching to the corresponding
+`runtime-<tokio, async-std, actix>-native-tls` feature for SQLx. That will use the system APIs for TLS which tend to have much wider support.
+See [the `native-tls` crate docs](https://docs.rs/native-tls/latest/native_tls/) for details.
+
+The `CorruptMessage` error occurs in similar situations and many users have had success with switching to `-native-tls` to get around it.
+However, if you do encounter this error, please try to capture a Wireshark or `tcpdump` trace of the TLS handshake as the RusTLS folks are interested
+in covering cases that trigger this (as it might indicate a protocol handling bug or the server is doing something non-standard): 
+https://github.com/rustls/rustls/issues/893
+
+----------------------------------------------------------------
 ### How can I do a `SELECT ... WHERE foo IN (...)` query?
 
 
-In 0.6 SQLx will support binding arrays as a comma-separated list for every database,
+In the future SQLx will support binding arrays as a comma-separated list for every database,
 but unfortunately there's no general solution for that currently in SQLx itself.
 You would need to manually generate the query, at which point it
 cannot be used with the macros.
@@ -69,7 +113,7 @@ See also: [Postgres Manual, Section 9.24: Row and Array Comparisons](https://www
 -----
 ### How can I bind an array to a `VALUES()` clause? How can I do bulk inserts?
 
-Like the above, SQLx currently does not support this in the general case right now but will in 0.6.
+Like the above, SQLx currently does not support this in the general case right now but will in the future.
 
 However, **Postgres** also has a feature to save the day here! You can pass an array to `UNNEST()` and
 it will treat it as a temporary table:
@@ -91,7 +135,7 @@ sqlx::query!(
 
 ```rust
 // this solution currently requires each column to be its own vector
-// in 0.6 we're aiming to allow binding iterators directly as arrays
+// in the future we're aiming to allow binding iterators directly as arrays
 // so you can take a vector of structs and bind iterators mapping to each field
 let foo_texts: Vec<String> = vec![/* ... */];
 let foo_bools: Vec<bool> = vec![/* ... */];
@@ -100,7 +144,7 @@ let foo_ints: Vec<i64> = vec![/* ... */];
 sqlx::query!(
     "
         INSERT INTO foo(text_column, bool_column, int_column) 
-        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[]])
+        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[])
     ",
     &foo_texts[..],
     &foo_bools[..],
@@ -110,7 +154,7 @@ sqlx::query!(
     .await?;
 ```
 
-Again, even with comma-expanded lists in 0.6 this will likely still be the most performant way to run bulk inserts
+Again, even with comma-expanded lists in the future this will likely still be the most performant way to run bulk inserts
 with Postgres--at least until we get around to implementing an interface for `COPY FROM STDIN`, though
 this solution with `UNNEST()` will still be more flexible as you can use it in queries that are more complex
 than just inserting into a table.

@@ -1,14 +1,15 @@
 use crate::io::Encode;
 use crate::postgres::io::PgBufMutExt;
+use crate::postgres::types::Oid;
 use crate::postgres::PgValueFormat;
 
 #[derive(Debug)]
 pub struct Bind<'a> {
     /// The ID of the destination portal (`None` selects the unnamed portal).
-    pub portal: Option<u32>,
+    pub portal: Option<Oid>,
 
     /// The id of the source prepared statement.
-    pub statement: u32,
+    pub statement: Oid,
 
     /// The parameter format codes. Each must presently be zero (text) or one (binary).
     ///

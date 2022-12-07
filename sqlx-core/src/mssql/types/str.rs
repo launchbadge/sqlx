@@ -83,6 +83,16 @@ impl Decode<'_, Mssql> for String {
     }
 }
 
+impl Type<Mssql> for Cow<'_, str> {
+    fn type_info() -> MssqlTypeInfo {
+        <&str as Type<Mssql>>::type_info()
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        <&str as Type<Mssql>>::compatible(ty)
+    }
+}
+
 impl Encode<'_, Mssql> for Cow<'_, str> {
     fn produces(&self) -> Option<MssqlTypeInfo> {
         match self {

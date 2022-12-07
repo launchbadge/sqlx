@@ -4,6 +4,7 @@ use crate::error::Error;
 
 #[derive(Debug)]
 pub(crate) struct Order {
+    #[allow(dead_code)]
     columns: Bytes,
 }
 

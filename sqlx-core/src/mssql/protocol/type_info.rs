@@ -498,14 +498,14 @@ impl TypeInfo {
                 4 => "INT",
                 8 => "BIGINT",
 
-                _ => unreachable!("invalid size {} for int"),
+                n => unreachable!("invalid size {} for int", n),
             },
 
             DataType::FloatN => match self.size {
                 4 => "REAL",
                 8 => "FLOAT",
 
-                _ => unreachable!("invalid size {} for float"),
+                n => unreachable!("invalid size {} for float", n),
             },
 
             DataType::VarChar => "VARCHAR",
@@ -536,14 +536,14 @@ impl TypeInfo {
                 4 => "int",
                 8 => "bigint",
 
-                _ => unreachable!("invalid size {} for int"),
+                n => unreachable!("invalid size {} for int", n),
             }),
 
             DataType::FloatN => s.push_str(match self.size {
                 4 => "real",
                 8 => "float",
 
-                _ => unreachable!("invalid size {} for float"),
+                n => unreachable!("invalid size {} for float", n),
             }),
 
             DataType::VarChar
@@ -659,4 +659,15 @@ impl Collation {
         buf.extend(&locale_sort_version.to_le_bytes());
         buf.push(self.sort);
     }
+}
+
+#[test]
+fn test_get() {
+    #[rustfmt::skip]
+    let mut buf = Bytes::from_static(&[
+        0x26, 4, 4, 1, 0, 0, 0, 0xfe, 0, 0, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ]);
+
+    let type_info = TypeInfo::get(&mut buf).unwrap();
+    assert_eq!(type_info, TypeInfo::new(DataType::IntN, 4));
 }

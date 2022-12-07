@@ -12,6 +12,7 @@ const COLLATE_UTF8_UNICODE_CI: u16 = 192;
 const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
 const COLLATE_UTF8MB4_BIN: u16 = 46;
 const COLLATE_UTF8MB4_GENERAL_CI: u16 = 45;
+const COLLATE_UTF8MB4_0900_AI_CI: u16 = 255;
 
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
@@ -42,6 +43,7 @@ impl Type<MySql> for str {
                 | COLLATE_UTF8_GENERAL_CI
                 | COLLATE_UTF8MB4_BIN
                 | COLLATE_UTF8MB4_GENERAL_CI
+                | COLLATE_UTF8MB4_0900_AI_CI
         )
     }
 }
@@ -79,6 +81,16 @@ impl Encode<'_, MySql> for String {
 impl Decode<'_, MySql> for String {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
+    }
+}
+
+impl Type<MySql> for Cow<'_, str> {
+    fn type_info() -> MySqlTypeInfo {
+        <&str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&str as Type<MySql>>::compatible(ty)
     }
 }
 

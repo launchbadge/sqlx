@@ -92,6 +92,89 @@ use crate::row::Row;
 /// will set the value of the field `location` to the default value of `Option<String>`,
 /// which is `None`.
 ///
+/// ### `flatten`
+///
+/// If you want to handle a field that implements [`FromRow`],
+/// you can use the `flatten` attribute to specify that you want
+/// it to use [`FromRow`] for parsing rather than the usual method.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct Address {
+///     country: String,
+///     city: String,
+///     road: String,
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(flatten)]
+///     address: Address,
+/// }
+/// ```
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name, country, city, road FROM users;
+/// ```
+///
+/// This field is compatible with the `default` attribute.
+///
+/// ## Manual implementation
+///
+/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
+/// have a struct with a field that needs manual decoding:
+///
+///
+/// ```rust,ignore
+/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
+/// struct MyCustomType {
+///     custom: String,
+/// }
+///
+/// struct Foo {
+///     bar: MyCustomType,
+/// }
+///
+/// impl FromRow<'_, SqliteRow> for Foo {
+///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+///         Ok(Self {
+///             bar: MyCustomType {
+///                 custom: row.try_get("custom")?
+///             }
+///         })
+///     }
+/// }
+/// ```
+///
+/// #### `try_from`
+///
+/// When your struct contains a field whose type is not matched with the database type,
+/// if the field type has an implementation [`TryFrom`] for the database type,
+/// you can use the `try_from` attribute to convert the database type to the field type.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(try_from = "i64")]
+///     bigIntInMySql: u64
+/// }
+/// ```
+///
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name, bigIntInMySql FROM users;
+/// ```
+///
+/// In MySql, `BigInt` type matches `i64`, but you can convert it to `u64` by `try_from`.
+///
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }

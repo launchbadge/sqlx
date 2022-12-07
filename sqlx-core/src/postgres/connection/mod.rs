@@ -3,18 +3,18 @@ use std::sync::Arc;
 
 use crate::HashMap;
 use futures_core::future::BoxFuture;
-use futures_util::{FutureExt, TryFutureExt};
+use futures_util::FutureExt;
 
 use crate::common::StatementCache;
 use crate::connection::{Connection, LogSettings};
 use crate::error::Error;
-use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::message::{
-    Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Message, MessageFormat, Query, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
+use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
 
@@ -46,14 +46,14 @@ pub struct PgConnection {
 
     // sequence of statement IDs for use in preparing statements
     // in PostgreSQL, the statement is prepared to a user-supplied identifier
-    next_statement_id: u32,
+    next_statement_id: Oid,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache<(u32, Arc<PgStatementMetadata>)>,
+    cache_statement: StatementCache<(Oid, Arc<PgStatementMetadata>)>,
 
     // cache user-defined types by id <-> info
-    cache_type_info: HashMap<u32, PgTypeInfo>,
-    cache_type_oid: HashMap<UStr, u32>,
+    cache_type_info: HashMap<Oid, PgTypeInfo>,
+    cache_type_oid: HashMap<UStr, Oid>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,
@@ -66,6 +66,11 @@ pub struct PgConnection {
 }
 
 impl PgConnection {
+    /// the version number of the server in `libpq` format
+    pub fn server_version_num(&self) -> Option<u32> {
+        self.stream.server_version_num
+    }
+
     // will return when the connection is ready for another query
     pub(in crate::postgres) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
@@ -101,6 +106,14 @@ impl PgConnection {
 
         Ok(())
     }
+
+    /// Queue a simple query (not prepared) to execute the next time this connection is used.
+    ///
+    /// Used for rolling back transactions and releasing advisory locks.
+    pub(crate) fn queue_simple_query(&mut self, query: &str) {
+        self.pending_ready_for_query_count += 1;
+        self.stream.write(Query(query));
+    }
 }
 
 impl Debug for PgConnection {
@@ -129,9 +142,24 @@ impl Connection for PgConnection {
         })
     }
 
+    fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            self.stream.shutdown().await?;
+
+            Ok(())
+        })
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        // Users were complaining about this showing up in query statistics on the server.
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
-        self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+        // self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+
+        Box::pin(async move {
+            // The simplest call-and-response that's possible.
+            self.write_sync();
+            self.wait_until_ready().await
+        })
     }
 
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
@@ -176,22 +204,5 @@ impl Connection for PgConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         !self.stream.wbuf.is_empty()
-    }
-}
-
-pub trait PgConnectionInfo {
-    /// the version number of the server in `libpq` format
-    fn server_version_num(&self) -> Option<u32>;
-}
-
-impl PgConnectionInfo for PgConnection {
-    fn server_version_num(&self) -> Option<u32> {
-        self.stream.server_version_num
-    }
-}
-
-impl PgConnectionInfo for crate::pool::PoolConnection<Postgres> {
-    fn server_version_num(&self) -> Option<u32> {
-        self.stream.server_version_num
     }
 }

@@ -5,6 +5,13 @@ test_type!(null<Option<i32>>(Mssql,
     "CAST(NULL as INT)" == None::<i32>
 ));
 
+test_type!(u8(
+    Mssql,
+    "CAST(5 AS TINYINT)" == 5_u8,
+    "CAST(0 AS TINYINT)" == 0_u8,
+    "CAST(255 AS TINYINT)" == 255_u8,
+));
+
 test_type!(i8(
     Mssql,
     "CAST(5 AS TINYINT)" == 5_i8,

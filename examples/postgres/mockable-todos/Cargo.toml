@@ -1,16 +1,15 @@
 [package]
 name = "sqlx-example-postgres-mockable-todos"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 workspace = "../../../"
 
 [dependencies]
 anyhow = "1.0"
-async-std = { version = "1.4.0", features = [ "attributes" ] }
 futures = "0.3"
-paw = "1.0"
-sqlx = { path = "../../../", features = ["postgres", "offline", "runtime-async-std-native-tls"] }
-structopt = { version = "0.3", features = ["paw"] }
-dotenv = "0.15.0"
+sqlx = { path = "../../../", features = ["postgres", "offline", "runtime-tokio-native-tls"] }
+structopt = "0.3"
+tokio = { version = "1.20.0", features = ["macros"]}
+dotenvy = "0.15.0"
 async-trait = "0.1.41"
-mockall = "0.8.3"
+mockall = "0.11"

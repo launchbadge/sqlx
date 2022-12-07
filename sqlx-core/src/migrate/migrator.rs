@@ -9,6 +9,7 @@ use std::slice;
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
+    pub locking: bool,
 }
 
 fn validate_applied_migrations(
@@ -56,12 +57,26 @@ impl Migrator {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ignore_missing: false,
+            locking: true,
         })
     }
 
-    /// Specify should ignore applied migrations that missing in the resolved migrations.
+    /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
+    }
+
+    /// Specify whether or not to lock database during migration. Defaults to `true`.
+    ///
+    /// ### Warning
+    /// Disabling locking can lead to errors or data loss if multiple clients attempt to apply migrations simultaneously
+    /// without some sort of mutual exclusion.
+    ///
+    /// This should only be used if the database does not support locking, e.g. CockroachDB which talks the Postgres
+    /// protocol but does not support advisory locks used by SQLx's migrations support for Postgres.
+    pub fn set_locking(&mut self, locking: bool) -> &Self {
+        self.locking = locking;
         self
     }
 
@@ -93,9 +108,19 @@ impl Migrator {
         <A::Connection as Deref>::Target: Migrate,
     {
         let mut conn = migrator.acquire().await?;
+        self.run_direct(&mut *conn).await
+    }
 
+    // Getting around the annoying "implementation of `Acquire` is not general enough" error
+    #[doc(hidden)]
+    pub async fn run_direct<C>(&self, conn: &mut C) -> Result<(), MigrateError>
+    where
+        C: Migrate,
+    {
         // lock the database for exclusive access by the migrator
-        conn.lock().await?;
+        if self.locking {
+            conn.lock().await?;
+        }
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
@@ -133,7 +158,73 @@ impl Migrator {
 
         // unlock the migrator to allow other migrators to run
         // but do nothing as we already migrated
-        conn.unlock().await?;
+        if self.locking {
+            conn.unlock().await?;
+        }
+
+        Ok(())
+    }
+
+    /// Run down migrations against the database until a specific version.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use sqlx_core::migrate::MigrateError;
+    /// # #[cfg(feature = "sqlite")]
+    /// # fn main() -> Result<(), MigrateError> {
+    /// #     sqlx_rt::block_on(async move {
+    /// # use sqlx_core::migrate::Migrator;
+    /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// m.undo(&pool, 4).await
+    /// #     })
+    /// # }
+    /// ```
+    pub async fn undo<'a, A>(&self, migrator: A, target: i64) -> Result<(), MigrateError>
+    where
+        A: Acquire<'a>,
+        <A::Connection as Deref>::Target: Migrate,
+    {
+        let mut conn = migrator.acquire().await?;
+
+        // lock the database for exclusive access by the migrator
+        if self.locking {
+            conn.lock().await?;
+        }
+
+        // creates [_migrations] table only if needed
+        // eventually this will likely migrate previous versions of the table
+        conn.ensure_migrations_table().await?;
+
+        let version = conn.dirty_version().await?;
+        if let Some(version) = version {
+            return Err(MigrateError::Dirty(version));
+        }
+
+        let applied_migrations = conn.list_applied_migrations().await?;
+        validate_applied_migrations(&applied_migrations, self)?;
+
+        let applied_migrations: HashMap<_, _> = applied_migrations
+            .into_iter()
+            .map(|m| (m.version, m))
+            .collect();
+
+        for migration in self
+            .iter()
+            .rev()
+            .filter(|m| m.migration_type.is_down_migration())
+            .filter(|m| applied_migrations.contains_key(&m.version))
+            .filter(|m| m.version > target)
+        {
+            conn.revert(migration).await?;
+        }
+
+        // unlock the migrator to allow other migrators to run
+        // but do nothing as we already migrated
+        if self.locking {
+            conn.unlock().await?;
+        }
 
         Ok(())
     }

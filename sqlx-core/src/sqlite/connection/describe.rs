@@ -8,7 +8,7 @@ use crate::sqlite::{Sqlite, SqliteColumn};
 use either::Either;
 use std::convert::identity;
 
-pub(super) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe<Sqlite>, Error> {
+pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe<Sqlite>, Error> {
     // describing a statement from SQLite can be involved
     // each SQLx statement is comprised of multiple SQL statements
 

@@ -12,11 +12,15 @@ use crate::mysql::protocol::Capabilities;
 
 #[derive(Debug)]
 pub(crate) struct Handshake {
+    #[allow(unused)]
     pub(crate) protocol_version: u8,
     pub(crate) server_version: String,
+    #[allow(unused)]
     pub(crate) connection_id: u32,
     pub(crate) server_capabilities: Capabilities,
+    #[allow(unused)]
     pub(crate) server_default_collation: u8,
+    #[allow(unused)]
     pub(crate) status: Status,
     pub(crate) auth_plugin: Option<AuthPlugin>,
     pub(crate) auth_plugin_data: Chain<Bytes, Bytes>,

@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   format:
@@ -43,13 +43,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -82,13 +78,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-test
 
       - uses: actions-rs/cargo@v1
         with:
@@ -127,13 +119,9 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cli-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cli
 
       - uses: actions-rs/cargo@v1
         with:
@@ -156,19 +144,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -180,13 +166,15 @@ jobs:
             --test-threads=1
         env:
           DATABASE_URL: sqlite://tests/sqlite/sqlite.db
+          RUSTFLAGS: --cfg sqlite_ipaddr
+          LD_LIBRARY_PATH: /tmp/sqlite3-lib
 
   postgres:
     name: Postgres
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        postgres: [14, 9_6]
+        postgres: [14, 10]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
@@ -199,15 +187,15 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
+        env:
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
         with:
           command: build
           args: >
@@ -225,6 +213,9 @@ jobs:
             --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -234,13 +225,16 @@ jobs:
             --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
 
   mysql:
     name: MySQL
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mysql: [8, 5_6]
+        mysql: [8, 5_7]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
@@ -253,13 +247,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -277,6 +267,17 @@ jobs:
             --no-default-features
             --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx?ssl-mode=disabled
+
+      # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
+      - uses: actions-rs/cargo@v1
+        if: ${{ !(matrix.mysql == '5_7' && matrix.tls == 'rustls') }}
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
   mariadb:
@@ -284,7 +285,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [10_6, 10_2]
+        mariadb: [10_6, 10_3]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
@@ -297,14 +298,9 @@ jobs:
           toolchain: stable
           override: true
 
-      # same Cargo features as MySQL so the same cache can be used
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -342,12 +338,8 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
           key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1

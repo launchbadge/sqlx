@@ -35,11 +35,22 @@ impl SqliteError {
             message: message.to_owned(),
         }
     }
+
+    /// For errors during extension load, the error message is supplied via a separate pointer
+    pub(crate) fn extension(handle: *mut sqlite3, error_msg: &CStr) -> Self {
+        let mut err = Self::new(handle);
+        err.message = unsafe { from_utf8_unchecked(error_msg.to_bytes()).to_owned() };
+        err
+    }
 }
 
 impl Display for SqliteError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.pad(&self.message)
+        // We include the code as some produce ambiguous messages:
+        // SQLITE_BUSY: "database is locked"
+        // SQLITE_LOCKED: "database table is locked"
+        // Sadly there's no function to get the string label back from an error code.
+        write!(f, "(code: {}) {}", self.code, self.message)
     }
 }
 

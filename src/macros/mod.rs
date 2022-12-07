@@ -8,7 +8,7 @@
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
-/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// # let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
 /// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
@@ -43,9 +43,9 @@
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
 /// server with the schema that the query string will be checked against. All variants of `query!()`
-/// use [dotenv] so this can be in a `.env` file instead.
+/// use [dotenv]<sup>1</sup> so this can be in a `.env` file instead.
 ///
-///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
 ///
 /// * The query must be a string literal, or concatenation of string literals using `+` (useful
@@ -59,7 +59,11 @@
 ///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
 ///       determine the database type.
 ///
+/// <sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
+/// so we now use the [`dotenvy`] crate instead. The file format is the same.
+///
 /// [dotenv]: https://crates.io/crates/dotenv
+/// [dotenvy]: https://crates.io/crates/dotenvy
 /// ## Query Arguments
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
@@ -69,7 +73,7 @@
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
-/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// # let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
 /// # let mut conn = sqlx::mysql::MySqlConnection::connect(db_url).await?;
@@ -107,7 +111,7 @@
 ///
 /// In Postgres and MySQL you may also use `IS [NOT] DISTINCT FROM` to compare with a possibly
 /// `NULL` value. In MySQL `IS NOT DISTINCT FROM` can be shortened to `<=>`.
-/// In SQLite you can us `IS` or `IS NOT`. Note that operator precedence may be different.
+/// In SQLite you can use `IS` or `IS NOT`. Note that operator precedence may be different.
 ///
 /// ## Nullability: Output Columns
 /// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
@@ -147,10 +151,9 @@
 /// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
 /// ```
 ///
-/// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
-/// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
-/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
-/// forbidden for now as they produce rather nasty type errors.
+/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression,
+/// and then that syntax is stripped from the expression so as to not trigger type errors
+/// (or an unstable syntax feature in the case of the latter, which is called type ascription).
 ///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
@@ -355,7 +358,7 @@ macro_rules! query_unchecked (
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
-/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// # let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
 /// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
@@ -400,10 +403,13 @@ macro_rules! query_file_unchecked (
 ///
 /// This lets you return the struct from a function or add your own trait implementations.
 ///
-/// **No trait implementations are required**; the macro maps rows using a struct literal
-/// where the names of columns in the query are expected to be the same as the fields of the struct
-/// (but the order does not need to be the same). The types of the columns are based on the
-/// query and not the corresponding fields of the struct, so this is type-safe as well.
+/// **This macro does not use [`FromRow`][crate::FromRow]**; in fact, no trait implementations are
+/// required at all, though this may change in future versions.
+///
+/// The macro maps rows using a struct literal where the names of columns in the query are expected
+/// to be the same as the fields of the struct (but the order does not need to be the same).
+/// The types of the columns are based on the query and not the corresponding fields of the struct,
+/// so this is type-safe as well.
 ///
 /// This enforces a few things:
 /// * The query must output at least one column.
@@ -424,7 +430,7 @@ macro_rules! query_file_unchecked (
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
-/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// # let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
 /// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
@@ -565,7 +571,7 @@ macro_rules! query_as (
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
-/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// # let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
 /// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;

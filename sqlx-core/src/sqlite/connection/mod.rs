@@ -19,9 +19,9 @@ use crate::sqlite::{Sqlite, SqliteConnectOptions};
 use crate::transaction::Transaction;
 
 pub(crate) mod collation;
-mod describe;
-mod establish;
-mod execute;
+pub(crate) mod describe;
+pub(crate) mod establish;
+pub(crate) mod execute;
 mod executor;
 mod explain;
 mod handle;
@@ -152,6 +152,13 @@ impl Connection for SqliteConnection {
             drop(self);
             // Ensure the worker thread has terminated
             shutdown.await
+        })
+    }
+
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            drop(self);
+            Ok(())
         })
     }
 

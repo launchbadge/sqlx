@@ -1,5 +1,6 @@
 use crate::io::Encode;
 use crate::postgres::io::PgBufMutExt;
+use crate::postgres::types::Oid;
 
 const CLOSE_PORTAL: u8 = b'P';
 const CLOSE_STATEMENT: u8 = b'S';
@@ -7,8 +8,9 @@ const CLOSE_STATEMENT: u8 = b'S';
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Close {
-    Statement(u32),
-    Portal(u32),
+    Statement(Oid),
+    // None selects the unnamed portal
+    Portal(Option<Oid>),
 }
 
 impl Encode<'_> for Close {
@@ -25,7 +27,7 @@ impl Encode<'_> for Close {
 
             Close::Portal(id) => {
                 buf.push(CLOSE_PORTAL);
-                buf.put_portal_name(Some(*id));
+                buf.put_portal_name(*id);
             }
         })
     }

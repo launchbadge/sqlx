@@ -16,11 +16,15 @@ pub use options::{
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
 pub use statement::SqliteStatement;
+use std::sync::atomic::AtomicBool;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
 
+use crate::describe::Describe;
+use crate::error::Error;
 use crate::executor::Executor;
+use crate::sqlite::connection::establish::EstablishParams;
 
 mod arguments;
 mod column;
@@ -38,6 +42,9 @@ mod value;
 
 #[cfg(feature = "migrate")]
 mod migrate;
+
+#[cfg(feature = "migrate")]
+mod testing;
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
 pub type SqlitePool = crate::pool::Pool<Sqlite>;
@@ -60,3 +67,24 @@ impl_into_maybe_pool!(Sqlite, SqliteConnection);
 
 // required because some databases have a different handling of NULL
 impl_encode_for_option!(Sqlite);
+
+/// UNSTABLE: for use by `sqlx-cli` only.
+#[doc(hidden)]
+pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
+
+/// UNSTABLE: for use by `sqlite_macros` only.
+#[doc(hidden)]
+pub fn describe_blocking(
+    opts: &SqliteConnectOptions,
+    query: &str,
+) -> Result<Describe<Sqlite>, Error> {
+    let params = EstablishParams::from_options(opts)?;
+    let mut conn = params.establish()?;
+
+    // Execute any ancillary `PRAGMA`s
+    connection::execute::iter(&mut conn, &opts.pragma_string(), None, false)?.finish()?;
+
+    connection::describe::describe(&mut conn, query)
+
+    // SQLite database is closed immediately when `conn` is dropped
+}

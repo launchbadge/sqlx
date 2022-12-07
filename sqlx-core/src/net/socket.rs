@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::io;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -17,7 +18,10 @@ pub enum Socket {
 
 impl Socket {
     pub async fn connect_tcp(host: &str, port: u16) -> io::Result<Self> {
-        TcpStream::connect((host, port)).await.map(Socket::Tcp)
+        // Trim square brackets from host if it's an IPv6 address as the `url` crate doesn't do that.
+        TcpStream::connect((host.trim_matches(|c| c == '[' || c == ']'), port))
+            .await
+            .map(Socket::Tcp)
     }
 
     #[cfg(unix)]
@@ -25,6 +29,14 @@ impl Socket {
         sqlx_rt::UnixStream::connect(path.as_ref())
             .await
             .map(Socket::Unix)
+    }
+
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        match self {
+            Self::Tcp(tcp) => tcp.local_addr().ok(),
+            #[cfg(unix)]
+            Self::Unix(_) => None,
+        }
     }
 
     #[cfg(not(unix))]
@@ -48,7 +60,7 @@ impl Socket {
             }
         }
 
-        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        #[cfg(feature = "_rt-tokio")]
         {
             use sqlx_rt::AsyncWriteExt;
 
@@ -100,7 +112,7 @@ impl AsyncWrite for Socket {
         }
     }
 
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+    #[cfg(feature = "_rt-tokio")]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             Socket::Tcp(s) => Pin::new(s).poll_shutdown(cx),

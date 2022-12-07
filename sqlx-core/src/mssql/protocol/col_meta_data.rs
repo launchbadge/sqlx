@@ -16,6 +16,7 @@ pub(crate) struct ColumnData {
     // The user type ID of the data type of the column. Depending on the TDS version that is used,
     // valid values are 0x0000 or 0x00000000, with the exceptions of data type
     // TIMESTAMP (0x0050 or 0x00000050) and alias types (greater than 0x00FF or 0x000000FF).
+    #[allow(dead_code)]
     pub(crate) user_type: u32,
 
     pub(crate) flags: Flags,

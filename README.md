@@ -108,7 +108,7 @@ with C, those interactions are `unsafe`.
 
 -   Nested transactions with support for save points.
 
--   `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URI scheme.
+-   `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URL scheme.
 
 ## Install
 
@@ -124,9 +124,9 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 # Cargo.toml
 [dependencies]
 # tokio + rustls
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-rustls" ] }
 # async-std + native-tls
-sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
+sqlx = { version = "0.6", features = [ "runtime-async-std-native-tls" ] }
 ```
 
 <small><small>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</small></small>
@@ -212,16 +212,16 @@ See the `examples/` folder for more in-depth usage.
 [dependencies]
 # PICK ONE:
 # Async-std:
-sqlx = { version = "0.5", features = [  "runtime-async-std-native-tls", "postgres" ] }
+sqlx = { version = "0.6", features = [  "runtime-async-std-native-tls", "postgres" ] }
 async-std = { version = "1", features = [ "attributes" ] }
 
 # Tokio:
-sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls" , "postgres" ] }
 tokio = { version = "1", features = ["full"] }
 
 # Actix-web:
-sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
-actix-web = "3"
+sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "postgres" ] }
+actix-web = "4"
 ```
 
 ```rust
@@ -376,7 +376,7 @@ Differences from `query()`:
     queries against; the database does not have to contain any data but must be the same
     kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
 
-    For convenience, you can use [a `.env` file][dotenv] to set DATABASE_URL so that you don't have to pass it every time:
+    For convenience, you can use [a `.env` file][dotenv]<sup>1</sup> to set DATABASE_URL so that you don't have to pass it every time:
 
     ```
     DATABASE_URL=mysql://localhost/my_database
@@ -412,6 +412,19 @@ To avoid the need of having a development database around to compile the project
 modifications (to the database-accessing parts of the code) are done, you can enable "offline mode"
 to cache the results of the SQL query analysis using the `sqlx` command-line tool. See
 [sqlx-cli/README.md](./sqlx-cli/README.md#enable-building-in-offline-mode-with-query).
+
+Compile time verified queries do quite a bit of work at compile time. Incremental actions like
+`cargo check` and `cargo build` can be significantly faster when using an optimized build by
+putting the following in your `Cargo.toml` (More information in the
+[Profiles section](https://doc.rust-lang.org/cargo/reference/profiles.html) of The Cargo Book)
+
+```toml
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+```
+
+<sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
+so we now use the `dotenvy` crate instead. The file format is the same.
 
 ## Safety
 

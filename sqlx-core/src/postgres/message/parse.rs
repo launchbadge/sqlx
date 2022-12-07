@@ -2,11 +2,12 @@ use std::i16;
 
 use crate::io::{BufMutExt, Encode};
 use crate::postgres::io::PgBufMutExt;
+use crate::postgres::types::Oid;
 
 #[derive(Debug)]
 pub struct Parse<'a> {
     /// The ID of the destination prepared statement.
-    pub statement: u32,
+    pub statement: Oid,
 
     /// The query string to be parsed.
     pub query: &'a str,
@@ -14,7 +15,7 @@ pub struct Parse<'a> {
     /// The parameter data types specified (could be zero). Note that this is not an
     /// indication of the number of parameters that might appear in the query string,
     /// only the number that the frontend wants to pre-specify types for.
-    pub param_types: &'a [u32],
+    pub param_types: &'a [Oid],
 }
 
 impl Encode<'_> for Parse<'_> {
@@ -32,7 +33,7 @@ impl Encode<'_> for Parse<'_> {
             buf.extend(&(self.param_types.len() as i16).to_be_bytes());
 
             for &oid in self.param_types {
-                buf.extend(&oid.to_be_bytes());
+                buf.extend(&oid.0.to_be_bytes());
             }
         })
     }
@@ -44,9 +45,9 @@ fn test_encode_parse() {
 
     let mut buf = Vec::new();
     let m = Parse {
-        statement: 1,
+        statement: Oid(1),
         query: "SELECT $1",
-        param_types: &[25],
+        param_types: &[Oid(25)],
     };
 
     m.encode(&mut buf);

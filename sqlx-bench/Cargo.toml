@@ -2,14 +2,11 @@
 name = "sqlx-bench"
 version = "0.1.0"
 authors = ["Austin Bonander <austin@launchbadge.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
 
 [features]
-runtime-actix-native-tls = [
-    "sqlx/runtime-actix-native-tls",
-    "sqlx-rt/runtime-actix-native-tls",
-]
+runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx/runtime-async-std-native-tls",
     "sqlx-rt/runtime-async-std-native-tls",
@@ -19,10 +16,7 @@ runtime-tokio-native-tls = [
     "sqlx-rt/runtime-tokio-native-tls",
 ]
 
-runtime-actix-rustls = [
-    "sqlx/runtime-actix-rustls",
-    "sqlx-rt/runtime-actix-rustls",
-]
+runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = [
     "sqlx/runtime-async-std-rustls",
     "sqlx-rt/runtime-async-std-rustls",
@@ -33,15 +27,23 @@ runtime-tokio-rustls = [
 ]
 
 postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
 
 [dependencies]
 criterion = "0.3.3"
-dotenv = "0.15.0"
+dotenvy = "0.15.0"
 once_cell = "1.4"
-sqlx = { version = "0.5", path = "../", default-features = false }
-sqlx-rt = { version = "0.5", path = "../sqlx-rt", default-features = false }
+sqlx = { version = "0.6", path = "../", default-features = false, features = ["macros"] }
+sqlx-rt = { version = "0.6", path = "../sqlx-rt", default-features = false }
+
+chrono = "0.4.19"
 
 [[bench]]
 name = "pg_pool"
 harness = false
 required-features = ["postgres"]
+
+[[bench]]
+name = "sqlite_fetch_all"
+harness = false
+required-features = ["sqlite"]

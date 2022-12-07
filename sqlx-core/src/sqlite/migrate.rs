@@ -7,29 +7,40 @@ use crate::migrate::{Migrate, MigrateDatabase};
 use crate::query::query;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
-use crate::sqlite::{Sqlite, SqliteConnectOptions, SqliteConnection};
+use crate::sqlite::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
 use sqlx_rt::fs;
 use std::str::FromStr;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
 impl MigrateDatabase for Sqlite {
-    fn create_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
+            let mut opts = SqliteConnectOptions::from_str(url)?.create_if_missing(true);
+
+            // Since it doesn't make sense to include this flag in the connection URL,
+            // we just use an `AtomicBool` to pass it.
+            if super::CREATE_DB_WAL.load(Ordering::Acquire) {
+                opts = opts.journal_mode(SqliteJournalMode::Wal);
+            }
+
             // Opening a connection to sqlite creates the database
-            let _ = SqliteConnectOptions::from_str(uri)?
-                .create_if_missing(true)
+            let _ = opts
                 .connect()
+                .await?
+                // Ensure WAL mode tempfiles are cleaned up
+                .close()
                 .await?;
 
             Ok(())
         })
     }
 
-    fn database_exists(uri: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
         Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(uri)?;
+            let options = SqliteConnectOptions::from_str(url)?;
 
             if options.in_memory {
                 Ok(true)
@@ -39,9 +50,9 @@ impl MigrateDatabase for Sqlite {
         })
     }
 
-    fn drop_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(uri)?;
+            let options = SqliteConnectOptions::from_str(url)?;
 
             if !options.in_memory {
                 fs::remove_file(&*options.filename).await?;
@@ -162,23 +173,44 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+            // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+            // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+            // and update it once the actual transaction completed.
             let _ = tx.execute(&*migration.sql).await?;
 
+            // language=SQL
+            let _ = query(
+                r#"
+    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+    VALUES ( ?1, ?2, TRUE, ?3, -1 )
+                "#,
+            )
+            .bind(migration.version)
+            .bind(&*migration.description)
+            .bind(&*migration.checksum)
+            .execute(&mut tx)
+            .await?;
+
             tx.commit().await?;
+
+            // Update `elapsed_time`.
+            // NOTE: The process may disconnect/die at this point, so the elapsed time value might be lost. We accept
+            //       this small risk since this value is not super important.
 
             let elapsed = start.elapsed();
 
             // language=SQL
             let _ = query(
                 r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( ?1, ?2, TRUE, ?3, ?4 )
+    UPDATE _sqlx_migrations
+    SET execution_time = ?1
+    WHERE version = ?2
                 "#,
             )
-            .bind(migration.version)
-            .bind(&*migration.description)
-            .bind(&*migration.checksum)
             .bind(elapsed.as_nanos() as i64)
+            .bind(migration.version)
             .execute(self)
             .await?;
 
@@ -191,20 +223,22 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
             let _ = tx.execute(&*migration.sql).await?;
 
-            tx.commit().await?;
-
-            let elapsed = start.elapsed();
-
             // language=SQL
             let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?1"#)
                 .bind(migration.version)
-                .execute(self)
+                .execute(&mut tx)
                 .await?;
+
+            tx.commit().await?;
+
+            let elapsed = start.elapsed();
 
             Ok(elapsed)
         })

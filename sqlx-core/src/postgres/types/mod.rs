@@ -14,7 +14,7 @@
 //! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //! | [`PgInterval`]                        | INTERVAL                                             |
-//! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
+//! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZRANGE, DATERANGE, NUMRANGE |
 //! | [`PgMoney`]                           | MONEY                                                |
 //!
 //!
@@ -72,6 +72,13 @@
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
+//! | `std::net::IpAddr`                    | INET, CIDR                                           |
+//!
+//! Note that because `IpAddr` does not support network prefixes, it is an error to attempt to decode
+//! an `IpAddr` from a `INET` or `CIDR` value with a network prefix smaller than the address' full width:
+//! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
+//!
+//! `IpNetwork` does not have this limitation.
 //!
 //! ### [`mac_address`](https://crates.io/crates/mac_address)
 //!
@@ -168,7 +175,10 @@ mod bytes;
 mod float;
 mod int;
 mod interval;
+mod lquery;
+mod ltree;
 mod money;
+mod oid;
 mod range;
 mod record;
 mod str;
@@ -202,6 +212,9 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+#[cfg(feature = "ipnetwork")]
+mod ipaddr;
+
 #[cfg(feature = "mac_address")]
 mod mac_address;
 
@@ -210,7 +223,15 @@ mod bit_vec;
 
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
+pub use lquery::PgLQuery;
+pub use lquery::PgLQueryLevel;
+pub use lquery::PgLQueryVariant;
+pub use lquery::PgLQueryVariantFlag;
+pub use ltree::PgLTree;
+pub use ltree::PgLTreeLabel;
+pub use ltree::PgLTreeParseError;
 pub use money::PgMoney;
+pub use oid::Oid;
 pub use range::PgRange;
 
 #[cfg(any(feature = "chrono", feature = "time"))]
@@ -222,7 +243,7 @@ pub use time_tz::PgTimeTz;
 pub use record::{PgRecordDecoder, PgRecordEncoder};
 
 // Type::compatible impl appropriate for arrays
-fn array_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
+fn array_compatible<E: Type<Postgres> + ?Sized>(ty: &PgTypeInfo) -> bool {
     // we require the declared type to be an _array_ with an
     // element type that is acceptable
     if let PgTypeKind::Array(element) = &ty.kind() {

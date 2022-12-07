@@ -1,3 +1,13 @@
+use std::fmt::{self, Debug};
+use std::io;
+use std::str::from_utf8;
+
+use either::Either;
+use futures_channel::mpsc;
+use futures_core::future::BoxFuture;
+use futures_core::stream::{BoxStream, Stream};
+use futures_util::{FutureExt, StreamExt, TryStreamExt};
+
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -5,13 +15,6 @@ use crate::pool::PoolOptions;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::message::{MessageFormat, Notification};
 use crate::postgres::{PgConnection, PgQueryResult, PgRow, PgStatement, PgTypeInfo, Postgres};
-use either::Either;
-use futures_channel::mpsc;
-use futures_core::future::BoxFuture;
-use futures_core::stream::{BoxStream, Stream};
-use std::fmt::{self, Debug};
-use std::io;
-use std::str::from_utf8;
 
 /// A stream of asynchronous notifications from Postgres.
 ///
@@ -25,23 +28,28 @@ pub struct PgListener {
     buffer_rx: mpsc::UnboundedReceiver<Notification>,
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
+    ignore_close_event: bool,
 }
 
 /// An asynchronous notification from Postgres.
 pub struct PgNotification(Notification);
 
 impl PgListener {
-    pub async fn connect(uri: &str) -> Result<Self, Error> {
+    pub async fn connect(url: &str) -> Result<Self, Error> {
         // Create a pool of 1 without timeouts (as they don't apply here)
         // We only use the pool to handle re-connections
         let pool = PoolOptions::<Postgres>::new()
             .max_connections(1)
             .max_lifetime(None)
             .idle_timeout(None)
-            .connect(uri)
+            .connect(url)
             .await?;
 
-        Self::connect_with(&pool).await
+        let mut this = Self::connect_with(&pool).await?;
+        // We don't need to handle close events
+        this.ignore_close_event = true;
+
+        Ok(this)
     }
 
     pub async fn connect_with(pool: &Pool<Postgres>) -> Result<Self, Error> {
@@ -58,13 +66,38 @@ impl PgListener {
             buffer_rx: receiver,
             buffer_tx: None,
             channels: Vec::new(),
+            ignore_close_event: false,
         })
+    }
+
+    /// Set whether or not to ignore [`Pool::close_event()`]. Defaults to `false`.
+    ///
+    /// By default, when [`Pool::close()`] is called on the pool this listener is using
+    /// while [`Self::recv()`] or [`Self::try_recv()`] are waiting for a message, the wait is
+    /// cancelled and `Err(PoolClosed)` is returned.
+    ///
+    /// This is because `Pool::close()` will wait until _all_ connections are returned and closed,
+    /// including the one being used by this listener.
+    ///
+    /// Otherwise, `pool.close().await` would have to wait until `PgListener` encountered a
+    /// need to acquire a new connection (timeout, error, etc.) and dropped the one it was
+    /// currently holding, at which point `.recv()` or `.try_recv()` would return `Err(PoolClosed)`
+    /// on the attempt to acquire a new connection anyway.
+    ///
+    /// However, if you want `PgListener` to ignore the close event and continue waiting for a
+    /// message as long as it can, set this to `true`.
+    ///
+    /// Does nothing if this was constructed with [`PgListener::connect()`], as that creates an
+    /// internal pool just for the new instance of `PgListener` which cannot be closed manually.
+    pub fn ignore_pool_close_event(&mut self, val: bool) {
+        self.ignore_close_event = val;
     }
 
     /// Starts listening for notifications on a channel.
     /// The channel name is quoted here to ensure case sensitivity.
     pub async fn listen(&mut self, channel: &str) -> Result<(), Error> {
         self.connection()
+            .await?
             .execute(&*format!(r#"LISTEN "{}""#, ident(channel)))
             .await?;
 
@@ -81,11 +114,8 @@ impl PgListener {
         let beg = self.channels.len();
         self.channels.extend(channels.into_iter().map(|s| s.into()));
 
-        self.connection
-            .as_mut()
-            .unwrap()
-            .execute(&*build_listen_all_query(&self.channels[beg..]))
-            .await?;
+        let query = build_listen_all_query(&self.channels[beg..]);
+        self.connection().await?.execute(&*query).await?;
 
         Ok(())
     }
@@ -93,9 +123,13 @@ impl PgListener {
     /// Stops listening for notifications on a channel.
     /// The channel name is quoted here to ensure case sensitivity.
     pub async fn unlisten(&mut self, channel: &str) -> Result<(), Error> {
-        self.connection()
-            .execute(&*format!(r#"UNLISTEN "{}""#, ident(channel)))
-            .await?;
+        // use RAW connection and do NOT re-connect automatically, since this is not required for
+        // UNLISTEN (we've disconnected anyways)
+        if let Some(connection) = self.connection.as_mut() {
+            connection
+                .execute(&*format!(r#"UNLISTEN "{}""#, ident(channel)))
+                .await?;
+        }
 
         if let Some(pos) = self.channels.iter().position(|s| s == channel) {
             self.channels.remove(pos);
@@ -106,7 +140,11 @@ impl PgListener {
 
     /// Stops listening for notifications on all channels.
     pub async fn unlisten_all(&mut self) -> Result<(), Error> {
-        self.connection().execute("UNLISTEN *").await?;
+        // use RAW connection and do NOT re-connect automatically, since this is not required for
+        // UNLISTEN (we've disconnected anyways)
+        if let Some(connection) = self.connection.as_mut() {
+            connection.execute("UNLISTEN *").await?;
+        }
 
         self.channels.clear();
 
@@ -130,8 +168,11 @@ impl PgListener {
     }
 
     #[inline]
-    fn connection(&mut self) -> &mut PgConnection {
-        self.connection.as_mut().unwrap()
+    async fn connection(&mut self) -> Result<&mut PgConnection, Error> {
+        // Ensure we have an active connection to work with.
+        self.connect_if_needed().await?;
+
+        Ok(self.connection.as_mut().unwrap())
     }
 
     /// Receives the next notification available from any of the subscribed channels.
@@ -202,17 +243,27 @@ impl PgListener {
             return Ok(Some(PgNotification(notification)));
         }
 
-        loop {
-            // Ensure we have an active connection to work with.
-            self.connect_if_needed().await?;
+        // Fetch our `CloseEvent` listener, if applicable.
+        let mut close_event = (!self.ignore_close_event).then(|| self.pool.close_event());
 
-            let message = match self.connection().stream.recv_unchecked().await {
+        loop {
+            let next_message = self.connection().await?.stream.recv_unchecked();
+
+            let res = if let Some(ref mut close_event) = close_event {
+                // cancels the wait and returns `Err(PoolClosed)` if the pool is closed
+                // before `next_message` returns, or if the pool was already closed
+                close_event.do_until(next_message).await?
+            } else {
+                next_message.await
+            };
+
+            let message = match res {
                 Ok(message) => message,
 
                 // The connection is dead, ensure that it is dropped,
                 // update self state, and loop to try again.
                 Err(Error::Io(err)) if err.kind() == io::ErrorKind::ConnectionAborted => {
-                    self.buffer_tx = self.connection().stream.notifications.take();
+                    self.buffer_tx = self.connection().await?.stream.notifications.take();
                     self.connection = None;
 
                     // lost connection
@@ -233,7 +284,7 @@ impl PgListener {
 
                 // Mark the connection as ready for another query
                 MessageFormat::ReadyForQuery => {
-                    self.connection().pending_ready_for_query_count -= 1;
+                    self.connection().await?.pending_ready_for_query_count -= 1;
                 }
 
                 // Ignore unexpected messages
@@ -292,7 +343,13 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        self.connection().fetch_many(query)
+        futures_util::stream::once(async move {
+            // need some basic type annotation to help the compiler a bit
+            let res: Result<_, Error> = Ok(self.connection().await?.fetch_many(query));
+            res
+        })
+        .try_flatten()
+        .boxed()
     }
 
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
@@ -303,7 +360,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        self.connection().fetch_optional(query)
+        async move { self.connection().await?.fetch_optional(query).await }.boxed()
     }
 
     fn prepare_with<'e, 'q: 'e>(
@@ -314,7 +371,13 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     where
         'c: 'e,
     {
-        self.connection().prepare_with(query, parameters)
+        async move {
+            self.connection()
+                .await?
+                .prepare_with(query, parameters)
+                .await
+        }
+        .boxed()
     }
 
     #[doc(hidden)]
@@ -325,7 +388,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     where
         'c: 'e,
     {
-        self.connection().describe(query)
+        async move { self.connection().await?.describe(query).await }.boxed()
     }
 }
 

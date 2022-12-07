@@ -2,6 +2,7 @@
 
 use crate::executor::Executor;
 
+mod advisory_lock;
 mod arguments;
 mod column;
 mod connection;
@@ -23,9 +24,13 @@ mod value;
 #[cfg(feature = "migrate")]
 mod migrate;
 
+#[cfg(feature = "migrate")]
+mod testing;
+
+pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;
-pub use connection::{PgConnection, PgConnectionInfo};
+pub use connection::PgConnection;
 pub use copy::PgCopyIn;
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};

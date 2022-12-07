@@ -22,10 +22,10 @@ use indexmap::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
-/// A value of `SqliteConnectOptions` can be parsed from a connection URI,
+/// A value of `SqliteConnectOptions` can be parsed from a connection URL,
 /// as described by [SQLite](https://www.sqlite.org/uri.html).
 ///
-/// | URI | Description |
+/// | URL | Description |
 /// | -- | -- |
 /// `sqlite::memory:` | Open an in-memory database. |
 /// `sqlite:data.db` | Open the file `data.db` in the current directory. |
@@ -36,7 +36,6 @@ use indexmap::IndexMap;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core as sqlx;
 /// # use sqlx_core::connection::ConnectOptions;
 /// # use sqlx_core::error::Error;
 /// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
@@ -64,7 +63,14 @@ pub struct SqliteConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
-    pub(crate) pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>>,
+    pub(crate) vfs: Option<Cow<'static, str>>,
+
+    pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
+    /// Extensions are specified as a pair of <Extension Name : Optional Entry Point>, the majority
+    /// of SQLite extensions will use the default entry points specified in the docs, these should
+    /// be added to the map with a `None` value.
+    /// <https://www.sqlite.org/loadext.html#loading_an_extension>
+    pub(crate) extensions: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
     pub(crate) command_channel_size: usize,
     pub(crate) row_channel_size: usize,
@@ -86,32 +92,80 @@ impl SqliteConnectOptions {
     ///
     /// See the source of this method for the current defaults.
     pub fn new() -> Self {
-        // set default pragmas
-        let mut pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>> = IndexMap::new();
+        let mut pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>> = IndexMap::new();
 
-        let locking_mode: SqliteLockingMode = Default::default();
-        let auto_vacuum: SqliteAutoVacuum = Default::default();
+        // Standard pragmas
+        //
+        // Most of these don't actually need to be sent because they would be set to their
+        // default values anyway. See the SQLite documentation for default values of these PRAGMAs:
+        // https://www.sqlite.org/pragma.html
+        //
+        // However, by inserting into the map here, we can ensure that they're set in the proper
+        // order, even if they're overwritten later by their respective setters or
+        // directly by `pragma()`
 
-        // page_size must be set before any other action on the database.
-        pragmas.insert("page_size".into(), "4096".into());
+        // SQLCipher special case: if the `key` pragma is set, it must be executed first.
+        pragmas.insert("key".into(), None);
 
-        // Note that locking_mode should be set before journal_mode; see
-        // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
-        pragmas.insert("locking_mode".into(), locking_mode.as_str().into());
+        // Other SQLCipher pragmas that has to be after the key, but before any other operation on the database.
+        // https://www.zetetic.net/sqlcipher/sqlcipher-api/
 
-        pragmas.insert(
-            "journal_mode".into(),
-            SqliteJournalMode::Wal.as_str().into(),
-        );
+        // Bytes of the database file that is not encrypted
+        // Default for SQLCipher v4 is 0
+        // If greater than zero 'cipher_salt' pragma must be also defined
+        pragmas.insert("cipher_plaintext_header_size".into(), None);
 
-        pragmas.insert("foreign_keys".into(), "ON".into());
+        // Allows to provide salt manually
+        // By default SQLCipher sets salt automatically, use only in conjunction with
+        // 'cipher_plaintext_header_size' pragma
+        pragmas.insert("cipher_salt".into(), None);
 
-        pragmas.insert(
-            "synchronous".into(),
-            SqliteSynchronous::Full.as_str().into(),
-        );
+        // Number of iterations used in PBKDF2 key derivation.
+        // Default for SQLCipher v4 is 256000
+        pragmas.insert("kdf_iter".into(), None);
 
-        pragmas.insert("auto_vacuum".into(), auto_vacuum.as_str().into());
+        // Define KDF algorithm to be used.
+        // Default for SQLCipher v4 is PBKDF2_HMAC_SHA512.
+        pragmas.insert("cipher_kdf_algorithm".into(), None);
+
+        // Enable or disable HMAC functionality.
+        // Default for SQLCipher v4 is 1.
+        pragmas.insert("cipher_use_hmac".into(), None);
+
+        // Set default encryption settings depending on the version 1,2,3, or 4.
+        pragmas.insert("cipher_compatibility".into(), None);
+
+        // Page size of encrypted database.
+        // Default for SQLCipher v4 is 4096.
+        pragmas.insert("cipher_page_size".into(), None);
+
+        // Choose algorithm used for HMAC.
+        // Default for SQLCipher v4 is HMAC_SHA512.
+        pragmas.insert("cipher_hmac_algorithm".into(), None);
+
+        // Normally, page_size must be set before any other action on the database.
+        // Defaults to 4096 for new databases.
+        pragmas.insert("page_size".into(), None);
+
+        // locking_mode should be set before journal_mode:
+        // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory
+        pragmas.insert("locking_mode".into(), None);
+
+        // Don't set `journal_mode` unless the user requested it.
+        // WAL mode is a permanent setting for created databases and changing into or out of it
+        // requires an exclusive lock that can't be waited on with `sqlite3_busy_timeout()`.
+        // https://github.com/launchbadge/sqlx/pull/1930#issuecomment-1168165414
+        pragmas.insert("journal_mode".into(), None);
+
+        // We choose to enable foreign key enforcement by default, though SQLite normally
+        // leaves it off for backward compatibility: https://www.sqlite.org/foreignkeys.html#fk_enable
+        pragmas.insert("foreign_keys".into(), Some("ON".into()));
+
+        // The `synchronous` pragma defaults to FULL
+        // https://www.sqlite.org/compile.html#default_synchronous.
+        pragmas.insert("synchronous".into(), None);
+
+        pragmas.insert("auto_vacuum".into(), None);
 
         Self {
             filename: Cow::Borrowed(Path::new(":memory:")),
@@ -123,7 +177,9 @@ impl SqliteConnectOptions {
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             immutable: false,
+            vfs: None,
             pragmas,
+            extensions: Default::default(),
             collations: Default::default(),
             serialized: false,
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
@@ -138,15 +194,12 @@ impl SqliteConnectOptions {
         self
     }
 
-    /// Set the enforcement of [foreign key constriants](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
+    /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
-    /// By default, this is enabled.
-    pub fn foreign_keys(mut self, on: bool) -> Self {
-        self.pragmas.insert(
-            "foreign_keys".into(),
-            (if on { "ON" } else { "OFF" }).into(),
-        );
-        self
+    /// SQLx chooses to enable this by default so that foreign keys function as expected,
+    /// compared to other database flavors.
+    pub fn foreign_keys(self, on: bool) -> Self {
+        self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
     }
 
     /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
@@ -159,21 +212,34 @@ impl SqliteConnectOptions {
 
     /// Sets the [journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode) for the database connection.
     ///
-    /// The default journal mode is WAL. For most use cases this can be significantly faster but
-    /// there are [disadvantages](https://www.sqlite.org/wal.html).
-    pub fn journal_mode(mut self, mode: SqliteJournalMode) -> Self {
-        self.pragmas
-            .insert("journal_mode".into(), mode.as_str().into());
-        self
+    /// Journal modes are ephemeral per connection, with the exception of the
+    /// [Write-Ahead Log (WAL) mode](https://www.sqlite.org/wal.html).
+    ///
+    /// A database created in WAL mode retains the setting and will apply it to all connections
+    /// opened against it that don't set a `journal_mode`.
+    ///
+    /// Opening a connection to a database created in WAL mode with a different `journal_mode` will
+    /// erase the setting on the database, requiring an exclusive lock to do so.
+    /// You may get a `database is locked` (corresponding to `SQLITE_BUSY`) error if another
+    /// connection is accessing the database file at the same time.
+    ///
+    /// SQLx does not set a journal mode by default, to avoid unintentionally changing a database
+    /// into or out of WAL mode.
+    ///
+    /// The default journal mode for non-WAL databases is `DELETE`, or `MEMORY` for in-memory
+    /// databases.
+    ///
+    /// For consistency, any commands in `sqlx-cli` which create a SQLite database will create it
+    /// in WAL mode.
+    pub fn journal_mode(self, mode: SqliteJournalMode) -> Self {
+        self.pragma("journal_mode", mode.as_str())
     }
 
     /// Sets the [locking mode](https://www.sqlite.org/pragma.html#pragma_locking_mode) for the database connection.
     ///
     /// The default locking mode is NORMAL.
-    pub fn locking_mode(mut self, mode: SqliteLockingMode) -> Self {
-        self.pragmas
-            .insert("locking_mode".into(), mode.as_str().into());
-        self
+    pub fn locking_mode(self, mode: SqliteLockingMode) -> Self {
+        self.pragma("locking_mode", mode.as_str())
     }
 
     /// Sets the [access mode](https://www.sqlite.org/c3ref/open.html) to open the database
@@ -186,7 +252,7 @@ impl SqliteConnectOptions {
     /// Sets the [access mode](https://www.sqlite.org/c3ref/open.html) to create the database file
     /// if the file does not exist.
     ///
-    /// By default, a new file **will not be** created if one is not found.
+    /// By default, a new file **will not be created** if one is not found.
     pub fn create_if_missing(mut self, create: bool) -> Self {
         self.create_if_missing = create;
         self
@@ -216,28 +282,29 @@ impl SqliteConnectOptions {
     ///
     /// The default synchronous settings is FULL. However, if durability is not a concern,
     /// then NORMAL is normally all one needs in WAL mode.
-    pub fn synchronous(mut self, synchronous: SqliteSynchronous) -> Self {
-        self.pragmas
-            .insert("synchronous".into(), synchronous.as_str().into());
-        self
+    pub fn synchronous(self, synchronous: SqliteSynchronous) -> Self {
+        self.pragma("synchronous", synchronous.as_str())
     }
 
     /// Sets the [auto_vacuum](https://www.sqlite.org/pragma.html#pragma_auto_vacuum) setting for the database connection.
     ///
     /// The default auto_vacuum setting is NONE.
-    pub fn auto_vacuum(mut self, auto_vacuum: SqliteAutoVacuum) -> Self {
-        self.pragmas
-            .insert("auto_vacuum".into(), auto_vacuum.as_str().into());
-        self
+    ///
+    /// For existing databases, a change to this value does not take effect unless a
+    /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
+    pub fn auto_vacuum(self, auto_vacuum: SqliteAutoVacuum) -> Self {
+        self.pragma("auto_vacuum", auto_vacuum.as_str())
     }
 
     /// Sets the [page_size](https://www.sqlite.org/pragma.html#pragma_page_size) setting for the database connection.
     ///
     /// The default page_size setting is 4096.
-    pub fn page_size(mut self, page_size: u32) -> Self {
-        self.pragmas
-            .insert("page_size".into(), page_size.to_string().into());
-        self
+    ///
+    /// For existing databases, a change to this value does not take effect unless a
+    /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
+    /// However, it cannot be changed in WAL mode.
+    pub fn page_size(self, page_size: u32) -> Self {
+        self.pragma("page_size", page_size.to_string())
     }
 
     /// Sets custom initial pragma for the database connection.
@@ -246,7 +313,7 @@ impl SqliteConnectOptions {
         K: Into<Cow<'static, str>>,
         V: Into<Cow<'static, str>>,
     {
-        self.pragmas.insert(key.into(), value.into());
+        self.pragmas.insert(key.into(), Some(value.into()));
         self
     }
 
@@ -259,9 +326,9 @@ impl SqliteConnectOptions {
     /// Note this excerpt:
     /// > The collating function must obey the following properties for all strings A, B, and C:
     /// >
-    /// > If A==B then B==A.  
-    /// > If A==B and B==C then A==C.  
-    /// > If A\<B then B>A.  
+    /// > If A==B then B==A.
+    /// > If A==B and B==C then A==C.
+    /// > If A\<B then B>A.
     /// > If A<B and B<C then A<C.
     /// >
     /// > If a collating function fails any of the above constraints and that collating function is
@@ -295,14 +362,15 @@ impl SqliteConnectOptions {
 
     /// Sets the [threading mode](https://www.sqlite.org/threadsafe.html) for the database connection.
     ///
-    /// The default setting is `false` corersponding to using `OPEN_NOMUTEX`, if `true` then `OPEN_FULLMUTEX`.
+    /// The default setting is `false` corresponding to using `OPEN_NOMUTEX`.
+    /// If set to `true` then `OPEN_FULLMUTEX`.
     ///
     /// See [open](https://www.sqlite.org/c3ref/open.html) for more details.
     ///
     /// ### Note
     /// Setting this to `true` may help if you are getting access violation errors or segmentation
     /// faults, but will also incur a significant performance penalty. You should leave this
-    /// set to `false` if at all possible.    
+    /// set to `false` if at all possible.
     ///
     /// If you do end up needing to set this to `true` for some reason, please
     /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
@@ -341,6 +409,53 @@ impl SqliteConnectOptions {
     /// in order to limit CPU and memory usage.
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
+        self
+    }
+
+    /// Sets the [`vfs`](https://www.sqlite.org/vfs.html) parameter of the database connection.
+    ///
+    /// The default value is empty, and sqlite will use the default VFS object depending on the
+    /// operating system.
+    pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
+        self.vfs = Some(vfs_name.into());
+        self
+    }
+
+    /// Load an [extension](https://www.sqlite.org/loadext.html) at run-time when the database connection
+    /// is established, using the default entry point.
+    ///
+    /// Most common SQLite extensions can be loaded using this method, for extensions where you need
+    /// to specify the entry point, use [`extension_with_entrypoint`][`Self::extension_with_entrypoint`] instead.
+    ///
+    /// Multiple extensions can be loaded by calling the method repeatedly on the options struct, they
+    /// will be loaded in the order they are added.
+    /// ```rust,no_run
+    /// # use sqlx_core::error::Error;
+    /// use std::str::FromStr;
+    /// use sqlx::sqlite::SqliteConnectOptions;
+    /// # fn options() -> Result<SqliteConnectOptions, Error> {
+    /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
+    ///     .extension("vsv")
+    ///     .extension("mod_spatialite");
+    /// # Ok(options)
+    /// # }
+    /// ```
+    pub fn extension(mut self, extension_name: impl Into<Cow<'static, str>>) -> Self {
+        self.extensions.insert(extension_name.into(), None);
+        self
+    }
+
+    /// Load an extension with a specified entry point.
+    ///
+    /// Useful when using non-standard extensions, or when developing your own, the second argument
+    /// specifies where SQLite should expect to find the extension init routine.
+    pub fn extension_with_entrypoint(
+        mut self,
+        extension_name: impl Into<Cow<'static, str>>,
+        entry_point: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.extensions
+            .insert(extension_name.into(), Some(entry_point.into()));
         self
     }
 }

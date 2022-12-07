@@ -1,7 +1,13 @@
+use std::borrow::Cow;
+
+use crate::any::error::mismatched_types;
 use crate::any::{Any, AnyTypeInfo};
 use crate::database::HasValueRef;
+use crate::decode::Decode;
+use crate::error::Error;
+use crate::type_info::TypeInfo;
+use crate::types::Type;
 use crate::value::{Value, ValueRef};
-use std::borrow::Cow;
 
 #[cfg(feature = "postgres")]
 use crate::postgres::{PgValue, PgValueRef};
@@ -90,6 +96,21 @@ impl Value for AnyValue {
             #[cfg(feature = "mssql")]
             AnyValueKind::Mssql(value) => value.is_null(),
         }
+    }
+
+    fn try_decode<'r, T>(&'r self) -> Result<T, Error>
+    where
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
+    {
+        if !self.is_null() {
+            let ty = self.type_info();
+
+            if !ty.is_null() && !T::compatible(&ty) {
+                return Err(Error::Decode(mismatched_types::<T>(&ty)));
+            }
+        }
+
+        self.try_decode_unchecked()
     }
 }
 

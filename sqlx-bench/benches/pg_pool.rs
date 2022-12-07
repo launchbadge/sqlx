@@ -26,7 +26,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
     let pool = sqlx_rt::block_on(
         PgPoolOptions::new()
             // we don't want timeouts because we want to see how the pool degrades
-            .connect_timeout(Duration::from_secs(3600))
+            .acquire_timeout(Duration::from_secs(3600))
             // force the pool to start full
             .min_connections(50)
             .max_connections(50)
@@ -34,7 +34,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
             .test_before_acquire(false)
             .__fair(fair)
             .connect(
-                &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
+                &dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
             ),
     )
     .expect("failed to open PgPool");
