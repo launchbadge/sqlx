@@ -507,7 +507,7 @@ pub(super) fn explain(
                         let mut branch_state = state.clone();
                         branch_state.program_i = p2 as usize;
                         if p3 == 0 {
-                            state.r.insert(p1, RegDataType::Int(1));
+                            branch_state.r.insert(p1, RegDataType::Int(1));
                         }
                         states.push(branch_state);
                     }
@@ -527,19 +527,19 @@ pub(super) fn explain(
                     // goto <p2> if r[p1] is true (1) or r[p1] is null and p3 is nonzero
 
                     let might_branch = match state.r.get(&p1) {
-                        Some(RegDataType::Int(r_p1)) => *r_p1 != 0,
+                        Some(RegDataType::Int(r_p1)) => *r_p1 >= 1,
                         _ => true,
                     };
 
                     let might_not_branch = match state.r.get(&p1) {
-                        Some(RegDataType::Int(r_p1)) => *r_p1 == 0,
+                        Some(RegDataType::Int(r_p1)) => *r_p1 < 1,
                         _ => true,
                     };
 
                     if might_branch {
                         let mut branch_state = state.clone();
                         branch_state.program_i = p2 as usize;
-                        if let Some(RegDataType::Int(r_p1)) = state.r.get_mut(&p1) {
+                        if let Some(RegDataType::Int(r_p1)) = branch_state.r.get_mut(&p1) {
                             *r_p1 -= 1;
                         }
                         states.push(branch_state);
