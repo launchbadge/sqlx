@@ -568,6 +568,7 @@ async fn it_describes_nested_ordered() -> anyhow::Result<()> {
         "SELECT true FROM (SELECT true) a ORDER BY true",
     )
     .await?;
+
     assert_single_true_column_described(
         &mut conn,
         "
@@ -592,6 +593,8 @@ async fn it_describes_nested_ordered() -> anyhow::Result<()> {
             ORDER BY true ASC NULLS LAST",
     )
     .await?;
+
+    assert_single_true_column_described(&mut conn, "SELECT true LIMIT -1 OFFSET -1").await?;
 
     Ok(())
 }
