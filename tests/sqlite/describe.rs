@@ -596,6 +596,12 @@ async fn it_describes_nested_ordered() -> anyhow::Result<()> {
 
     assert_single_true_column_described(&mut conn, "SELECT true LIMIT -1 OFFSET -1").await?;
 
+    assert_single_true_column_described(
+        &mut conn,
+        "SELECT true FROM tweet J LIMIT 10 OFFSET 1000000",
+    )
+    .await?;
+
     Ok(())
 }
 
