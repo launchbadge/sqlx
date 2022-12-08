@@ -526,6 +526,8 @@ pub(super) fn explain(
                 OP_IF_POS => {
                     // goto <p2> if r[p1] is true (1) or r[p1] is null and p3 is nonzero
 
+                    // as a workaround for large offset clauses, both branches will be attempted after 1 loop
+
                     let might_branch = match state.r.get(&p1) {
                         Some(RegDataType::Int(r_p1)) => *r_p1 >= 1,
                         _ => true,
@@ -536,7 +538,8 @@ pub(super) fn explain(
                         _ => true,
                     };
 
-                    if might_branch {
+                    let loop_detected = state.visited[state.program_i] > 1;
+                    if might_branch || loop_detected {
                         let mut branch_state = state.clone();
                         branch_state.program_i = p2 as usize;
                         if let Some(RegDataType::Int(r_p1)) = branch_state.r.get_mut(&p1) {
@@ -547,6 +550,19 @@ pub(super) fn explain(
 
                     if might_not_branch {
                         state.program_i += 1;
+                        continue;
+                    } else if loop_detected {
+                        state.program_i += 1;
+                        if matches!(state.r.get_mut(&p1), Some(RegDataType::Int(..))) {
+                            //forget the exact value, in case some later cares
+                            state.r.insert(
+                                p1,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype: DataType::Int64,
+                                    nullable: Some(false),
+                                }),
+                            );
+                        }
                         continue;
                     } else {
                         break;
