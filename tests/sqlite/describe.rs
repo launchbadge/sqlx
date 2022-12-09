@@ -549,27 +549,31 @@ async fn it_describes_union() -> anyhow::Result<()> {
 
 //documents failures originally found through property testing
 #[sqlx_macros::test]
-async fn it_describes_nested_ordered() -> anyhow::Result<()> {
-    async fn assert_single_true_column_described(
+async fn it_describes_strange_queries() -> anyhow::Result<()> {
+    async fn assert_single_column_described(
         conn: &mut sqlx::SqliteConnection,
         query: &str,
+        typename: &str,
+        nullable: bool,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
-        assert_eq!(info.column(0).type_info().name(), "INTEGER", "{}", query);
-        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.column(0).type_info().name(), typename, "{}", query);
+        assert_eq!(info.nullable(0), Some(nullable), "{}", query);
 
         Ok(())
     }
 
     let mut conn = new::<Sqlite>().await?;
 
-    assert_single_true_column_described(
+    assert_single_column_described(
         &mut conn,
         "SELECT true FROM (SELECT true) a ORDER BY true",
+        "INTEGER",
+        false,
     )
     .await?;
 
-    assert_single_true_column_described(
+    assert_single_column_described(
         &mut conn,
         "
     	SELECT true
@@ -584,21 +588,48 @@ async fn it_describes_nested_ordered() -> anyhow::Result<()> {
             LIMIT 1
             )
     	",
+        "INTEGER",
+        false,
     )
     .await?;
 
-    assert_single_true_column_described(
+    assert_single_column_described(
         &mut conn,
         "SELECT true FROM tweet
             ORDER BY true ASC NULLS LAST",
+        "INTEGER",
+        false,
     )
     .await?;
 
-    assert_single_true_column_described(&mut conn, "SELECT true LIMIT -1 OFFSET -1").await?;
+    assert_single_column_described(
+        &mut conn,
+        "SELECT true LIMIT -1 OFFSET -1",
+        "INTEGER",
+        false,
+    )
+    .await?;
 
-    assert_single_true_column_described(
+    assert_single_column_described(
         &mut conn,
         "SELECT true FROM tweet J LIMIT 10 OFFSET 1000000",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT text
+        FROM (SELECT null)
+        CROSS JOIN (
+            SELECT text
+            FROM tweet 
+            GROUP BY text
+        )
+        LIMIT -1 OFFSET -1",
+        "TEXT",
+        false,
     )
     .await?;
 
