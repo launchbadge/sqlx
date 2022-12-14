@@ -365,6 +365,35 @@ async fn it_describes_group_by() -> anyhow::Result<()> {
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(false));
 
+    let d = conn
+        .describe("SELECT sum(id), sum(is_sent) from tweet GROUP BY owner_id")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(1), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn.describe("select count(1) from accounts").await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn.describe("SELECT sum(is_sent) from tweet").await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("SELECT coalesce(sum(is_sent),0) from tweet")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
     Ok(())
 }
 
@@ -630,6 +659,15 @@ async fn it_describes_strange_queries() -> anyhow::Result<()> {
         LIMIT -1 OFFSET -1",
         "TEXT",
         false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT EYH.id,COUNT(EYH.id)
+    	FROM accounts EYH",
+        "INTEGER",
+        true,
     )
     .await?;
 
