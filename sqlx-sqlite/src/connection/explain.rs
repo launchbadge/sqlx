@@ -471,9 +471,9 @@ pub(super) fn explain(
                 | OP_GE | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT | OP_IF_NO_HOPE
                 | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO | OP_IF_NULL_ROW | OP_IF_SMALLER
                 | OP_INCR_VACUUM | OP_IS_NULL | OP_IS_NULL_OR_TYPE | OP_LE | OP_LT | OP_NE
-                | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_NOT_NULL | OP_ONCE | OP_PREV
-                | OP_PROGRAM | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT
-                | OP_SEEK_LE | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
+                | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_ONCE | OP_PREV | OP_PROGRAM
+                | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE
+                | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
                 | OP_SORTER_NEXT | OP_V_FILTER | OP_V_NEXT => {
                     // goto <p2> or next instruction (depending on actual values)
 
@@ -488,6 +488,46 @@ pub(super) fn explain(
 
                     state.program_i += 1;
                     continue;
+                }
+
+                OP_NOT_NULL => {
+                    // goto <p2> or next instruction (depending on actual values)
+
+                    let might_branch = match state.r.get(&p1) {
+                        Some(r_p1) => !matches!(r_p1.map_to_datatype(), DataType::Null),
+                        _ => false,
+                    };
+
+                    let might_not_branch = match state.r.get(&p1) {
+                        Some(r_p1) => !matches!(r_p1.map_to_nullable(), Some(false)),
+                        _ => false,
+                    };
+
+                    if might_branch {
+                        let mut branch_state = state.clone();
+                        branch_state.program_i = p2 as usize;
+                        if let Some(RegDataType::Single(ColumnType::Single { nullable, .. })) =
+                            branch_state.r.get_mut(&p1)
+                        {
+                            *nullable = Some(false);
+                        }
+
+                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
+                        if !visited_branch_state.contains(&bs_hash) {
+                            visited_branch_state.insert(bs_hash);
+                            states.push(branch_state);
+                        }
+                    }
+
+                    if might_not_branch {
+                        state.program_i += 1;
+                        state
+                            .r
+                            .insert(p1, RegDataType::Single(ColumnType::default()));
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
 
                 OP_MUST_BE_INT => {
@@ -529,7 +569,12 @@ pub(super) fn explain(
                         if p3 == 0 {
                             branch_state.r.insert(p1, RegDataType::Int(1));
                         }
-                        states.push(branch_state);
+
+                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
+                        if !visited_branch_state.contains(&bs_hash) {
+                            visited_branch_state.insert(bs_hash);
+                            states.push(branch_state);
+                        }
                     }
 
                     if might_not_branch {
