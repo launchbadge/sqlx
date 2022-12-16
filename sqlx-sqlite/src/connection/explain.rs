@@ -1014,6 +1014,20 @@ pub(super) fn explain(
                                 nullable: Some(false),
                             }),
                         );
+                    } else if p4.starts_with("sum(") {
+                        if let Some(r_p2) = state.r.get(&p2) {
+                            let datatype = match r_p2.map_to_datatype() {
+                                DataType::Int64 => DataType::Int64,
+                                DataType::Int => DataType::Int,
+                                DataType::Bool => DataType::Int,
+                                _ => DataType::Float,
+                            };
+                            let nullable = r_p2.map_to_nullable();
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single { datatype, nullable }),
+                            );
+                        }
                     } else if let Some(v) = state.r.get(&p2).cloned() {
                         // r[p3] = AGG ( r[p2] )
                         state.r.insert(p3, v);
@@ -1037,9 +1051,6 @@ pub(super) fn explain(
                                 nullable: Some(false),
                             }),
                         );
-                    } else if let Some(v) = state.r.get(&p2).cloned() {
-                        // r[p3] = AGG ( r[p2] )
-                        state.r.insert(p3, v);
                     }
                 }
 
