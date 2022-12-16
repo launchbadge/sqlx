@@ -671,6 +671,14 @@ async fn it_describes_strange_queries() -> anyhow::Result<()> {
     )
     .await?;
 
+    assert_single_column_described(
+        &mut conn,
+        "SELECT SUM(tweet.text) FROM (SELECT NULL FROM accounts_view LIMIT -1 OFFSET 1) CROSS JOIN tweet",
+        "REAL",
+        true, // null if accounts view has fewer rows than the offset
+    )
+    .await?;
+
     Ok(())
 }
 
