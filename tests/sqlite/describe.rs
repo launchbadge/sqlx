@@ -806,3 +806,46 @@ async fn it_describes_func_strftime() -> anyhow::Result<()> {
     assert_eq!(info.nullable(0), Some(true), "{}", query);
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_with_recursive() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "
+        WITH RECURSIVE schedule(begin_date) AS (
+             SELECT datetime('2022-10-01')
+             WHERE datetime('2022-10-01') < datetime('2022-11-03')
+             UNION ALL
+             SELECT datetime(begin_date,'+1 day')
+             FROM schedule
+             WHERE datetime(begin_date) < datetime(?2)
+         )
+         SELECT
+             begin_date
+         FROM schedule
+         GROUP BY begin_date
+        ";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+
+    let query = "
+        WITH RECURSIVE schedule(begin_date) AS MATERIALIZED (
+             SELECT datetime('2022-10-01')
+             WHERE datetime('2022-10-01') < datetime('2022-11-03')
+             UNION ALL
+             SELECT datetime(begin_date,'+1 day')
+             FROM schedule
+             WHERE datetime(begin_date) < datetime(?2)
+         )
+         SELECT
+             begin_date
+         FROM schedule
+         GROUP BY begin_date
+        ";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+
+    Ok(())
+}
