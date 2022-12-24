@@ -19,6 +19,7 @@ const SQLITE_AFF_REAL: u8 = 0x45; /* 'E' */
 const OP_INIT: &str = "Init";
 const OP_GOTO: &str = "Goto";
 const OP_DECR_JUMP_ZERO: &str = "DecrJumpZero";
+const OP_DELETE: &str = "Delete";
 const OP_ELSE_EQ: &str = "ElseEq";
 const OP_EQ: &str = "Eq";
 const OP_END_COROUTINE: &str = "EndCoroutine";
@@ -882,6 +883,15 @@ pub(super) fn explain(
                         }
                     }
                     //Noop if the register p2 isn't a record, or if pointer p1 does not exist
+                }
+
+                OP_DELETE => {
+                    // delete a record from cursor p1
+                    if let Some(CursorDataType::Normal { is_empty, .. }) = state.p.get_mut(&p1) {
+                        if *is_empty == Some(false) {
+                            *is_empty = None; //the cursor might be empty now
+                        }
+                    }
                 }
 
                 OP_OPEN_PSEUDO => {
