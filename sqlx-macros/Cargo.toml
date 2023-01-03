@@ -59,6 +59,7 @@ mssql = ["sqlx-core/mssql"]
 
 # type
 bigdecimal = ["sqlx-core/bigdecimal"]
+u256 = ["sqlx-core/u256"]
 decimal = ["sqlx-core/decimal"]
 chrono = ["sqlx-core/chrono"]
 time = ["sqlx-core/time"]
