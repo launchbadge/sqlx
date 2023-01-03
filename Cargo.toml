@@ -58,6 +58,7 @@ all-databases = ["mysql", "sqlite", "postgres", "mssql", "any"]
 all-types = [
     "bigdecimal",
     "decimal",
+    "u256",
     "json",
     "time",
     "chrono",
@@ -114,6 +115,7 @@ mssql = ["sqlx-core/mssql", "sqlx-macros/mssql"]
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
 decimal = ["sqlx-core/decimal", "sqlx-macros/decimal"]
+u256 = ["sqlx-core/u256", "sqlx-macros/u256"]
 chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros/ipnetwork"]
 mac_address = ["sqlx-core/mac_address", "sqlx-macros/mac_address"]
