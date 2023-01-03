@@ -1,15 +1,13 @@
-use core::num;
-use std::cmp;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
 use ethereum_types::U256;
-use num_bigint::{BigInt, Sign};
+use num_bigint::Sign;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::types::numeric::{PgNumeric, PgNumericSign};
+use crate::postgres::types::numeric::PgNumeric;
 use crate::postgres::{
     PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
 };
