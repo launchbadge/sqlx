@@ -155,6 +155,17 @@ impl Type<Postgres> for PgRange<rust_decimal::Decimal> {
     }
 }
 
+#[cfg(feature = "u256")]
+impl Type<Postgres> for PgRange<ethereum_types::U256> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<ethereum_types::U256>(ty)
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for PgRange<chrono::NaiveDate> {
     fn type_info() -> PgTypeInfo {
@@ -242,6 +253,13 @@ impl PgHasArrayType for PgRange<bigdecimal::BigDecimal> {
 
 #[cfg(feature = "decimal")]
 impl PgHasArrayType for PgRange<rust_decimal::Decimal> {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE_ARRAY
+    }
+}
+
+#[cfg(feature = "u256")]
+impl PgHasArrayType for PgRange<ethereum_types::U256> {
     fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::NUM_RANGE_ARRAY
     }

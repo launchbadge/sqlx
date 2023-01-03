@@ -62,6 +62,9 @@ impl_database_ext! {
         #[cfg(feature = "decimal")]
         sqlx::types::Decimal,
 
+        #[cfg(feature = "u256")]
+        sqlx::types::U256,
+
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
 
@@ -121,6 +124,9 @@ impl_database_ext! {
         #[cfg(feature = "decimal")]
         Vec<sqlx::types::Decimal> | &[sqlx::types::Decimal],
 
+        #[cfg(feature = "u256")]
+        Vec<sqlx::types::U256> | &[sqlx::types::U256],
+
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
 
@@ -140,6 +146,9 @@ impl_database_ext! {
 
         #[cfg(feature = "decimal")]
         sqlx::postgres::types::PgRange<sqlx::types::Decimal>,
+
+        #[cfg(feature = "u256")]
+        sqlx::postgres::types::PgRange<sqlx::types::U256>,
 
         #[cfg(feature = "chrono")]
         sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>,
@@ -172,6 +181,10 @@ impl_database_ext! {
         #[cfg(feature = "decimal")]
         Vec<sqlx::postgres::types::PgRange<sqlx::types::Decimal>> |
             &[sqlx::postgres::types::PgRange<sqlx::types::Decimal>],
+
+        #[cfg(feature = "u256")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::U256>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::U256>],
 
         #[cfg(feature = "chrono")]
         Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>> |

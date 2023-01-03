@@ -68,6 +68,11 @@ pub use bigdecimal::BigDecimal;
 #[doc(no_inline)]
 pub use rust_decimal::Decimal;
 
+#[cfg(feature = "u256")]
+#[cfg_attr(docsrs, doc(cfg(feature = "u256")))]
+#[doc(no_inline)]
+pub use ethereum_types::U256;
+
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {
