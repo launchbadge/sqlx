@@ -31,7 +31,7 @@
 //! | Rust type                             | Postgres type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | NUMERIC                                              |
-//! 
+//!
 //! ### [`u256`](https://crates.io/crates/ethereum-types)
 //! Requires the `u256` Cargo feature flag.
 //!

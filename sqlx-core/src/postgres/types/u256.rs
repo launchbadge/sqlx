@@ -86,7 +86,7 @@ impl Decode<'_, Postgres> for U256 {
         match value.format() {
             PgValueFormat::Binary => PgNumeric::decode(value.as_bytes()?)?.try_into(),
             PgValueFormat::Text => Ok(U256::from_dec_str(
-                &value.as_str()?.parse::<BigDecimal>()?.to_string()
+                &value.as_str()?.parse::<BigDecimal>()?.to_string(),
             )
             .expect("U256 failed from BigDecimal")),
         }
