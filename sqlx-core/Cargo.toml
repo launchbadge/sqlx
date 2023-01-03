@@ -63,7 +63,7 @@ all-types = [
 ]
 bigdecimal = ["bigdecimal_", "num-bigint"]
 decimal = ["rust_decimal", "num-bigint"]
-u256 = ["ethereum_types"]
+u256 = ["ethereum-types"]
 json = ["serde", "serde_json"]
 
 # runtimes

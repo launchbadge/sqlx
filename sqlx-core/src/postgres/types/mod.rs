@@ -31,6 +31,13 @@
 //! | Rust type                             | Postgres type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | NUMERIC                                              |
+//! 
+//! ### [`u256`](https://crates.io/crates/ethereum-types)
+//! Requires the `u256` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ethereum_types::U256`                | NUMERIC                                              |
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
@@ -191,11 +198,14 @@ mod time_tz;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
-#[cfg(any(feature = "bigdecimal", feature = "decimal"))]
+#[cfg(any(feature = "bigdecimal", feature = "decimal", feature = "u256"))]
 mod numeric;
 
 #[cfg(feature = "decimal")]
 mod decimal;
+
+#[cfg(feature = "u256")]
+mod u256;
 
 #[cfg(feature = "chrono")]
 mod chrono;
