@@ -103,6 +103,9 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    #[error("this node allows only reads")]
+    ReadOnly,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

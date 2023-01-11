@@ -100,6 +100,10 @@ impl FromStr for PgConnectOptions {
                     }
                 }
 
+                "target_session_attrs" => {
+                    options = options.target_session_attrs(value.parse().map_err(Error::config)?)
+                }
+
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }

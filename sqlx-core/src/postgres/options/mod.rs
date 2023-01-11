@@ -90,6 +90,16 @@ pub struct PgConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
     pub(crate) options: Option<String>,
+    pub(crate) target_session_attrs: TargetSessionAttrs,
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub enum TargetSessionAttrs {
+    /// No special properties are required.
+    #[default]
+    Any,
+    /// The session must allow writes.
+    ReadWrite,
 }
 
 impl Default for PgConnectOptions {
@@ -152,6 +162,7 @@ impl PgConnectOptions {
             extra_float_digits: Some("3".into()),
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
+            target_session_attrs: Default::default(),
         }
     }
 
@@ -447,6 +458,11 @@ impl PgConnectOptions {
             }
             _ => None,
         }
+    }
+
+    pub fn target_session_attrs(mut self, target_session_attrs: TargetSessionAttrs) -> Self {
+        self.target_session_attrs = target_session_attrs;
+        self
     }
 }
 

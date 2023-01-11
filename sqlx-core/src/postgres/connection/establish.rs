@@ -1,12 +1,15 @@
 use crate::HashMap;
+use tokio::net::TcpStream;
 
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
 use crate::postgres::connection::{sasl, stream::PgStream, tls};
 use crate::postgres::message::{
-    Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
+    Authentication, BackendKeyData, DataRow, MessageFormat, ParameterStatus, Password, Query,
+    ReadyForQuery, Startup,
 };
+use crate::postgres::options::TargetSessionAttrs;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
 
@@ -128,6 +131,20 @@ impl PgConnection {
                     break;
                 }
 
+                MessageFormat::ParameterStatus => {
+                    let data: ParameterStatus = message.decode()?;
+                    /// When the value of in_hot_standby is on, All such connections are strictly read-only; not even temporary tables may be written.
+                    /// In server versions before 14, the in_hot_standby parameter did not exist; a workable substitute method for older servers is SHOW transaction_read_only.
+                    if options
+                        .target_session_attrs
+                        .eq(&TargetSessionAttrs::ReadWrite)
+                        && data.name.eq("in_hot_standby")
+                        && data.value.eq("on")
+                    {
+                        return Err(Error::ReadOnly);
+                    }
+                }
+
                 _ => {
                     return Err(err_protocol!(
                         "establish: unexpected message: {:?}",
@@ -136,6 +153,8 @@ impl PgConnection {
                 }
             }
         }
+
+        Self::is_primary(&mut stream, &options.target_session_attrs).await?;
 
         Ok(PgConnection {
             stream,
@@ -150,5 +169,37 @@ impl PgConnection {
             cache_type_info: HashMap::new(),
             log_settings: options.log_settings.clone(),
         })
+    }
+
+    ///If the node is required to be read-write, send 'show transaction_read_only' to determine whether the node is read-write('off') or read-only('on')
+    async fn is_primary(
+        stream: &mut PgStream,
+        target_session_attrs: &TargetSessionAttrs,
+    ) -> Result<(), Error> {
+        if target_session_attrs.eq(&TargetSessionAttrs::ReadWrite) {
+            stream.send(Query("show transaction_read_only")).await?;
+            loop {
+                let message = stream.recv().await?;
+                match message.format {
+                    MessageFormat::DataRow => {
+                        let data: DataRow = message.decode()?;
+                        if data.values.len().le(&0) {
+                            continue;
+                        }
+                        if let Some(value) = data.get(0) {
+                            let value = String::from_utf8_lossy(value).to_string();
+                            if value.eq("on") {
+                                return Err(Error::ReadOnly);
+                            }
+                        }
+                    }
+                    MessageFormat::ReadyForQuery => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 }
