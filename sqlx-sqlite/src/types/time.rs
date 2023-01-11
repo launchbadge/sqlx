@@ -145,6 +145,10 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
         return Some(dt);
     }
 
+    if let Some(dt) = decode_datetime_from_text(value) {
+        return Some(dt.assume_utc());
+    }
+
     None
 }
 
