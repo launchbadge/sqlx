@@ -1,6 +1,4 @@
 use crate::HashMap;
-use tokio::net::TcpStream;
-
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
