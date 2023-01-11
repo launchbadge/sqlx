@@ -1,4 +1,3 @@
-use crate::HashMap;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
@@ -10,6 +9,7 @@ use crate::postgres::message::{
 use crate::postgres::options::TargetSessionAttrs;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
+use crate::HashMap;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
