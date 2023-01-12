@@ -192,7 +192,7 @@ impl PgConnectOptions {
     ///     .host(vec!["localhost"]);
     /// ```
     pub fn host<T: Into<String>>(mut self, host: Vec<T>) -> Self {
-        self.host = host.iter().map(|s| s.into()).collect();
+        self.host = host.into_iter().map(|s| s.into()).collect();
         self
     }
 
@@ -442,13 +442,13 @@ impl PgConnectOptions {
 
     /// We try using a socket if hostname starts with `/` or if socket parameter
     /// is specified.
-    pub(crate) fn fetch_socket(&self) -> Option<String> {
+    pub(crate) fn fetch_socket(&self, host: &str) -> Option<String> {
         match self.socket {
             Some(ref socket) => {
                 let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port[0]);
                 Some(full_path)
             }
-            None if self.host.starts_with('/') => {
+            None if host.starts_with('/') => {
                 let full_path = format!("{}/.s.PGSQL.{}", self.host[0], self.port[0]);
                 Some(full_path)
             }

@@ -8,6 +8,7 @@ use crate::postgres::{PgConnectOptions, PgSslMode};
 pub(super) async fn maybe_upgrade(
     stream: &mut PgStream,
     options: &PgConnectOptions,
+    host: &str,
 ) -> Result<(), Error> {
     // https://www.postgresql.org/docs/12/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
     match options.ssl_mode {
@@ -16,11 +17,11 @@ pub(super) async fn maybe_upgrade(
 
         PgSslMode::Prefer => {
             // try upgrade, but its okay if we fail
-            upgrade(stream, options).await?;
+            upgrade(stream, options, host).await?;
         }
 
         PgSslMode::Require | PgSslMode::VerifyFull | PgSslMode::VerifyCa => {
-            if !upgrade(stream, options).await? {
+            if !upgrade(stream, options, host).await? {
                 // upgrade failed, die
                 return Err(Error::Tls("server does not support TLS".into()));
             }
@@ -30,7 +31,11 @@ pub(super) async fn maybe_upgrade(
     Ok(())
 }
 
-async fn upgrade(stream: &mut PgStream, options: &PgConnectOptions) -> Result<bool, Error> {
+async fn upgrade(
+    stream: &mut PgStream,
+    options: &PgConnectOptions,
+    host: &str,
+) -> Result<bool, Error> {
     // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
 
     // To initiate an SSL-encrypted connection, the frontend initially sends an
@@ -67,7 +72,7 @@ async fn upgrade(stream: &mut PgStream, options: &PgConnectOptions) -> Result<bo
 
     stream
         .upgrade(
-            &options.host,
+            host,
             accept_invalid_certs,
             accept_invalid_hostnames,
             options.ssl_root_cert.as_ref(),

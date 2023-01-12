@@ -106,6 +106,12 @@ pub enum Error {
 
     #[error("this node allows only reads")]
     ReadOnly,
+
+    #[error("invalid number of ports")]
+    InvalidPorts,
+
+    #[error("parse url error")]
+    ParseUrlError,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

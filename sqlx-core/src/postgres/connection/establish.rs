@@ -19,7 +19,7 @@ use url::quirks::host;
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
         if options.port.len() > 1 && options.port.len() != options.host.len() {
-            return Err(Error::config("invalid number of ports".into()));
+            return Err(Error::InvalidPorts);
         }
 
         let mut error = None;
@@ -31,7 +31,7 @@ impl PgConnection {
                 .copied()
                 .unwrap_or(5432);
 
-            match Self::connect_once(options, host, port) {
+            match Self::connect_once(options, host, port).await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => error = Some(e),
             }
@@ -48,7 +48,7 @@ impl PgConnection {
         let mut stream = PgStream::connect(options, addr, port).await?;
 
         // Upgrade to TLS if we were asked to and the server supports it
-        tls::maybe_upgrade(&mut stream, options).await?;
+        tls::maybe_upgrade(&mut stream, options, addr).await?;
 
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.

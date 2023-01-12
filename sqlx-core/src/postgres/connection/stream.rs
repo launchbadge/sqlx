@@ -41,7 +41,7 @@ impl PgStream {
         host: &str,
         port: u16,
     ) -> Result<Self, Error> {
-        let socket = match options.fetch_socket() {
+        let socket = match options.fetch_socket(host) {
             Some(ref path) => Socket::connect_uds(path).await?,
             None => Socket::connect_tcp(host, port).await?,
         };

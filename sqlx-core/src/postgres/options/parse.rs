@@ -1,7 +1,13 @@
 use crate::error::Error;
 use crate::postgres::PgConnectOptions;
 use percent_encoding::percent_decode_str;
+use std::borrow::Cow;
+#[cfg(unix)]
+use std::ffi::OsStr;
+use std::mem;
 use std::net::IpAddr;
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
 use std::str::FromStr;
 use url::Url;
 
@@ -9,108 +15,231 @@ impl FromStr for PgConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        let url: Url = s.parse().map_err(Error::config)?;
+        // postgres://username[:password]@host[:port][/database
+        Ok(UrlParser::parse(s).unwrap().unwrap())
+    }
+}
 
-        let mut options = Self::new_without_pgpass();
+struct UrlParser<'a> {
+    s: &'a str,
+    config: PgConnectOptions,
+}
 
-        if let Some(host) = url.host_str() {
-            let host_decoded = percent_decode_str(host);
-            options = match host_decoded.clone().next() {
-                Some(b'/') => options.socket(&*host_decoded.decode_utf8().map_err(Error::config)?),
-                _ => options.host(host),
+impl<'a> UrlParser<'a> {
+    fn parse(s: &'a str) -> Result<Option<PgConnectOptions>, Error> {
+        let s = match Self::remove_url_prefix(s) {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+
+        let mut parser = UrlParser {
+            s,
+            config: PgConnectOptions::new(),
+        };
+
+        parser.parse_credentials()?;
+        parser.parse_host()?;
+        parser.parse_path()?;
+        parser.parse_params()?;
+
+        Ok(Some(parser.config))
+    }
+
+    fn remove_url_prefix(s: &str) -> Option<&str> {
+        for prefix in &["postgres://", "postgresql://"] {
+            if let Some(stripped) = s.strip_prefix(prefix) {
+                return Some(stripped);
             }
         }
 
-        if let Some(port) = url.port() {
-            options = options.port(port);
+        None
+    }
+
+    fn take_until(&mut self, end: &[char]) -> Option<&'a str> {
+        match self.s.find(end) {
+            Some(pos) => {
+                let (head, tail) = self.s.split_at(pos);
+                self.s = tail;
+                Some(head)
+            }
+            None => None,
+        }
+    }
+
+    fn take_all(&mut self) -> &'a str {
+        mem::take(&mut self.s)
+    }
+
+    fn eat_byte(&mut self) {
+        self.s = &self.s[1..];
+    }
+
+    fn parse_credentials(&mut self) -> Result<(), Error> {
+        if let Some(username) = self.take_until(&[':']) {
+            self.config.username = username.to_string();
+        };
+        self.eat_byte();
+
+        if let Some(password) = self.take_until(&['@']) {
+            if self.config.username.is_empty() {
+                self.config.username = password.to_string();
+            } else {
+                self.config.password = Some(password.to_string())
+            }
+        };
+        self.eat_byte();
+        Ok(())
+    }
+
+    fn parse_host(&mut self) -> Result<(), Error> {
+        let host = match self.take_until(&['/', '?']) {
+            Some(host) => host,
+            None => self.take_all(),
+        };
+        if host.is_empty() {
+            return Ok(());
         }
 
-        let username = url.username();
-        if !username.is_empty() {
-            options = options.username(
-                &*percent_decode_str(username)
-                    .decode_utf8()
-                    .map_err(Error::config)?,
-            );
+        for chunk in host.split(',') {
+            let (host, port) = if chunk.starts_with('[') {
+                let idx = match chunk.find(']') {
+                    Some(idx) => idx,
+                    None => return Err(Error::ParseUrlError),
+                };
+
+                let host = &chunk[1..idx];
+                let remaining = &chunk[idx + 1..];
+                let port = if let Some(port) = remaining.strip_prefix(':') {
+                    Some(port)
+                } else if remaining.is_empty() {
+                    None
+                } else {
+                    return Err(Error::ParseUrlError);
+                };
+
+                (host, port)
+            } else {
+                let mut it = chunk.splitn(2, ':');
+                (it.next().unwrap(), it.next())
+            };
+
+            self.config.host.push(host.to_string());
+            println!("{:?}", port);
+            let port = port.unwrap_or("5432");
+            self.config.port.push(port.parse().unwrap());
         }
 
-        if let Some(password) = url.password() {
-            options = options.password(
-                &*percent_decode_str(password)
-                    .decode_utf8()
-                    .map_err(Error::config)?,
-            );
+        Ok(())
+    }
+
+    fn parse_path(&mut self) -> Result<(), Error> {
+        if !self.s.starts_with('/') {
+            return Ok(());
+        }
+        self.eat_byte();
+
+        let dbname = match self.take_until(&['?']) {
+            Some(dbname) => dbname,
+            None => self.take_all(),
+        };
+
+        if !dbname.is_empty() {
+            self.config.database = Some(dbname.to_string())
         }
 
-        let path = url.path().trim_start_matches('/');
-        if !path.is_empty() {
-            options = options.database(path);
-        }
+        Ok(())
+    }
 
-        for (key, value) in url.query_pairs().into_iter() {
+    fn parse_params(&mut self) -> Result<(), Error> {
+        if !self.s.starts_with('?') {
+            return Ok(());
+        }
+        self.eat_byte();
+
+        let mut option = self.config.clone();
+        while !self.s.is_empty() {
+            let key = match self.take_until(&['=']) {
+                Some(key) => self.decode(key)?,
+                None => return Err(Error::ParseUrlError),
+            };
+            self.eat_byte();
+
+            let value = match self.take_until(&['&']) {
+                Some(value) => {
+                    self.eat_byte();
+                    value
+                }
+                None => self.take_all(),
+            };
+
             match &*key {
                 "sslmode" | "ssl-mode" => {
-                    options = options.ssl_mode(value.parse().map_err(Error::config)?);
+                    option = option.ssl_mode(value.parse().map_err(Error::config)?);
                 }
 
                 "sslrootcert" | "ssl-root-cert" | "ssl-ca" => {
-                    options = options.ssl_root_cert(&*value);
+                    option = option.ssl_root_cert(&*value);
                 }
 
                 "statement-cache-capacity" => {
-                    options =
-                        options.statement_cache_capacity(value.parse().map_err(Error::config)?);
+                    option = option.statement_cache_capacity(value.parse().map_err(Error::config)?);
                 }
 
                 "host" => {
                     if value.starts_with("/") {
-                        options = options.socket(&*value);
+                        option = option.socket(&*value);
                     } else {
-                        options = options.host(&*value);
+                        option = option.host(vec![&*value]);
                     }
                 }
 
                 "hostaddr" => {
                     value.parse::<IpAddr>().map_err(Error::config)?;
-                    options = options.host(&*value)
+                    option = option.host(vec![&*value])
                 }
 
-                "port" => options = options.port(value.parse().map_err(Error::config)?),
+                "port" => option = option.port(vec![value.parse().map_err(Error::config)?]),
 
-                "dbname" => options = options.database(&*value),
+                "dbname" => option = option.database(&*value),
 
-                "user" => options = options.username(&*value),
+                "user" => option = option.username(&*value),
 
-                "password" => options = options.password(&*value),
+                "password" => option = option.password(&*value),
 
-                "application_name" => options = options.application_name(&*value),
+                "application_name" => option = option.application_name(&*value),
 
                 "options" => {
-                    if let Some(options) = options.options.as_mut() {
+                    if let Some(options) = option.options.as_mut() {
                         options.push(' ');
                         options.push_str(&*value);
                     } else {
-                        options.options = Some(value.to_string());
+                        option.options = Some(value.to_string());
                     }
                 }
 
                 k if k.starts_with("options[") => {
                     if let Some(key) = k.strip_prefix("options[").unwrap().strip_suffix(']') {
-                        options = options.options([(key, &*value)]);
+                        option = option.options([(key, &*value)]);
                     }
                 }
 
                 "target_session_attrs" => {
-                    options = options.target_session_attrs(value.parse().map_err(Error::config)?)
+                    option = option.target_session_attrs(value.parse().map_err(Error::config)?)
                 }
 
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }
 
-        let options = options.apply_pgpass();
+        self.config = option;
 
-        Ok(options)
+        Ok(())
+    }
+
+    fn decode(&self, s: &'a str) -> Result<Cow<'a, str>, Error> {
+        percent_encoding::percent_decode(s.as_bytes())
+            .decode_utf8()
+            .map_err(Error::config)
     }
 }
 
