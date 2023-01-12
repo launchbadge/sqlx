@@ -10,13 +10,42 @@ use crate::postgres::options::TargetSessionAttrs;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
 use crate::HashMap;
+use std::future::Future;
+use url::quirks::host;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
 
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
-        let mut stream = PgStream::connect(options).await?;
+        if options.port.len() > 1 && options.port.len() != options.host.len() {
+            return Err(Error::config("invalid number of ports".into()));
+        }
+
+        let mut error = None;
+        for (i, host) in options.host.iter().enumerate() {
+            let port = options
+                .port
+                .get(i)
+                .or_else(|| options.port.first())
+                .copied()
+                .unwrap_or(5432);
+
+            match Self::connect_once(options, host, port) {
+                Ok(conn) => return Ok(conn),
+                Err(e) => error = Some(e),
+            }
+        }
+
+        Err(error.unwrap())
+    }
+
+    async fn connect_once(
+        options: &PgConnectOptions,
+        addr: &str,
+        port: u16,
+    ) -> Result<Self, Error> {
+        let mut stream = PgStream::connect(options, addr, port).await?;
 
         // Upgrade to TLS if we were asked to and the server supports it
         tls::maybe_upgrade(&mut stream, options).await?;
@@ -154,7 +183,7 @@ impl PgConnection {
 
         Self::is_primary(&mut stream, &options.target_session_attrs).await?;
 
-        Ok(PgConnection {
+        return Ok(PgConnection {
             stream,
             process_id,
             secret_key,
@@ -166,7 +195,7 @@ impl PgConnection {
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
             log_settings: options.log_settings.clone(),
-        })
+        });
     }
 
     ///If the node is required to be read-write, send 'show transaction_read_only' to determine whether the node is read-write('off') or read-only('on')

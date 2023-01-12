@@ -82,8 +82,8 @@ pub use target_session_attrs::TargetSessionAttrs;
 /// ```
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
-    pub(crate) host: String,
-    pub(crate) port: u16,
+    pub(crate) host: Vec<String>,
+    pub(crate) port: Vec<u16>,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
@@ -142,8 +142,8 @@ impl PgConnectOptions {
         let database = var("PGDATABASE").ok();
 
         PgConnectOptions {
-            port,
-            host,
+            port: vec![port],
+            host: vec![host],
             socket: None,
             username,
             password: var("PGPASSWORD").ok(),
@@ -165,8 +165,8 @@ impl PgConnectOptions {
     pub(crate) fn apply_pgpass(mut self) -> Self {
         if self.password.is_none() {
             self.password = pgpass::load_password(
-                &self.host,
-                self.port,
+                &self.host[0],
+                self.port[0],
                 &self.username,
                 self.database.as_deref(),
             );
@@ -189,10 +189,10 @@ impl PgConnectOptions {
     /// ```rust
     /// # use sqlx_core::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
-    ///     .host("localhost");
+    ///     .host(vec!["localhost"]);
     /// ```
-    pub fn host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+    pub fn host<T: Into<String>>(mut self, host: Vec<T>) -> Self {
+        self.host = host.iter().map(|s| s.into()).collect();
         self
     }
 
@@ -205,9 +205,9 @@ impl PgConnectOptions {
     /// ```rust
     /// # use sqlx_core::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
-    ///     .port(5432);
+    ///     .port(vec![5432]);
     /// ```
-    pub fn port(mut self, port: u16) -> Self {
+    pub fn port(mut self, port: Vec<u16>) -> Self {
         self.port = port;
         self
     }
@@ -445,11 +445,11 @@ impl PgConnectOptions {
     pub(crate) fn fetch_socket(&self) -> Option<String> {
         match self.socket {
             Some(ref socket) => {
-                let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port);
+                let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port[0]);
                 Some(full_path)
             }
             None if self.host.starts_with('/') => {
-                let full_path = format!("{}/.s.PGSQL.{}", self.host, self.port);
+                let full_path = format!("{}/.s.PGSQL.{}", self.host[0], self.port[0]);
                 Some(full_path)
             }
             _ => None,
