@@ -3,49 +3,41 @@ use crate::postgres::PgConnectOptions;
 use std::mem;
 use std::net::IpAddr;
 use std::str::FromStr;
+use crate::error::Error::ParseUrlError;
 
 impl FromStr for PgConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(UrlParser::parse(s).unwrap().unwrap())
+        let options = PgConnectOptions::new_without_pgpass();
+        UrlParser::parse(s, options)
     }
 }
 
 struct UrlParser<'a> {
     s: &'a str,
-    config: PgConnectOptions,
 }
 
 impl<'a> UrlParser<'a> {
     // postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
-    fn parse(s: &'a str) -> Result<Option<PgConnectOptions>, Error> {
-        let s = match Self::remove_url_prefix(s) {
-            Some(s) => s,
-            None => return Ok(None),
-        };
+    fn parse(s: &'a str, mut options: PgConnectOptions) -> Result<PgConnectOptions, Error> {
+        let s = Self::remove_url_prefix(s)?;
+        let mut parser = UrlParser {s};
+        options = parser.parse_credentials(options)?;
+        options = parser.parse_host(options)?;
+        options = parser.parse_path(options)?;
+        options = parser.parse_params(options)?;
 
-        let mut parser = UrlParser {
-            s,
-            config: PgConnectOptions::default(),
-        };
-
-        parser.parse_credentials()?;
-        parser.parse_host()?;
-        parser.parse_path()?;
-        parser.parse_params()?;
-
-        Ok(Some(parser.config))
+        Ok(options)
     }
 
-    fn remove_url_prefix(s: &str) -> Option<&str> {
+    fn remove_url_prefix(s: &str) -> Result<&str, Error> {
         for prefix in &["postgres://", "postgresql://"] {
             if let Some(stripped) = s.strip_prefix(prefix) {
-                return Some(stripped);
+                return Ok(stripped);
             }
         }
-
-        None
+        Err(ParseUrlError("The url prefix format is incorrect. Expect `postgres://` or `postgresql://`".to_string()))
     }
 
     fn take_until(&mut self, end: &[char]) -> Option<&'a str> {
@@ -67,34 +59,34 @@ impl<'a> UrlParser<'a> {
         self.s = &self.s[1..];
     }
 
-    fn parse_credentials(&mut self) -> Result<(), Error> {
+    fn parse_credentials(&mut self, mut option: PgConnectOptions) -> Result<PgConnectOptions, Error> {
         if let Some(cred) = self.take_until(&['@']) {
             let cred: Vec<&str> = cred.split(':').collect();
             if cred.len().gt(&1) {
-                self.config.username = cred[0].to_string();
-                self.config.password = Some(cred[1].to_string());
+                option = option.username(cred[0]);
+                option = option.password(cred[1]);
             }else {
-                self.config.username = cred[0].to_string();
+                option = option.username(cred[0]);
             }
         }
         self.eat_byte();
-        Ok(())
+        Ok(option)
     }
 
-    fn parse_host(&mut self) -> Result<(), Error> {
+    fn parse_host(&mut self, mut option: PgConnectOptions) -> Result<PgConnectOptions, Error> {
         let host = match self.take_until(&['/', '?']) {
             Some(host) => host,
             None => self.take_all(),
         };
         if host.is_empty() {
-            return Ok(());
+            return Ok(option);
         }
 
         for chunk in host.split(',') {
             let (host, port) = if chunk.starts_with('[') {
                 let idx = match chunk.find(']') {
                     Some(idx) => idx,
-                    None => return Err(Error::ParseUrlError),
+                    None => return Err(ParseUrlError("Incorrect url address, expect '[netloc]:port,.. `".to_string())),
                 };
 
                 let host = &chunk[1..idx];
@@ -104,7 +96,7 @@ impl<'a> UrlParser<'a> {
                 } else if remaining.is_empty() {
                     None
                 } else {
-                    return Err(Error::ParseUrlError);
+                    return Err(ParseUrlError("Incorrect url address, there is no port after the colon, expect '[netloc]:port,.. `".to_string()));
                 };
 
                 (host, port)
@@ -113,17 +105,17 @@ impl<'a> UrlParser<'a> {
                 (it.next().unwrap(), it.next())
             };
 
-            self.config.host.push(host.to_string());
+            option.host.push(host.to_string());
             let port = port.unwrap_or("5432");
-            self.config.port.push(port.parse().unwrap());
+            option.port.push(port.parse().map_err(Error::config)?);
         }
 
-        Ok(())
+        Ok(option)
     }
 
-    fn parse_path(&mut self) -> Result<(), Error> {
+    fn parse_path(&mut self, mut option: PgConnectOptions) -> Result<PgConnectOptions, Error> {
         if !self.s.starts_with('/') {
-            return Ok(());
+            return Ok(option);
         }
         self.eat_byte();
 
@@ -133,24 +125,22 @@ impl<'a> UrlParser<'a> {
         };
 
         if !dbname.is_empty() {
-            self.config.database = Some(dbname.to_string())
+            option = option.database(dbname);
         }
 
-        Ok(())
+        Ok(option)
     }
 
-    fn parse_params(&mut self) -> Result<(), Error> {
+    fn parse_params(&mut self, mut option: PgConnectOptions) -> Result<PgConnectOptions, Error> {
         if !self.s.starts_with('?') {
-            return Ok(());
+            return Ok(option);
         }
         self.eat_byte();
 
-        let mut option = self.config.clone();
-        println!("{:?}", option.host);
         while !self.s.is_empty() {
             let key = match self.take_until(&['=']) {
                 Some(key) => key,
-                None => return Err(Error::ParseUrlError),
+                None => return Err(ParseUrlError("Incorrect url address, expected: `postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]`".to_string())),
             };
             self.eat_byte();
 
@@ -221,9 +211,7 @@ impl<'a> UrlParser<'a> {
             }
         }
 
-        self.config = option;
-
-        Ok(())
+        Ok(option)
     }
 }
 

@@ -19,6 +19,7 @@ impl PgConnection {
         if options.port.len() > 1 && options.port.len() != options.host.len() {
             return Err(Error::InvalidPorts);
         }
+        println!("{:?}", options);
 
         let mut error = None;
         for (i, host) in options.host.iter().enumerate() {
@@ -30,7 +31,10 @@ impl PgConnection {
                 .unwrap_or(5432);
 
             match Self::connect_once(options, host, port).await {
-                Ok(conn) => return Ok(conn),
+                Ok(conn) => {
+                    return Ok(conn);
+                },
+
                 Err(e) => error = Some(e),
             }
         }
@@ -179,6 +183,7 @@ impl PgConnection {
             }
         }
 
+        println!("{:?}, {}, {:?}", addr, port, options.target_session_attrs);
         Self::is_primary(&mut stream, &options.target_session_attrs).await?;
 
         return Ok(PgConnection {
@@ -213,6 +218,7 @@ impl PgConnection {
                         }
                         if let Some(value) = data.get(0) {
                             let value = String::from_utf8_lossy(value).to_string();
+                            println!("{:?}", value);
                             if value.eq("on") {
                                 return Err(Error::ReadOnly);
                             }

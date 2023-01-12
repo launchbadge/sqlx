@@ -110,8 +110,8 @@ pub enum Error {
     #[error("invalid number of ports")]
     InvalidPorts,
 
-    #[error("parse url error")]
-    ParseUrlError,
+    #[error("parse url error: {0}")]
+    ParseUrlError(String),
 }
 
 impl StdError for Box<dyn DatabaseError> {}
