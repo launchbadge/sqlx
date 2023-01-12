@@ -10,8 +10,6 @@ use crate::postgres::options::TargetSessionAttrs;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
 use crate::HashMap;
-use std::future::Future;
-use url::quirks::host;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
@@ -160,8 +158,8 @@ impl PgConnection {
 
                 MessageFormat::ParameterStatus => {
                     let data: ParameterStatus = message.decode()?;
-                    /// When the value of in_hot_standby is on, All such connections are strictly read-only; not even temporary tables may be written.
-                    /// In server versions before 14, the in_hot_standby parameter did not exist; a workable substitute method for older servers is SHOW transaction_read_only.
+                    // When the value of in_hot_standby is on, All such connections are strictly read-only; not even temporary tables may be written.
+                    // In server versions before 14, the in_hot_standby parameter did not exist; a workable substitute method for older servers is SHOW transaction_read_only.
                     if options
                         .target_session_attrs
                         .eq(&TargetSessionAttrs::ReadWrite)

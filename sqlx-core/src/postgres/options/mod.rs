@@ -2,14 +2,12 @@ use std::borrow::Cow;
 use std::env::var;
 use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 mod connect;
 mod parse;
 mod pgpass;
 mod ssl_mode;
 mod target_session_attrs;
-use crate::error::Error;
 use crate::{connection::LogSettings, net::CertificateInput};
 pub use ssl_mode::PgSslMode;
 pub use target_session_attrs::TargetSessionAttrs;

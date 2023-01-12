@@ -1,21 +1,13 @@
 use crate::error::Error;
 use crate::postgres::PgConnectOptions;
-use percent_encoding::percent_decode_str;
-use std::borrow::Cow;
-#[cfg(unix)]
-use std::ffi::OsStr;
 use std::mem;
 use std::net::IpAddr;
-#[cfg(unix)]
-use std::os::unix::ffi::OsStrExt;
 use std::str::FromStr;
-use url::Url;
 
 impl FromStr for PgConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        // postgres://username[:password]@host[:port][/database
         Ok(UrlParser::parse(s).unwrap().unwrap())
     }
 }
@@ -26,6 +18,7 @@ struct UrlParser<'a> {
 }
 
 impl<'a> UrlParser<'a> {
+    // postgres://username[:password]@host[:port][/database
     fn parse(s: &'a str) -> Result<Option<PgConnectOptions>, Error> {
         let s = match Self::remove_url_prefix(s) {
             Some(s) => s,
@@ -124,7 +117,6 @@ impl<'a> UrlParser<'a> {
             };
 
             self.config.host.push(host.to_string());
-            println!("{:?}", port);
             let port = port.unwrap_or("5432");
             self.config.port.push(port.parse().unwrap());
         }
@@ -159,7 +151,7 @@ impl<'a> UrlParser<'a> {
         let mut option = self.config.clone();
         while !self.s.is_empty() {
             let key = match self.take_until(&['=']) {
-                Some(key) => self.decode(key)?,
+                Some(key) => key,
                 None => return Err(Error::ParseUrlError),
             };
             self.eat_byte();
@@ -234,12 +226,6 @@ impl<'a> UrlParser<'a> {
         self.config = option;
 
         Ok(())
-    }
-
-    fn decode(&self, s: &'a str) -> Result<Cow<'a, str>, Error> {
-        percent_encoding::percent_decode(s.as_bytes())
-            .decode_utf8()
-            .map_err(Error::config)
     }
 }
 
