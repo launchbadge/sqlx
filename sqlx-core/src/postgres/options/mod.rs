@@ -59,7 +59,7 @@ pub use target_session_attrs::TargetSessionAttrs;
 /// ```rust,no_run
 /// # use sqlx_core::error::Error;
 /// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
+/// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode, TargetSessionAttrs};
 /// #
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
@@ -74,6 +74,7 @@ pub use target_session_attrs::TargetSessionAttrs;
 ///     .username("secret-user")
 ///     .password("secret-password")
 ///     .ssl_mode(PgSslMode::Require)
+///     .target_session_attrs(TargetSessionAttrs::ReadWrite)
 ///     .connect().await?;
 /// # Ok(())
 /// # }).unwrap();

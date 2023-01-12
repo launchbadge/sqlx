@@ -1,6 +1,9 @@
 use crate::error::Error;
 use std::str::FromStr;
 
+/// Options for controlling the level of protection provided for PostgreSQL high availability.
+///
+/// It is used by the [`target_session_attrs`](super::PgConnectOptions::target_session_attrs) method.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub enum TargetSessionAttrs {
     /// No special properties are required.
