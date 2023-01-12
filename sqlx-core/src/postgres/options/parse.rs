@@ -18,7 +18,7 @@ struct UrlParser<'a> {
 }
 
 impl<'a> UrlParser<'a> {
-    // postgres://username[:password]@host[:port][/database
+    // postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
     fn parse(s: &'a str) -> Result<Option<PgConnectOptions>, Error> {
         let s = match Self::remove_url_prefix(s) {
             Some(s) => s,
@@ -27,7 +27,7 @@ impl<'a> UrlParser<'a> {
 
         let mut parser = UrlParser {
             s,
-            config: PgConnectOptions::new(),
+            config: PgConnectOptions::default(),
         };
 
         parser.parse_credentials()?;
@@ -68,18 +68,15 @@ impl<'a> UrlParser<'a> {
     }
 
     fn parse_credentials(&mut self) -> Result<(), Error> {
-        if let Some(username) = self.take_until(&[':']) {
-            self.config.username = username.to_string();
-        };
-        self.eat_byte();
-
-        if let Some(password) = self.take_until(&['@']) {
-            if self.config.username.is_empty() {
-                self.config.username = password.to_string();
-            } else {
-                self.config.password = Some(password.to_string())
+        if let Some(cred) = self.take_until(&['@']) {
+            let cred: Vec<&str> = cred.split(':').collect();
+            if cred.len().gt(&1) {
+                self.config.username = cred[0].to_string();
+                self.config.password = Some(cred[1].to_string());
+            }else {
+                self.config.username = cred[0].to_string();
             }
-        };
+        }
         self.eat_byte();
         Ok(())
     }
@@ -149,6 +146,7 @@ impl<'a> UrlParser<'a> {
         self.eat_byte();
 
         let mut option = self.config.clone();
+        println!("{:?}", option.host);
         while !self.s.is_empty() {
             let key = match self.take_until(&['=']) {
                 Some(key) => key,
