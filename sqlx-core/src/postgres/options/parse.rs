@@ -1,9 +1,9 @@
 use crate::error::Error;
+use crate::error::Error::ParseUrlError;
 use crate::postgres::PgConnectOptions;
 use std::mem;
 use std::net::IpAddr;
 use std::str::FromStr;
-use crate::error::Error::ParseUrlError;
 
 impl FromStr for PgConnectOptions {
     type Err = Error;
@@ -22,7 +22,7 @@ impl<'a> UrlParser<'a> {
     // postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
     fn parse(s: &'a str, mut options: PgConnectOptions) -> Result<PgConnectOptions, Error> {
         let s = Self::remove_url_prefix(s)?;
-        let mut parser = UrlParser {s};
+        let mut parser = UrlParser { s };
         options = parser.parse_credentials(options)?;
         options = parser.parse_host(options)?;
         options = parser.parse_path(options)?;
@@ -37,7 +37,10 @@ impl<'a> UrlParser<'a> {
                 return Ok(stripped);
             }
         }
-        Err(ParseUrlError("The url prefix format is incorrect. Expect `postgres://` or `postgresql://`".to_string()))
+        Err(ParseUrlError(
+            "The url prefix format is incorrect. Expect `postgres://` or `postgresql://`"
+                .to_string(),
+        ))
     }
 
     fn take_until(&mut self, end: &[char]) -> Option<&'a str> {
@@ -59,13 +62,16 @@ impl<'a> UrlParser<'a> {
         self.s = &self.s[1..];
     }
 
-    fn parse_credentials(&mut self, mut option: PgConnectOptions) -> Result<PgConnectOptions, Error> {
+    fn parse_credentials(
+        &mut self,
+        mut option: PgConnectOptions,
+    ) -> Result<PgConnectOptions, Error> {
         if let Some(cred) = self.take_until(&['@']) {
             let cred: Vec<&str> = cred.split(':').collect();
             if cred.len().gt(&1) {
                 option = option.username(cred[0]);
                 option = option.password(cred[1]);
-            }else {
+            } else {
                 option = option.username(cred[0]);
             }
         }
@@ -82,11 +88,17 @@ impl<'a> UrlParser<'a> {
             return Ok(option);
         }
 
+        let mut hosts = Vec::new();
+        let mut ports = Vec::new();
         for chunk in host.split(',') {
             let (host, port) = if chunk.starts_with('[') {
                 let idx = match chunk.find(']') {
                     Some(idx) => idx,
-                    None => return Err(ParseUrlError("Incorrect url address, expect '[netloc]:port,.. `".to_string())),
+                    None => {
+                        return Err(ParseUrlError(
+                            "Incorrect url address, expect '[netloc]:port,.. `".to_string(),
+                        ))
+                    }
                 };
 
                 let host = &chunk[1..idx];
@@ -105,11 +117,12 @@ impl<'a> UrlParser<'a> {
                 (it.next().unwrap(), it.next())
             };
 
-            option.host.push(host.to_string());
+            hosts.push(host.to_string());
             let port = port.unwrap_or("5432");
-            option.port.push(port.parse().map_err(Error::config)?);
+            ports.push(port.parse().map_err(Error::config)?);
         }
-
+        option = option.host(hosts);
+        option = option.port(ports);
         Ok(option)
     }
 
