@@ -7,11 +7,15 @@
     feature = "runtime-actix-rustls",
     feature = "runtime-async-std-rustls",
     feature = "runtime-tokio-rustls",
+    feature = "runtime-actix-notls",
+    feature = "runtime-async-std-notls",
+    feature = "runtime-tokio-notls",
 )))]
 compile_error!(
     "one of the features ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
      'runtime-tokio-native-tls', 'runtime-actix-rustls', 'runtime-async-std-rustls', \
-     'runtime-tokio-rustls'] must be enabled"
+     'runtime-tokio-rustls', 'runtime-actix-notls', 'runtime-async-std-notls', \
+     'runtime-tokio-notls'] must be enabled"
 );
 
 #[cfg(any(
@@ -19,11 +23,14 @@ compile_error!(
     all(feature = "_rt-actix", feature = "_rt-tokio"),
     all(feature = "_rt-async-std", feature = "_rt-tokio"),
     all(feature = "_tls-native-tls", feature = "_tls-rustls"),
+    all(feature = "_tls-native-tls", feature = "_tls-notls"),
+    all(feature = "_tls-rustls", feature = "_tls-notls"),
 ))]
 compile_error!(
     "only one of ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
      'runtime-tokio-native-tls', 'runtime-actix-rustls', 'runtime-async-std-rustls', \
-     'runtime-tokio-rustls'] can be enabled"
+     'runtime-tokio-rustls', 'runtime-actix-notls', 'runtime-async-std-notls', \
+     'runtime-tokio-notls'] can be enabled"
 );
 
 #[cfg(feature = "_rt-async-std")]

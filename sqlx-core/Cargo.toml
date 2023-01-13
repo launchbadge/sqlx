@@ -93,10 +93,25 @@ runtime-tokio-rustls = [
     "_rt-tokio"
 ]
 
+runtime-actix-notls = ['runtime-tokio-notls']
+runtime-async-std-notls = [
+    "sqlx-rt/runtime-async-std-notls",
+    "sqlx/runtime-async-std-notls",
+    "_tls-notls",
+    "_rt-async-std",
+]
+runtime-tokio-notls = [
+    "sqlx-rt/runtime-tokio-notls",
+    "sqlx/runtime-tokio-notls",
+    "_tls-notls",
+    "_rt-tokio"
+]
+
 # for conditional compilation
 _rt-async-std = []
 _rt-tokio = ["tokio-stream"]
 _tls-native-tls = []
+_tls-notls = []
 _tls-rustls = ["rustls", "rustls-pemfile", "webpki-roots"]
 
 # support offline/decoupled building (enables serialization of `Describe`)

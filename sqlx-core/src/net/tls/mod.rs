@@ -6,7 +6,9 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use sqlx_rt::{AsyncRead, AsyncWrite, TlsStream};
+#[cfg(not(feature = "_tls-notls"))]
+use sqlx_rt::TlsStream;
+use sqlx_rt::{AsyncRead, AsyncWrite};
 
 use crate::error::Error;
 use std::mem::replace;
@@ -56,6 +58,9 @@ impl std::fmt::Display for CertificateInput {
 #[cfg(feature = "_tls-rustls")]
 mod rustls;
 
+#[cfg(feature = "_tls-notls")]
+pub struct MaybeTlsStream<S>(S);
+#[cfg(not(feature = "_tls-notls"))]
 pub enum MaybeTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -69,11 +74,28 @@ impl<S> MaybeTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    #[cfg(feature = "_tls-notls")]
+    #[inline]
+    pub fn is_tls(&self) -> bool {
+        false
+    }
+    #[cfg(not(feature = "_tls-notls"))]
     #[inline]
     pub fn is_tls(&self) -> bool {
         matches!(self, Self::Tls(_))
     }
 
+    #[cfg(feature = "_tls-notls")]
+    pub async fn upgrade(
+        &mut self,
+        host: &str,
+        accept_invalid_certs: bool,
+        accept_invalid_hostnames: bool,
+        root_cert_path: Option<&CertificateInput>,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+    #[cfg(not(feature = "_tls-notls"))]
     pub async fn upgrade(
         &mut self,
         host: &str,
@@ -110,6 +132,24 @@ where
 
         Ok(())
     }
+}
+
+#[cfg(feature = "_tls-notls")]
+macro_rules! exec_on_stream {
+    ($stream:ident, $fn_name:ident, $($arg:ident),*) => (
+        Pin::new(&mut $stream.0).$fn_name($($arg,)*)
+    )
+}
+#[cfg(not(feature = "_tls-notls"))]
+macro_rules! exec_on_stream {
+    ($stream:ident, $fn_name:ident, $($arg:ident),*) => (
+        match &mut *$stream {
+            MaybeTlsStream::Raw(s) => Pin::new(s).$fn_name($($arg,)*),
+            MaybeTlsStream::Tls(s) => Pin::new(s).$fn_name($($arg,)*),
+
+            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
+        }
+    )
 }
 
 #[cfg(feature = "_tls-native-tls")]
@@ -155,12 +195,7 @@ where
         cx: &mut Context<'_>,
         buf: &mut super::PollReadBuf<'_>,
     ) -> Poll<io::Result<super::PollReadOut>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_read(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_read(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+        exec_on_stream!(self, poll_read, cx, buf)
     }
 }
 
@@ -173,41 +208,21 @@ where
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_write(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_write(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+        exec_on_stream!(self, poll_write, cx, buf)
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_flush(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_flush(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+        exec_on_stream!(self, poll_flush, cx)
     }
 
     #[cfg(feature = "_rt-tokio")]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_shutdown(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_shutdown(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+        exec_on_stream!(self, poll_shutdown, cx)
     }
 
     #[cfg(feature = "_rt-async-std")]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_close(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_close(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+        exec_on_stream!(self, poll_close, cx)
     }
 }
 
@@ -218,6 +233,11 @@ where
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
+        #[cfg(feature = "_tls-notls")]
+        {
+            &self.0
+        }
+        #[cfg(not(feature = "_tls-notls"))]
         match self {
             MaybeTlsStream::Raw(s) => s,
 
@@ -242,6 +262,11 @@ where
     S: Unpin + AsyncWrite + AsyncRead,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        #[cfg(feature = "_tls-notls")]
+        {
+            &mut self.0
+        }
+        #[cfg(not(feature = "_tls-notls"))]
         match self {
             MaybeTlsStream::Raw(s) => s,
 

@@ -23,10 +23,15 @@ runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = ["_rt-async-std", "_tls-rustls", "futures-rustls"]
 runtime-tokio-rustls = ["_rt-tokio", "_tls-rustls", "tokio-rustls"]
 
+runtime-actix-notls = ["runtime-tokio-notls"]
+runtime-async-std-notls = ["_rt-async-std", "_tls-notls"]
+runtime-tokio-notls = ["_rt-tokio", "_tls-notls"]
+
 # Not used directly and not re-exported from sqlx
 _rt-async-std = ["async-std"]
 _rt-tokio = ["tokio", "once_cell"]
 _tls-native-tls = ["native-tls"]
+_tls-notls = []
 _tls-rustls = []
 
 [dependencies]
