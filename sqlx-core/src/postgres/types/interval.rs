@@ -12,7 +12,7 @@ use crate::types::Type;
 
 // `PgInterval` is available for direct access to the INTERVAL type
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct PgInterval {
     pub months: i32,
     pub days: i32,
