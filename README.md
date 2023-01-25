@@ -61,6 +61,10 @@
 
 <br />
 
+**_SQLx is currently undergoing a huge refactoring. Issues and PRs are on hold at this time. You can follow the progress [here](https://github.com/launchbadge/sqlx/pull/2039)_**
+
+---
+
 SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time checked queries without a DSL.
 
 -   **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
