@@ -160,3 +160,11 @@ This is how you would turn all targets and features on.
 ```bash
 cargo sqlx prepare -- --all-targets --all-features
 ```
+
+### Building workspaces in offline mode
+
+When you have several crates that use `query!`-like macros and some of these depend on another you may need to pass the `--merged` parameter to cargo. This typically happens when a lib crate makes use of `query!` and is used by another crate that also makes use of such macros.
+```bash
+cargo sqlx prepare --merged
+```
+The above should resolve such issues. If doing so in a workspace, it is recommended to run it on the root of the workspace and only keep the one `sqlx-data.json` or confusions may occur.
