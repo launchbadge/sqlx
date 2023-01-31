@@ -48,7 +48,21 @@ impl SqliteConnectOptions {
     pub(crate) fn pragma_string(&self) -> String {
         let mut string = String::new();
 
+        // This is a special case for sqlcipher. When the `key` pragma
+        // is set, we have to make sure it's executed first in order.
+        if let Some(pragma_key_password) = self.pragmas.get("key") {
+            if let Some(pragma_key_password) = pragma_key_password {
+                write!(string, "PRAGMA key = {}; ", pragma_key_password).ok();
+            }
+        }
+
         for (key, opt_value) in &self.pragmas {
+            // Since we've already written the possible `key` pragma
+            // above, we shall skip it now.
+            if key == "key" {
+                continue;
+            }
+
             if let Some(value) = opt_value {
                 write!(string, "PRAGMA {} = {}; ", key, value).ok();
             }
