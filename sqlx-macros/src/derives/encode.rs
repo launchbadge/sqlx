@@ -9,7 +9,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Lifetime, LifetimeDef, Stmt, Variant,
+    FieldsUnnamed, Lifetime, LifetimeDef, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -205,24 +205,21 @@ fn expand_derive_encode_struct(
         let ident = &input.ident;
         let column_count = fields.len();
 
-        // extract type generics
-        let generics = &input.generics;
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+
+        let mut generics = input.generics.clone();
 
         // add db type for impl generics & where clause
-        let mut generics = generics.clone();
-
-        let predicates = &mut generics.make_where_clause().predicates;
-
-        for field in fields {
-            let ty = &field.ty;
-
-            predicates
-                .push(parse_quote!(#ty: for<'q> ::sqlx::encode::Encode<'q, ::sqlx::Postgres>));
-            predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
+        for type_param in &mut generics.type_params_mut() {
+            type_param.bounds.extend::<[TypeParamBound; 2]>([
+                parse_quote!(for<'encode> ::sqlx::encode::Encode<'encode, ::sqlx::Postgres>),
+                parse_quote!(::sqlx::types::Type<::sqlx::Postgres>),
+            ]);
         }
 
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        generics.params.push(parse_quote!('q));
+
+        let (impl_generics, _, _) = generics.split_for_impl();
 
         let writes = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;
