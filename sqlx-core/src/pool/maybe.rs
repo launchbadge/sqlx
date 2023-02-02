@@ -2,7 +2,7 @@ use crate::database::Database;
 use crate::pool::PoolConnection;
 use std::ops::{Deref, DerefMut};
 
-pub(crate) enum MaybePoolConnection<'c, DB: Database> {
+pub enum MaybePoolConnection<'c, DB: Database> {
     #[allow(dead_code)]
     Connection(&'c mut DB::Connection),
     PoolConnection(PoolConnection<DB>),
@@ -30,21 +30,14 @@ impl<'c, DB: Database> DerefMut for MaybePoolConnection<'c, DB> {
     }
 }
 
-#[allow(unused_macros)]
-macro_rules! impl_into_maybe_pool {
-    ($DB:ident, $C:ident) => {
-        impl<'c> From<crate::pool::PoolConnection<$DB>>
-            for crate::pool::MaybePoolConnection<'c, $DB>
-        {
-            fn from(v: crate::pool::PoolConnection<$DB>) -> Self {
-                crate::pool::MaybePoolConnection::PoolConnection(v)
-            }
-        }
+impl<'c, DB: Database> From<PoolConnection<DB>> for MaybePoolConnection<'c, DB> {
+    fn from(v: PoolConnection<DB>) -> Self {
+        MaybePoolConnection::PoolConnection(v)
+    }
+}
 
-        impl<'c> From<&'c mut $C> for crate::pool::MaybePoolConnection<'c, $DB> {
-            fn from(v: &'c mut $C) -> Self {
-                crate::pool::MaybePoolConnection::Connection(v)
-            }
-        }
-    };
+impl<'c, DB: Database> From<&'c mut DB::Connection> for MaybePoolConnection<'c, DB> {
+    fn from(v: &'c mut DB::Connection) -> Self {
+        MaybePoolConnection::Connection(v)
+    }
 }

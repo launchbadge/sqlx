@@ -8,7 +8,7 @@ struct Test {
 }
 
 fn main() -> sqlx::Result<()> {
-    sqlx_rt::block_on(async {
+    sqlx::__rt::block_on(async {
         let mut conn = sqlx::SqliteConnection::connect("sqlite://test.db?mode=rwc").await?;
         let delete_sql = "DROP TABLE IF EXISTS test";
         conn.execute(delete_sql).await?;

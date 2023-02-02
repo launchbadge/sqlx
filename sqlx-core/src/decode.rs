@@ -2,6 +2,7 @@
 
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
+
 use crate::value::ValueRef;
 
 /// A type that can be decoded from the database.

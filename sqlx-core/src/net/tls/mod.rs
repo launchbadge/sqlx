@@ -1,15 +1,18 @@
 #![allow(dead_code)]
 
-use std::io;
-use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
-use sqlx_rt::{AsyncRead, AsyncWrite, TlsStream};
 
 use crate::error::Error;
-use std::mem::replace;
+use crate::net::socket::WithSocket;
+use crate::net::Socket;
+
+#[cfg(feature = "_tls-rustls")]
+mod tls_rustls;
+
+#[cfg(feature = "_tls-native-tls")]
+mod tls_native_tls;
+
+mod util;
 
 /// X.509 Certificate input, either a file path or a PEM encoded inline certificate(s).
 #[derive(Clone, Debug)]
@@ -36,7 +39,7 @@ impl From<String> for CertificateInput {
 
 impl CertificateInput {
     async fn data(&self) -> Result<Vec<u8>, std::io::Error> {
-        use sqlx_rt::fs;
+        use crate::fs;
         match self {
             CertificateInput::Inline(v) => Ok(v.clone()),
             CertificateInput::File(path) => fs::read(path).await,
@@ -53,210 +56,46 @@ impl std::fmt::Display for CertificateInput {
     }
 }
 
-#[cfg(feature = "_tls-rustls")]
-mod rustls;
-
-pub enum MaybeTlsStream<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    Raw(S),
-    Tls(TlsStream<S>),
-    Upgrading,
+pub struct TlsConfig<'a> {
+    pub accept_invalid_certs: bool,
+    pub accept_invalid_hostnames: bool,
+    pub hostname: &'a str,
+    pub root_cert_path: Option<&'a CertificateInput>,
 }
 
-impl<S> MaybeTlsStream<S>
+pub async fn handshake<S, Ws>(
+    socket: S,
+    config: TlsConfig<'_>,
+    with_socket: Ws,
+) -> crate::Result<Ws::Output>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: Socket,
+    Ws: WithSocket,
 {
-    #[inline]
-    pub fn is_tls(&self) -> bool {
-        matches!(self, Self::Tls(_))
-    }
+    #[cfg(feature = "_tls-native-tls")]
+    return Ok(with_socket.with_socket(tls_native_tls::handshake(socket, config).await?));
 
-    pub async fn upgrade(
-        &mut self,
-        host: &str,
-        accept_invalid_certs: bool,
-        accept_invalid_hostnames: bool,
-        root_cert_path: Option<&CertificateInput>,
-    ) -> Result<(), Error> {
-        let connector = configure_tls_connector(
-            accept_invalid_certs,
-            accept_invalid_hostnames,
-            root_cert_path,
-        )
-        .await?;
+    #[cfg(feature = "_tls-rustls")]
+    return Ok(with_socket.with_socket(tls_rustls::handshake(socket, config).await?));
 
-        let stream = match replace(self, MaybeTlsStream::Upgrading) {
-            MaybeTlsStream::Raw(stream) => stream,
-
-            MaybeTlsStream::Tls(_) => {
-                // ignore upgrade, we are already a TLS connection
-                return Ok(());
-            }
-
-            MaybeTlsStream::Upgrading => {
-                // we previously failed to upgrade and now hold no connection
-                // this should only happen from an internal misuse of this method
-                return Err(Error::Io(io::ErrorKind::ConnectionAborted.into()));
-            }
-        };
-
-        #[cfg(feature = "_tls-rustls")]
-        let host = ::rustls::ServerName::try_from(host).map_err(|err| Error::Tls(err.into()))?;
-
-        *self = MaybeTlsStream::Tls(connector.connect(host, stream).await?);
-
-        Ok(())
+    #[cfg(not(any(feature = "_tls-native-tls", feature = "_tls-rustls")))]
+    {
+        drop((socket, config, with_socket));
+        panic!("one of the `runtime-*-native-tls` or `runtime-*-rustls` features must be enabled")
     }
 }
 
-#[cfg(feature = "_tls-native-tls")]
-async fn configure_tls_connector(
-    accept_invalid_certs: bool,
-    accept_invalid_hostnames: bool,
-    root_cert_path: Option<&CertificateInput>,
-) -> Result<sqlx_rt::TlsConnector, Error> {
-    use sqlx_rt::native_tls::{Certificate, TlsConnector};
-
-    let mut builder = TlsConnector::builder();
-    builder
-        .danger_accept_invalid_certs(accept_invalid_certs)
-        .danger_accept_invalid_hostnames(accept_invalid_hostnames);
-
-    if !accept_invalid_certs {
-        if let Some(ca) = root_cert_path {
-            let data = ca.data().await?;
-            let cert = Certificate::from_pem(&data)?;
-
-            builder.add_root_certificate(cert);
-        }
-    }
-
-    #[cfg(not(feature = "_rt-async-std"))]
-    let connector = builder.build()?.into();
-
-    #[cfg(feature = "_rt-async-std")]
-    let connector = builder.into();
-
-    Ok(connector)
+pub fn available() -> bool {
+    cfg!(any(feature = "_tls-native-tls", feature = "_tls-rustls"))
 }
 
-#[cfg(feature = "_tls-rustls")]
-use self::rustls::configure_tls_connector;
-
-impl<S> AsyncRead for MaybeTlsStream<S>
-where
-    S: Unpin + AsyncWrite + AsyncRead,
-{
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut super::PollReadBuf<'_>,
-    ) -> Poll<io::Result<super::PollReadOut>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_read(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_read(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-}
-
-impl<S> AsyncWrite for MaybeTlsStream<S>
-where
-    S: Unpin + AsyncWrite + AsyncRead,
-{
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_write(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_write(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
+pub fn error_if_unavailable() -> crate::Result<()> {
+    if !available() {
+        return Err(Error::tls(
+            "TLS upgrade required by connect options \
+                    but SQLx was built without TLS support enabled",
+        ));
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_flush(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_flush(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(feature = "_rt-tokio")]
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_shutdown(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_shutdown(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(feature = "_rt-async-std")]
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_close(cx),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_close(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-}
-
-impl<S> Deref for MaybeTlsStream<S>
-where
-    S: Unpin + AsyncWrite + AsyncRead,
-{
-    type Target = S;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            MaybeTlsStream::Raw(s) => s,
-
-            #[cfg(feature = "_tls-rustls")]
-            MaybeTlsStream::Tls(s) => s.get_ref().0,
-
-            #[cfg(all(feature = "_rt-async-std", feature = "_tls-native-tls"))]
-            MaybeTlsStream::Tls(s) => s.get_ref(),
-
-            #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
-            MaybeTlsStream::Tls(s) => s.get_ref().get_ref().get_ref(),
-
-            MaybeTlsStream::Upgrading => {
-                panic!("{}", io::Error::from(io::ErrorKind::ConnectionAborted))
-            }
-        }
-    }
-}
-
-impl<S> DerefMut for MaybeTlsStream<S>
-where
-    S: Unpin + AsyncWrite + AsyncRead,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            MaybeTlsStream::Raw(s) => s,
-
-            #[cfg(feature = "_tls-rustls")]
-            MaybeTlsStream::Tls(s) => s.get_mut().0,
-
-            #[cfg(all(feature = "_rt-async-std", feature = "_tls-native-tls"))]
-            MaybeTlsStream::Tls(s) => s.get_mut(),
-
-            #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
-            MaybeTlsStream::Tls(s) => s.get_mut().get_mut().get_mut(),
-
-            MaybeTlsStream::Upgrading => {
-                panic!("{}", io::Error::from(io::ErrorKind::ConnectionAborted))
-            }
-        }
-    }
+    Ok(())
 }

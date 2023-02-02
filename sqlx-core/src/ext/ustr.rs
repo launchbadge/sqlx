@@ -14,8 +14,7 @@ pub enum UStr {
 }
 
 impl UStr {
-    #[allow(dead_code)]
-    pub(crate) fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         UStr::Shared(Arc::from(s.to_owned()))
     }
 }

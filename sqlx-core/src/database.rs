@@ -59,6 +59,7 @@ use crate::arguments::Arguments;
 use crate::column::Column;
 use crate::connection::Connection;
 use crate::row::Row;
+
 use crate::statement::Statement;
 use crate::transaction::TransactionManager;
 use crate::type_info::TypeInfo;
@@ -98,6 +99,12 @@ pub trait Database:
     /// The concrete type used to hold an owned copy of the not-yet-decoded value that was
     /// received from the database.
     type Value: Value<Database = Self> + 'static;
+
+    /// The display name for this database driver.
+    const NAME: &'static str;
+
+    /// The schemes for database URLs that should match this driver.
+    const URL_SCHEMES: &'static [&'static str];
 }
 
 /// Associate [`Database`] with a [`ValueRef`](crate::value::ValueRef) of a generic lifetime.

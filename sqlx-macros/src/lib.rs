@@ -1,37 +1,14 @@
-#![cfg_attr(
-    not(any(feature = "postgres", feature = "mysql", feature = "offline")),
-    allow(dead_code, unused_macros, unused_imports)
-)]
-#![cfg_attr(
-    any(sqlx_macros_unstable, procmacro2_semver_exempt),
-    feature(track_path, proc_macro_tracked_env)
-)]
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
 
 use quote::quote;
 
-type Error = Box<dyn std::error::Error>;
-
-type Result<T> = std::result::Result<T, Error>;
-
-mod common;
-mod database;
-mod derives;
-mod query;
-
-// The compiler gives misleading help messages about `#[cfg(test)]` when this is just named `test`.
-mod test_attr;
-
-#[cfg(feature = "migrate")]
-mod migrate;
+use sqlx_macros_core::*;
 
 #[proc_macro]
 pub fn expand_query(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as query::QueryMacroInput);
 
-    match query::expand_input(input) {
+    match query::expand_input(input, FOSS_DRIVERS) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {

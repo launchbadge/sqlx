@@ -1,8 +1,8 @@
 use crate::error::BoxDynError;
+use crate::fs;
 use crate::migrate::{Migration, MigrationType};
 use futures_core::future::BoxFuture;
-use futures_util::TryStreamExt;
-use sqlx_rt::fs;
+
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -20,21 +20,16 @@ pub trait MigrationSource<'s>: Debug {
 impl<'s> MigrationSource<'s> for &'s Path {
     fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>> {
         Box::pin(async move {
-            #[allow(unused_mut)]
             let mut s = fs::read_dir(self.canonicalize()?).await?;
             let mut migrations = Vec::new();
 
-            #[cfg(feature = "_rt-tokio")]
-            let mut s = tokio_stream::wrappers::ReadDirStream::new(s);
-
-            while let Some(entry) = s.try_next().await? {
-                if !entry.metadata().await?.is_file() {
+            while let Some(entry) = s.next().await? {
+                if !entry.metadata.is_file() {
                     // not a file; ignore
                     continue;
                 }
 
-                let file_name = entry.file_name();
-                let file_name = file_name.to_string_lossy();
+                let file_name = entry.file_name.to_string_lossy();
 
                 let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
 
@@ -52,7 +47,7 @@ impl<'s> MigrationSource<'s> for &'s Path {
                     .replace('_', " ")
                     .to_owned();
 
-                let sql = fs::read_to_string(&entry.path()).await?;
+                let sql = fs::read_to_string(&entry.path).await?;
 
                 migrations.push(Migration::new(
                     version,
