@@ -123,27 +123,56 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 ```toml
 # Cargo.toml
 [dependencies]
+# PICK ONE OF THE FOLLOWING:
+
+# tokio (no TLS)
+sqlx = { version = "0.6", features = [ "runtime-tokio" ] }
+# tokio + native-tls
+sqlx = { version = "0.6", features = [ "runtime-tokio", "tls-native" ] }
 # tokio + rustls
-sqlx = { version = "0.6", features = [ "runtime-tokio-rustls" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio", "tls-rustls" ] }
+
+# async-std (no TLS)
+sqlx = { version = "0.6", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.6", features = [ "runtime-async-std-native-tls" ] }
+sqlx = { version = "0.6", features = [ "runtime-async-std", "tls-native" ] }
+# async-std + rustls
+sqlx = { version = "0.6", features = [ "runtime-async-std", "tls-rustls" ] }
 ```
 
-<small><small>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</small></small>
-
 #### Cargo Feature Flags
+
+For backwards-compatibility reasons, the runtime and TLS features can either be chosen together as a single feature,
+or separately.
+
+For forward-compatibility, you should use the separate runtime and TLS features as the combination features may
+be removed in the future.
+
+-   `runtime-async-std`: Use the `async-std` runtime without enabling a TLS backend.
 
 -   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend.
 
 -   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
 
+-   `runtime-tokio`: Use the `tokio` runtime without enabling a TLS backend.
+
 -   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
 
 -   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend.
 
+-   `runtime-actix`: Use the `actix` runtime without enabling a TLS backend.
+
 -   `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
 
 -   `runtime-actix-rustls`: Use the `actix` runtime and `rustls` TLS backend.
+
+    - Actix-web is fully compatible with Tokio and so a separate runtime feature is no longer needed.
+      The above three features exist only for backwards compatibility, and are in fact merely aliases to their 
+      `runtime-tokio` counterparts.
+
+-   `tls-native`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
+
+-   `tls-rustls`: Use the `rustls` TLS backend (crossplatform backend, only supports TLS 1.2 and 1.3).
 
 -   `postgres`: Add support for the Postgres database server.
 
@@ -176,8 +205,6 @@ sqlx = { version = "0.6", features = [ "runtime-async-std-native-tls" ] }
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
-
--   `tls`: Add support for TLS connections.
 
 -   `offline`: Enables building the macros in offline mode when a live database is not available (such as CI). 
     -   Requires `sqlx-cli` installed to use. See [sqlx-cli/README.md][readme-offline].

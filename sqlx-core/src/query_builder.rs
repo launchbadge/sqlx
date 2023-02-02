@@ -541,7 +541,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "postgres"))]
 mod test {
     use crate::postgres::Postgres;
 

@@ -2,6 +2,7 @@ use crate::column::ColumnIndex;
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
+
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 use crate::value::ValueRef;
@@ -12,7 +13,7 @@ use crate::value::ValueRef;
 ///
 /// [`FromRow`]: crate::row::FromRow
 /// [`Query::fetch`]: crate::query::Query::fetch
-pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
+pub trait Row: Unpin + Send + Sync + 'static {
     type Database: Database;
 
     /// Returns `true` if this row has no columns.
@@ -178,9 +179,4 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     ) -> Result<<Self::Database as HasValueRef<'_>>::ValueRef, Error>
     where
         I: ColumnIndex<Self>;
-}
-
-// Prevent users from implementing the `Row` trait.
-pub(crate) mod private_row {
-    pub trait Sealed {}
 }

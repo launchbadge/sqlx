@@ -1,11 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-#[cfg(any(feature = "runtime-async-std", feature = "runtime-tokio"))]
-compile_error!(
-    "the features 'runtime-actix', 'runtime-async-std' and 'runtime-tokio' have been removed in
-     favor of new features 'runtime-{rt}-{tls}' where rt is one of 'actix', 'async-std' and 'tokio'
-     and 'tls' is one of 'native-tls' and 'rustls'."
-);
+#![doc = include_str!("lib.md")]
 
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
@@ -35,32 +29,21 @@ pub use sqlx_core::error::{self, Error, Result};
 #[cfg(feature = "migrate")]
 pub use sqlx_core::migrate;
 
-#[cfg(all(
-    any(
-        feature = "mysql",
-        feature = "sqlite",
-        feature = "postgres",
-        feature = "mssql"
-    ),
-    feature = "any"
-))]
-pub use sqlx_core::any::{self, Any, AnyConnection, AnyExecutor, AnyPool};
-
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
-
-#[cfg(feature = "mssql")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlExecutor, MssqlPool};
+pub use sqlx_mysql::{self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-pub use sqlx_core::postgres::{self, PgConnection, PgExecutor, PgPool, Postgres};
+pub use sqlx_postgres::{self as postgres, PgConnection, PgExecutor, PgPool, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
-pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
+pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
+
+#[cfg(feature = "any")]
+#[cfg_attr(docsrs, doc(cfg(feature = "any")))]
+pub use crate::any::{reexports::*, Any, AnyExecutor};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]
@@ -74,6 +57,7 @@ pub use sqlx_macros::{FromRow, Type};
 // We can't do our normal facade approach with an attribute, but thankfully we can now
 // have docs out-of-line quite easily.
 #[doc = include_str!("macros/test.md")]
+#[cfg(feature = "macros")]
 pub use sqlx_macros::test;
 
 #[doc(hidden)]
@@ -81,7 +65,10 @@ pub use sqlx_macros::test;
 pub use sqlx_core::testing;
 
 #[doc(hidden)]
-pub use sqlx_core::test_block_on;
+pub use sqlx_core::rt::test_block_on;
+
+#[cfg(feature = "any")]
+pub mod any;
 
 #[cfg(feature = "macros")]
 mod macros;
@@ -90,6 +77,9 @@ mod macros;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub mod ty_match;
+
+#[doc(hidden)]
+pub use sqlx_core::rt as __rt;
 
 /// Conversions between Rust and SQL types.
 ///
@@ -157,8 +147,3 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
-
-#[doc(hidden)]
-#[inline(always)]
-#[deprecated = "`#[sqlx(rename = \"...\")]` is now `#[sqlx(type_name = \"...\")`"]
-pub fn _rename() {}

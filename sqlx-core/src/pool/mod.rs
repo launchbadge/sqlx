@@ -84,15 +84,17 @@ use std::time::{Duration, Instant};
 mod executor;
 
 #[macro_use]
-mod maybe;
+pub mod maybe;
 
 mod connection;
 mod inner;
 mod options;
 
 pub use self::connection::PoolConnection;
-pub(crate) use self::maybe::MaybePoolConnection;
 pub use self::options::{PoolConnectionMetadata, PoolOptions};
+
+#[doc(hidden)]
+pub use self::maybe::MaybePoolConnection;
 
 /// An asynchronous pool of SQLx database connections.
 ///

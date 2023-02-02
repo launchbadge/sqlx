@@ -94,11 +94,6 @@ pub enum DatabaseCommand {
 /// Group of commands for creating and running migrations.
 #[derive(Parser, Debug)]
 pub struct MigrateOpt {
-    /// Path to folder containing migrations.
-    /// Warning: deprecated, use <SUBCOMMAND> --source <SOURCE>
-    #[clap(long, default_value = "migrations")]
-    pub source: String,
-
     #[clap(subcommand)]
     pub command: MigrateCommand,
 }
@@ -111,7 +106,7 @@ pub enum MigrateCommand {
         description: String,
 
         #[clap(flatten)]
-        source: SourceOverride,
+        source: Source,
 
         /// If true, creates a pair of up and down migration files with same version
         /// else creates a single sql file
@@ -122,7 +117,7 @@ pub enum MigrateCommand {
     /// Run all pending migrations.
     Run {
         #[clap(flatten)]
-        source: SourceOverride,
+        source: Source,
 
         /// List all the migrations to be run without applying
         #[clap(long)]
@@ -138,7 +133,7 @@ pub enum MigrateCommand {
     /// Revert the latest migration with a down file.
     Revert {
         #[clap(flatten)]
-        source: SourceOverride,
+        source: Source,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -154,7 +149,7 @@ pub enum MigrateCommand {
     /// List all available migrations.
     Info {
         #[clap(flatten)]
-        source: SourceOverride,
+        source: Source,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -165,7 +160,7 @@ pub enum MigrateCommand {
     /// Must be run in a Cargo project root.
     BuildScript {
         #[clap(flatten)]
-        source: SourceOverride,
+        source: Source,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -186,27 +181,6 @@ impl Deref for Source {
 
     fn deref(&self) -> &Self::Target {
         &self.source
-    }
-}
-
-/// Argument for overriding migration scripts source.
-// Note: once `MigrateOpt.source` is removed, usage can be replaced with `Source`.
-#[derive(Args, Debug)]
-pub struct SourceOverride {
-    /// Path to folder containing migrations [default: migrations]
-    #[clap(long)]
-    source: Option<String>,
-}
-
-impl SourceOverride {
-    /// Override command's `source` flag value with subcommand's
-    /// `source` flag value when provided.
-    #[inline]
-    pub(super) fn resolve<'a>(&'a self, source: &'a str) -> &'a str {
-        match self.source {
-            Some(ref source) => source,
-            None => source,
-        }
     }
 }
 

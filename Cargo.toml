@@ -2,11 +2,14 @@
 members = [
     ".",
     "sqlx-core",
-    "sqlx-rt",
     "sqlx-macros",
+    "sqlx-macros-core",
     "sqlx-test",
     "sqlx-cli",
     "sqlx-bench",
+    "sqlx-mysql",
+    "sqlx-postgres",
+    "sqlx-sqlite",
     "examples/mysql/todos",
     "examples/postgres/axum-social-with-tests",
     "examples/postgres/files",
@@ -18,15 +21,11 @@ members = [
     "examples/sqlite/todos",
 ]
 
-[package]
-name = "sqlx"
+[workspace.package]
 version = "0.6.2"
 license = "MIT OR Apache-2.0"
-readme = "README.md"
-repository = "https://github.com/launchbadge/sqlx"
-documentation = "https://docs.rs/sqlx"
-description = "🧰 The Rust SQL Toolkit. An async, pure Rust SQL crate featuring compile-time checked queries without a DSL. Supports PostgreSQL, MySQL, and SQLite."
 edition = "2021"
+repository = "https://github.com/launchbadge/sqlx"
 keywords = ["database", "async", "postgres", "mysql", "sqlite"]
 categories = ["database", "asynchronous"]
 authors = [
@@ -36,28 +35,31 @@ authors = [
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
 
+[package]
+name = "sqlx"
+readme = "README.md"
+documentation = "https://docs.rs/sqlx"
+description = "🧰 The Rust SQL Toolkit. An async, pure Rust SQL crate featuring compile-time checked queries without a DSL. Supports PostgreSQL, MySQL, and SQLite."
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+
 [package.metadata.docs.rs]
 features = ["all", "runtime-tokio-native-tls"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["macros", "migrate"]
+default = ["any", "macros", "migrate", "json"]
 macros = ["sqlx-macros"]
-migrate = ["sqlx-macros/migrate", "sqlx-core/migrate"]
-
-# [deprecated] TLS is not possible to disable due to it being conditional on multiple features
-#              Hopefully Cargo can handle this in the future
-tls = []
-
-# offline building support in `sqlx-macros`
-offline = ["sqlx-macros/offline", "sqlx-core/offline"]
+migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
 
 # intended mainly for CI and docs
-all = ["tls", "all-databases", "all-types"]
-all-databases = ["mysql", "sqlite", "postgres", "mssql", "any"]
-all-types = [
+all-databases = ["mysql", "sqlite", "postgres", "any"]
+_unstable-all-types = [
     "bigdecimal",
-    "decimal",
+    "rust_decimal",
     "json",
     "time",
     "chrono",
@@ -65,68 +67,88 @@ all-types = [
     "mac_address",
     "uuid",
     "bit-vec",
-    "bstr",
-    "git2",
 ]
 
-# previous runtimes, available as features for error messages better than just
-# "feature doesn't exist"
-runtime-actix = []
-runtime-async-std = []
-runtime-tokio = []
+# Base runtime features without TLS
+runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros/_rt-async-std"]
+runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros/_rt-tokio"]
 
-# actual runtimes
-runtime-actix-native-tls = ["runtime-tokio-native-tls"]
-runtime-async-std-native-tls = [
-    "sqlx-core/runtime-async-std-native-tls",
-    "sqlx-macros/runtime-async-std-native-tls",
-    "_rt-async-std",
-]
-runtime-tokio-native-tls = [
-    "sqlx-core/runtime-tokio-native-tls",
-    "sqlx-macros/runtime-tokio-native-tls",
-    "_rt-tokio",
-]
+# TLS features
+tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros/_tls-native-tls"]
+tls-rustls = ["sqlx-core/_tls-rustls", "sqlx-macros/_tls-rustls"]
 
-runtime-actix-rustls = ["runtime-tokio-rustls"]
-runtime-async-std-rustls = [
-    "sqlx-core/runtime-async-std-rustls",
-    "sqlx-macros/runtime-async-std-rustls",
-    "_rt-async-std",
-]
-runtime-tokio-rustls = [
-    "sqlx-core/runtime-tokio-rustls",
-    "sqlx-macros/runtime-tokio-rustls",
-    "_rt-tokio",
-]
+# No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
+tls-none = []
+
+# Legacy Runtime + TLS features
+
+runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
+runtime-async-std-rustls = ["runtime-async-std", "tls-rustls"]
+
+runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
+runtime-tokio-rustls = ["runtime-tokio", "tls-rustls"]
 
 # for conditional compilation
 _rt-async-std = []
 _rt-tokio = []
 
 # database
-any = ["sqlx-core/any"]
-postgres = ["sqlx-core/postgres", "sqlx-macros/postgres"]
-mysql = ["sqlx-core/mysql", "sqlx-macros/mysql"]
-sqlite = ["sqlx-core/sqlite", "sqlx-macros/sqlite"]
-mssql = ["sqlx-core/mssql", "sqlx-macros/mssql"]
+any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/any"]
+postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
+mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
+sqlite = ["sqlx-sqlite", "sqlx-macros?/sqlite"]
 
 # types
-bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
-decimal = ["sqlx-core/decimal", "sqlx-macros/decimal"]
-chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
-ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros/ipnetwork"]
-mac_address = ["sqlx-core/mac_address", "sqlx-macros/mac_address"]
-uuid = ["sqlx-core/uuid", "sqlx-macros/uuid"]
-json = ["sqlx-core/json", "sqlx-macros/json"]
-time = ["sqlx-core/time", "sqlx-macros/time"]
-bit-vec = ["sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
-bstr = ["sqlx-core/bstr"]
-git2 = ["sqlx-core/git2"]
+json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
+
+bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros?/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
+bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec", "sqlx-postgres?/bit-vec"]
+chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-mysql?/chrono", "sqlx-postgres?/chrono", "sqlx-sqlite?/chrono"]
+ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork", "sqlx-postgres?/ipnetwork"]
+mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address", "sqlx-postgres?/mac_address"]
+rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mysql?/rust_decimal", "sqlx-postgres?/rust_decimal"]
+time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
+uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
+
+[workspace.dependencies]
+# Driver crates
+sqlx-mysql = { version = "=0.6.2", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.6.2", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.6.2", path = "sqlx-sqlite" }
+
+# Facade crate (for reference from sqlx-cli)
+sqlx = {version = "=0.6.2", path = "." }
+
+# Common type integrations shared by multiple driver crates.
+# These are optional unless enabled in a workspace crate.
+bigdecimal = "0.3.0"
+bit-vec = "0.6.3"
+chrono = "0.4.22"
+ipnetwork = "0.20.0"
+mac_address = "1.1.3"
+rust_decimal = "1.26.1"
+time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
+uuid = "1.1.2"
+
+# Common utility crates
+dotenvy = { version = "0.15.0", default-features = false }
+
+# Runtimes
+[workspace.dependencies.async-std]
+version = "1"
+
+[workspace.dependencies.tokio]
+version = "1"
+features = ["time", "net", "sync", "fs", "io-util", "rt"]
+default-features = false
 
 [dependencies]
-sqlx-core = { version = "0.6.2", path = "sqlx-core", default-features = false }
+sqlx-core = { version = "0.6.2", path = "sqlx-core", features = ["offline", "migrate"], default-features = false }
 sqlx-macros = { version = "0.6.2", path = "sqlx-macros", default-features = false, optional = true }
+
+sqlx-mysql = { workspace = true, optional = true }
+sqlx-postgres = { workspace = true, optional = true }
+sqlx-sqlite = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
@@ -137,7 +159,6 @@ async-std = { version = "1.10.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenvy = "0.15.0"
 trybuild = "1.0.53"
-sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
@@ -203,7 +224,7 @@ path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
 [[test]]
-name = "sqlcipher"
+name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
 required-features = ["sqlite"]
 
@@ -289,27 +310,3 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-migrate"
 path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
-
-#
-# Microsoft SQL Server (MSSQL)
-#
-
-[[test]]
-name = "mssql"
-path = "tests/mssql/mssql.rs"
-required-features = ["mssql"]
-
-[[test]]
-name = "mssql-types"
-path = "tests/mssql/types.rs"
-required-features = ["mssql"]
-
-[[test]]
-name = "mssql-describe"
-path = "tests/mssql/describe.rs"
-required-features = ["mssql"]
-
-[[test]]
-name = "mssql-macros"
-path = "tests/mssql/macros.rs"
-required-features = ["mssql", "macros"]
