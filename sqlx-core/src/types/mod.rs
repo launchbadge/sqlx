@@ -24,10 +24,6 @@ use crate::database::Database;
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 pub mod bstr;
 
-#[cfg(feature = "git2")]
-#[cfg_attr(docsrs, doc(cfg(feature = "git2")))]
-pub mod git2;
-
 #[cfg(feature = "json")]
 #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
@@ -63,8 +59,8 @@ pub mod time {
 #[doc(no_inline)]
 pub use bigdecimal::BigDecimal;
 
-#[cfg(feature = "decimal")]
-#[cfg_attr(docsrs, doc(cfg(feature = "decimal")))]
+#[cfg(feature = "rust_decimal")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rust_decimal")))]
 #[doc(no_inline)]
 pub use rust_decimal::Decimal;
 

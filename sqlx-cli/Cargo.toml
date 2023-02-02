@@ -27,10 +27,9 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenvy = "0.15.0"
 tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread"] }
-sqlx = { version = "0.6.2", path = "..", default-features = false, features = [
+sqlx = { workspace = true, default-features = false, features = [
     "migrate",
     "any",
-    "offline",
 ] }
 futures = "0.3.19"
 clap = { version = "3.1.0", features = ["derive", "env"] }
@@ -52,14 +51,14 @@ filetime = "0.2"
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
-default = ["postgres", "sqlite", "mysql", "native-tls"]
+#default = ["postgres", "sqlite", "mysql", "native-tls"]
 rustls = ["sqlx/runtime-tokio-rustls"]
 native-tls = ["sqlx/runtime-tokio-native-tls"]
 
 # databases
-mysql = ["sqlx/mysql"]
-postgres = ["sqlx/postgres"]
-sqlite = ["sqlx/sqlite"]
+#mysql = ["sqlx/mysql"]
+#postgres = ["sqlx/postgres"]
+#sqlite = ["sqlx/sqlite"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]

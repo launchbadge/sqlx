@@ -6,7 +6,7 @@ use crate::error::Error;
 use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
 use crossbeam_queue::ArrayQueue;
 
-use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
+use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
 use std::cmp;
 use std::future::Future;
@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,
     pub(super) idle_conns: ArrayQueue<Idle<DB>>,
-    pub(super) semaphore: Semaphore,
+    pub(super) semaphore: AsyncSemaphore,
     pub(super) size: AtomicU32,
     pub(super) num_idle: AtomicUsize,
     is_closed: AtomicBool,
@@ -49,7 +49,7 @@ impl<DB: Database> PoolInner<DB> {
         let pool = Self {
             connect_options: RwLock::new(Arc::new(connect_options)),
             idle_conns: ArrayQueue::new(capacity),
-            semaphore: Semaphore::new(options.fair, semaphore_capacity),
+            semaphore: AsyncSemaphore::new(options.fair, semaphore_capacity),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
@@ -86,7 +86,7 @@ impl<DB: Database> PoolInner<DB> {
         self.on_closed.notify(usize::MAX);
 
         async move {
-            for permits in 1..=self.options.max_connections as usize {
+            for permits in 1..=self.options.max_connections {
                 // Close any currently idle connections in the pool.
                 while let Some(idle) = self.idle_conns.pop() {
                     let _ = idle.live.float((*self).clone()).close().await;
@@ -112,7 +112,7 @@ impl<DB: Database> PoolInner<DB> {
     ///
     /// If we steal a permit from the parent but *don't* open a connection,
     /// it should be returned to the parent.
-    async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<SemaphoreReleaser<'a>, Error> {
+    async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<AsyncSemaphoreReleaser<'a>, Error> {
         let parent = self
             .parent()
             // If we're already at the max size, we shouldn't try to steal from the parent.
@@ -182,8 +182,8 @@ impl<DB: Database> PoolInner<DB> {
 
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
-        permit: SemaphoreReleaser<'a>,
-    ) -> Result<Floating<DB, Idle<DB>>, SemaphoreReleaser<'a>> {
+        permit: AsyncSemaphoreReleaser<'a>,
+    ) -> Result<Floating<DB, Idle<DB>>, AsyncSemaphoreReleaser<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(idle, (*self).clone(), permit))
@@ -211,8 +211,8 @@ impl<DB: Database> PoolInner<DB> {
     /// Try to atomically increment the pool size for a new connection.
     pub(super) fn try_increment_size<'a>(
         self: &'a Arc<Self>,
-        permit: SemaphoreReleaser<'a>,
-    ) -> Result<DecrementSizeGuard<DB>, SemaphoreReleaser<'a>> {
+        permit: AsyncSemaphoreReleaser<'a>,
+    ) -> Result<DecrementSizeGuard<DB>, AsyncSemaphoreReleaser<'a>> {
         match self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -233,7 +233,7 @@ impl<DB: Database> PoolInner<DB> {
 
         let deadline = Instant::now() + self.options.acquire_timeout;
 
-        sqlx_rt::timeout(
+        crate::rt::timeout(
             self.options.acquire_timeout,
             async {
                 loop {
@@ -263,7 +263,7 @@ impl<DB: Database> PoolInner<DB> {
                             // If so, we're likely in the current-thread runtime if it's Tokio
                             // and so we should yield to let any spawned release_to_pool() tasks
                             // execute.
-                            sqlx_rt::yield_now().await;
+                            crate::rt::yield_now().await;
                             continue;
                         }
                     };
@@ -302,7 +302,7 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match sqlx_rt::timeout(timeout, connect_options.connect()).await {
+            match crate::rt::timeout(timeout, connect_options.connect()).await {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
                     // See comment on `PoolOptions::after_connect`
@@ -346,7 +346,7 @@ impl<DB: Database> PoolInner<DB> {
             // If the connection is refused, wait in exponentially
             // increasing steps for the server to come up,
             // capped by a factor of the remaining time until the deadline
-            sqlx_rt::sleep(backoff).await;
+            crate::rt::sleep(backoff).await;
             backoff = cmp::min(backoff * 2, max_backoff);
         }
     }
@@ -475,7 +475,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 
         (None, None) => {
             if pool.options.min_connections > 0 {
-                sqlx_rt::spawn(async move {
+                crate::rt::spawn(async move {
                     pool.min_connections_maintenance(None).await;
                 });
             }
@@ -484,7 +484,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
         }
     };
 
-    sqlx_rt::spawn(async move {
+    crate::rt::spawn(async move {
         // Immediately cancel this task if the pool is closed.
         let _ = pool
             .close_event()
@@ -496,9 +496,9 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 
                     if let Some(duration) = next_run.checked_duration_since(Instant::now()) {
                         // `async-std` doesn't have a `sleep_until()`
-                        sqlx_rt::sleep(duration).await;
+                        crate::rt::sleep(duration).await;
                     } else {
-                        sqlx_rt::yield_now().await;
+                        crate::rt::yield_now().await;
                     }
 
                     // Don't run the reaper right away.
@@ -552,7 +552,7 @@ impl<DB: Database> DecrementSizeGuard<DB> {
         }
     }
 
-    pub fn from_permit(pool: Arc<PoolInner<DB>>, mut permit: SemaphoreReleaser<'_>) -> Self {
+    pub fn from_permit(pool: Arc<PoolInner<DB>>, permit: AsyncSemaphoreReleaser<'_>) -> Self {
         // here we effectively take ownership of the permit
         permit.disarm();
         Self::new_permit(pool)

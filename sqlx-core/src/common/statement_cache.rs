@@ -49,7 +49,6 @@ impl<T> StatementCache<T> {
     }
 
     /// Clear all cached statements from the cache.
-    #[cfg(feature = "sqlite")]
     pub fn clear(&mut self) {
         self.inner.clear();
     }

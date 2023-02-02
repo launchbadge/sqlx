@@ -3,6 +3,7 @@ use crate::any::{
     AnyStatement, AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
 };
 use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
+use std::marker::PhantomData;
 
 /// Opaque database driver. Capable of being used in place of any SQLx database driver. The actual
 /// driver used will be selected at runtime, from the connection url.
@@ -23,6 +24,9 @@ impl Database for Any {
     type TypeInfo = AnyTypeInfo;
 
     type Value = AnyValue;
+    const NAME: &'static str = "Any";
+
+    const URL_SCHEMES: &'static [&'static str] = &[];
 }
 
 impl<'r> HasValueRef<'r> for Any {
