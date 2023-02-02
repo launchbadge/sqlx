@@ -223,6 +223,7 @@ name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
+[[test]]
 name = "sqlite-error"
 path = "tests/sqlite/error.rs"
 required-features = ["sqlite"]

@@ -271,6 +271,7 @@ jobs:
             --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx?ssl-mode=disabled
+          RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
 
       # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
       - uses: actions-rs/cargo@v1
@@ -282,6 +283,7 @@ jobs:
             --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+          RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
 
   mariadb:
     name: MariaDB
@@ -322,3 +324,4 @@ jobs:
             --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}

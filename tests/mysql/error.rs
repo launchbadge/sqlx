@@ -1,21 +1,17 @@
-use sqlx::{error::ErrorKind, mysql::MySql, Connection, Executor, Transaction};
+use sqlx::{error::ErrorKind, mysql::MySql, Connection};
 use sqlx_test::new;
-
-async fn with_test_row(conn: &mut Transaction<'_, MySql>) -> anyhow::Result<()> {
-    sqlx::query!("INSERT INTO tweet(id, text, owner_id) VALUES (1, 'Foo', 1)")
-        .execute(conn)
-        .await?;
-    Ok(())
-}
 
 #[sqlx_macros::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
-    with_test_row(&mut tx).await.unwrap();
+
+    sqlx::query("INSERT INTO tweet(id, text, owner_id) VALUES (1, 'Foo', 1)")
+        .execute(&mut *tx)
+        .await?;
 
     let res: Result<_, sqlx::Error> = sqlx::query("INSERT INTO tweet VALUES (1, NOW(), 'Foo', 1);")
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await;
     let err = res.unwrap_err();
 
@@ -33,7 +29,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
 
     let res: Result<_, sqlx::Error> =
         sqlx::query("INSERT INTO tweet_reply (tweet_id, text) VALUES (1, 'Reply!');")
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await;
     let err = res.unwrap_err();
 
@@ -50,7 +46,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
 
     let res: Result<_, sqlx::Error> = sqlx::query("INSERT INTO tweet (text) VALUES (null);")
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await;
     let err = res.unwrap_err();
 
@@ -61,6 +57,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(mysql_8)]
 #[sqlx_macros::test]
 async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
@@ -68,7 +65,7 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
 
     let res: Result<_, sqlx::Error> =
         sqlx::query("INSERT INTO products VALUES (1, 'Product 1', 0);")
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await;
     let err = res.unwrap_err();
 
