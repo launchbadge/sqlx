@@ -19,9 +19,9 @@ use std::convert::identity;
 )]
 #[doc(hidden)]
 pub struct Describe<DB: Database> {
-    pub(crate) columns: Vec<DB::Column>,
-    pub(crate) parameters: Option<Either<Vec<DB::TypeInfo>, usize>>,
-    pub(crate) nullable: Vec<Option<bool>>,
+    pub columns: Vec<DB::Column>,
+    pub parameters: Option<Either<Vec<DB::TypeInfo>, usize>>,
+    pub nullable: Vec<Option<bool>>,
 }
 
 impl<DB: Database> Describe<DB> {
@@ -52,5 +52,52 @@ impl<DB: Database> Describe<DB> {
     /// Gets whether a column may be `NULL`, if this information is available.
     pub fn nullable(&self, column: usize) -> Option<bool> {
         self.nullable.get(column).copied().and_then(identity)
+    }
+}
+
+#[cfg(feature = "any")]
+impl<DB: Database> Describe<DB> {
+    #[doc(hidden)]
+    pub fn try_into_any(self) -> crate::Result<Describe<crate::any::Any>>
+    where
+        crate::any::AnyColumn: for<'a> TryFrom<&'a DB::Column, Error = crate::Error>,
+        crate::any::AnyTypeInfo: for<'a> TryFrom<&'a DB::TypeInfo, Error = crate::Error>,
+    {
+        use crate::any::AnyTypeInfo;
+        use std::convert::TryFrom;
+
+        let columns = self
+            .columns
+            .iter()
+            .map(crate::any::AnyColumn::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let parameters = match self.parameters {
+            Some(Either::Left(parameters)) => Some(Either::Left(
+                parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(i, type_info)| {
+                        AnyTypeInfo::try_from(type_info).map_err(|_| {
+                            crate::Error::AnyDriverError(
+                                format!(
+                                    "Any driver does not support type {} of parameter {}",
+                                    type_info, i
+                                )
+                                .into(),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Some(Either::Right(count)) => Some(Either::Right(count)),
+            None => None,
+        };
+
+        Ok(Describe {
+            columns,
+            parameters,
+            nullable: self.nullable,
+        })
     }
 }

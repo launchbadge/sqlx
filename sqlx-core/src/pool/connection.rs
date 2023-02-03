@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use futures_intrusive::sync::SemaphoreReleaser;
+use crate::sync::AsyncSemaphoreReleaser;
 
 use crate::connection::Connection;
 use crate::database::Database;
@@ -105,7 +105,8 @@ impl<DB: Database> PoolConnection<DB> {
     /// Test the connection to make sure it is still live before returning it to the pool.
     ///
     /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
-    pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
+    #[doc(hidden)]
+    pub fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         // float the connection in the pool before we move into the task
         // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
         // https://github.com/launchbadge/sqlx/issues/1396
@@ -129,18 +130,31 @@ impl<DB: Database> PoolConnection<DB> {
     }
 }
 
+impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB> {
+    type Database = DB;
+
+    type Connection = &'c mut <DB as Database>::Connection;
+
+    #[inline]
+    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
+        Box::pin(futures_util::future::ok(&mut **self))
+    }
+
+    #[inline]
+    fn begin(
+        self,
+    ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c, DB>, Error>>
+    {
+        crate::transaction::Transaction::begin(&mut **self)
+    }
+}
+
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
 impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
         if self.live.is_some() || self.pool.options.min_connections > 0 {
-            #[cfg(not(feature = "_rt-async-std"))]
-            if let Ok(handle) = sqlx_rt::Handle::try_current() {
-                handle.spawn(self.return_to_pool());
-            }
-
-            #[cfg(feature = "_rt-async-std")]
-            sqlx_rt::spawn(self.return_to_pool());
+            crate::rt::spawn(self.return_to_pool());
         }
     }
 }
@@ -288,7 +302,7 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
     pub fn from_idle(
         idle: Idle<DB>,
         pool: Arc<PoolInner<DB>>,
-        permit: SemaphoreReleaser<'_>,
+        permit: AsyncSemaphoreReleaser<'_>,
     ) -> Self {
         Self {
             inner: idle,

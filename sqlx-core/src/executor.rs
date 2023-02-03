@@ -1,6 +1,7 @@
 use crate::database::{Database, HasArguments, HasStatement};
 use crate::describe::Describe;
 use crate::error::Error;
+
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;

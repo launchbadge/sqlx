@@ -23,7 +23,7 @@ fn bench_pgpool_acquire(c: &mut Criterion) {
 }
 
 fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
-    let pool = sqlx_rt::block_on(
+    let pool = sqlx::__rt::block_on(
         PgPoolOptions::new()
             // we don't want timeouts because we want to see how the pool degrades
             .acquire_timeout(Duration::from_secs(3600))
@@ -41,8 +41,8 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
 
     for _ in 0..concurrent {
         let pool = pool.clone();
-        sqlx_rt::enter_runtime(|| {
-            sqlx_rt::spawn(async move {
+        sqlx::__rt::enter_runtime(|| {
+            sqlx::__rt::spawn(async move {
                 while !pool.is_closed() {
                     let conn = match pool.acquire().await {
                         Ok(conn) => conn,
@@ -51,7 +51,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
                     };
 
                     // pretend we're using the connection
-                    sqlx_rt::sleep(Duration::from_micros(500)).await;
+                    sqlx::__rt::sleep(Duration::from_micros(500)).await;
                     drop(criterion::black_box(conn));
                 }
             })
@@ -59,7 +59,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
     }
 
     b.iter_custom(|iters| {
-        sqlx_rt::block_on(async {
+        sqlx::__rt::block_on(async {
             // take the start time inside the future to make sure we only count once it's running
             let start = Instant::now();
             for _ in 0..iters {
@@ -73,7 +73,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
         })
     });
 
-    sqlx_rt::block_on(pool.close());
+    sqlx::__rt::block_on(pool.close());
 }
 
 criterion_group!(pg_pool, bench_pgpool_acquire);

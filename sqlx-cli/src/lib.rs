@@ -23,42 +23,24 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 description,
                 reversible,
-            } => migrate::add(source.resolve(&migrate.source), &description, reversible).await?,
+            } => migrate::add(&source, &description, reversible).await?,
             MigrateCommand::Run {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => {
-                migrate::run(
-                    source.resolve(&migrate.source),
-                    &connect_opts,
-                    dry_run,
-                    *ignore_missing,
-                )
-                .await?
-            }
+            } => migrate::run(&source, &connect_opts, dry_run, *ignore_missing).await?,
             MigrateCommand::Revert {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => {
-                migrate::revert(
-                    source.resolve(&migrate.source),
-                    &connect_opts,
-                    dry_run,
-                    *ignore_missing,
-                )
-                .await?
-            }
+            } => migrate::revert(&source, &connect_opts, dry_run, *ignore_missing).await?,
             MigrateCommand::Info {
                 source,
                 connect_opts,
-            } => migrate::info(source.resolve(&migrate.source), &connect_opts).await?,
-            MigrateCommand::BuildScript { source, force } => {
-                migrate::build_script(source.resolve(&migrate.source), force)?
-            }
+            } => migrate::info(&source, &connect_opts).await?,
+            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
         },
 
         Command::Database(database) => match database.command {
@@ -98,6 +80,8 @@ pub async fn run(opt: Opt) -> Result<()> {
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
 async fn connect(opts: &ConnectOpts) -> sqlx::Result<AnyConnection> {
+    sqlx::any::install_default_drivers();
+
     retry_connect_errors(opts, AnyConnection::connect).await
 }
 

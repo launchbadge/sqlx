@@ -10,7 +10,7 @@ async fn it_gets_a_pool(pool: SqlitePool) -> sqlx::Result<()> {
 
     // https://www.sqlite.org/pragma.html#pragma_database_list
     let db = sqlx::query("PRAGMA database_list")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     let db_name = db.get::<String, _>(2);

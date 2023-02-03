@@ -2,8 +2,10 @@ use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
 pub struct AnyQueryResult {
-    pub(crate) rows_affected: u64,
-    pub(crate) last_insert_id: Option<i64>,
+    #[doc(hidden)]
+    pub rows_affected: u64,
+    #[doc(hidden)]
+    pub last_insert_id: Option<i64>,
 }
 
 impl AnyQueryResult {

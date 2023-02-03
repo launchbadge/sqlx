@@ -1,155 +1,131 @@
 use std::borrow::Cow;
+use std::marker::PhantomData;
+use std::num::TryFromIntError;
 
 use crate::any::error::mismatched_types;
-use crate::any::{Any, AnyTypeInfo};
-use crate::database::HasValueRef;
+use crate::any::{Any, AnyTypeInfo, AnyTypeInfoKind};
+use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
-use crate::error::Error;
+use crate::error::{BoxDynError, Error};
+use crate::io::Encode;
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 use crate::value::{Value, ValueRef};
 
-#[cfg(feature = "postgres")]
-use crate::postgres::{PgValue, PgValueRef};
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum AnyValueKind<'a> {
+    Null,
+    Bool(bool),
+    SmallInt(i16),
+    Integer(i32),
+    BigInt(i64),
+    Real(f32),
+    Double(f64),
+    Text(Cow<'a, str>),
+    Blob(Cow<'a, [u8]>),
+}
 
-#[cfg(feature = "mysql")]
-use crate::mysql::{MySqlValue, MySqlValueRef};
+impl AnyValueKind<'_> {
+    fn type_info(&self) -> AnyTypeInfo {
+        AnyTypeInfo {
+            kind: match self {
+                AnyValueKind::Null => AnyTypeInfoKind::Null,
+                AnyValueKind::Bool(_) => AnyTypeInfoKind::Bool,
+                AnyValueKind::SmallInt(_) => AnyTypeInfoKind::SmallInt,
+                AnyValueKind::Integer(_) => AnyTypeInfoKind::Integer,
+                AnyValueKind::BigInt(_) => AnyTypeInfoKind::BigInt,
+                AnyValueKind::Real(_) => AnyTypeInfoKind::Real,
+                AnyValueKind::Double(_) => AnyTypeInfoKind::Double,
+                AnyValueKind::Text(_) => AnyTypeInfoKind::Text,
+                AnyValueKind::Blob(_) => AnyTypeInfoKind::Blob,
+            },
+        }
+    }
 
-#[cfg(feature = "sqlite")]
-use crate::sqlite::{SqliteValue, SqliteValueRef};
+    pub(in crate::any) fn unexpected<Expected: Type<Any>>(&self) -> Result<Expected, BoxDynError> {
+        Err(format!("expected {}, got {:?}", Expected::type_info(), self).into())
+    }
 
-#[cfg(feature = "mssql")]
-use crate::mssql::{MssqlValue, MssqlValueRef};
+    pub(in crate::any) fn try_integer<T>(&self) -> Result<T, BoxDynError>
+    where
+        T: Type<Any> + TryFrom<i16> + TryFrom<i32> + TryFrom<i64>,
+        BoxDynError: From<<T as TryFrom<i16>>::Error>,
+        BoxDynError: From<<T as TryFrom<i32>>::Error>,
+        BoxDynError: From<<T as TryFrom<i64>>::Error>,
+    {
+        Ok(match self {
+            AnyValueKind::SmallInt(i) => (*i).try_into()?,
+            AnyValueKind::Integer(i) => (*i).try_into()?,
+            AnyValueKind::BigInt(i) => (*i).try_into()?,
+            _ => return self.unexpected(),
+        })
+    }
+}
 
+#[derive(Clone, Debug)]
 pub struct AnyValue {
-    pub(crate) kind: AnyValueKind,
-    pub(crate) type_info: AnyTypeInfo,
+    #[doc(hidden)]
+    pub kind: AnyValueKind<'static>,
 }
 
-pub(crate) enum AnyValueKind {
-    #[cfg(feature = "postgres")]
-    Postgres(PgValue),
-
-    #[cfg(feature = "mysql")]
-    MySql(MySqlValue),
-
-    #[cfg(feature = "sqlite")]
-    Sqlite(SqliteValue),
-
-    #[cfg(feature = "mssql")]
-    Mssql(MssqlValue),
-}
-
-pub struct AnyValueRef<'r> {
-    pub(crate) kind: AnyValueRefKind<'r>,
-    pub(crate) type_info: AnyTypeInfo,
-}
-
-pub(crate) enum AnyValueRefKind<'r> {
-    #[cfg(feature = "postgres")]
-    Postgres(PgValueRef<'r>),
-
-    #[cfg(feature = "mysql")]
-    MySql(MySqlValueRef<'r>),
-
-    #[cfg(feature = "sqlite")]
-    Sqlite(SqliteValueRef<'r>),
-
-    #[cfg(feature = "mssql")]
-    Mssql(MssqlValueRef<'r>),
+#[derive(Clone, Debug)]
+pub struct AnyValueRef<'a> {
+    pub(crate) kind: AnyValueKind<'a>,
 }
 
 impl Value for AnyValue {
     type Database = Any;
 
     fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef {
-        match &self.kind {
-            #[cfg(feature = "postgres")]
-            AnyValueKind::Postgres(value) => value.as_ref().into(),
-
-            #[cfg(feature = "mysql")]
-            AnyValueKind::MySql(value) => value.as_ref().into(),
-
-            #[cfg(feature = "sqlite")]
-            AnyValueKind::Sqlite(value) => value.as_ref().into(),
-
-            #[cfg(feature = "mssql")]
-            AnyValueKind::Mssql(value) => value.as_ref().into(),
+        AnyValueRef {
+            kind: match &self.kind {
+                AnyValueKind::Null => AnyValueKind::Null,
+                AnyValueKind::Bool(b) => AnyValueKind::Bool(*b),
+                AnyValueKind::SmallInt(i) => AnyValueKind::SmallInt(*i),
+                AnyValueKind::Integer(i) => AnyValueKind::Integer(*i),
+                AnyValueKind::BigInt(i) => AnyValueKind::BigInt(*i),
+                AnyValueKind::Real(r) => AnyValueKind::Real(*r),
+                AnyValueKind::Double(d) => AnyValueKind::Double(*d),
+                AnyValueKind::Text(t) => AnyValueKind::Text(Cow::Borrowed(t)),
+                AnyValueKind::Blob(b) => AnyValueKind::Blob(Cow::Borrowed(b)),
+            },
         }
     }
 
-    fn type_info(&self) -> Cow<'_, AnyTypeInfo> {
-        Cow::Borrowed(&self.type_info)
+    fn type_info(&self) -> Cow<'_, <Self::Database as Database>::TypeInfo> {
+        Cow::Owned(self.kind.type_info())
     }
 
     fn is_null(&self) -> bool {
-        match &self.kind {
-            #[cfg(feature = "postgres")]
-            AnyValueKind::Postgres(value) => value.is_null(),
-
-            #[cfg(feature = "mysql")]
-            AnyValueKind::MySql(value) => value.is_null(),
-
-            #[cfg(feature = "sqlite")]
-            AnyValueKind::Sqlite(value) => value.is_null(),
-
-            #[cfg(feature = "mssql")]
-            AnyValueKind::Mssql(value) => value.is_null(),
-        }
-    }
-
-    fn try_decode<'r, T>(&'r self) -> Result<T, Error>
-    where
-        T: Decode<'r, Self::Database> + Type<Self::Database>,
-    {
-        if !self.is_null() {
-            let ty = self.type_info();
-
-            if !ty.is_null() && !T::compatible(&ty) {
-                return Err(Error::Decode(mismatched_types::<T>(&ty)));
-            }
-        }
-
-        self.try_decode_unchecked()
+        false
     }
 }
 
-impl<'r> ValueRef<'r> for AnyValueRef<'r> {
+impl<'a> ValueRef<'a> for AnyValueRef<'a> {
     type Database = Any;
 
-    fn to_owned(&self) -> AnyValue {
-        match &self.kind {
-            #[cfg(feature = "postgres")]
-            AnyValueRefKind::Postgres(value) => ValueRef::to_owned(value).into(),
-
-            #[cfg(feature = "mysql")]
-            AnyValueRefKind::MySql(value) => ValueRef::to_owned(value).into(),
-
-            #[cfg(feature = "sqlite")]
-            AnyValueRefKind::Sqlite(value) => ValueRef::to_owned(value).into(),
-
-            #[cfg(feature = "mssql")]
-            AnyValueRefKind::Mssql(value) => ValueRef::to_owned(value).into(),
+    fn to_owned(&self) -> <Self::Database as Database>::Value {
+        AnyValue {
+            kind: match &self.kind {
+                AnyValueKind::Null => AnyValueKind::Null,
+                AnyValueKind::Bool(b) => AnyValueKind::Bool(*b),
+                AnyValueKind::SmallInt(i) => AnyValueKind::SmallInt(*i),
+                AnyValueKind::Integer(i) => AnyValueKind::Integer(*i),
+                AnyValueKind::BigInt(i) => AnyValueKind::BigInt(*i),
+                AnyValueKind::Real(r) => AnyValueKind::Real(*r),
+                AnyValueKind::Double(d) => AnyValueKind::Double(*d),
+                AnyValueKind::Text(t) => AnyValueKind::Text(Cow::Owned(t.to_string())),
+                AnyValueKind::Blob(b) => AnyValueKind::Blob(Cow::Owned(b.to_vec())),
+            },
         }
     }
 
-    fn type_info(&self) -> Cow<'_, AnyTypeInfo> {
-        Cow::Borrowed(&self.type_info)
+    fn type_info(&self) -> Cow<'_, <Self::Database as Database>::TypeInfo> {
+        Cow::Owned(self.kind.type_info())
     }
 
     fn is_null(&self) -> bool {
-        match &self.kind {
-            #[cfg(feature = "postgres")]
-            AnyValueRefKind::Postgres(value) => value.is_null(),
-
-            #[cfg(feature = "mysql")]
-            AnyValueRefKind::MySql(value) => value.is_null(),
-
-            #[cfg(feature = "sqlite")]
-            AnyValueRefKind::Sqlite(value) => value.is_null(),
-
-            #[cfg(feature = "mssql")]
-            AnyValueRefKind::Mssql(value) => value.is_null(),
-        }
+        false
     }
 }

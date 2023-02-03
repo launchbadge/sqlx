@@ -29,12 +29,10 @@ pub async fn run(
     merge: bool,
     cargo_args: Vec<String>,
 ) -> anyhow::Result<()> {
-    // Ensure the database server is available.
-    crate::connect(connect_opts).await?.close().await?;
+    let db = check_backend_and_get_name(connect_opts).await?;
 
     let url = &connect_opts.database_url;
 
-    let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(url, merge, cargo_args)?;
 
     if data.is_empty() {
@@ -48,10 +46,7 @@ pub async fn run(
         BufWriter::new(
             File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
         ),
-        &DataFile {
-            db: db_kind.to_owned(),
-            data,
-        },
+        &DataFile { db, data },
     )
     .context("failed to write to `sqlx-data.json`")?;
 
@@ -68,12 +63,10 @@ pub async fn check(
     merge: bool,
     cargo_args: Vec<String>,
 ) -> anyhow::Result<()> {
-    // Ensure the database server is available.
-    crate::connect(connect_opts).await?.close().await?;
+    let db = check_backend_and_get_name(connect_opts).await?;
 
     let url = &connect_opts.database_url;
 
-    let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(url, merge, cargo_args)?;
 
     let data_file = File::open("sqlx-data.json").context(
@@ -85,11 +78,11 @@ pub async fn check(
         data: saved_data,
     } = serde_json::from_reader(BufReader::new(data_file))?;
 
-    if db_kind != expected_db {
+    if db != expected_db {
         bail!(
             "saved prepare data is for {}, not {} (inferred from `DATABASE_URL`)",
             expected_db,
-            db_kind
+            db
         )
     }
 
@@ -317,23 +310,14 @@ fn minimal_project_recompile_action(metadata: &Metadata) -> anyhow::Result<Proje
     })
 }
 
-fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
-    let options = AnyConnectOptions::from_str(&url)?;
-
-    // these should match the values of `DatabaseExt::NAME` in `sqlx-macros`
-    match options.kind() {
-        #[cfg(feature = "postgres")]
-        AnyKind::Postgres => Ok("PostgreSQL"),
-
-        #[cfg(feature = "mysql")]
-        AnyKind::MySql => Ok("MySQL"),
-
-        #[cfg(feature = "sqlite")]
-        AnyKind::Sqlite => Ok("SQLite"),
-
-        #[cfg(feature = "mssql")]
-        AnyKind::Mssql => Ok("MSSQL"),
-    }
+/// Ensure the database server is available.
+///
+/// Returns the `Database::NAME` of the backend on success.
+async fn check_backend_and_get_name(opts: &ConnectOpts) -> anyhow::Result<String> {
+    let conn = crate::connect(opts).await?;
+    let db = conn.backend_name().to_string();
+    conn.close().await?;
+    Ok(db)
 }
 
 #[cfg(test)]
