@@ -57,8 +57,7 @@ pub async fn handshake<S: Socket>(
     if let (Some(cert_path), Some(key_path)) = (config.client_cert_path, config.client_key_path) {
         let cert_path = cert_path.data().await?;
         let key_path = key_path.data().await?;
-        let identity =
-            Identity::from_pkcs8(&cert_path, &key_path).map_err(|e| Error::Tls(e.into()))?;
+        let identity = Identity::from_pkcs8(&cert_path, &key_path).map_err(Error::tls)?;
         builder.identity(identity);
     }
 
