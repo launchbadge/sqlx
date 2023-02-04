@@ -64,6 +64,8 @@ pub(super) async fn maybe_upgrade<S: Socket>(
         accept_invalid_hostnames: !matches!(options.ssl_mode, MySqlSslMode::VerifyIdentity),
         hostname: &options.host,
         root_cert_path: options.ssl_ca.as_ref(),
+        client_cert_path: options.ssl_client_cert.as_ref(),
+        client_key_path: options.ssl_client_key.as_ref(),
     };
 
     // Request TLS upgrade
