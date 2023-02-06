@@ -1,4 +1,5 @@
 use futures_util::future;
+use rustls::{Certificate, PrivateKey};
 use std::io::{self, BufReader, Cursor, Read, Write};
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -12,7 +13,7 @@ use rustls::{
 use crate::error::Error;
 use crate::io::ReadBuf;
 use crate::net::tls::util::StdSocket;
-use crate::net::tls::TlsConfig;
+use crate::net::tls::{CertificateInput, TlsConfig};
 use crate::net::Socket;
 
 pub struct RustlsSocket<S: Socket> {
@@ -183,8 +184,11 @@ fn private_key_from_pem(pem: Vec<u8>) -> Result<rustls::PrivateKey, Error> {
 
     loop {
         match rustls_pemfile::read_one(&mut reader)? {
-            Some(rustls_pemfile::Item::RSAKey(key)) => return Ok(rustls::PrivateKey(key)),
-            Some(rustls_pemfile::Item::PKCS8Key(key)) => return Ok(rustls::PrivateKey(key)),
+            Some(
+                rustls_pemfile::Item::RSAKey(key)
+                | rustls_pemfile::Item::PKCS8Key(key)
+                | rustls_pemfile::Item::ECKey(key),
+            ) => return Ok(rustls::PrivateKey(key)),
             None => break,
             _ => {}
         }
