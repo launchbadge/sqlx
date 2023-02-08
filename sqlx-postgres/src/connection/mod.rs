@@ -176,6 +176,8 @@ impl Connection for PgConnection {
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
+            self.cache_type_oid.clear();
+
             let mut cleared = 0_usize;
 
             self.wait_until_ready().await?;
