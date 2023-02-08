@@ -79,28 +79,28 @@ impl DatabaseError for MySqlDatabaseError {
         self
     }
 
-    fn kind(&self) -> Option<ErrorKind> {
+    fn kind(&self) -> ErrorKind {
         match self.number() {
             error_codes::ER_DUP_KEY
             | error_codes::ER_DUP_ENTRY
             | error_codes::ER_DUP_UNIQUE
             | error_codes::ER_DUP_ENTRY_WITH_KEY_NAME
-            | error_codes::ER_DUP_UNKNOWN_IN_INDEX => Some(ErrorKind::UniqueViolation),
+            | error_codes::ER_DUP_UNKNOWN_IN_INDEX => ErrorKind::UniqueViolation,
 
             error_codes::ER_NO_REFERENCED_ROW
             | error_codes::ER_NO_REFERENCED_ROW_2
             | error_codes::ER_ROW_IS_REFERENCED
             | error_codes::ER_ROW_IS_REFERENCED_2
             | error_codes::ER_FK_COLUMN_NOT_NULL
-            | error_codes::ER_FK_CANNOT_DELETE_PARENT => Some(ErrorKind::ForeignKeyViolation),
+            | error_codes::ER_FK_CANNOT_DELETE_PARENT => ErrorKind::ForeignKeyViolation,
 
             error_codes::ER_BAD_NULL_ERROR | error_codes::ER_NO_DEFAULT_FOR_FIELD => {
-                Some(ErrorKind::NotNullViolation)
+                ErrorKind::NotNullViolation
             }
 
-            error_codes::ER_CHECK_CONSTRAINT_VIOLATED => Some(ErrorKind::CheckViolation),
+            error_codes::ER_CHECK_CONSTRAINT_VIOLATED => ErrorKind::CheckViolation,
 
-            _ => None,
+            _ => ErrorKind::Other,
         }
     }
 }

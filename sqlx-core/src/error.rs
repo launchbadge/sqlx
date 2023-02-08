@@ -175,6 +175,8 @@ pub enum ErrorKind {
     NotNullViolation,
     /// Check constraint violation.
     CheckViolation,
+    /// An unmapped error.
+    Other,
 }
 
 /// An error that was returned from the database.
@@ -214,23 +216,21 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     ///
     /// ### Note
     /// Not all back-ends behave the same when reporting the error code.
-    fn kind(&self) -> Option<ErrorKind> {
-        None
-    }
+    fn kind(&self) -> ErrorKind;
 
     /// Returns whether the error kind is a violation of a unique/primary key constraint.
     fn is_unique_violation(&self) -> bool {
-        matches!(self.kind(), Some(ErrorKind::UniqueViolation))
+        matches!(self.kind(), ErrorKind::UniqueViolation)
     }
 
     /// Returns whether the error kind is a violation of a foreign key.
     fn is_foreign_key_violation(&self) -> bool {
-        matches!(self.kind(), Some(ErrorKind::ForeignKeyViolation))
+        matches!(self.kind(), ErrorKind::ForeignKeyViolation)
     }
 
     /// Returns whether the error kind is a violation of a check.
     fn is_check_violation(&self) -> bool {
-        matches!(self.kind(), Some(ErrorKind::CheckViolation))
+        matches!(self.kind(), ErrorKind::CheckViolation)
     }
 }
 

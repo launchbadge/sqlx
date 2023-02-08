@@ -204,13 +204,13 @@ impl DatabaseError for PgDatabaseError {
         self.constraint()
     }
 
-    fn kind(&self) -> Option<ErrorKind> {
+    fn kind(&self) -> ErrorKind {
         match self.code() {
-            error_codes::UNIQUE_VIOLATION => Some(ErrorKind::UniqueViolation),
-            error_codes::FOREIGN_KEY_VIOLATION => Some(ErrorKind::ForeignKeyViolation),
-            error_codes::NOT_NULL_VIOLATION => Some(ErrorKind::NotNullViolation),
-            error_codes::CHECK_VIOLATION => Some(ErrorKind::CheckViolation),
-            _ => None,
+            error_codes::UNIQUE_VIOLATION => ErrorKind::UniqueViolation,
+            error_codes::FOREIGN_KEY_VIOLATION => ErrorKind::ForeignKeyViolation,
+            error_codes::NOT_NULL_VIOLATION => ErrorKind::NotNullViolation,
+            error_codes::CHECK_VIOLATION => ErrorKind::CheckViolation,
+            _ => ErrorKind::Other,
         }
     }
 }

@@ -87,15 +87,13 @@ impl DatabaseError for SqliteError {
         self
     }
 
-    fn kind(&self) -> Option<ErrorKind> {
+    fn kind(&self) -> ErrorKind {
         match self.code {
-            SQLITE_CONSTRAINT_UNIQUE | SQLITE_CONSTRAINT_PRIMARYKEY => {
-                Some(ErrorKind::UniqueViolation)
-            }
-            SQLITE_CONSTRAINT_FOREIGNKEY => Some(ErrorKind::ForeignKeyViolation),
-            SQLITE_CONSTRAINT_NOTNULL => Some(ErrorKind::NotNullViolation),
-            SQLITE_CONSTRAINT_CHECK => Some(ErrorKind::CheckViolation),
-            _ => None,
+            SQLITE_CONSTRAINT_UNIQUE | SQLITE_CONSTRAINT_PRIMARYKEY => ErrorKind::UniqueViolation,
+            SQLITE_CONSTRAINT_FOREIGNKEY => ErrorKind::ForeignKeyViolation,
+            SQLITE_CONSTRAINT_NOTNULL => ErrorKind::NotNullViolation,
+            SQLITE_CONSTRAINT_CHECK => ErrorKind::CheckViolation,
+            _ => ErrorKind::Other,
         }
     }
 }

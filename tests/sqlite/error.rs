@@ -13,7 +13,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
 
     let err = err.into_database_error().unwrap();
 
-    assert_eq!(err.kind(), Some(ErrorKind::UniqueViolation));
+    assert_eq!(err.kind(), ErrorKind::UniqueViolation);
 
     Ok(())
 }
@@ -31,7 +31,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
 
     let err = err.into_database_error().unwrap();
 
-    assert_eq!(err.kind(), Some(ErrorKind::ForeignKeyViolation));
+    assert_eq!(err.kind(), ErrorKind::ForeignKeyViolation);
 
     Ok(())
 }
@@ -48,7 +48,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
 
     let err = err.into_database_error().unwrap();
 
-    assert_eq!(err.kind(), Some(ErrorKind::NotNullViolation));
+    assert_eq!(err.kind(), ErrorKind::NotNullViolation);
 
     Ok(())
 }
@@ -66,7 +66,7 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
 
     let err = err.into_database_error().unwrap();
 
-    assert_eq!(err.kind(), Some(ErrorKind::CheckViolation));
+    assert_eq!(err.kind(), ErrorKind::CheckViolation);
 
     Ok(())
 }
