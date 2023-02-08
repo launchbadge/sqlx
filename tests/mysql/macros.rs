@@ -460,7 +460,7 @@ async fn test_try_from_attr_with_complex_type() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as::<_, Record>("select id from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, id.0 as u64);
