@@ -224,6 +224,11 @@ path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
 [[test]]
+name = "sqlite-error"
+path = "tests/sqlite/error.rs"
+required-features = ["sqlite"]
+
+[[test]]
 name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
 required-features = ["sqlite"]
@@ -263,6 +268,11 @@ path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
 
 [[test]]
+name = "mysql-error"
+path = "tests/mysql/error.rs"
+required-features = ["mysql"]
+
+[[test]]
 name = "mysql-test-attr"
 path = "tests/mysql/test-attr.rs"
 required-features = ["mysql", "macros", "migrate"]
@@ -300,6 +310,11 @@ required-features = ["postgres", "macros"]
 name = "postgres-derives"
 path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
+
+[[test]]
+name = "postgres-error"
+path = "tests/postgres/error.rs"
+required-features = ["postgres"]
 
 [[test]]
 name = "postgres-test-attr"
