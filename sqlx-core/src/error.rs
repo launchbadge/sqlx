@@ -160,6 +160,25 @@ pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynE
     .into()
 }
 
+/// The error kind.
+///
+/// This enum is to be used to identify frequent errors that can be handled by the program.
+/// Although it currently only supports constraint violations, the type may grow in the future.
+#[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ErrorKind {
+    /// Unique/primary key constraint violation.
+    UniqueViolation,
+    /// Foreign key constraint violation.
+    ForeignKeyViolation,
+    /// Not-null constraint violation.
+    NotNullViolation,
+    /// Check constraint violation.
+    CheckViolation,
+    /// An unmapped error.
+    Other,
+}
+
 /// An error that was returned from the database.
 pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// The primary, human-readable error message.
@@ -191,6 +210,27 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// Currently only populated by the Postgres driver.
     fn constraint(&self) -> Option<&str> {
         None
+    }
+
+    /// Returns the kind of the error, if supported.
+    ///
+    /// ### Note
+    /// Not all back-ends behave the same when reporting the error code.
+    fn kind(&self) -> ErrorKind;
+
+    /// Returns whether the error kind is a violation of a unique/primary key constraint.
+    fn is_unique_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::UniqueViolation)
+    }
+
+    /// Returns whether the error kind is a violation of a foreign key.
+    fn is_foreign_key_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::ForeignKeyViolation)
+    }
+
+    /// Returns whether the error kind is a violation of a check.
+    fn is_check_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::CheckViolation)
     }
 }
 

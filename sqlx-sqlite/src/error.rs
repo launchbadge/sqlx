@@ -4,7 +4,11 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::{borrow::Cow, str::from_utf8_unchecked};
 
-use libsqlite3_sys::{sqlite3, sqlite3_errmsg, sqlite3_extended_errcode};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_errmsg, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
+    SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL, SQLITE_CONSTRAINT_PRIMARYKEY,
+    SQLITE_CONSTRAINT_UNIQUE,
+};
 
 pub(crate) use sqlx_core::error::*;
 
@@ -81,5 +85,15 @@ impl DatabaseError for SqliteError {
     #[doc(hidden)]
     fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
         self
+    }
+
+    fn kind(&self) -> ErrorKind {
+        match self.code {
+            SQLITE_CONSTRAINT_UNIQUE | SQLITE_CONSTRAINT_PRIMARYKEY => ErrorKind::UniqueViolation,
+            SQLITE_CONSTRAINT_FOREIGNKEY => ErrorKind::ForeignKeyViolation,
+            SQLITE_CONSTRAINT_NOTNULL => ErrorKind::NotNullViolation,
+            SQLITE_CONSTRAINT_CHECK => ErrorKind::CheckViolation,
+            _ => ErrorKind::Other,
+        }
     }
 }
