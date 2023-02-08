@@ -203,4 +203,26 @@ impl DatabaseError for PgDatabaseError {
     fn constraint(&self) -> Option<&str> {
         self.constraint()
     }
+
+    fn kind(&self) -> ErrorKind {
+        match self.code() {
+            error_codes::UNIQUE_VIOLATION => ErrorKind::UniqueViolation,
+            error_codes::FOREIGN_KEY_VIOLATION => ErrorKind::ForeignKeyViolation,
+            error_codes::NOT_NULL_VIOLATION => ErrorKind::NotNullViolation,
+            error_codes::CHECK_VIOLATION => ErrorKind::CheckViolation,
+            _ => ErrorKind::Other,
+        }
+    }
+}
+
+/// For reference: <https://www.postgresql.org/docs/current/errcodes-appendix.html>
+pub(crate) mod error_codes {
+    /// Caused when a unique or primary key is violated.
+    pub const UNIQUE_VIOLATION: &str = "23505";
+    /// Caused when a foreign key is violated.
+    pub const FOREIGN_KEY_VIOLATION: &str = "23503";
+    /// Caused when a column marked as NOT NULL received a null value.
+    pub const NOT_NULL_VIOLATION: &str = "23502";
+    /// Caused when a check constraint is violated.
+    pub const CHECK_VIOLATION: &str = "23514";
 }
