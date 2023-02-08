@@ -353,24 +353,19 @@ impl<DB: Database> PoolInner<DB> {
 
     /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
     pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
-        macro_rules! unwrap_or_return {
-            ($expr:expr) => {
-                match $expr {
-                    Some(val) => val,
-                    None => return Ok(()),
-                }
-            };
-        }
-
         while self.size() < self.options.min_connections {
             // Don't wait for a semaphore permit.
             //
             // If no extra permits are available then we shouldn't be trying to spin up
             // connections anyway.
-            let permit = unwrap_or_return!(self.semaphore.try_acquire(1));
+            let Some(permit) = self.semaphore.try_acquire(1) else {
+				return Ok(());
+			};
 
             // We must always obey `max_connections`.
-            let guard = unwrap_or_return!(self.try_increment_size(permit).ok());
+            let Some(guard) = self.try_increment_size(permit).ok() else {
+				return Ok(());
+			};
 
             // We skip `after_release` since the connection was never provided to user code
             // besides `after_connect`, if they set it.
