@@ -79,6 +79,9 @@ pub struct SqliteConnectOptions {
 
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
+
+    #[cfg(feature = "regexp")]
+    pub(crate) register_regexp_function: bool,
 }
 
 impl Default for SqliteConnectOptions {
@@ -456,6 +459,25 @@ impl SqliteConnectOptions {
     ) -> Self {
         self.extensions
             .insert(extension_name.into(), Some(entry_point.into()));
+        self
+    }
+
+    /// Register a regexp function that allows using regular expressions in queries.
+    ///
+    /// ```
+    /// use std::str::FromStr;
+    /// use sqlx::sqlite::SqliteConnectOptions;
+    /// let sqlite = SqliteConnectOptions::new()
+    ///     .with_regex()
+    ///     .connect()
+    ///     .unwrap();
+    /// let tables = query_unchecked!("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\d+)bar'").fetch_all(&sqlite).unwrap();
+    /// ```
+    ///
+    /// This uses the [`regex`] crate, and is only enabled when you enable the `regex` feature is enabled on sqlx
+    #[cfg(feature = "regexp")]
+    pub fn with_regexp(mut self) -> Self {
+        self.register_regexp_function = true;
         self
     }
 }
