@@ -3230,6 +3230,7 @@ dependencies = [
  "percent-encoding",
  "regex",
  "serde",
+ "sqlx",
  "sqlx-core",
  "time 0.3.17",
  "url",

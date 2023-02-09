@@ -257,7 +257,7 @@ impl EstablishParams {
         #[cfg(feature = "regexp")]
         if self.register_regexp_function {
             // configure a `regexp` function for sqlite, it does not come with one by default
-            let status = crate::sqlite::regexp::register(handle.as_ptr());
+            let status = crate::regexp::register(handle.as_ptr());
             if status != SQLITE_OK {
                 return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
             }

@@ -174,10 +174,16 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::{Connection, Row};
+    use sqlx::{ConnectOptions, Connection, Row};
+    use std::str::FromStr;
 
-    async fn test_db() -> sqlx::SqliteConnection {
-        let mut conn = sqlx::SqliteConnection::connect(":memory:").await.unwrap();
+    async fn test_db() -> crate::SqliteConnection {
+        let mut conn = crate::SqliteConnectOptions::from_str("sqlite://:memory:")
+            .unwrap()
+            .with_regexp()
+            .connect()
+            .await
+            .unwrap();
         sqlx::query("CREATE TABLE test (col TEXT NOT NULL)")
             .execute(&mut conn)
             .await

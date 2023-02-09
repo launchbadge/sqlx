@@ -59,3 +59,6 @@ features = [
 [dependencies.sqlx-core]
 version = "=0.6.2"
 path = "../sqlx-core"
+
+[dev-dependencies]
+sqlx = { version = "0.6.2", path = "..", default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }

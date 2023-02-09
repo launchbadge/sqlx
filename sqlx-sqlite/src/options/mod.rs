@@ -38,7 +38,7 @@ use sqlx_core::IndexMap;
 /// ```rust,no_run
 /// # use sqlx_core::connection::ConnectOptions;
 /// # use sqlx_core::error::Error;
-/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// # use sqlx_sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
 /// # fn main() {
@@ -188,6 +188,8 @@ impl SqliteConnectOptions {
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
             command_channel_size: 50,
             row_channel_size: 50,
+            #[cfg(feature = "regexp")]
+            register_regexp_function: false,
         }
     }
 
@@ -434,8 +436,8 @@ impl SqliteConnectOptions {
     /// will be loaded in the order they are added.
     /// ```rust,no_run
     /// # use sqlx_core::error::Error;
-    /// use std::str::FromStr;
-    /// use sqlx::sqlite::SqliteConnectOptions;
+    /// # use std::str::FromStr;
+    /// # use sqlx_sqlite::SqliteConnectOptions;
     /// # fn options() -> Result<SqliteConnectOptions, Error> {
     /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
     ///     .extension("vsv")
@@ -465,13 +467,19 @@ impl SqliteConnectOptions {
     /// Register a regexp function that allows using regular expressions in queries.
     ///
     /// ```
-    /// use std::str::FromStr;
-    /// use sqlx::sqlite::SqliteConnectOptions;
-    /// let sqlite = SqliteConnectOptions::new()
-    ///     .with_regex()
+    /// # use std::str::FromStr;
+    /// # use sqlx::{ConnectOptions, Connection, Row};
+    /// # use sqlx_sqlite::SqliteConnectOptions;
+    /// # async fn run() -> sqlx::Result<()> {
+    /// let mut sqlite = SqliteConnectOptions::from_str("sqlite://:memory:")?
+    ///     .with_regexp()
     ///     .connect()
-    ///     .unwrap();
-    /// let tables = query_unchecked!("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\d+)bar'").fetch_all(&sqlite).unwrap();
+    ///     .await?;
+    /// let tables = sqlx::query("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\\d+)bar'")
+    ///     .fetch_all(&mut sqlite)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// This uses the [`regex`] crate, and is only enabled when you enable the `regex` feature is enabled on sqlx
