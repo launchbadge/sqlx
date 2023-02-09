@@ -174,10 +174,10 @@ impl MySqlConnection {
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
 
-                        r#yield!(Either::Left(MySqlQueryResult {
-                            rows_affected: 0,
-                            last_insert_id: 0,
-                        }));
+                        // r#yield!(Either::Left(MySqlQueryResult {
+                        //     rows_affected: 0,
+                        //     last_insert_id: 0,
+                        // }));
 
                         if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             // more result sets exist, continue to the next one
