@@ -3,7 +3,9 @@ use std::time::Instant;
 
 // Yes these look silly. `tracing` doesn't currently support dynamic levels
 // https://github.com/tokio-rs/tracing/issues/372
-macro_rules! tracing_dynamic_enabled {
+#[doc(hidden)]
+#[macro_export]
+macro_rules! private_tracing_dynamic_enabled {
     (target: $target:expr, $level:expr) => {{
         use ::tracing::Level;
 
@@ -15,9 +17,14 @@ macro_rules! tracing_dynamic_enabled {
             Level::TRACE => ::tracing::enabled!(target: $target, Level::TRACE),
         }
     }};
+    ($level:expr) => {{
+        $crate::private_tracing_dynamic_enabled!(target: module_path!(), $level)
+    }};
 }
 
-macro_rules! tracing_dynamic_event {
+#[doc(hidden)]
+#[macro_export]
+macro_rules! private_tracing_dynamic_event {
     (target: $target:expr, $level:expr, $($args:tt)*) => {{
         use ::tracing::Level;
 
@@ -31,7 +38,10 @@ macro_rules! tracing_dynamic_event {
     }};
 }
 
-fn level_filter_to_levels(filter: log::LevelFilter) -> Option<(tracing::Level, log::Level)> {
+#[doc(hidden)]
+pub fn private_level_filter_to_levels(
+    filter: log::LevelFilter,
+) -> Option<(tracing::Level, log::Level)> {
     let tracing_level = match filter {
         log::LevelFilter::Error => Some(tracing::Level::ERROR),
         log::LevelFilter::Warn => Some(tracing::Level::WARN),
@@ -82,11 +92,11 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
-        if let Some((tracing_level, log_level)) = level_filter_to_levels(lvl) {
+        if let Some((tracing_level, log_level)) = private_level_filter_to_levels(lvl) {
             // The enabled level could be set from either tracing world or log world, so check both
             // to see if logging should be enabled for our level
-            let log_is_enabled = tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
-                || log::log_enabled!(target: "sqlx::query", log_level);
+            let log_is_enabled = log::log_enabled!(target: "sqlx::query", log_level)
+                || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level);
             if log_is_enabled {
                 let mut summary = parse_query_summary(&self.sql);
 
@@ -109,7 +119,7 @@ impl<'q> QueryLogger<'q> {
                     summary, self.rows_affected, self.rows_returned, elapsed, sql
                 );
 
-                tracing_dynamic_event!(target: "sqlx::query", tracing_level, message);
+                private_tracing_dynamic_event!(target: "sqlx::query", tracing_level, message);
             }
         }
     }
