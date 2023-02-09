@@ -3,15 +3,11 @@ use std::str::FromStr;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{query, Connection, SqliteConnection};
 use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
-use sqlx_rt::fs::File;
 use tempdir::TempDir;
 
 async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
     let dir = TempDir::new("sqlcipher_test")?;
     let filepath = dir.path().join("database.sqlite3");
-
-    // Touch the file, so DB driver will not complain it does not exist
-    File::create(filepath.as_path()).await?;
 
     Ok((format!("sqlite://{}", filepath.display()), dir))
 }
@@ -28,7 +24,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
                  );
                  ",
             )
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
             query(
@@ -39,7 +35,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
                     (2, "bbb", 222)
                 "#,
             )
-            .execute(tx)
+            .execute(&mut **tx)
             .await
         })
     })
@@ -53,6 +49,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
 
     let mut conn = SqliteConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
+        .create_if_missing(true)
         .connect()
         .await?;
 
@@ -63,7 +60,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
 
     assert!(conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await
         .is_err());
@@ -77,6 +74,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
 
     let mut conn = SqliteConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
+        .create_if_missing(true)
         .connect()
         .await?;
 
@@ -90,7 +88,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await?;
 
@@ -105,6 +103,7 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
 
     let mut conn = SqliteConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
+        .create_if_missing(true)
         .connect()
         .await?;
 
@@ -118,7 +117,7 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
 
     assert!(conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await
         .is_err());
@@ -142,6 +141,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
         .pragma("kdf_iter", "64000")
         .auto_vacuum(sqlx::sqlite::SqliteAutoVacuum::Incremental)
         .pragma("cipher_hmac_algorithm", "HMAC_SHA1")
+        .create_if_missing(true)
         .connect()
         .await?;
 
@@ -159,7 +159,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(&mut **tx).await })
         })
         .await?;
 
@@ -174,6 +174,7 @@ async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
 
     let mut conn = SqliteConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
+        .create_if_missing(true)
         .connect()
         .await?;
 
@@ -192,7 +193,7 @@ async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(&mut **tx).await })
         })
         .await?;
 

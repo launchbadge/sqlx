@@ -495,7 +495,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
 
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 2, 'Hello, World' )")
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     let tweet_id: i32 = 2;
@@ -512,7 +512,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     assert_eq!(statement.column(2).type_info().name(), "BOOLEAN");
     assert_eq!(statement.column(3).type_info().name(), "INTEGER");
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -576,7 +576,7 @@ async fn concurrent_resets_dont_segfault() {
         .await
         .unwrap();
 
-    sqlx_rt::spawn(async move {
+    sqlx_core::rt::spawn(async move {
         for i in 0..1000 {
             sqlx::query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                 .bind(i)
@@ -587,7 +587,7 @@ async fn concurrent_resets_dont_segfault() {
         }
     });
 
-    sqlx_rt::sleep(Duration::from_millis(1)).await;
+    sqlx_core::rt::sleep(Duration::from_millis(1)).await;
 }
 
 // https://github.com/launchbadge/sqlx/issues/1419
@@ -609,7 +609,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 
     // hold `books` past the lifetime of `conn`
     drop(conn);
-    sqlx_rt::sleep(std::time::Duration::from_secs(1)).await;
+    sqlx_core::rt::sleep(std::time::Duration::from_secs(1)).await;
     drop(books);
 }
 
@@ -658,19 +658,19 @@ async fn issue_1467() -> anyhow::Result<()> {
 
         let exists = sqlx::query("SELECT 1 FROM kv WHERE k = ?")
             .bind(key)
-            .fetch_optional(&mut tx)
+            .fetch_optional(&mut *tx)
             .await?;
         if exists.is_some() {
             sqlx::query("UPDATE kv SET v = ? WHERE k = ?")
                 .bind(value)
                 .bind(key)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         } else {
             sqlx::query("INSERT INTO kv(k, v) VALUES (?, ?)")
                 .bind(key)
                 .bind(value)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
         tx.commit().await?;
@@ -693,21 +693,21 @@ async fn concurrent_read_and_write() {
 
     let n = 100;
 
-    let read = sqlx_rt::spawn({
+    let read = sqlx_core::rt::spawn({
         let mut conn = pool.acquire().await.unwrap();
 
         async move {
             for i in 0u32..n {
                 sqlx::query("SELECT v FROM kv")
                     .bind(i)
-                    .fetch_all(&mut conn)
+                    .fetch_all(&mut *conn)
                     .await
                     .unwrap();
             }
         }
     });
 
-    let write = sqlx_rt::spawn({
+    let write = sqlx_core::rt::spawn({
         let mut conn = pool.acquire().await.unwrap();
 
         async move {
@@ -715,22 +715,13 @@ async fn concurrent_read_and_write() {
                 sqlx::query("INSERT INTO kv (k, v) VALUES (?, ?)")
                     .bind(i)
                     .bind(i * i)
-                    .execute(&mut conn)
+                    .execute(&mut *conn)
                     .await
                     .unwrap();
             }
         }
     });
 
-    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    {
-        read.await.unwrap();
-        write.await.unwrap();
-    }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        read.await;
-        write.await;
-    }
+    read.await;
+    write.await;
 }

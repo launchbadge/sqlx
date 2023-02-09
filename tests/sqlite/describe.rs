@@ -89,6 +89,56 @@ async fn it_describes_expression() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_describes_temporary_table() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.execute(
+        "CREATE TEMPORARY TABLE IF NOT EXISTS empty_all_types_and_nulls(
+        i1 integer NULL,
+        r1 real NULL,
+        t1 text NULL,
+        b1 blob NULL,
+        i2 INTEGER NOT NULL,
+        r2 REAL NOT NULL,
+        t2 TEXT NOT NULL,
+        b2 BLOB NOT NULL
+        )",
+    )
+    .await?;
+
+    let d = conn
+        .describe("SELECT * FROM empty_all_types_and_nulls")
+        .await?;
+    assert_eq!(d.columns().len(), 8);
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    assert_eq!(d.column(1).type_info().name(), "REAL");
+    assert_eq!(d.nullable(1), Some(true));
+
+    assert_eq!(d.column(2).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(2), Some(true));
+
+    assert_eq!(d.column(3).type_info().name(), "BLOB");
+    assert_eq!(d.nullable(3), Some(true));
+
+    assert_eq!(d.column(4).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(4), Some(false));
+
+    assert_eq!(d.column(5).type_info().name(), "REAL");
+    assert_eq!(d.nullable(5), Some(false));
+
+    assert_eq!(d.column(6).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(6), Some(false));
+
+    assert_eq!(d.column(7).type_info().name(), "BLOB");
+    assert_eq!(d.nullable(7), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -302,6 +352,52 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_describes_group_by() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn.describe("select id from accounts group by id").await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("SELECT name from accounts GROUP BY 1 LIMIT -1 OFFSET 1")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("SELECT sum(id), sum(is_sent) from tweet GROUP BY owner_id")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(1), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn.describe("select count(1) from accounts").await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn.describe("SELECT sum(is_sent) from tweet").await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("SELECT coalesce(sum(is_sent),0) from tweet")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     async fn assert_literal_described(
         conn: &mut sqlx::SqliteConnection,
@@ -421,6 +517,16 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
     .await?;
     assert_literal_order_by_described(&mut conn, "SELECT 'a', text FROM tweet ORDER BY text")
         .await?;
+    assert_literal_order_by_described(
+        &mut conn,
+        "SELECT 'a', text FROM tweet ORDER BY text NULLS LAST",
+    )
+    .await?;
+    assert_literal_order_by_described(
+        &mut conn,
+        "SELECT 'a', text FROM tweet ORDER BY text DESC NULLS LAST",
+    )
+    .await?;
 
     Ok(())
 }
@@ -466,6 +572,280 @@ async fn it_describes_union() -> anyhow::Result<()> {
         ",
     )
     .await?;
+
+    Ok(())
+}
+
+//documents failures originally found through property testing
+#[sqlx_macros::test]
+async fn it_describes_strange_queries() -> anyhow::Result<()> {
+    async fn assert_single_column_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+        typename: &str,
+        nullable: bool,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+        assert_eq!(info.column(0).type_info().name(), typename, "{}", query);
+        assert_eq!(info.nullable(0), Some(nullable), "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT true FROM (SELECT true) a ORDER BY true",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "
+    	SELECT true
+    	FROM (
+    	    SELECT 'a'
+    	)
+    	CROSS JOIN (
+    	    SELECT 'b'
+    	    FROM (SELECT 'c')
+            CROSS JOIN accounts
+            ORDER BY id
+            LIMIT 1
+            )
+    	",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT true FROM tweet
+            ORDER BY true ASC NULLS LAST",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT true LIMIT -1 OFFSET -1",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT true FROM tweet J LIMIT 10 OFFSET 1000000",
+        "INTEGER",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT text
+        FROM (SELECT null)
+        CROSS JOIN (
+            SELECT text
+            FROM tweet 
+            GROUP BY text
+        )
+        LIMIT -1 OFFSET -1",
+        "TEXT",
+        false,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT EYH.id,COUNT(EYH.id)
+    	FROM accounts EYH",
+        "INTEGER",
+        true,
+    )
+    .await?;
+
+    assert_single_column_described(
+        &mut conn,
+        "SELECT SUM(tweet.text) FROM (SELECT NULL FROM accounts_view LIMIT -1 OFFSET 1) CROSS JOIN tweet",
+        "REAL",
+        true, // null if accounts view has fewer rows than the offset
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_date() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT date();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT date('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT date('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT date(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_time() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT time();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT time('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT time('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT time(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_datetime() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT datetime();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT datetime('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT datetime('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT datetime(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_julianday() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT julianday();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT julianday('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT julianday('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT julianday(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_strftime() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT strftime('%s','now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT strftime('%s', 'now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT strftime('%s',:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_with_recursive() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "
+        WITH RECURSIVE schedule(begin_date) AS (
+             SELECT datetime('2022-10-01')
+             WHERE datetime('2022-10-01') < datetime('2022-11-03')
+             UNION ALL
+             SELECT datetime(begin_date,'+1 day')
+             FROM schedule
+             WHERE datetime(begin_date) < datetime(?2)
+         )
+         SELECT
+             begin_date
+         FROM schedule
+         GROUP BY begin_date
+        ";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+
+    let query = "
+        WITH RECURSIVE schedule(begin_date) AS MATERIALIZED (
+             SELECT datetime('2022-10-01')
+             WHERE datetime('2022-10-01') < datetime('2022-11-03')
+             UNION ALL
+             SELECT datetime(begin_date,'+1 day')
+             FROM schedule
+             WHERE datetime(begin_date) < datetime(?2)
+         )
+         SELECT
+             begin_date
+         FROM schedule
+         GROUP BY begin_date
+        ";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
 
     Ok(())
 }

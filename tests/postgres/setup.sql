@@ -21,6 +21,15 @@ CREATE TABLE tweet
     owner_id   BIGINT
 );
 
+CREATE TABLE tweet_reply
+(
+    id         BIGSERIAL PRIMARY KEY,
+    tweet_id   BIGINT      NOT NULL REFERENCES tweet(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    text       TEXT        NOT NULL,
+    owner_id   BIGINT
+);
+
 CREATE TYPE float_range AS RANGE
 (
     subtype = float8,

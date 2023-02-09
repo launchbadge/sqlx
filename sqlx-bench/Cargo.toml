@@ -9,21 +9,17 @@ publish = false
 runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx/runtime-async-std-native-tls",
-    "sqlx-rt/runtime-async-std-native-tls",
 ]
 runtime-tokio-native-tls = [
     "sqlx/runtime-tokio-native-tls",
-    "sqlx-rt/runtime-tokio-native-tls",
 ]
 
 runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = [
     "sqlx/runtime-async-std-rustls",
-    "sqlx-rt/runtime-async-std-rustls",
 ]
 runtime-tokio-rustls = [
     "sqlx/runtime-tokio-rustls",
-    "sqlx-rt/runtime-tokio-rustls",
 ]
 
 postgres = ["sqlx/postgres"]
@@ -34,7 +30,6 @@ criterion = "0.3.3"
 dotenvy = "0.15.0"
 once_cell = "1.4"
 sqlx = { version = "0.6", path = "../", default-features = false, features = ["macros"] }
-sqlx-rt = { version = "0.6", path = "../sqlx-rt", default-features = false }
 
 chrono = "0.4.19"
 

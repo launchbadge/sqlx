@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
@@ -80,6 +81,39 @@ impl<T> AsRef<T> for Json<T> {
 impl<T> AsMut<T> for Json<T> {
     fn as_mut(&mut self) -> &mut T {
         &mut self.0
+    }
+}
+
+const JSON_SERIALIZE_ERR: &str = "failed to encode value as JSON; the most likely cause is \
+                                  attempting to serialize a map with a non-string key type";
+
+// UNSTABLE: for driver use only!
+#[doc(hidden)]
+impl<T: Serialize> Json<T> {
+    pub fn encode_to_string(&self) -> String {
+        // Encoding is supposed to be infallible so we don't have much choice but to panic here.
+        // However, I believe that's the right thing to do anyway as an object being unable
+        // to serialize to JSON is likely due to a bug or a malformed datastructure.
+        serde_json::to_string(self).expect(JSON_SERIALIZE_ERR)
+    }
+
+    pub fn encode_to(&self, buf: &mut Vec<u8>) {
+        serde_json::to_writer(buf, self).expect(JSON_SERIALIZE_ERR)
+    }
+}
+
+// UNSTABLE: for driver use only!
+#[doc(hidden)]
+impl<'a, T: 'a> Json<T>
+where
+    T: Deserialize<'a>,
+{
+    pub fn decode_from_string(s: &'a str) -> Result<Self, BoxDynError> {
+        serde_json::from_str(s).map_err(Into::into)
+    }
+
+    pub fn decode_from_bytes(bytes: &'a [u8]) -> Result<Self, BoxDynError> {
+        serde_json::from_slice(bytes).map_err(Into::into)
     }
 }
 
