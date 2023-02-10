@@ -649,3 +649,34 @@ async fn test_flatten() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_skip() -> anyhow::Result<()> {
+    #[derive(Debug, Default, sqlx::FromRow)]
+    struct AccountDefault {
+        default: Option<i32>,
+    }
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct AccountKeyword {
+        id: i32,
+        #[sqlx(skip)]
+        default: AccountDefault,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let account: AccountKeyword = sqlx::query_as(
+        r#"SELECT * from (VALUES (1)) accounts("id")"#,
+    )
+    .fetch_one(&mut conn)
+    .await?;
+    println!("{:?}", account);
+
+    assert_eq!(1, account.id);
+    assert_eq!(None, account.default.default);
+
+    Ok(())
+}
