@@ -75,9 +75,28 @@ services:
             MYSQL_DATABASE: sqlx
 
     #
-    # PostgreSQL 14.x, 13.x, 12.x, 11.x 10.x
+    # PostgreSQL 15.x, 14.x, 13.x, 12.x, 11.x
     # https://www.postgresql.org/support/versioning/
     #
+
+    postgres_15:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+              VERSION: 15
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
 
     postgres_14:
         build:
@@ -142,25 +161,6 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 11
-        ports:
-          - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-
-    postgres_10:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 10
         ports:
           - 5432
         environment:
