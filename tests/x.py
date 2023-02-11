@@ -169,7 +169,7 @@ for runtime in ["async-std", "tokio"]:
         # postgres
         #
 
-        for version in ["14", "13", "12", "11", "10"]:
+        for version in ["15", "14", "13", "12", "11"]:
             run(
                 f"cargo test --no-default-features --features macros,any,unstable-all-types,postgres,runtime-{runtime},tls-{tls}",
                 comment=f"test postgres {version}",
@@ -178,7 +178,7 @@ for runtime in ["async-std", "tokio"]:
             )
 
         ## +ssl
-        for version in ["14", "13", "12", "11", "10"]:
+        for version in ["15", "14", "13", "12", "11"]:
             run(
                 f"cargo test --no-default-features --features macros,any,_unstable-all-types,postgres,runtime-{runtime},tls-{tls}",
                 comment=f"test postgres {version} ssl",
