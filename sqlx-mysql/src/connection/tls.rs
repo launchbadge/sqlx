@@ -35,13 +35,13 @@ pub(super) async fn maybe_upgrade<S: Socket>(
         MySqlSslMode::Preferred => {
             if !tls::available() {
                 // Client doesn't support TLS
-                log::debug!("not performing TLS upgrade: TLS support not compiled in");
+                tracing::debug!("not performing TLS upgrade: TLS support not compiled in");
                 return Ok(stream.boxed_socket());
             }
 
             if !server_supports_tls {
                 // Server doesn't support TLS
-                log::debug!("not performing TLS upgrade: unsupported by server");
+                tracing::debug!("not performing TLS upgrade: unsupported by server");
                 return Ok(stream.boxed_socket());
             }
         }

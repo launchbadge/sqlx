@@ -175,7 +175,7 @@ impl ConnectionWorker {
                                 // `Transaction` was created and so there is no way to commit /
                                 // rollback this transaction. We need to roll it back
                                 // immediately otherwise it would remain started forever.
-                                if let Err(e) = conn
+                                if let Err(error) = conn
                                     .handle
                                     .exec(rollback_ansi_transaction_sql(depth + 1))
                                     .map(|_| {
@@ -185,7 +185,7 @@ impl ConnectionWorker {
                                     // The rollback failed. To prevent leaving the connection
                                     // in an inconsistent state we shutdown this worker which
                                     // causes any subsequent operation on the connection to fail.
-                                    log::error!("failed to rollback cancelled transaction: {}", e);
+                                    tracing::error!(%error, "failed to rollback cancelled transaction");
                                     break;
                                 }
                             }
@@ -242,8 +242,8 @@ impl ConnectionWorker {
                             }
                         }
                         Command::CreateCollation { create_collation } => {
-                            if let Err(e) = (create_collation)(&mut conn) {
-                                log::warn!("error applying collation in background worker: {}", e);
+                            if let Err(error) = (create_collation)(&mut conn) {
+                                tracing::warn!(%error, "error applying collation in background worker");
                             }
                         }
                         Command::ClearCache { tx } => {

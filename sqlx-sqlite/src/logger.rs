@@ -1,4 +1,4 @@
-use sqlx_core::connection::LogSettings;
+use sqlx_core::{connection::LogSettings, logger};
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -25,15 +25,13 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
     }
 
     pub fn log_enabled(&self) -> bool {
-        if let Some(_lvl) = self
-            .settings
-            .statements_level
-            .to_level()
-            .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
+        if let Some((tracing_level, log_level)) =
+            logger::private_level_filter_to_levels(self.settings.statements_level)
         {
-            return true;
+            log::log_enabled!(log_level)
+                || sqlx_core::private_tracing_dynamic_enabled!(tracing_level)
         } else {
-            return false;
+            false
         }
     }
 
@@ -48,37 +46,37 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
     pub fn finish(&self) {
         let lvl = self.settings.statements_level;
 
-        if let Some(lvl) = lvl
-            .to_level()
-            .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
-        {
-            let mut summary = parse_query_summary(&self.sql);
+        if let Some((tracing_level, log_level)) = logger::private_level_filter_to_levels(lvl) {
+            let log_is_enabled = log::log_enabled!(target: "sqlx::explain", log_level)
+                || private_tracing_dynamic_enabled!(target: "sqlx::explain", tracing_level);
+            if log_is_enabled {
+                let mut summary = parse_query_summary(&self.sql);
 
-            let sql = if summary != self.sql {
-                summary.push_str(" …");
-                format!(
-                    "\n\n{}\n",
-                    sqlformat::format(
-                        &self.sql,
-                        &sqlformat::QueryParams::None,
-                        sqlformat::FormatOptions::default()
+                let sql = if summary != self.sql {
+                    summary.push_str(" …");
+                    format!(
+                        "\n\n{}\n",
+                        sqlformat::format(
+                            &self.sql,
+                            &sqlformat::QueryParams::None,
+                            sqlformat::FormatOptions::default()
+                        )
                     )
-                )
-            } else {
-                String::new()
-            };
+                } else {
+                    String::new()
+                };
 
-            log::logger().log(
-                &log::Record::builder()
-                    .args(format_args!(
-                        "{}; program:{:?}, unknown_operations:{:?}, results: {:?}{}",
-                        summary, self.program, self.unknown_operations, self.results, sql
-                    ))
-                    .level(lvl)
-                    .module_path_static(Some("sqlx::explain"))
-                    .target("sqlx::explain")
-                    .build(),
-            );
+                let message = format!(
+                    "{}; program:{:?}, unknown_operations:{:?}, results: {:?}{}",
+                    summary, self.program, self.unknown_operations, self.results, sql
+                );
+
+                sqlx_core::private_tracing_dynamic_event!(
+                    target: "sqlx::explain",
+                    tracing_level,
+                    message,
+                );
+            }
         }
     }
 }
