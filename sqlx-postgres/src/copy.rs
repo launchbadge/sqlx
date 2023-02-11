@@ -145,10 +145,13 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
         conn.wait_until_ready().await?;
         conn.stream.send(Query(statement)).await?;
 
-        let response: CopyResponse = conn
-            .stream
-            .recv_expect(MessageFormat::CopyInResponse)
-            .await?;
+        let response = match conn.stream.recv_expect(MessageFormat::CopyInResponse).await {
+            Ok(res) => res,
+            Err(e) => {
+                conn.stream.recv().await?;
+                return Err(e);
+            }
+        };
 
         Ok(PgCopyIn {
             conn: Some(conn),
@@ -299,10 +302,17 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             .expect("CopyWriter::finish: conn taken illegally");
 
         conn.stream.send(CopyDone).await?;
-        let cc: CommandComplete = conn
+        let cc: CommandComplete = match conn
             .stream
             .recv_expect(MessageFormat::CommandComplete)
-            .await?;
+            .await
+        {
+            Ok(cc) => cc,
+            Err(e) => {
+                conn.stream.recv().await?;
+                return Err(e);
+            }
+        };
 
         conn.stream
             .recv_expect(MessageFormat::ReadyForQuery)
