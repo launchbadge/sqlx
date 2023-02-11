@@ -34,7 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [[#2057]]: Make begin,commit,rollback cancel-safe in sqlite  [[@madadam]]
 * [[#2058]]: fix typo in documentation [[@lovasoa]]
 * [[#2067]]: fix(docs): close code block in query_builder.rs [[@abonander]]
-* [[#2069]]: Fix `prepare` race condition in workspaces [[@cycraig]]
+* [[#2069]]: Fix `prepare` race condition in workspaces [[@cycraig]]\
+    * NOTE: this changes the directory structure under `target/` that `cargo sqlx prepare` depends on.
+      If you use offline mode in your workflow, please rerun `cargo install sqlx-cli` to upgrade.
 * [[#2072]]: SqliteConnectOptions typo [[@fasterthanlime]]
 * [[#2074]]: fix: mssql uses unsigned for tinyint instead of signed [[@he4d]]
 * [[#2081]]: close unnamed portal after each executed extended query [[@DXist]]
