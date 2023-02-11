@@ -37,12 +37,12 @@ impl ConnectOptions for SqliteConnectOptions {
         })
     }
 
-    fn log_statements(&mut self, level: LevelFilter) -> &mut Self {
+    fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.log_statements(level);
         self
     }
 
-    fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self {
+    fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.log_slow_statements(level, duration);
         self
     }

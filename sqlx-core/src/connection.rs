@@ -170,14 +170,14 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
         Self::Connection: Sized;
 
     /// Log executed statements with the specified `level`
-    fn log_statements(&mut self, level: LevelFilter) -> &mut Self;
+    fn log_statements(self, level: LevelFilter) -> Self;
 
     /// Log executed statements with a duration above the specified `duration`
     /// at the specified `level`.
-    fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self;
+    fn log_slow_statements(self, level: LevelFilter, duration: Duration) -> Self;
 
     /// Entirely disables statement logging (both slow and regular).
-    fn disable_statement_logging(&mut self) -> &mut Self {
+    fn disable_statement_logging(self) -> Self {
         self.log_statements(LevelFilter::Off)
             .log_slow_statements(LevelFilter::Off, Duration::default())
     }
