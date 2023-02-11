@@ -2993,6 +2993,7 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
+ "tracing",
  "url",
  "uuid",
  "webpki-roots",
@@ -3164,6 +3165,7 @@ dependencies = [
  "stringprep",
  "thiserror",
  "time 0.3.17",
+ "tracing",
  "uuid",
  "whoami",
 ]
@@ -3208,6 +3210,7 @@ dependencies = [
  "stringprep",
  "thiserror",
  "time 0.3.17",
+ "tracing",
  "uuid",
  "whoami",
 ]
@@ -3231,6 +3234,7 @@ dependencies = [
  "serde",
  "sqlx-core",
  "time 0.3.17",
+ "tracing",
  "url",
  "uuid",
 ]
