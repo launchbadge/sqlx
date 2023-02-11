@@ -5,7 +5,10 @@ use std::str::FromStr;
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
-use sqlx_core::bytes::{Buf, Bytes};
+use sqlx_core::{
+    bytes::{Buf, Bytes},
+    logger,
+};
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
@@ -141,25 +144,29 @@ impl PgStream {
 
                     let notice: Notice = message.decode()?;
 
-                    let lvl = match notice.severity() {
-                        PgSeverity::Fatal | PgSeverity::Panic | PgSeverity::Error => Level::Error,
-                        PgSeverity::Warning => Level::Warn,
-                        PgSeverity::Notice => Level::Info,
-                        PgSeverity::Debug => Level::Debug,
-                        PgSeverity::Info => Level::Trace,
-                        PgSeverity::Log => Level::Trace,
+                    let (log_level, tracing_level) = match notice.severity() {
+                        PgSeverity::Fatal | PgSeverity::Panic | PgSeverity::Error => {
+                            (Level::Error, tracing::Level::ERROR)
+                        }
+                        PgSeverity::Warning => (Level::Warn, tracing::Level::WARN),
+                        PgSeverity::Notice => (Level::Info, tracing::Level::INFO),
+                        PgSeverity::Debug => (Level::Debug, tracing::Level::DEBUG),
+                        PgSeverity::Info | PgSeverity::Log => (Level::Trace, tracing::Level::TRACE),
                     };
 
-                    if log::log_enabled!(target: "sqlx::postgres::notice", lvl) {
-                        log::logger().log(
-                            &log::Record::builder()
-                                .args(format_args!("{}", notice.message()))
-                                .level(lvl)
-                                .module_path_static(Some("sqlx::postgres::notice"))
-                                .target("sqlx::postgres::notice")
-                                .file_static(Some(file!()))
-                                .line(Some(line!()))
-                                .build(),
+                    let log_is_enabled = log::log_enabled!(
+                        target: "sqlx::postgres::notice",
+                        log_level
+                    ) || sqlx_core::private_tracing_dynamic_enabled!(
+                        target: "sqlx::postgres::notice",
+                        tracing_level
+                    );
+                    if log_is_enabled {
+                        let message = format!("{}", notice.message());
+                        sqlx_core::private_tracing_dynamic_event!(
+                            target: "sqlx::postgres::notice",
+                            tracing_level,
+                            message
                         );
                     }
 
