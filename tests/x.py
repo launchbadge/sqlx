@@ -177,9 +177,8 @@ for runtime in ["async-std", "tokio"]:
                 tag=f"postgres_{version}" if runtime == "async-std" else f"postgres_{version}_{runtime}",
             )
 
-        if tls != "none":
-            ## +ssl
-            for version in ["15", "14", "13", "12", "11"]:
+            if tls != "none":
+                ## +ssl
                 run(
                     f"cargo test --no-default-features --features any,postgres,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test postgres {version} ssl",
@@ -188,14 +187,13 @@ for runtime in ["async-std", "tokio"]:
                     tag=f"postgres_{version}_ssl" if runtime == "async-std" else f"postgres_{version}_ssl_{runtime}",
                 )
 
-            ## +client-ssl
-            for version in ["15_client_ssl", "14_client_ssl", "13_client_ssl", "12_client_ssl", "11_client_ssl"]:
+                ## +client-ssl
                 run(
                     f"cargo test --no-default-features --features any,postgres,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
-                    comment=f"test postgres {version} no-password",
+                    comment=f"test postgres {version}_client_ssl no-password",
                     database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt",
-                    service=f"postgres_{version}",
-                    tag=f"postgres_{version}_no_password" if runtime == "async-std" else f"postgres_{version}_no_password_{runtime}",
+                    service=f"postgres_{version}_client_ssl",
+                    tag=f"postgres_{version}_client_ssl_no_password" if runtime == "async-std" else f"postgres_{version}_client_ssl_no_password_{runtime}",
                 )
 
         #
@@ -210,15 +208,14 @@ for runtime in ["async-std", "tokio"]:
                 tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
             )
 
-        if tls != "none":
             ## +client-ssl
-            for version in ["8_client_ssl", "5_7_client_ssl"]:
+            if version != "5_7" or tls == "native-tls":
                 run(
                     f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
-                    comment=f"test mysql {version} no-password",
+                    comment=f"test mysql {version}_client_ssl no-password",
                     database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
-                    service=f"mysql_{version}",
-                    tag=f"mysql_{version}_no_password" if runtime == "async-std" else f"mysql_{version}_no_password_{runtime}",
+                    service=f"mysql_{version}_client_ssl",
+                    tag=f"mysql_{version}_client_ssl_no_password" if runtime == "async-std" else f"mysql_{version}_client_ssl_no_password_{runtime}",
                 )
 
         #
@@ -233,15 +230,14 @@ for runtime in ["async-std", "tokio"]:
                 tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
             )
 
-        if tls != "none":
             ## +client-ssl
-            for version in ["10_6_client_ssl", "10_5_client_ssl", "10_4_client_ssl", "10_3_client_ssl"]:
+            if tls != "none":
                 run(
                     f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
-                    comment=f"test mariadb {version} no-password",
+                    comment=f"test mariadb {version}_client_ssl no-password",
                     database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
-                    service=f"mariadb_{version}",
-                    tag=f"mariadb_{version}_no_password" if runtime == "async-std" else f"mariadb_{version}_no_password_{runtime}",
+                    service=f"mariadb_{version}_client_ssl",
+                    tag=f"mariadb_{version}_client_ssl_no_password" if runtime == "async-std" else f"mariadb_{version}_client_ssl_no_password_{runtime}",
                 )
 
 # TODO: Use [grcov] if available
