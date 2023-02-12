@@ -209,7 +209,7 @@ for runtime in ["async-std", "tokio"]:
             )
 
             ## +client-ssl
-            if version != "5_7" or tls == "native-tls":
+            if tls != "none" and not(version == "5_7" and tls == "rustls"):
                 run(
                     f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mysql {version}_client_ssl no-password",

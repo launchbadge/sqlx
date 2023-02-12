@@ -240,6 +240,7 @@ jobs:
           docker exec postgres_${{ matrix.postgres }}_client_ssl bash -c "until pg_isready; do sleep 1; done"
 
       - uses: actions-rs/cargo@v1
+        if: matrix.tls != 'none'
         with:
           command: test
           args: >
@@ -313,7 +314,7 @@ jobs:
 
       # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
       - uses: actions-rs/cargo@v1
-        if: ${{ !(matrix.mysql == '5_7' && matrix.tls == 'rustls') }}
+        if: ${{ !(matrix.mysql == '5_7' && matrix.tls == 'rustls') && matrix.tls != 'none' }}
         with:
           command: test
           args: >
@@ -372,6 +373,7 @@ jobs:
           sleep 60
 
       - uses: actions-rs/cargo@v1
+        if: matrix.tls != 'none'
         with:
           command: test
           args: >
