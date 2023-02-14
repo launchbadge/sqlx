@@ -44,6 +44,8 @@ pub struct EstablishParams {
     extensions: IndexMap<CString, Option<CString>>,
     pub(crate) thread_name: String,
     pub(crate) command_channel_size: usize,
+    #[cfg(feature = "regexp")]
+    register_regexp_function: bool,
 }
 
 impl EstablishParams {
@@ -145,6 +147,8 @@ impl EstablishParams {
             extensions,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
+            #[cfg(feature = "regexp")]
+            register_regexp_function: options.register_regexp_function,
         })
     }
 
@@ -238,17 +242,24 @@ impl EstablishParams {
                         &err_msg,
                     ))));
                 }
-            }
-
-            // Preempt any hypothetical security issues arising from leaving ENABLE_LOAD_EXTENSION
-            // on by disabling the flag again once we've loaded all the requested modules.
-            // Fail-fast (via `?`) if disabling the extension loader didn't work for some reason,
-            // avoids an unexpected state going undetected.
+            } // Preempt any hypothetical security issues arising from leaving ENABLE_LOAD_EXTENSION
+              // on by disabling the flag again once we've loaded all the requested modules.
+              // Fail-fast (via `?`) if disabling the extension loader didn't work for some reason,
+              // avoids an unexpected state going undetected.
             unsafe {
                 Self::sqlite3_set_load_extension(
                     handle.as_ptr(),
                     SqliteLoadExtensionMode::DisableAll,
                 )?;
+            }
+        }
+
+        #[cfg(feature = "regexp")]
+        if self.register_regexp_function {
+            // configure a `regexp` function for sqlite, it does not come with one by default
+            let status = crate::regexp::register(handle.as_ptr());
+            if status != SQLITE_OK {
+                return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
             }
         }
 

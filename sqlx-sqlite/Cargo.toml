@@ -18,6 +18,7 @@ offline = ["sqlx-core/offline", "serde"]
 migrate = ["sqlx-core/migrate"]
 
 chrono = ["dep:chrono", "bitflags"]
+regexp = ["dep:regex"]
 
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
@@ -44,6 +45,7 @@ log = "0.4.17"
 tracing = { version = "0.1.37", features = ["log"] }
 
 serde = { version = "1.0.145", features = ["derive"], optional = true }
+regex = { version = "1.5.5", optional = true }
 
 [dependencies.libsqlite3-sys]
 version = "0.25.1"
@@ -58,3 +60,6 @@ features = [
 [dependencies.sqlx-core]
 version = "=0.6.2"
 path = "../sqlx-core"
+
+[dev-dependencies]
+sqlx = { version = "0.6.2", path = "..", default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }
