@@ -521,6 +521,7 @@ impl SqliteConnectOptions {
             return self.pragma("analysis_limit", limit.to_string());
         }
         self.pragmas.insert("analysis_limit".into(), None);
+        self
     }
     
     /// Register a regexp function that allows using regular expressions in queries.
