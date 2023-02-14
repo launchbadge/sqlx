@@ -62,7 +62,7 @@ smallvec = "1.7.0"
 stringprep = "0.1.2"
 thiserror = "1.0.35"
 tracing = { version = "0.1.37", features = ["log"] }
-whoami = "1.2.1"
+whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = { version = "1.0.85", features = ["raw_value"] }
