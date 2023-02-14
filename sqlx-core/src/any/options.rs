@@ -50,12 +50,12 @@ impl ConnectOptions for AnyConnectOptions {
         Box::pin(AnyConnection::establish(self))
     }
 
-    fn log_statements(&mut self, level: LevelFilter) -> &mut Self {
+    fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.statements_level = level;
         self
     }
 
-    fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self {
+    fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.slow_statements_level = level;
         self.log_settings.slow_statements_duration = duration;
         self

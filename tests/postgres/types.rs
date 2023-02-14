@@ -549,7 +549,7 @@ test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
-#[cfg(postgres_14)]
+#[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
     "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
     "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
@@ -557,7 +557,7 @@ test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
-#[cfg(postgres_14)]
+#[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
     "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
         vec![

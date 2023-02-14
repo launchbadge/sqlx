@@ -47,10 +47,10 @@ fn load_password_from_file(
         let permissions = metadata.permissions();
         let mode = permissions.mode();
         if mode & 0o77 != 0 {
-            log::warn!(
-                "ignoring {}: permissions for not strict enough: {:o}",
-                path.to_string_lossy(),
-                mode
+            tracing::warn!(
+                path = %path.to_string_lossy(),
+                permissions = format!("{:o}", mode),
+                "Ignoring path. Permissions are not strict enough",
             );
             return None;
         }
@@ -136,7 +136,7 @@ fn matches_next_field(whole_line: &str, line: &mut &str, value: &str) -> Option<
             }
         }
         None => {
-            log::warn!("Malformed line in pgpass file: {}", whole_line);
+            tracing::warn!(line = whole_line, "Malformed line in pgpass file");
             None
         }
     }

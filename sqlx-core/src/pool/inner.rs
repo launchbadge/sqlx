@@ -259,7 +259,7 @@ impl<DB: Database> PoolInner<DB> {
                             guard
                         } else {
                             // This can happen for a child pool that's at its connection limit.
-                            log::debug!("woke but was unable to acquire idle connection or open new one; retrying");
+                            tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
                             // If so, we're likely in the current-thread runtime if it's Tokio
                             // and so we should yield to let any spawned release_to_pool() tasks
                             // execute.
@@ -319,8 +319,8 @@ impl<DB: Database> PoolInner<DB> {
 
                     match res {
                         Ok(()) => return Ok(Floating::new_live(raw, guard)),
-                        Err(e) => {
-                            log::error!("error returned from after_connect: {:?}", e);
+                        Err(error) => {
+                            tracing::error!(%error, "error returned from after_connect");
                             // The connection is broken, don't try to close nicely.
                             let _ = raw.close_hard().await;
 
@@ -386,9 +386,9 @@ impl<DB: Database> PoolInner<DB> {
             Ok(()) => (),
             Err(Error::PoolClosed) => (),
             Err(Error::PoolTimedOut) => {
-                log::debug!("unable to complete `min_connections` maintenance before deadline")
+                tracing::debug!("unable to complete `min_connections` maintenance before deadline")
             }
-            Err(e) => log::debug!("error while maintaining min_connections: {:?}", e),
+            Err(error) => tracing::debug!(%error, "error while maintaining min_connections"),
         }
     }
 }
@@ -428,11 +428,11 @@ async fn check_idle_conn<DB: Database>(
 
     if options.test_before_acquire {
         // Check that the connection is still live
-        if let Err(e) = conn.ping().await {
+        if let Err(error) = conn.ping().await {
             // an error here means the other end has hung up or we lost connectivity
             // either way we're fine to just discard the connection
             // the error itself here isn't necessarily unexpected so WARN is too strong
-            log::info!("ping on idle connection returned error: {}", e);
+            tracing::info!(%error, "ping on idle connection returned error");
             // connection is broken so don't try to close nicely
             return Err(conn.close_hard().await);
         }
@@ -447,7 +447,7 @@ async fn check_idle_conn<DB: Database>(
             }
 
             Err(error) => {
-                log::warn!("error from `before_acquire`: {}", error);
+                tracing::warn!(%error, "error from `before_acquire`");
                 // connection is broken so don't try to close nicely
                 return Err(conn.close_hard().await);
             }

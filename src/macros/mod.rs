@@ -733,7 +733,7 @@ macro_rules! query_file_scalar_unchecked (
 ///
 /// This is because our ability to tell the compiler to watch external files for changes
 /// from a proc-macro is very limited. The compiler by default only re-runs proc macros when
-/// one ore more source files have changed, because normally it shouldn't have to otherwise. SQLx is
+/// one or more source files have changed, because normally it shouldn't have to otherwise. SQLx is
 /// just weird in that external factors can change the output of proc macros, much to the chagrin of
 /// the compiler team and IDE plugin authors.
 ///

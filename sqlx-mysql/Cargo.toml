@@ -60,7 +60,8 @@ percent-encoding = "2.1.0"
 smallvec = "1.7.0"
 stringprep = "0.1.2"
 thiserror = "1.0.35"
-whoami = "1.2.1"
+tracing = { version = "0.1.37", features = ["log"] }
+whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", optional = true }
 
