@@ -90,7 +90,7 @@ pub struct SqliteConnectOptions {
 pub enum OptimizeOnClose {
     Enabled { analysis_limit: Option<u32> },
     Disabled,
-
+}
 
 impl Default for SqliteConnectOptions {
     fn default() -> Self {
