@@ -38,7 +38,7 @@ use sqlx_core::IndexMap;
 /// ```rust,no_run
 /// # use sqlx_core::connection::ConnectOptions;
 /// # use sqlx_core::error::Error;
-/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// # use sqlx_sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
 /// # fn main() {
@@ -79,6 +79,9 @@ pub struct SqliteConnectOptions {
 
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
+
+    #[cfg(feature = "regexp")]
+    pub(crate) register_regexp_function: bool,
 }
 
 impl Default for SqliteConnectOptions {
@@ -185,6 +188,8 @@ impl SqliteConnectOptions {
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
             command_channel_size: 50,
             row_channel_size: 50,
+            #[cfg(feature = "regexp")]
+            register_regexp_function: false,
         }
     }
 
@@ -431,8 +436,8 @@ impl SqliteConnectOptions {
     /// will be loaded in the order they are added.
     /// ```rust,no_run
     /// # use sqlx_core::error::Error;
-    /// use std::str::FromStr;
-    /// use sqlx::sqlite::SqliteConnectOptions;
+    /// # use std::str::FromStr;
+    /// # use sqlx_sqlite::SqliteConnectOptions;
     /// # fn options() -> Result<SqliteConnectOptions, Error> {
     /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
     ///     .extension("vsv")
@@ -456,6 +461,31 @@ impl SqliteConnectOptions {
     ) -> Self {
         self.extensions
             .insert(extension_name.into(), Some(entry_point.into()));
+        self
+    }
+
+    /// Register a regexp function that allows using regular expressions in queries.
+    ///
+    /// ```
+    /// # use std::str::FromStr;
+    /// # use sqlx::{ConnectOptions, Connection, Row};
+    /// # use sqlx_sqlite::SqliteConnectOptions;
+    /// # async fn run() -> sqlx::Result<()> {
+    /// let mut sqlite = SqliteConnectOptions::from_str("sqlite://:memory:")?
+    ///     .with_regexp()
+    ///     .connect()
+    ///     .await?;
+    /// let tables = sqlx::query("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\\d+)bar'")
+    ///     .fetch_all(&mut sqlite)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// This uses the [`regex`] crate, and is only enabled when you enable the `regex` feature is enabled on sqlx
+    #[cfg(feature = "regexp")]
+    pub fn with_regexp(mut self) -> Self {
+        self.register_regexp_function = true;
         self
     }
 }
