@@ -435,4 +435,37 @@ async fn test_try_from_attr_with_flatten() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn test_try_from_attr_with_complex_type() -> anyhow::Result<()> {
+    mod m {
+        #[derive(sqlx::Type)]
+        #[sqlx(transparent)]
+        pub struct ComplexType<T>(T);
+
+        impl std::convert::TryFrom<ComplexType<i64>> for u64 {
+            type Error = std::num::TryFromIntError;
+            fn try_from(value: ComplexType<i64>) -> Result<Self, Self::Error> {
+                u64::try_from(value.0)
+            }
+        }
+    }
+
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(try_from = "m::ComplexType<i64>")]
+        id: u64,
+    }
+
+    let mut conn = new::<MySql>().await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as::<_, Record>("select id from tweet")
+        .fetch_one(&mut *conn)
+        .await?;
+
+    assert_eq!(record.id, id.0 as u64);
+
+    Ok(())
+}
+
 // we don't emit bind parameter type-checks for MySQL so testing the overrides is redundant
