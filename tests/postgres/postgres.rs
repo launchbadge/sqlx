@@ -1389,6 +1389,69 @@ VALUES
 }
 
 #[sqlx_macros::test]
+async fn custom_type_resolution_respects_search_path() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+DROP TYPE IF EXISTS some_enum_type;
+DROP SCHEMA IF EXISTS another CASCADE;
+
+CREATE SCHEMA another;
+CREATE TYPE some_enum_type AS ENUM ('a', 'b', 'c');
+CREATE TYPE another.some_enum_type AS ENUM ('d', 'e', 'f');
+    "#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct SomeEnumType(String);
+
+    impl sqlx::Type<Postgres> for SomeEnumType {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("some_enum_type")
+        }
+
+        fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+            *ty == Self::type_info()
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for SomeEnumType {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(<String as sqlx::Decode<Postgres>>::decode(value)?))
+        }
+    }
+
+    impl<'q> sqlx::Encode<'q, Postgres> for SomeEnumType {
+        fn encode_by_ref(
+            &self,
+            buf: &mut sqlx::postgres::PgArgumentBuffer,
+        ) -> sqlx::encode::IsNull {
+            <String as sqlx::Encode<Postgres>>::encode_by_ref(&self.0, buf)
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("set search_path = 'another'")
+        .execute(&mut conn)
+        .await?;
+
+    let result = sqlx::query("SELECT 1 WHERE $1::some_enum_type = 'd'::some_enum_type;")
+        .bind(SomeEnumType("d".into()))
+        .fetch_all(&mut conn)
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.len(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
     let conn = new::<Postgres>().await?;
 
