@@ -344,17 +344,13 @@ WHERE rngtypid = $1
         }
 
         // language=SQL
-        let (oid,): (Oid,) = query_as(
-            "
-SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
-                ",
-        )
-        .bind(name)
-        .fetch_optional(&mut *self)
-        .await?
-        .ok_or_else(|| Error::TypeNotFound {
-            type_name: String::from(name),
-        })?;
+        let (oid,): (Oid,) = query_as("SELECT $1::regtype::oid")
+            .bind(name)
+            .fetch_optional(&mut *self)
+            .await?
+            .ok_or_else(|| Error::TypeNotFound {
+                type_name: String::from(name),
+            })?;
 
         self.cache_type_oid.insert(name.to_string().into(), oid);
         Ok(oid)
