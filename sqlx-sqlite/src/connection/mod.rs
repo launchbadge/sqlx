@@ -11,8 +11,11 @@ use std::ptr::NonNull;
 
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
+use crate::options::OptimizeOnClose;
 use crate::statement::VirtualStatement;
 use crate::{Sqlite, SqliteConnectOptions};
+use sqlx_core::executor::Executor;
+use std::fmt::Write;
 
 pub(crate) use sqlx_core::connection::*;
 
@@ -39,6 +42,7 @@ mod worker;
 /// You can explicitly call [`.close()`][Self::close] to ensure the database is closed successfully
 /// or get an error otherwise.
 pub struct SqliteConnection {
+    optimize_on_close: OptimizeOnClose,
     pub(crate) worker: ConnectionWorker,
     pub(crate) row_channel_size: usize,
 }
@@ -70,6 +74,7 @@ impl SqliteConnection {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
+            optimize_on_close: options.optimize_on_close.clone(),
             worker,
             row_channel_size: options.row_channel_size,
         })
@@ -102,6 +107,14 @@ impl Connection for SqliteConnection {
 
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
+            if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
+                let mut pragma_string = String::new();
+                if let Some(limit) = analysis_limit {
+                    write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
+                }
+                pragma_string.push_str("PRAGMA optimize;");
+                self.execute(&*pragma_string).await?;
+            }
             let shutdown = self.worker.shutdown();
             // Drop the statement worker, which should
             // cover all references to the connection handle outside of the worker thread

@@ -80,8 +80,16 @@ pub struct SqliteConnectOptions {
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
+    pub(crate) optimize_on_close: OptimizeOnClose,
+
     #[cfg(feature = "regexp")]
     pub(crate) register_regexp_function: bool,
+}
+
+#[derive(Clone, Debug)]
+pub enum OptimizeOnClose {
+    Enabled { analysis_limit: Option<u32> },
+    Disabled,
 }
 
 impl Default for SqliteConnectOptions {
@@ -170,6 +178,9 @@ impl SqliteConnectOptions {
 
         pragmas.insert("auto_vacuum".into(), None);
 
+        // Soft limit on the number of rows that `ANALYZE` touches per index.
+        pragmas.insert("analysis_limit".into(), None);
+
         Self {
             filename: Cow::Borrowed(Path::new(":memory:")),
             in_memory: false,
@@ -188,6 +199,7 @@ impl SqliteConnectOptions {
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
             command_channel_size: 50,
             row_channel_size: 50,
+            optimize_on_close: OptimizeOnClose::Disabled,
             #[cfg(feature = "regexp")]
             register_regexp_function: false,
         }
@@ -461,6 +473,54 @@ impl SqliteConnectOptions {
     ) -> Self {
         self.extensions
             .insert(extension_name.into(), Some(entry_point.into()));
+        self
+    }
+
+    /// Execute `PRAGMA optimize;` on the SQLite connection before closing.
+    ///
+    /// The SQLite manual recommends using this for long-lived databases.
+    ///
+    /// This will collect and store statistics about the layout of data in your tables to help the query planner make better decisions.
+    /// Over the connection's lifetime, the query planner will make notes about which tables could use up-to-date statistics so this
+    /// command doesn't have to scan the whole database every time. Thus, the best time to execute this is on connection close.
+    ///
+    /// `analysis_limit` sets a soft limit on the maximum number of rows to scan per index.
+    /// It is equivalent to setting [`Self::analysis_limit`] but only takes effect for the `PRAGMA optimize;` call
+    /// and does not affect the behavior of any `ANALYZE` statements made during the connection's lifetime.
+    ///
+    /// If not `None`, the `analysis_limit` here overrides the global `analysis_limit` setting,
+    /// but only for the `PRAGMA optimize;` call.
+    ///
+    /// Not enabled by default.
+    ///
+    /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#automatically_running_analyze) for details.
+    pub fn optimize_on_close(
+        mut self,
+        enabled: bool,
+        analysis_limit: impl Into<Option<u32>>,
+    ) -> Self {
+        self.optimize_on_close = if enabled {
+            OptimizeOnClose::Enabled {
+                analysis_limit: (analysis_limit.into()),
+            }
+        } else {
+            OptimizeOnClose::Disabled
+        };
+        self
+    }
+
+    /// Set a soft limit on the number of rows that `ANALYZE` touches per index.
+    ///
+    /// This also affects `PRAGMA optimize` which is set by [Self::optimize_on_close].
+    ///
+    /// The value recommended by SQLite is `400`. There is no default.
+    ///
+    /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#approx) for details.
+    pub fn analysis_limit(mut self, limit: impl Into<Option<u32>>) -> Self {
+        if let Some(limit) = limit.into() {
+            return self.pragma("analysis_limit", limit.to_string());
+        }
+        self.pragmas.insert("analysis_limit".into(), None);
         self
     }
 
