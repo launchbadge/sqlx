@@ -81,7 +81,7 @@ pub struct SqliteConnectOptions {
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
     pub(crate) optimize_on_close: OptimizeOnClose,
-    
+
     #[cfg(feature = "regexp")]
     pub(crate) register_regexp_function: bool,
 }
@@ -523,7 +523,7 @@ impl SqliteConnectOptions {
         self.pragmas.insert("analysis_limit".into(), None);
         self
     }
-    
+
     /// Register a regexp function that allows using regular expressions in queries.
     ///
     /// ```
