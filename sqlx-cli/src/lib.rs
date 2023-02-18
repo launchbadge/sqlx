@@ -1,8 +1,10 @@
-use anyhow::Result;
-use futures::{Future, TryFutureExt};
-use sqlx::{AnyConnection, Connection};
 use std::io;
 use std::time::Duration;
+
+use anyhow::Result;
+use futures::{Future, TryFutureExt};
+
+use sqlx::{AnyConnection, Connection};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
@@ -61,18 +63,11 @@ pub async fn run(opt: Opt) -> Result<()> {
         },
 
         Command::Prepare {
-            check: false,
-            merged,
-            args,
+            check,
+            workspace,
             connect_opts,
-        } => prepare::run(&connect_opts, merged, args).await?,
-
-        Command::Prepare {
-            check: true,
-            merged,
             args,
-            connect_opts,
-        } => prepare::check(&connect_opts, merged, args).await?,
+        } => prepare::run(check, workspace, connect_opts, args).await?,
     };
 
     Ok(())

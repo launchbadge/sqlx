@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
@@ -14,7 +13,7 @@ use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
 
 use crate::database::DatabaseExt;
-use crate::query::data::{DynQueryData, QueryData};
+use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
 use url::Url;
@@ -75,8 +74,6 @@ struct Metadata {
     manifest_dir: PathBuf,
     offline: bool,
     database_url: Option<String>,
-    package_name: String,
-    target_dir: PathBuf,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -117,12 +114,6 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         .expect("`CARGO_MANIFEST_DIR` must be set")
         .into();
 
-    let package_name: String = env("CARGO_PKG_NAME")
-        .expect("`CARGO_PKG_NAME` must be set")
-        .into();
-
-    let target_dir = env("CARGO_TARGET_DIR").map_or_else(|_| "target".into(), |dir| dir.into());
-
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
     let env_path = manifest_dir.join(".env");
@@ -155,8 +146,6 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         manifest_dir,
         offline,
         database_url,
-        package_name,
-        target_dir,
         workspace_root: Arc::new(Mutex::new(None)),
     }
 });
@@ -173,21 +162,33 @@ pub fn expand_input<'a>(
         } => QueryDataSource::live(db_url)?,
 
         _ => {
-            let data_file_path = METADATA.manifest_dir.join("sqlx-data.json");
+            // Try load the cached query metadata file.
+            let filename = format!("query-{}.json", hash_string(&input.sql));
 
-            let data_file_path = if data_file_path.exists() {
-                data_file_path
+            // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
+            let data_file_path = if let Some(sqlx_offline_dir_path) = env("SQLX_OFFLINE_DIR")
+                .ok()
+                .map(PathBuf::from)
+                .map(|path| path.join(&filename))
+                .filter(|path| path.exists())
+            {
+                sqlx_offline_dir_path
+            } else if let Some(local_path) =
+                Some(METADATA.manifest_dir.join(".sqlx").join(&filename))
+                    .filter(|path| path.exists())
+            {
+                local_path
+            } else if let Some(workspace_path) =
+                Some(METADATA.workspace_root().join(".sqlx").join(&filename))
+                    .filter(|path| path.exists())
+            {
+                workspace_path
             } else {
-                let workspace_data_file_path = METADATA.workspace_root().join("sqlx-data.json");
-                if workspace_data_file_path.exists() {
-                    workspace_data_file_path
-                } else {
-                    return Err(
-                        "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
-                     and sqlx-data.json must exist, to use query macros"
-                            .into(),
-                    );
-                }
+                return Err(
+                    "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
+                     and .sqlx must exist, to use query macros"
+                        .into(),
+                );
             };
 
             QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
@@ -351,15 +352,34 @@ where
     // Store query metadata only if offline support is enabled but the current build is online.
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     if !offline {
-        // Use a separate sub-directory for each crate in a workspace. This avoids a race condition
-        // where `prepare` can pull in queries from multiple crates if they happen to be generated
-        // simultaneously (e.g. Rust Analyzer building in the background).
-        let save_dir = METADATA
-            .target_dir
-            .join("sqlx")
-            .join(&METADATA.package_name);
-        std::fs::create_dir_all(&save_dir)?;
-        data.save_in(save_dir, input.src_span)?;
+        // Only save query metadata if SQLX_OFFLINE_DIR is set manually or by `cargo sqlx prepare`.
+        // Note: in a cargo workspace this path is relative to the root.
+        if let Ok(dir) = env("SQLX_OFFLINE_DIR") {
+            let path = PathBuf::from(&dir);
+
+            match fs::metadata(&path) {
+                Err(e) => {
+                    if e.kind() != io::ErrorKind::NotFound {
+                        // Can't obtain information about .sqlx
+                        return Err(format!("{}: {}", e, dir).into());
+                    }
+                    // .sqlx doesn't exist.
+                    return Err(format!("sqlx offline path does not exist: {}", dir).into());
+                }
+                Ok(meta) => {
+                    if !meta.is_dir() {
+                        return Err(format!(
+                            "sqlx offline path exists, but is not a directory: {}",
+                            dir
+                        )
+                        .into());
+                    }
+
+                    // .sqlx exists and is a directory, store data.
+                    data.save_in(path)?;
+                }
+            }
+        }
     }
 
     Ok(ret_tokens)
