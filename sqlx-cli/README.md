@@ -106,13 +106,11 @@ error: cannot mix reversible migrations with simple migrations. All migrations s
 
 ### Enable building in "offline mode" with `query!()`
 
-There are 3 steps to building with "offline mode":
+There are 2 steps to building with "offline mode":
 
-1. Enable the SQLx's Cargo feature `offline`
-    - E.g. in your `Cargo.toml`, `sqlx = { features = [ "offline", ... ] }`
-2. Save query metadata for offline usage
+1. Save query metadata for offline usage
     - `cargo sqlx prepare`
-3. Build
+2. Build
 
 Note: Saving query metadata must be run as `cargo sqlx`.
 
@@ -120,30 +118,31 @@ Note: Saving query metadata must be run as `cargo sqlx`.
 cargo sqlx prepare
 ```
 
-Invoking `prepare` saves query metadata to `sqlx-data.json` in the current directory; check this file into version
-control and an active database connection will no longer be needed to build your project.
+Invoking `prepare` saves query metadata to `.sqlx` in the current directory.
+For workspaces where several crates are using query macros, pass the `--workspace` flag
+to generate a single `.sqlx` directory at the root of the workspace.
 
-Has no effect unless the `offline` Cargo feature of `sqlx` is enabled in your project. Omitting that
-feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
-
-```json
-{
-    "database": "PostgreSQL"
-}
+```bash
+cargo sqlx prepare --workspace
 ```
+
+Check this directory into version control and an active database connection will 
+no longer be needed to build your project.
 
 ---
 
 ```bash
 cargo sqlx prepare --check
+# OR
+cargo sqlx prepare --check --workspace
 ```
 
-Exits with a nonzero exit status if the data in `sqlx-data.json` is out of date with the current
-database schema and queries in the project. Intended for use in Continuous Integration.
+Exits with a nonzero exit status if the data in `.sqlx` is out of date with the current
+database schema or queries in the project. Intended for use in Continuous Integration.
 
 ### Force building in offline mode
 
-The presence of a `DATABASE_URL` environment variable will take precedence over the presence of `sqlx-data.json`, meaning SQLx will default to building against a database if it can. To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
+The presence of a `DATABASE_URL` environment variable will take precedence over the presence of `.sqlx`, meaning SQLx will default to building against a database if it can. To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
 variable to `true`.
 
@@ -152,8 +151,8 @@ still do the right thing and connect to the database.
 
 ### Include queries behind feature flags (such as queries inside of tests)
 
-In order for sqlx to be able to find queries behind certain feature flags you need to turn them
-on by passing arguments to rustc.
+In order for sqlx to be able to find queries behind certain feature flags or in tests, you need to turn them
+on by passing arguments to `cargo`.
 
 This is how you would turn all targets and features on.
 
