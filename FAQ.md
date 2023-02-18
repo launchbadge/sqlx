@@ -180,26 +180,35 @@ See Also:
 ----
 ### How do I compile with the macros without needing a database, e.g. in CI?
 
-The macros support an offline mode which saves data for existing queries to a JSON file,
-so the macros can just read that file instead of talking to a database.
+The macros support an offline mode which saves data for existing queries to a `.sqlx` directory,
+so the macros can just read those instead of talking to a database.
 
 See the following:
 
 * [the docs for `query!()`](https://docs.rs/sqlx/0.5.5/sqlx/macro.query.html#offline-mode-requires-the-offline-feature)
 * [the README for `sqlx-cli`](sqlx-cli/README.md#enable-building-in-offline-mode-with-query)
 
-To keep `sqlx-data.json` up-to-date you need to run `cargo sqlx prepare` before every commit that
+To keep `.sqlx` up-to-date you need to run `cargo sqlx prepare` before every commit that
 adds or changes a query; you can do this with a Git pre-commit hook:
 
 ```shell
-$ echo "cargo sqlx prepare > /dev/null 2>&1; git add sqlx-data.json > /dev/null" > .git/hooks/pre-commit 
+$ echo "cargo sqlx prepare > /dev/null 2>&1; git add .sqlx > /dev/null" > .git/hooks/pre-commit 
 ```
 
 Note that this may make committing take some time as it'll cause your project to be recompiled, and
 as an ergonomic choice it does _not_ block committing if `cargo sqlx prepare` fails.
 
-We're working on a way for the macros to save their data to the filesystem automatically which should be part of SQLx 0.6,
-so your pre-commit hook would then just need to stage the changed files.
+We're working on a way for the macros to save their data to the filesystem automatically which should be part of SQLx 0.7,
+so your pre-commit hook would then just need to stage the changed files. This can be enabled by creating a directory 
+and setting the `SQLX_OFFLINE_DIR` environment variable to it before compiling, e.g. 
+
+```shell
+$ mkdir .sqlx
+$ export SQLX_OFFLINE_DIR="./.sqlx"`
+$ cargo check
+```
+
+However, this behaviour is not considered stable and it is still recommended to use `cargo sqlx prepare`.
 
 ----
 
@@ -253,9 +262,9 @@ Even Sisyphus would pity us.
 
 ### Why does my project using sqlx query macros not build on docs.rs?
 
-Docs.rs doesn't have access to your database, so it needs to be provided a `sqlx-data.json` file and be instructed to set the `SQLX_OFFLINE` environment variable to true while compiling your project. Luckily for us, docs.rs creates a `DOCS_RS` environment variable that we can access in a custom build script to achieve this functionality.
+Docs.rs doesn't have access to your database, so it needs to be provided prepared queries in a `.sqlx` directory and be instructed to set the `SQLX_OFFLINE` environment variable to true while compiling your project. Luckily for us, docs.rs creates a `DOCS_RS` environment variable that we can access in a custom build script to achieve this functionality.
 
-To do so, first, make sure that you have run `cargo sqlx prepare` to generate a `sqlx-data.json` file in your project.
+To do so, first, make sure that you have run `cargo sqlx prepare` to generate a `.sqlx` directory in your project.
 
 Next, create a file called `build.rs` in the root of your project directory (at the same level as `Cargo.toml`). Add the following code to it:
 ```rs
