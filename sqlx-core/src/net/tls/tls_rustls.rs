@@ -1,6 +1,6 @@
 use futures_util::future;
-use std::io;
-use std::io::{Cursor, Read, Write};
+use rustls::{Certificate, PrivateKey};
+use std::io::{self, BufReader, Cursor, Read, Write};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::SystemTime;
@@ -13,7 +13,7 @@ use rustls::{
 use crate::error::Error;
 use crate::io::ReadBuf;
 use crate::net::tls::util::StdSocket;
-use crate::net::tls::TlsConfig;
+use crate::net::tls::{CertificateInput, TlsConfig};
 use crate::net::Socket;
 
 pub struct RustlsSocket<S: Socket> {
@@ -48,7 +48,7 @@ impl<S: Socket> Socket for RustlsSocket<S> {
         match self.state.writer().write(buf) {
             // Returns a zero-length write when the buffer is full.
             Ok(0) => Err(io::ErrorKind::WouldBlock.into()),
-            other => return other,
+            other => other,
         }
     }
 
@@ -81,10 +81,32 @@ where
 {
     let config = ClientConfig::builder().with_safe_defaults();
 
+    // authentication using user's key and its associated certificate
+    let user_auth = match (tls_config.client_cert_path, tls_config.client_key_path) {
+        (Some(cert_path), Some(key_path)) => {
+            let cert_chain = certs_from_pem(cert_path.data().await?)?;
+            let key_der = private_key_from_pem(key_path.data().await?)?;
+            Some((cert_chain, key_der))
+        }
+        (None, None) => None,
+        (_, _) => {
+            return Err(Error::Configuration(
+                "user auth key and certs must be given together".into(),
+            ))
+        }
+    };
+
     let config = if tls_config.accept_invalid_certs {
-        config
-            .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))
-            .with_no_client_auth()
+        if let Some(user_auth) = user_auth {
+            config
+                .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))
+                .with_single_cert(user_auth.0, user_auth.1)
+                .map_err(Error::tls)?
+        } else {
+            config
+                .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))
+                .with_no_client_auth()
+        }
     } else {
         let mut cert_store = RootCertStore::empty();
         cert_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
@@ -100,7 +122,7 @@ where
             let mut cursor = Cursor::new(data);
 
             for cert in rustls_pemfile::certs(&mut cursor)
-                .map_err(|_| Error::Tls(format!("Invalid certificate {}", ca).into()))?
+                .map_err(|_| Error::Tls(format!("Invalid certificate {ca}").into()))?
             {
                 cert_store
                     .add(&rustls::Certificate(cert))
@@ -111,9 +133,21 @@ where
         if tls_config.accept_invalid_hostnames {
             let verifier = WebPkiVerifier::new(cert_store, None);
 
+            if let Some(user_auth) = user_auth {
+                config
+                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_single_cert(user_auth.0, user_auth.1)
+                    .map_err(Error::tls)?
+            } else {
+                config
+                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_no_client_auth()
+            }
+        } else if let Some(user_auth) = user_auth {
             config
-                .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
-                .with_no_client_auth()
+                .with_root_certificates(cert_store)
+                .with_single_cert(user_auth.0, user_auth.1)
+                .map_err(Error::tls)?
         } else {
             config
                 .with_root_certificates(cert_store)
@@ -133,6 +167,34 @@ where
     socket.complete_io().await?;
 
     Ok(socket)
+}
+
+fn certs_from_pem(pem: Vec<u8>) -> Result<Vec<rustls::Certificate>, Error> {
+    let cur = Cursor::new(pem);
+    let mut reader = BufReader::new(cur);
+    rustls_pemfile::certs(&mut reader)?
+        .into_iter()
+        .map(|v| Ok(rustls::Certificate(v)))
+        .collect()
+}
+
+fn private_key_from_pem(pem: Vec<u8>) -> Result<rustls::PrivateKey, Error> {
+    let cur = Cursor::new(pem);
+    let mut reader = BufReader::new(cur);
+
+    loop {
+        match rustls_pemfile::read_one(&mut reader)? {
+            Some(
+                rustls_pemfile::Item::RSAKey(key)
+                | rustls_pemfile::Item::PKCS8Key(key)
+                | rustls_pemfile::Item::ECKey(key),
+            ) => return Ok(rustls::PrivateKey(key)),
+            None => break,
+            _ => {}
+        }
+    }
+
+    Err(Error::Configuration("no keys found pem file".into()))
 }
 
 struct DummyTlsVerifier;

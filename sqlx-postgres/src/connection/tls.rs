@@ -58,6 +58,8 @@ async fn maybe_upgrade<S: Socket>(
         accept_invalid_hostnames,
         hostname: &options.host,
         root_cert_path: options.ssl_root_cert.as_ref(),
+        client_cert_path: options.ssl_client_cert.as_ref(),
+        client_key_path: options.ssl_client_key.as_ref(),
     };
 
     tls::handshake(socket, config, SocketIntoBox).await

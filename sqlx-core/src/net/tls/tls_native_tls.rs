@@ -6,7 +6,7 @@ use crate::net::tls::TlsConfig;
 use crate::net::Socket;
 use crate::Error;
 
-use native_tls::HandshakeError;
+use native_tls::{HandshakeError, Identity};
 use std::task::{Context, Poll};
 
 pub struct NativeTlsSocket<S: Socket> {
@@ -51,6 +51,14 @@ pub async fn handshake<S: Socket>(
     if let Some(root_cert_path) = config.root_cert_path {
         let data = root_cert_path.data().await?;
         builder.add_root_certificate(native_tls::Certificate::from_pem(&data).map_err(Error::tls)?);
+    }
+
+    // authentication using user's key-file and its associated certificate
+    if let (Some(cert_path), Some(key_path)) = (config.client_cert_path, config.client_key_path) {
+        let cert_path = cert_path.data().await?;
+        let key_path = key_path.data().await?;
+        let identity = Identity::from_pkcs8(&cert_path, &key_path).map_err(Error::tls)?;
+        builder.identity(identity);
     }
 
     let connector = builder.build().map_err(Error::tls)?;
