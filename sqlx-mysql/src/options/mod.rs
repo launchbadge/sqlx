@@ -61,6 +61,8 @@ pub struct MySqlConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: MySqlSslMode,
     pub(crate) ssl_ca: Option<CertificateInput>,
+    pub(crate) ssl_client_cert: Option<CertificateInput>,
+    pub(crate) ssl_client_key: Option<CertificateInput>,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
@@ -88,6 +90,8 @@ impl MySqlConnectOptions {
             collation: None,
             ssl_mode: MySqlSslMode::Preferred,
             ssl_ca: None,
+            ssl_client_cert: None,
+            ssl_client_key: None,
             statement_cache_capacity: 100,
             log_settings: Default::default(),
             pipes_as_concat: true,
@@ -183,6 +187,36 @@ impl MySqlConnectOptions {
     /// ```
     pub fn ssl_ca_from_pem(mut self, pem_certificate: Vec<u8>) -> Self {
         self.ssl_ca = Some(CertificateInput::Inline(pem_certificate));
+        self
+    }
+
+    /// Sets the name of a file containing SSL client certificate.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// let options = MySqlConnectOptions::new()
+    ///     .ssl_mode(MySqlSslMode::VerifyCa)
+    ///     .ssl_client_cert("path/to/client.crt");
+    /// ```
+    pub fn ssl_client_cert(mut self, cert: impl AsRef<Path>) -> Self {
+        self.ssl_client_cert = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
+        self
+    }
+
+    /// Sets the name of a file containing SSL client key.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// let options = MySqlConnectOptions::new()
+    ///     .ssl_mode(MySqlSslMode::VerifyCa)
+    ///     .ssl_client_key("path/to/client.key");
+    /// ```
+    pub fn ssl_client_key(mut self, key: impl AsRef<Path>) -> Self {
+        self.ssl_client_key = Some(CertificateInput::File(key.as_ref().to_path_buf()));
         self
     }
 

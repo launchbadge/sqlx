@@ -61,6 +61,8 @@ pub struct TlsConfig<'a> {
     pub accept_invalid_hostnames: bool,
     pub hostname: &'a str,
     pub root_cert_path: Option<&'a CertificateInput>,
+    pub client_cert_path: Option<&'a CertificateInput>,
+    pub client_key_path: Option<&'a CertificateInput>,
 }
 
 pub async fn handshake<S, Ws>(
