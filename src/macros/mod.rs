@@ -45,7 +45,7 @@
 /// server with the schema that the query string will be checked against. All variants of `query!()`
 /// use [dotenv]<sup>1</sup> so this can be in a `.env` file instead.
 ///
-///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
+///     * Or, `.sqlx` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
 ///
 /// * The query must be a string literal, or concatenation of string literals using `+` (useful
@@ -283,14 +283,14 @@
 /// * Run `cargo install sqlx-cli`.
 /// * In your project with `DATABASE_URL` set (or in a `.env` file) and the database server running,
 ///   run `cargo sqlx prepare`.
-/// * Check the generated `sqlx-data.json` file into version control.
+/// * Check the generated `.sqlx` directory into version control.
 /// * Don't have `DATABASE_URL` set during compilation.
 ///
 /// Your project can now be built without a database connection (you must omit `DATABASE_URL` or
 /// else it will still try to connect). To update the generated file simply run `cargo sqlx prepare`
 /// again.
 ///
-/// To ensure that your `sqlx-data.json` file is kept up-to-date, both with the queries in your
+/// To ensure that your `.sqlx` directory is kept up-to-date, both with the queries in your
 /// project and your database schema itself, run
 /// `cargo install sqlx-cli && cargo sqlx prepare --check` in your Continuous Integration script.
 ///

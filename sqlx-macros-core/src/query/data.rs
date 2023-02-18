@@ -1,11 +1,12 @@
-use std::collections::BTreeMap;
-use std::fs::{self, File};
-use std::io::BufWriter;
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
+use std::fs;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
-use proc_macro2::Span;
+use serde::{Serialize, Serializer};
 
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
@@ -13,13 +14,11 @@ use sqlx_core::executor::Executor;
 
 use crate::database::DatabaseExt;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(bound(
-    serialize = "Describe<DB>: serde::Serialize",
-    deserialize = "Describe<DB>: serde::de::DeserializeOwned"
-))]
+#[derive(serde::Serialize)]
+#[serde(bound(serialize = "Describe<DB>: serde::Serialize",))]
 #[derive(Debug)]
 pub struct QueryData<DB: Database> {
+    db_name: SerializeDbName<DB>,
     #[allow(dead_code)]
     pub(super) query: String,
     pub(super) describe: Describe<DB>,
@@ -36,6 +35,7 @@ impl<DB: Database> QueryData<DB> {
 
     pub fn from_describe(query: &str, describe: Describe<DB>) -> Self {
         QueryData {
+            db_name: SerializeDbName::default(),
             query: query.into(),
             describe,
             hash: hash_string(query),
@@ -43,92 +43,74 @@ impl<DB: Database> QueryData<DB> {
     }
 }
 
-static OFFLINE_DATA_CACHE: Lazy<Mutex<BTreeMap<PathBuf, OfflineData>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
+struct SerializeDbName<DB>(PhantomData<DB>);
 
-#[derive(serde::Deserialize)]
-struct BaseQuery {
-    query: String,
-    describe: serde_json::Value,
-}
-
-#[derive(serde::Deserialize)]
-struct OfflineData {
-    db: String,
-    #[serde(flatten)]
-    hash_to_query: BTreeMap<String, BaseQuery>,
-}
-
-impl OfflineData {
-    fn get_query_from_hash(&self, hash: &str) -> Option<DynQueryData> {
-        self.hash_to_query.get(hash).map(|base_query| DynQueryData {
-            db_name: self.db.clone(),
-            query: base_query.query.to_owned(),
-            describe: base_query.describe.to_owned(),
-            hash: hash.to_owned(),
-        })
+impl<DB> Default for SerializeDbName<DB> {
+    fn default() -> Self {
+        SerializeDbName(PhantomData)
     }
 }
 
-#[derive(serde::Deserialize)]
+impl<DB: Database> Debug for SerializeDbName<DB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SerializeDbName").field(&DB::NAME).finish()
+    }
+}
+
+impl<DB: Database> Display for SerializeDbName<DB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.pad(DB::NAME)
+    }
+}
+
+impl<DB: Database> Serialize for SerializeDbName<DB> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(DB::NAME)
+    }
+}
+
+static OFFLINE_DATA_CACHE: Lazy<Mutex<HashMap<PathBuf, DynQueryData>>> =
+    Lazy::new(Default::default);
+
+/// Offline query data
+#[derive(Clone, serde::Deserialize)]
 pub struct DynQueryData {
-    #[serde(skip)]
     pub db_name: String,
     pub query: String,
     pub describe: serde_json::Value,
-    #[serde(skip)]
     pub hash: String,
 }
 
 impl DynQueryData {
-    /// Find and deserialize the data table for this query from a shared `sqlx-data.json`
-    /// file. The expected structure is a JSON map keyed by the SHA-256 hash of queries in hex.
+    /// Loads a query given the path to its "query-<hash>.json" file. Subsequent calls for the same
+    /// path are retrieved from an in-memory cache.
     pub fn from_data_file(path: impl AsRef<Path>, query: &str) -> crate::Result<Self> {
         let path = path.as_ref();
 
-        let query_data = {
-            let mut cache = OFFLINE_DATA_CACHE
-                .lock()
-                // Just reset the cache on error
-                .unwrap_or_else(|posion_err| {
-                    let mut guard = posion_err.into_inner();
-                    *guard = BTreeMap::new();
-                    guard
-                });
-
-            if !cache.contains_key(path) {
-                let offline_data_contents = fs::read_to_string(path)
-                    .map_err(|e| format!("failed to read path {}: {}", path.display(), e))?;
-                let offline_data: OfflineData = serde_json::from_str(&offline_data_contents)?;
-                let _ = cache.insert(path.to_owned(), offline_data);
+        let mut cache = OFFLINE_DATA_CACHE
+            .lock()
+            // Just reset the cache on error
+            .unwrap_or_else(|posion_err| {
+                let mut guard = posion_err.into_inner();
+                *guard = Default::default();
+                guard
+            });
+        if let Some(cached) = cache.get(path).cloned() {
+            if query != cached.query {
+                return Err("hash collision for saved query data".into());
             }
-
-            let offline_data = cache
-                .get(path)
-                .expect("Missing data should have just been added");
-
-            let query_hash = hash_string(query);
-            let query_data = offline_data
-                .get_query_from_hash(&query_hash)
-                .ok_or_else(|| format!("failed to find data for query {}", query))?;
-
-            if query != query_data.query {
-                return Err(format!(
-                    "hash collision for stored queries:\n{:?}\n{:?}",
-                    query, query_data.query
-                )
-                .into());
-            }
-
-            query_data
-        };
+            return Ok(cached);
+        }
 
         #[cfg(procmacr2_semver_exempt)]
         {
             let path = path.as_ref().canonicalize()?;
             let path = path.to_str().ok_or_else(|| {
                 format!(
-                    "sqlx-data.json path cannot be represented as a string: {:?}",
+                    "query-<hash>.json path cannot be represented as a string: {:?}",
                     path
                 )
             })?;
@@ -136,7 +118,16 @@ impl DynQueryData {
             proc_macro::tracked_path::path(path);
         }
 
-        Ok(query_data)
+        let offline_data_contents = fs::read_to_string(path)
+            .map_err(|e| format!("failed to read saved query path {}: {}", path.display(), e))?;
+        let dyn_data: DynQueryData = serde_json::from_str(&offline_data_contents)?;
+
+        if query != dyn_data.query {
+            return Err("hash collision for saved query data".into());
+        }
+
+        let _ = cache.insert(path.to_owned(), dyn_data.clone());
+        Ok(dyn_data)
     }
 }
 
@@ -151,6 +142,7 @@ where
         if DB::NAME == dyn_data.db_name {
             let describe: Describe<DB> = serde_json::from_value(dyn_data.describe)?;
             Ok(QueryData {
+                db_name: SerializeDbName::default(),
                 query: dyn_data.query,
                 describe,
                 hash: dyn_data.hash,
@@ -165,26 +157,23 @@ where
         }
     }
 
-    pub fn save_in(&self, dir: impl AsRef<Path>, input_span: Span) -> crate::Result<()> {
-        // we save under the hash of the span representation because that should be unique
-        // per invocation
-        let path = dir.as_ref().join(format!(
-            "query-{}.json",
-            hash_string(&format!("{:?}", input_span))
-        ));
+    pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+        // Output to a temporary file first, then move it atomically to avoid clobbering
+        // other invocations trying to write to the same path.
+        let mut tmp_file = tempfile::NamedTempFile::new()
+            .map_err(|err| format!("failed to create query file: {:?}", err))?;
+        serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
+            .map_err(|err| format!("failed to serialize query data to file: {:?}", err))?;
 
-        serde_json::to_writer_pretty(
-            BufWriter::new(
-                File::create(&path)
-                    .map_err(|e| format!("failed to open path {}: {}", path.display(), e))?,
-            ),
-            self,
-        )
-        .map_err(Into::into)
+        tmp_file
+            .persist(dir.as_ref().join(format!("query-{}.json", self.hash)))
+            .map_err(|err| format!("failed to move query file: {:?}", err))?;
+
+        Ok(())
     }
 }
 
-pub fn hash_string(query: &str) -> String {
+pub(super) fn hash_string(query: &str) -> String {
     // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
     use sha2::{Digest, Sha256};
 

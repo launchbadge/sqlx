@@ -16,8 +16,8 @@ pub enum Command {
 
     /// Generate query metadata to support offline compile-time verification.
     ///
-    /// Saves metadata for all invocations of `query!` and related macros to `sqlx-data.json`
-    /// in the current directory, overwriting if needed.
+    /// Saves metadata for all invocations of `query!` and related macros to a `.sqlx` directory
+    /// in the current directory (or workspace root with `--workspace`), overwriting if needed.
     ///
     /// During project compilation, the absence of the `DATABASE_URL` environment variable or
     /// the presence of `SQLX_OFFLINE` (with a value of `true` or `1`) will constrain the
@@ -29,9 +29,12 @@ pub enum Command {
         #[clap(long)]
         check: bool,
 
-        /// Generate a single top-level `sqlx-data.json` file when using a cargo workspace.
+        /// Generate a single workspace-level `.sqlx` folder.
+        ///
+        /// This option is intended for workspaces where multiple crates use SQLx. If there is only
+        /// one, it is better to run `cargo sqlx prepare` without this option inside that crate.
         #[clap(long)]
-        merged: bool,
+        workspace: bool,
 
         /// Arguments to be passed to `cargo rustc ...`.
         #[clap(last = true)]

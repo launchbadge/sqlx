@@ -55,6 +55,7 @@ serde = { version = "1.0.132", features = ["derive"] }
 serde_json = { version = "1.0.73" }
 sha2 = { version = "0.10.0" }
 syn = { version = "1.0.84", default-features = false, features = ["full", "derive", "parsing", "printing", "clone-impls"] }
+tempfile = { version = "3.3.0" }
 quote = { version = "1.0.14", default-features = false }
 url = { version = "2.2.2", default-features = false }
 
