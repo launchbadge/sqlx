@@ -24,7 +24,7 @@ futures-core = { version = "0.3.19", default-features = false }
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 # used by the SQLite worker thread to block on the async mutex that locks the database handle
 futures-executor = { version = "0.3.19" }
-futures-intrusive = "0.4.0"
+futures-intrusive = "0.5.0"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink"] }
 
 chrono = { workspace = true, optional = true }
@@ -38,7 +38,7 @@ percent-encoding = "2.1.0"
 
 flume = { version = "0.10.9", default-features = false, features = ["async"] }
 
-atoi = "1.0"
+atoi = "2.0"
 
 log = "0.4.17"
 tracing = { version = "0.1.37", features = ["log"] }

@@ -3,7 +3,7 @@ use bytes::Bytes;
 use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
 use rand::thread_rng;
-use rsa::{pkcs8::DecodePublicKey, PaddingScheme, PublicKey, RsaPublicKey};
+use rsa::{pkcs8::DecodePublicKey, Oaep, PaddingScheme, PublicKey, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
@@ -156,7 +156,7 @@ async fn encrypt_rsa<'s>(
 
     // client sends an RSA encrypted password
     let pkey = parse_rsa_pub_key(rsa_pub_key)?;
-    let padding = PaddingScheme::new_oaep::<sha1::Sha1>();
+    let padding = Oaep::new::<sha1::Sha1>();
     pkey.encrypt(&mut thread_rng(), padding, &pass[..])
         .map_err(Error::protocol)
 }
