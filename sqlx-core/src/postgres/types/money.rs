@@ -8,7 +8,7 @@ use crate::{
 use byteorder::{BigEndian, ByteOrder};
 use std::{
     io,
-    ops::{Add, AddAssign, Sub, SubAssign},
+    ops::{Add, AddAssign, Sub, SubAssign, Neg},
 };
 
 /// The PostgreSQL [`MONEY`] type stores a currency amount with a fixed fractional
@@ -248,6 +248,19 @@ impl SubAssign<PgMoney> for PgMoney {
     }
 }
 
+impl Neg for PgMoney {
+    type Output = Self;
+
+    /// Negates the monetary value.
+    /// 
+    /// # Panics
+    /// Panics if the value is `i64::MIN`.
+    #[inline]
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::PgMoney;
@@ -302,6 +315,11 @@ mod tests {
     fn sub_assign_overflow_panics() {
         let mut money = PgMoney(i64::MIN);
         money -= PgMoney(1);
+    }
+
+    #[test]
+    fn negating_works() {
+        assert_eq!(PgMoney(-3), -PgMoney(3))
     }
 
     #[test]
