@@ -48,7 +48,7 @@ impl Notify {
     }
 
     fn wait(&self) {
-        let _ = self
+        let _dont_drop_early = self
             .condvar
             .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
             .unwrap();
