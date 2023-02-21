@@ -17,6 +17,8 @@ offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
 
 [dependencies]
+sqlx-core = { workspace = true }
+
 # Futures crates
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.19", default-features = false }
@@ -64,7 +66,3 @@ tracing = { version = "0.1.37", features = ["log"] }
 whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", optional = true }
-
-[dependencies.sqlx-core]
-version = "=0.6.2"
-path = "../sqlx-core"

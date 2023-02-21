@@ -97,5 +97,5 @@ event-listener = "2.5.2"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { version = "0.6.2", path = "..", features = ["postgres", "sqlite", "mysql", "migrate"] }
+sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate"] }
 tokio = { version = "1", features = ["rt"] }

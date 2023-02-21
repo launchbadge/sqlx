@@ -7,8 +7,6 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
-use crate::any::kind::AnyKind;
-
 /// Opaque options for connecting to a database. These may only be constructed by parsing from
 /// a connection url.
 ///

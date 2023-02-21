@@ -68,7 +68,6 @@ serde = { version = "1.0.144", features = ["derive"] }
 serde_json = { version = "1.0.85", features = ["raw_value"] }
 
 [dependencies.sqlx-core]
-version = "=0.6.2"
-path = "../sqlx-core"
+workspace = true
 # We use JSON in the driver implementation itself so there's no reason not to enable it here.
 features = ["json"]

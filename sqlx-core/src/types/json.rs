@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;

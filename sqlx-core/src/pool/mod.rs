@@ -74,7 +74,6 @@ use futures_core::FusedFuture;
 use futures_util::FutureExt;
 use std::fmt;
 use std::future::Future;
-use std::ops::DerefMut;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};

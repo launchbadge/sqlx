@@ -1,6 +1,6 @@
 use crate::any::{Any, AnyArguments, AnyColumn, AnyTypeInfo};
 use crate::column::ColumnIndex;
-use crate::database::{Database, HasStatement};
+use crate::database::Database;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::statement::Statement;

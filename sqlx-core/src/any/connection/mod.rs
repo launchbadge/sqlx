@@ -1,8 +1,6 @@
 use futures_core::future::BoxFuture;
-use std::marker::PhantomData;
-use url::Url;
 
-use crate::any::{Any, AnyConnectOptions, AnyKind};
+use crate::any::{Any, AnyConnectOptions};
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 

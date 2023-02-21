@@ -9,7 +9,6 @@ use crate::row::Row;
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 use crate::value::{Value, ValueRef};
-use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Clone)]

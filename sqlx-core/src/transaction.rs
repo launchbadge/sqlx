@@ -6,7 +6,6 @@ use futures_core::future::BoxFuture;
 
 use crate::database::Database;
 use crate::error::Error;
-use crate::executor::Executor;
 use crate::pool::MaybePoolConnection;
 
 /// Generic management of database transactions.

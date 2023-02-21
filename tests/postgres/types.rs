@@ -5,6 +5,8 @@ use std::ops::Bound;
 use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
+
+#[cfg(any(postgres_14, postgres_15))]
 use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,

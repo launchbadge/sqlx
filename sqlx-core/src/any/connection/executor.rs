@@ -8,7 +8,6 @@ use crate::executor::{Execute, Executor};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryStreamExt};
 
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;

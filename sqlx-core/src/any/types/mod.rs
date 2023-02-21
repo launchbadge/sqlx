@@ -17,16 +17,6 @@
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
 //! a potentially `NULL` value from SQL.
 
-use crate::any::type_info::AnyTypeInfoKind;
-use crate::any::value::AnyValueKind;
-use crate::any::{Any, AnyTypeInfo, AnyValueRef};
-use crate::database::{HasArguments, HasValueRef};
-use crate::decode::Decode;
-use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
-use crate::types::Type;
-use std::borrow::Cow;
-
 mod blob;
 mod bool;
 mod float;
@@ -35,6 +25,11 @@ mod str;
 
 #[test]
 fn test_type_impls() {
+    use crate::any::Any;
+    use crate::decode::Decode;
+    use crate::encode::Encode;
+    use crate::types::Type;
+
     fn has_type<T>()
     where
         T: Type<Any>,

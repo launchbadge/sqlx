@@ -1,7 +1,6 @@
 use futures_util::future::BoxFuture;
 
 use crate::any::{Any, AnyConnection};
-use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::TransactionManager;
 

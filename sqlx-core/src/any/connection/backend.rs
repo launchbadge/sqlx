@@ -1,6 +1,5 @@
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
-use crate::transaction::Transaction;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;

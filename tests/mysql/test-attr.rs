@@ -1,6 +1,6 @@
 // The no-arg variant is covered by other tests already.
 
-use sqlx::{MySqlPool, Row};
+use sqlx::MySqlPool;
 
 const MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("tests/mysql/migrations");
 

@@ -64,7 +64,6 @@ impl<DB: Database> Describe<DB> {
         crate::any::AnyTypeInfo: for<'a> TryFrom<&'a DB::TypeInfo, Error = crate::Error>,
     {
         use crate::any::AnyTypeInfo;
-        use std::convert::TryFrom;
 
         let columns = self
             .columns

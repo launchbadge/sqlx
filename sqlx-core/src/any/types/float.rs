@@ -14,7 +14,7 @@ impl Type<Any> for f32 {
 }
 
 impl<'q> Encode<'q, Any> for f32 {
-    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> IsNull {
         buf.0.push(AnyValueKind::Real(*self));
         IsNull::No
     }

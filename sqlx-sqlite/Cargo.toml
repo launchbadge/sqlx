@@ -58,8 +58,7 @@ features = [
 ]
 
 [dependencies.sqlx-core]
-version = "=0.6.2"
-path = "../sqlx-core"
+workspace = true
 
 [dev-dependencies]
-sqlx = { version = "0.6.2", path = "..", default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }
+sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }

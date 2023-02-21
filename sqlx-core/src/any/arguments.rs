@@ -1,10 +1,8 @@
 use crate::any::value::AnyValueKind;
-use crate::any::{Any, AnyValueRef};
+use crate::any::Any;
 use crate::arguments::Arguments;
 use crate::encode::Encode;
 use crate::types::Type;
-use std::borrow::Cow;
-use std::marker::PhantomData;
 
 pub struct AnyArguments<'q> {
     #[doc(hidden)]
@@ -22,7 +20,7 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
     where
         T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        value.encode(&mut self.values);
+        let _ = value.encode(&mut self.values);
     }
 }
 

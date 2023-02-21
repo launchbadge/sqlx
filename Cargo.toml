@@ -6,23 +6,24 @@ members = [
     "sqlx-macros-core",
     "sqlx-test",
     "sqlx-cli",
-    "sqlx-bench",
+#    "sqlx-bench",
     "sqlx-mysql",
     "sqlx-postgres",
     "sqlx-sqlite",
-    "examples/mysql/todos",
-    "examples/postgres/axum-social-with-tests",
-    "examples/postgres/files",
-    "examples/postgres/json",
-    "examples/postgres/listen",
-    "examples/postgres/todos",
-    "examples/postgres/mockable-todos",
-    "examples/postgres/transaction",
-    "examples/sqlite/todos",
+# FIXME: uncomment these for full release
+#    "examples/mysql/todos",
+#    "examples/postgres/axum-social-with-tests",
+#    "examples/postgres/files",
+#    "examples/postgres/json",
+#    "examples/postgres/listen",
+#    "examples/postgres/todos",
+#    "examples/postgres/mockable-todos",
+#    "examples/postgres/transaction",
+#    "examples/sqlite/todos",
 ]
 
 [workspace.package]
-version = "0.6.2"
+version = "0.7.0-alpha.1"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -112,13 +113,18 @@ uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgre
 regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
+# Core Crates
+sqlx-core = { version = "=0.7.0-alpha.1", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.7.0-alpha.1", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.7.0-alpha.1", path = "sqlx-macros" }
+
 # Driver crates
-sqlx-mysql = { version = "=0.6.2", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.6.2", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.6.2", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.7.0-alpha.1", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.7.0-alpha.1", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.7.0-alpha.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = {version = "=0.6.2", path = "." }
+sqlx = { version = "=0.7.0-alpha.1", path = "." }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -144,8 +150,8 @@ features = ["time", "net", "sync", "fs", "io-util", "rt"]
 default-features = false
 
 [dependencies]
-sqlx-core = { version = "0.6.2", path = "sqlx-core", features = ["offline", "migrate"], default-features = false }
-sqlx-macros = { version = "0.6.2", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "=0.7.0-alpha.1", path = "sqlx-core", features = ["offline", "migrate"], default-features = false }
+sqlx-macros = { version = "=0.7.0-alpha.1", path = "sqlx-macros", default-features = false, optional = true }
 
 sqlx-mysql = { workspace = true, optional = true }
 sqlx-postgres = { workspace = true, optional = true }
