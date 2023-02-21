@@ -1,6 +1,5 @@
 [package]
 name = "sqlx-sqlite"
-readme = "README.md"
 documentation = "https://docs.rs/sqlx"
 description = "SQLite driver implementation for SQLx. Not for direct use; see the `sqlx` crate for details."
 version.workspace = true
