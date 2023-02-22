@@ -16,7 +16,8 @@ migrate = ["sqlx-core/migrate"]
 offline = ["sqlx-core/offline"]
 
 # Type integration features which require additional dependencies
-rust_decimal = ["dep:rust_decimal", "dep:num-bigint"]
+rust_decimal = ["dep:rust_decimal"]
+bigdecimal = ["dep:bigdecimal", "dep:num-bigint"]
 
 [dependencies]
 # Futures crates
