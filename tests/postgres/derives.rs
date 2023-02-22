@@ -376,6 +376,46 @@ SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
 
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
+async fn test_new_type() {
+    struct NewType(i32);
+    let conn = new::<Postgres>().await.unwrap();
+    conn.execute("CREATE TABLE new_type (id INTEGER)")
+        .await
+        .unwrap();
+
+    conn.execute("INSERT INTO new_type (id) VALUES (1)")
+        .await
+        .unwrap();
+
+    struct NewTypeRow {
+        id: NewType,
+    }
+
+    let res = sqlx::query_as!(NewTypeRow, "SELECT id FROM new_type")
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+    assert_eq!(res.id.0, 1);
+
+    struct NormalRow {
+        id: i32,
+    }
+
+    let res = sqlx::query_as!(NormalRow, "SELECT id FROM new_type")
+        .fetch_one(&conn)
+        .await
+        .unwrap();
+
+    assert_eq!(res.id, 1);
+
+    sqlx::query!("DROP TABLE new_type")
+        .execute(&conn)
+        .await
+        .unwrap();
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
 async fn test_from_row() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
