@@ -80,8 +80,6 @@ pub async fn run(opt: Opt) -> Result<()> {
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
 async fn connect(opts: &ConnectOpts) -> sqlx::Result<AnyConnection> {
-    sqlx::any::install_default_drivers();
-
     retry_connect_errors(opts, AnyConnection::connect).await
 }
 
@@ -97,6 +95,8 @@ where
     F: FnMut(&'a str) -> Fut,
     Fut: Future<Output = sqlx::Result<T>> + 'a,
 {
+    sqlx::any::install_default_drivers();
+
     backoff::future::retry(
         backoff::ExponentialBackoffBuilder::new()
             .with_max_elapsed_time(Some(Duration::from_secs(opts.connect_timeout)))
