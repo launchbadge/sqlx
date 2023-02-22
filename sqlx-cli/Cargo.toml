@@ -51,14 +51,14 @@ filetime = "0.2"
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
-#default = ["postgres", "sqlite", "mysql", "native-tls"]
+default = ["postgres", "sqlite", "mysql", "native-tls"]
 rustls = ["sqlx/runtime-tokio-rustls"]
 native-tls = ["sqlx/runtime-tokio-native-tls"]
 
 # databases
-#mysql = ["sqlx/mysql"]
-#postgres = ["sqlx/postgres"]
-#sqlite = ["sqlx/sqlite"]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
