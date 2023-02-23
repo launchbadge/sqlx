@@ -5,14 +5,14 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
-use std::result::Result as StdResult;
 
 use crate::database::Database;
+
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 
 /// A specialized `Result` type for SQLx.
-pub type Result<T> = StdResult<T, Error>;
+pub type Result<T, E = Error> = ::std::result::Result<T, E>;
 
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
@@ -82,6 +82,10 @@ pub enum Error {
     #[error("error occurred while decoding: {0}")]
     Decode(#[source] BoxDynError),
 
+    /// Error occurred within the `Any` driver mapping to/from the native driver.
+    #[error("error in Any driver mapping: {0}")]
+    AnyDriverError(#[source] BoxDynError),
+
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
     ///
@@ -122,20 +126,30 @@ impl Error {
         }
     }
 
-    #[allow(dead_code)]
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn protocol(err: impl Display) -> Self {
+    pub fn protocol(err: impl Display) -> Self {
         Error::Protocol(err.to_string())
     }
 
-    #[allow(dead_code)]
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
+    pub fn config(err: impl StdError + Send + Sync + 'static) -> Self {
         Error::Configuration(err.into())
+    }
+
+    pub(crate) fn tls(err: impl Into<Box<dyn StdError + Send + Sync + 'static>>) -> Self {
+        Error::Tls(err.into())
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn decode(err: impl Into<Box<dyn StdError + Send + Sync + 'static>>) -> Self {
+        Error::Decode(err.into())
     }
 }
 
-pub(crate) fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
+pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
     // TODO: `#name` only produces `TINYINT` but perhaps we want to show `TINYINT(1)`
     format!(
         "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
@@ -144,6 +158,25 @@ pub(crate) fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> 
         ty.name()
     )
     .into()
+}
+
+/// The error kind.
+///
+/// This enum is to be used to identify frequent errors that can be handled by the program.
+/// Although it currently only supports constraint violations, the type may grow in the future.
+#[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ErrorKind {
+    /// Unique/primary key constraint violation.
+    UniqueViolation,
+    /// Foreign key constraint violation.
+    ForeignKeyViolation,
+    /// Not-null constraint violation.
+    NotNullViolation,
+    /// Check constraint violation.
+    CheckViolation,
+    /// An unmapped error.
+    Other,
 }
 
 /// An error that was returned from the database.
@@ -177,6 +210,27 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// Currently only populated by the Postgres driver.
     fn constraint(&self) -> Option<&str> {
         None
+    }
+
+    /// Returns the kind of the error, if supported.
+    ///
+    /// ### Note
+    /// Not all back-ends behave the same when reporting the error code.
+    fn kind(&self) -> ErrorKind;
+
+    /// Returns whether the error kind is a violation of a unique/primary key constraint.
+    fn is_unique_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::UniqueViolation)
+    }
+
+    /// Returns whether the error kind is a violation of a foreign key.
+    fn is_foreign_key_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::ForeignKeyViolation)
+    }
+
+    /// Returns whether the error kind is a violation of a check.
+    fn is_check_violation(&self) -> bool {
+        matches!(self.kind(), ErrorKind::CheckViolation)
     }
 }
 
@@ -223,7 +277,7 @@ impl dyn DatabaseError {
 
     /// Downcast this generic database error to a specific database error type.
     #[inline]
-    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> StdResult<Box<E>, Box<Self>> {
+    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> Result<Box<E>, Box<Self>> {
         if self.as_error().is::<E>() {
             Ok(self.into_error().downcast().unwrap())
         } else {
@@ -250,15 +304,8 @@ impl From<crate::migrate::MigrateError> for Error {
     }
 }
 
-#[cfg(feature = "_tls-native-tls")]
-impl From<sqlx_rt::native_tls::Error> for Error {
-    #[inline]
-    fn from(error: sqlx_rt::native_tls::Error) -> Self {
-        Error::Tls(Box::new(error))
-    }
-}
-
-// Format an error message as a `Protocol` error
+/// Format an error message as a `Protocol` error
+#[macro_export]
 macro_rules! err_protocol {
     ($expr:expr) => {
         $crate::error::Error::Protocol($expr.into())

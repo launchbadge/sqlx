@@ -1,6 +1,6 @@
 // The no-arg variant is covered by other tests already.
 
-use sqlx::{MySqlPool, Row};
+use sqlx::MySqlPool;
 
 const MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("tests/mysql/migrations");
 
@@ -9,7 +9,7 @@ async fn it_gets_a_pool(pool: MySqlPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
 
     let db_name: String = sqlx::query_scalar("select database()")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert!(

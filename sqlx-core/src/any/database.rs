@@ -23,6 +23,9 @@ impl Database for Any {
     type TypeInfo = AnyTypeInfo;
 
     type Value = AnyValue;
+    const NAME: &'static str = "Any";
+
+    const URL_SCHEMES: &'static [&'static str] = &[];
 }
 
 impl<'r> HasValueRef<'r> for Any {

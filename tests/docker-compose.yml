@@ -19,6 +19,21 @@ services:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
+    mysql_8_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mysql:8.0.27
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: sqlx
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+
     mysql_5_7:
         image: mysql:5.7
         volumes:
@@ -29,6 +44,22 @@ services:
             MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
+
+    mysql_5_7_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mysql:5.7
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: sqlx
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+
     #
     # MariaDB 10.6, 10.5, 10.4, 10.3
     # https://mariadb.org/about/#maintenance-policy
@@ -44,6 +75,20 @@ services:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
+    mariadb_10_6_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:10.6
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+
     mariadb_10_5:
         image: mariadb:10.5
         volumes:
@@ -53,6 +98,20 @@ services:
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
+
+    mariadb_10_5_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:10.5
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
 
     mariadb_10_4:
         image: mariadb:10.4
@@ -64,6 +123,20 @@ services:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
+    mariadb_10_4_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:10.4
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+
     mariadb_10_3:
         image: mariadb:10.3
         volumes:
@@ -74,17 +147,67 @@ services:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
+    mariadb_10_3_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:10.3
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+
     #
-    # PostgreSQL 14.x, 13.x, 12.x, 11.x 10.x
+    # PostgreSQL 15.x, 14.x, 13.x, 12.x, 11.x
     # https://www.postgresql.org/support/versioning/
     #
+
+    postgres_15:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 15
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    postgres_15_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 15
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
 
     postgres_14:
         build:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 14
+                VERSION: 14
         ports:
             - 5432
         environment:
@@ -97,13 +220,30 @@ services:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    postgres_14_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 14
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
 
     postgres_13:
         build:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 13
+                VERSION: 13
         ports:
             - 5432
         environment:
@@ -117,12 +257,29 @@ services:
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
 
+    postgres_13_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 13
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
+
     postgres_12:
         build:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 12
+                VERSION: 12
         ports:
             - 5432
         environment:
@@ -135,6 +292,23 @@ services:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    postgres_12_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 12.3
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
 
     postgres_11:
         build:
@@ -143,7 +317,7 @@ services:
             args:
                 VERSION: 11
         ports:
-          - 5432
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -155,62 +329,19 @@ services:
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
 
-    postgres_10:
+    postgres_11_client_ssl:
         build:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-                VERSION: 10
+                VERSION: 11
         ports:
-          - 5432
+            - 5432
         environment:
             POSTGRES_DB: sqlx
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
         volumes:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-    #
-    # Microsoft SQL Server (MSSQL)
-    # https://hub.docker.com/_/microsoft-mssql-server
-    #
-
-    mssql_2019:
-        build:
-            context: .
-            dockerfile: mssql/Dockerfile
-            args:
-                VERSION: 2019-latest
-        ports:
-          - 1433
-        environment:
-            ACCEPT_EULA: "Y"
-            SA_PASSWORD: Password123!
-
-    mssql_2017:
-        build:
-            context: .
-            dockerfile: mssql/mssql-2017.dockerfile
-            args:
-                VERSION: 2017-latest
-        ports:
-          - 1433
-        environment:
-            ACCEPT_EULA: "Y"
-            SA_PASSWORD: Password123!
-
-    #
-    # IBM Db2
-    # https://hub.docker.com/r/ibmcom/db2
-    #
-
-    db2_11:
-        image: ibmcom/db2:11.5.1.0-CN1
-        privileged: true
-        environment:
-            LICENSE: accept
-            DB2INST1_PASSWORD: password
-            DBNAME: sqlx
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf

@@ -402,7 +402,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.rollback().await?;
@@ -419,7 +419,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.commit().await?;
@@ -437,7 +437,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
         sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
             .bind(20_i32)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
     }
 
@@ -467,7 +467,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
         .bind(50_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     // begin once more
@@ -476,7 +476,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx2)
+        .execute(&mut *tx2)
         .await?;
 
     // never mind, rollback
@@ -484,7 +484,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     assert_eq!(count, 1);
@@ -521,7 +521,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
             // do actually something before dropping
             let _user = sqlx::query("INSERT INTO _sqlx_users_3952 (id) VALUES ($1) RETURNING id")
                 .bind(20_i32)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await?;
         }
 
@@ -553,7 +553,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     // spin up more tasks than connections available, and ensure we don't deadlock
     for i in 0..200 {
         let pool = pool.clone();
-        sqlx_rt::spawn(async move {
+        sqlx_core::rt::spawn(async move {
             for j in 0.. {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     // normal error at termination of the test
@@ -566,7 +566,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 }
 
                 // shouldn't be necessary if the pool is fair
-                // sqlx_rt::yield_now().await;
+                // sqlx_core::rt::yield_now().await;
             }
         });
     }
@@ -575,7 +575,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     // of cancellations
     for _ in 0..50 {
         let pool = pool.clone();
-        sqlx_rt::spawn(async move {
+        sqlx_core::rt::spawn(async move {
             while !pool.is_closed() {
                 let acquire = pool.acquire();
                 futures::pin_mut!(acquire);
@@ -589,20 +589,20 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
                 // this one is necessary since this is a hot loop,
                 // otherwise this task will never be descheduled
-                sqlx_rt::yield_now().await;
+                sqlx_core::rt::yield_now().await;
             }
         });
     }
 
     eprintln!("sleeping for 30 seconds");
 
-    sqlx_rt::sleep(Duration::from_secs(30)).await;
+    sqlx_core::rt::sleep(Duration::from_secs(30)).await;
 
     // assert_eq!(pool.size(), 10);
 
     eprintln!("closing pool");
 
-    sqlx_rt::timeout(Duration::from_secs(30), pool.close()).await?;
+    sqlx_core::rt::timeout(Duration::from_secs(30), pool.close()).await?;
 
     eprintln!("pool closed successfully");
 
@@ -786,7 +786,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let tweet_id: i64 =
         sqlx::query_scalar("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' ) RETURNING id")
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?;
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
@@ -801,7 +801,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     assert_eq!(statement.column(2).type_info().name(), "TEXT");
     assert_eq!(statement.column(3).type_info().name(), "INT8");
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -830,18 +830,18 @@ async fn test_issue_622() -> anyhow::Result<()> {
     for i in 0..3 {
         let pool = pool.clone();
 
-        handles.push(sqlx_rt::spawn(async move {
+        handles.push(sqlx_core::rt::spawn(async move {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx::query("SELECT 1").fetch_one(&mut *conn).await.unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }
 
             // (do some other work here without holding on to a connection)
             // this actually fixes the issue, depending on the timeout used
-            // sqlx_rt::sleep(Duration::from_millis(500)).await;
+            // sqlx_core::rt::sleep(Duration::from_millis(500)).await;
 
             {
                 let start = Instant::now();
@@ -1008,7 +1008,7 @@ async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
     // acquires and holds a connection which would normally prevent the pool from closing
     let mut listener = PgListener::connect_with(&pool).await?;
 
-    sqlx_rt::spawn(async move {
+    sqlx_core::rt::spawn(async move {
         listener.recv().await.unwrap();
     });
 
@@ -1389,6 +1389,69 @@ VALUES
 }
 
 #[sqlx_macros::test]
+async fn custom_type_resolution_respects_search_path() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+DROP TYPE IF EXISTS some_enum_type;
+DROP SCHEMA IF EXISTS another CASCADE;
+
+CREATE SCHEMA another;
+CREATE TYPE some_enum_type AS ENUM ('a', 'b', 'c');
+CREATE TYPE another.some_enum_type AS ENUM ('d', 'e', 'f');
+    "#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct SomeEnumType(String);
+
+    impl sqlx::Type<Postgres> for SomeEnumType {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("some_enum_type")
+        }
+
+        fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+            *ty == Self::type_info()
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for SomeEnumType {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(<String as sqlx::Decode<Postgres>>::decode(value)?))
+        }
+    }
+
+    impl<'q> sqlx::Encode<'q, Postgres> for SomeEnumType {
+        fn encode_by_ref(
+            &self,
+            buf: &mut sqlx::postgres::PgArgumentBuffer,
+        ) -> sqlx::encode::IsNull {
+            <String as sqlx::Encode<Postgres>>::encode_by_ref(&self.0, buf)
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("set search_path = 'another'")
+        .execute(&mut conn)
+        .await?;
+
+    let result = sqlx::query("SELECT 1 WHERE $1::some_enum_type = 'd'::some_enum_type;")
+        .bind(SomeEnumType("d".into()))
+        .fetch_all(&mut conn)
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.len(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
     let conn = new::<Postgres>().await?;
 
@@ -1671,7 +1734,7 @@ async fn test_advisory_locks() -> anyhow::Result<()> {
     // leak so we can take it across the task boundary
     let conn2_lock2 = lock2.acquire(conn2).await?.leak();
 
-    sqlx_rt::spawn({
+    sqlx_core::rt::spawn({
         let lock1 = lock1.clone();
         let lock2 = lock2.clone();
 

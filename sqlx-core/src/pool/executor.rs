@@ -69,72 +69,74 @@ where
     }
 }
 
-// NOTE: required due to lack of lazy normalization
-#[allow(unused_macros)]
-macro_rules! impl_executor_for_pool_connection {
-    ($DB:ident, $C:ident, $R:ident) => {
-        impl<'c> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<$DB> {
-            type Database = $DB;
-
-            #[inline]
-            fn fetch_many<'e, 'q: 'e, E: 'q>(
-                self,
-                query: E,
-            ) -> futures_core::stream::BoxStream<
-                'e,
-                Result<
-                    either::Either<<$DB as crate::database::Database>::QueryResult, $R>,
-                    crate::error::Error,
-                >,
-            >
-            where
-                'c: 'e,
-                E: crate::executor::Execute<'q, $DB>,
-            {
-                (**self).fetch_many(query)
-            }
-
-            #[inline]
-            fn fetch_optional<'e, 'q: 'e, E: 'q>(
-                self,
-                query: E,
-            ) -> futures_core::future::BoxFuture<'e, Result<Option<$R>, crate::error::Error>>
-            where
-                'c: 'e,
-                E: crate::executor::Execute<'q, $DB>,
-            {
-                (**self).fetch_optional(query)
-            }
-
-            #[inline]
-            fn prepare_with<'e, 'q: 'e>(
-                self,
-                sql: &'q str,
-                parameters: &'e [<$DB as crate::database::Database>::TypeInfo],
-            ) -> futures_core::future::BoxFuture<
-                'e,
-                Result<<$DB as crate::database::HasStatement<'q>>::Statement, crate::error::Error>,
-            >
-            where
-                'c: 'e,
-            {
-                (**self).prepare_with(sql, parameters)
-            }
-
-            #[doc(hidden)]
-            #[inline]
-            fn describe<'e, 'q: 'e>(
-                self,
-                sql: &'q str,
-            ) -> futures_core::future::BoxFuture<
-                'e,
-                Result<crate::describe::Describe<$DB>, crate::error::Error>,
-            >
-            where
-                'c: 'e,
-            {
-                (**self).describe(sql)
-            }
-        }
-    };
-}
+// Causes an overflow when evaluating `&mut DB::Connection: Executor`.
+//
+//
+// impl<'c, DB: Database> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<DB>
+// where
+//     &'c mut DB::Connection: Executor<'c, Database = DB>,
+// {
+//     type Database = DB;
+//
+//
+//
+//     #[inline]
+//     fn fetch_many<'e, 'q: 'e, E: 'q>(
+//         self,
+//         query: E,
+//     ) -> futures_core::stream::BoxStream<
+//         'e,
+//         Result<
+//             either::Either<<DB as crate::database::Database>::QueryResult, DB::Row>,
+//             crate::error::Error,
+//         >,
+//     >
+//     where
+//         'c: 'e,
+//         E: crate::executor::Execute<'q, DB>,
+//     {
+//         (**self).fetch_many(query)
+//     }
+//
+//     #[inline]
+//     fn fetch_optional<'e, 'q: 'e, E: 'q>(
+//         self,
+//         query: E,
+//     ) -> futures_core::future::BoxFuture<'e, Result<Option<DB::Row>, crate::error::Error>>
+//     where
+//         'c: 'e,
+//         E: crate::executor::Execute<'q, DB>,
+//     {
+//         (**self).fetch_optional(query)
+//     }
+//
+//     #[inline]
+//     fn prepare_with<'e, 'q: 'e>(
+//         self,
+//         sql: &'q str,
+//         parameters: &'e [<DB as crate::database::Database>::TypeInfo],
+//     ) -> futures_core::future::BoxFuture<
+//         'e,
+//         Result<<DB as crate::database::HasStatement<'q>>::Statement, crate::error::Error>,
+//     >
+//     where
+//         'c: 'e,
+//     {
+//         (**self).prepare_with(sql, parameters)
+//     }
+//
+//     #[doc(hidden)]
+//     #[inline]
+//     fn describe<'e, 'q: 'e>(
+//         self,
+//         sql: &'q str,
+//     ) -> futures_core::future::BoxFuture<
+//         'e,
+//         Result<crate::describe::Describe<DB>, crate::error::Error>,
+//     >
+//     where
+//         'c: 'e,
+//     {
+//         (**self).describe(sql)
+//     }
+// }

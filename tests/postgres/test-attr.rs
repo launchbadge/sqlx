@@ -9,7 +9,7 @@ async fn it_gets_a_pool(pool: PgPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
 
     let db_name: String = sqlx::query_scalar("SELECT current_database()")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert!(db_name.starts_with("_sqlx_test"), "dbname: {db_name:?}");

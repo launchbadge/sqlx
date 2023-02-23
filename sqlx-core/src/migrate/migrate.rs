@@ -27,19 +27,6 @@ pub trait Migrate {
     // "dirty" means there is a partially applied migration that failed.
     fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>>;
 
-    // Return the current version and if the database is "dirty".
-    // "dirty" means there is a partially applied migration that failed.
-    #[deprecated]
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>>;
-
-    // validate the migration
-    // checks that it does exist on the database and that the checksum matches
-    #[deprecated]
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>>;
-
     // Return the ordered list of applied migrations
     fn list_applied_migrations(
         &mut self,
