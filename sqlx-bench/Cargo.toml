@@ -26,12 +26,12 @@ postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]
 
 [dependencies]
-criterion = "0.3.3"
-dotenvy = "0.15.0"
-once_cell = "1.4"
+criterion = "0.4.0"
+dotenvy = "0.15.6"
+once_cell = "1.17.1"
 sqlx = { workspace = true, default-features = false, features = ["macros"] }
 
-chrono = "0.4.19"
+chrono = "0.4.23"
 
 [[bench]]
 name = "pg_pool"
