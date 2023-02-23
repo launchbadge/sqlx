@@ -378,21 +378,21 @@ SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
 #[sqlx_macros::test]
 async fn test_new_type() {
     struct NewType(i32);
-    let conn = new::<Postgres>().await.unwrap();
-    conn.execute("CREATE TABLE new_type (id INTEGER)")
-        .await
-        .unwrap();
 
-    conn.execute("INSERT INTO new_type (id) VALUES (1)")
-        .await
-        .unwrap();
+    impl From<i32> for NewType {
+        fn from(value: i32) -> Self {
+            NewType(value)
+        }
+    }
+
+    let mut conn = new::<Postgres>().await.unwrap();
 
     struct NewTypeRow {
         id: NewType,
     }
 
-    let res = sqlx::query_as!(NewTypeRow, "SELECT id FROM new_type")
-        .fetch_one(&conn)
+    let res = sqlx::query_as!(NewTypeRow, r#"SELECT 1 as "id!""#)
+        .fetch_one(&mut conn)
         .await
         .unwrap();
     assert_eq!(res.id.0, 1);
@@ -401,17 +401,12 @@ async fn test_new_type() {
         id: i32,
     }
 
-    let res = sqlx::query_as!(NormalRow, "SELECT id FROM new_type")
-        .fetch_one(&conn)
+    let res = sqlx::query_as!(NormalRow, r#"SELECT 1 as "id!""#)
+        .fetch_one(&mut conn)
         .await
         .unwrap();
 
     assert_eq!(res.id, 1);
-
-    sqlx::query!("DROP TABLE new_type")
-        .execute(&conn)
-        .await
-        .unwrap();
 }
 
 #[cfg(feature = "macros")]
