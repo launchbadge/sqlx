@@ -114,12 +114,15 @@ impl<'q> QueryLogger<'q> {
                     String::new()
                 };
 
-                let message = format!(
-                    "{}; rows affected: {}, rows returned: {}, elapsed: {:.3?}{}",
-                    summary, self.rows_affected, self.rows_returned, elapsed, sql
+                private_tracing_dynamic_event!(
+                    target: "sqlx::query",
+                    tracing_level,
+                    summary,
+                    db.statement = sql,
+                    rows_affected = self.rows_affected,
+                    rows_returned= self.rows_returned,
+                    ?elapsed,
                 );
-
-                private_tracing_dynamic_event!(target: "sqlx::query", tracing_level, message);
             }
         }
     }
