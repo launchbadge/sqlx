@@ -17,9 +17,20 @@ pub trait Connection: Send {
 
     /// Explicitly close this database connection.
     ///
-    /// This method is **not required** for safe and consistent operation. However, it is
-    /// recommended to call it instead of letting a connection `drop` as the database backend
-    /// will be faster at cleaning up resources.
+    /// This notifies the database server that the connection is closing so that it can
+    /// free up any server-side resources in use.
+    ///
+    /// While connections can simply be dropped to clean up local resources,
+    /// the `Drop` handler itself cannot notify the server that the connection is being closed
+    /// because that may require I/O to send a termination message. That can result in a delay
+    /// before the server learns that the connection is gone, usually from a TCP keepalive timeout.
+    ///
+    /// Creating and dropping many connections in short order without calling `.close()` may
+    /// lead to errors from the database server because those senescent connections will still
+    /// count against any connection limit or quota that is configured.
+    ///
+    /// Therefore it is recommended to call `.close()` on a connection when you are done using it
+    /// and to `.await` the result to ensure the termination message is sent.
     fn close(self) -> BoxFuture<'static, Result<(), Error>>;
 
     /// Immediately close the connection without sending a graceful shutdown.
