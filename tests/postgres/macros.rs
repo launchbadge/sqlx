@@ -97,6 +97,19 @@ async fn test_void() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_call_procedure() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let row = sqlx::query!(r#"CALL forty_two(null)"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(row.forty_two, Some(42));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_query_file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 

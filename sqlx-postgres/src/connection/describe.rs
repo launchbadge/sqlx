@@ -451,9 +451,15 @@ WHERE rngtypid = $1
 
         let mut nullables = Vec::new();
 
-        if let Some(outputs) = &explain.plan.output {
+        if let Explain::Plan(
+            plan @ Plan {
+                output: Some(outputs),
+                ..
+            },
+        ) = &explain
+        {
             nullables.resize(outputs.len(), None);
-            visit_plan(&explain.plan, outputs, &mut nullables);
+            visit_plan(&plan, outputs, &mut nullables);
         }
 
         Ok(nullables)
@@ -486,9 +492,13 @@ fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>
 }
 
 #[derive(serde::Deserialize)]
-struct Explain {
-    #[serde(rename = "Plan")]
-    plan: Plan,
+enum Explain {
+    /// {"Plan": ...} -- returned for most statements
+    Plan(Plan),
+    /// The string "Utility Statement" -- returned for
+    /// a CALL statement
+    #[serde(rename = "Utility Statement")]
+    UtilityStatement,
 }
 
 #[derive(serde::Deserialize)]

@@ -41,3 +41,6 @@ CREATE TABLE products (
     name TEXT,
     price NUMERIC CHECK (price > 0)
 );
+
+CREATE OR REPLACE PROCEDURE forty_two(INOUT forty_two INT = NULL)
+    LANGUAGE plpgsql AS 'begin forty_two := 42; end;';
