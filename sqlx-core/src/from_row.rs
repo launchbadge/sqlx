@@ -123,6 +123,44 @@ use crate::row::Row;
 ///
 /// This field is compatible with the `default` attribute.
 ///
+/// #### `skip`
+///
+/// This is a variant of the `default` attribute which instead always takes the value from
+/// the `Default` implementation for this field type ignoring any results in your query.
+/// This can be useful, if some field does not satifisfy the trait bounds (i.e.
+/// `sqlx::decode::Decode`, `sqlx::type::Type`), in particular in case of nested structures.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct Address {
+///     user_name: String,
+///     street: String,
+///     city: String,
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     name: String,
+///     #[sqlx(skip)]
+///     addresses: Vec<Address>,
+/// }
+/// ```
+///
+/// Given 2 querys
+///
+/// ```sql
+/// SELECT name FROM users;
+/// ```
+///
+/// and
+///
+/// ```sql
+/// SELECT user_name, street, city addresses;
+/// ```
+///
+/// the addresses can be assigned to the empty `addresses` field of each `User`.
+///
 /// ## Manual implementation
 ///
 /// You can also implement the [`FromRow`] trait by hand. This can be useful if you
