@@ -147,19 +147,16 @@ use crate::row::Row;
 /// }
 /// ```
 ///
-/// Given 2 querys
+/// Then when querying into `User`, only `name` needs to be set:
 ///
-/// ```sql
-/// SELECT name FROM users;
+/// ```rust,ignore
+/// let user: User = sqlx::query_as("SELECT name FROM users")
+///    .fetch_one(&mut some_connection)
+///    .await?;
+///
+/// `Default` for `Vec<Address>` is an empty vector.
+/// assert!(user.addresses.is_empty());
 /// ```
-///
-/// and
-///
-/// ```sql
-/// SELECT user_name, street, city addresses;
-/// ```
-///
-/// the addresses can be assigned to the empty `addresses` field of each `User`.
 ///
 /// ## Manual implementation
 ///
