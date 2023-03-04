@@ -92,6 +92,10 @@ impl Connection for AnyConnection {
         self.backend.clear_cached_statements()
     }
 
+    fn shrink_buffers(&mut self) {
+        self.backend.shrink_buffers()
+    }
+
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.backend.flush()

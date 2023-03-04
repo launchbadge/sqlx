@@ -446,3 +446,34 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_shrink_buffers() -> anyhow::Result<()> {
+    // We don't really have a good way to test that `.shrink_buffers()` functions as expected
+    // without exposing a lot of internals, but we can at least be sure it doesn't
+    // materially affect the operation of the connection.
+
+    let mut conn = new::<MySql>().await?;
+
+    // The connection buffer is only 8 KiB by default so this should definitely force it to grow.
+    let data = "This string should be 32 bytes!\n".repeat(1024);
+    assert_eq!(data.len(), 32 * 1024);
+
+    let ret: String = sqlx::query_scalar("SELECT ?")
+        .bind(&data)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, data);
+
+    conn.shrink_buffers();
+
+    let ret: i64 = sqlx::query_scalar("SELECT ?")
+        .bind(&12345678i64)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, 12345678i64);
+
+    Ok(())
+}

@@ -57,6 +57,10 @@ impl AnyConnectionBackend for PgConnection {
         PgTransactionManager::start_rollback(self)
     }
 
+    fn shrink_buffers(&mut self) {
+        Connection::shrink_buffers(self);
+    }
+
     fn flush(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
         Connection::flush(self)
     }

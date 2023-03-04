@@ -1,6 +1,6 @@
 use crate::net::Socket;
 use bytes::BytesMut;
-use std::io;
+use std::{cmp, io};
 
 use crate::error::Error;
 
@@ -46,26 +46,7 @@ impl<S: Socket> BufferedSocket<S> {
     }
 
     pub async fn read_buffered(&mut self, len: usize) -> io::Result<BytesMut> {
-        while self.read_buf.read.len() < len {
-            self.read_buf.reserve(len);
-
-            let read = self.socket.read(&mut self.read_buf.available).await?;
-
-            if read == 0 {
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    format!(
-                        "expected to read {} bytes, got {} bytes at EOF",
-                        len,
-                        self.read_buf.read.len()
-                    ),
-                ));
-            }
-
-            self.read_buf.advance(read);
-        }
-
-        Ok(self.read_buf.drain(len))
+        self.read_buf.read(len, &mut self.socket).await
     }
 
     pub fn write_buffer(&self) -> &WriteBuffer {
@@ -121,6 +102,12 @@ impl<S: Socket> BufferedSocket<S> {
     pub async fn shutdown(&mut self) -> io::Result<()> {
         self.flush().await?;
         self.socket.shutdown().await
+    }
+
+    pub fn shrink_buffers(&mut self) {
+        // Won't drop data still in the buffer.
+        self.write_buf.shrink();
+        self.read_buf.shrink();
     }
 
     pub fn into_inner(self) -> S {
@@ -197,6 +184,22 @@ impl WriteBuffer {
         &mut self.buf[self.bytes_flushed..self.bytes_written]
     }
 
+    pub fn shrink(&mut self) {
+        if self.bytes_flushed > 0 {
+            // Move any data that remains to be flushed to the beginning of the buffer,
+            // if necessary.
+            self.buf
+                .copy_within(self.bytes_flushed..self.bytes_written, 0);
+            self.bytes_written -= self.bytes_flushed;
+            self.bytes_flushed = 0
+        }
+
+        // Drop excess capacity.
+        self.buf
+            .truncate(cmp::max(self.bytes_written, DEFAULT_BUF_SIZE));
+        self.buf.shrink_to_fit();
+    }
+
     fn consume(&mut self, amt: usize) {
         let new_bytes_flushed = self
             .bytes_flushed
@@ -218,6 +221,31 @@ impl WriteBuffer {
 }
 
 impl ReadBuffer {
+    async fn read(&mut self, len: usize, socket: &mut impl Socket) -> io::Result<BytesMut> {
+        // Because of how `BytesMut` works, we should only be shifting capacity back and forth
+        // between `read` and `available` unless we have to read an oversize message.
+        while self.read.len() < len {
+            self.reserve(len - self.read.len());
+
+            let read = socket.read(&mut self.available).await?;
+
+            if read == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "expected to read {} bytes, got {} bytes at EOF",
+                        len,
+                        self.read.len()
+                    ),
+                ));
+            }
+
+            self.advance(read);
+        }
+
+        Ok(self.drain(len))
+    }
+
     fn reserve(&mut self, amt: usize) {
         if let Some(additional) = amt.checked_sub(self.available.capacity()) {
             self.available.reserve(additional);
@@ -230,5 +258,22 @@ impl ReadBuffer {
 
     fn drain(&mut self, amt: usize) -> BytesMut {
         self.read.split_to(amt)
+    }
+
+    fn shrink(&mut self) {
+        if self.available.capacity() > DEFAULT_BUF_SIZE {
+            // `BytesMut` doesn't have a way to shrink its capacity,
+            // but we only use `available` for spare capacity anyway so we can just replace it.
+            //
+            // If `self.read` still contains data on the next call to `advance` then this might
+            // force a memcpy as they'll no longer be pointing to the same allocation,
+            // but that's kind of unavoidable.
+            //
+            // The `async-std` impl of `Socket` will also need to re-zero the buffer,
+            // but that's also kind of unavoidable.
+            //
+            // We should be warning the user not to call this often.
+            self.available = BytesMut::with_capacity(DEFAULT_BUF_SIZE);
+        }
     }
 }

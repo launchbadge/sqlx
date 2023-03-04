@@ -112,6 +112,20 @@ pub trait Connection: Send {
         Box::pin(async move { Ok(()) })
     }
 
+    /// Restore any buffers in the connection to their default capacity, if possible.
+    ///
+    /// Sending a large query or receiving a resultset with many columns can cause the connection
+    /// to allocate additional buffer space to fit the data which is retained afterwards in
+    /// case it's needed again. This can give the outward appearance of a memory leak, but is
+    /// in fact the intended behavior.
+    ///
+    /// Calling this method tells the connection to release that excess memory if it can,
+    /// though be aware that calling this too often can cause unnecessary thrashing or
+    /// fragmentation in the global allocator. If there's still data in the connection buffers
+    /// (unlikely if the last query was run to completion) then it may need to be moved to
+    /// allow the buffers to shrink.
+    fn shrink_buffers(&mut self);
+
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>>;
 

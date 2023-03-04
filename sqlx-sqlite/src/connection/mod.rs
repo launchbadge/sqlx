@@ -157,6 +157,11 @@ impl Connection for SqliteConnection {
         })
     }
 
+    #[inline]
+    fn shrink_buffers(&mut self) {
+        // No-op.
+    }
+
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // For SQLite, FLUSH does effectively nothing...
