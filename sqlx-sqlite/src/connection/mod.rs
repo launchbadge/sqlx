@@ -7,8 +7,8 @@ use sqlx_core::error::Error;
 use sqlx_core::transaction::Transaction;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug, Formatter};
-use std::ptr::NonNull;
 use std::os::raw::{c_int, c_void};
+use std::ptr::NonNull;
 
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
