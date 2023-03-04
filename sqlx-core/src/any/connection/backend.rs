@@ -47,6 +47,11 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         Box::pin(async move { Ok(()) })
     }
 
+    /// Forward to [`Connection::shrink_buffers()`].
+    ///
+    /// [`Connection::shrink_buffers()`]: method@crate::connection::Connection::shrink_buffers
+    fn shrink_buffers(&mut self);
+
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 

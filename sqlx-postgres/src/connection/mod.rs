@@ -199,6 +199,10 @@ impl Connection for PgConnection {
         })
     }
 
+    fn shrink_buffers(&mut self) {
+        self.stream.shrink_buffers();
+    }
+
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.wait_until_ready().boxed()

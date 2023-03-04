@@ -73,6 +73,18 @@ impl<DB: Database> AsMut<DB::Connection> for PoolConnection<DB> {
 }
 
 impl<DB: Database> PoolConnection<DB> {
+    /// Close this connection, allowing the pool to open a replacement.
+    ///
+    /// Equivalent to calling [`.detach()`] then [`.close()`], but the connection permit is retained
+    /// for the duration so that the pool may not exceed `max_connections`.
+    ///
+    /// [`.detach()`]: PoolConnection::detach
+    /// [`.close()`]: Connection::close
+    pub async fn close(mut self) -> Result<(), Error> {
+        let floating = self.take_live().float(self.pool.clone());
+        floating.inner.raw.close().await
+    }
+
     /// Detach this connection from the pool, allowing it to open a replacement.
     ///
     /// Note that if your application uses a single shared pool, this

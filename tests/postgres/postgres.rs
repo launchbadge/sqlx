@@ -1789,3 +1789,33 @@ async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> 
     }
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_shrink_buffers() -> anyhow::Result<()> {
+    // We don't really have a good way to test that `.shrink_buffers()` functions as expected
+    // without exposing a lot of internals, but we can at least be sure it doesn't
+    // materially affect the operation of the connection.
+
+    let mut conn = new::<Postgres>().await?;
+
+    // The connection buffer is only 8 KiB by default so this should definitely force it to grow.
+    let data = vec![0u8; 32 * 1024];
+
+    let ret: Vec<u8> = sqlx::query_scalar("SELECT $1::bytea")
+        .bind(&data)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, data);
+
+    conn.shrink_buffers();
+
+    let ret: i64 = sqlx::query_scalar("SELECT $1::int8")
+        .bind(&12345678i64)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, 12345678i64);
+
+    Ok(())
+}

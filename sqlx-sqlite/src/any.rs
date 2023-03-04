@@ -59,6 +59,10 @@ impl AnyConnectionBackend for SqliteConnection {
         SqliteTransactionManager::start_rollback(self)
     }
 
+    fn shrink_buffers(&mut self) {
+        // NO-OP.
+    }
+
     fn flush(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
         Connection::flush(self)
     }

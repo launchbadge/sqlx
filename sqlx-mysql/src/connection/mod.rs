@@ -108,4 +108,8 @@ impl Connection for MySqlConnection {
     {
         Transaction::begin(self)
     }
+
+    fn shrink_buffers(&mut self) {
+        self.stream.shrink_buffers();
+    }
 }
