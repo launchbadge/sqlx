@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use scoped_futures::ScopedBoxFuture;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
@@ -60,21 +61,27 @@ pub trait Connection: Send {
     /// use sqlx::postgres::{PgConnection, PgRow};
     /// use sqlx::Connection;
     ///
-    /// # pub async fn _f(conn: &mut PgConnection) -> sqlx::Result<Vec<PgRow>> {
-    /// conn.transaction(|txn| Box::pin(async move {
-    ///     sqlx::query("select * from ..").fetch_all(&mut **txn).await
-    /// })).await
+    /// # pub async fn _f<'a>(conn: &mut PgConnection, foo: &'a str) -> sqlx::Result<Vec<PgRow>> {
+    ///     conn.transaction(|txn| Box::pin(async move {
+    ///         println!("{foo}");
+    ///         sqlx::query("select * from ..").fetch_all(&mut **txn).await
+    ///     })).await
     /// # }
     /// ```
-    fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
+    fn transaction<'a, 'b, 'fut, F, R, E>(
+        &'a mut self,
+        callback: F,
+    ) -> BoxFuture<'fut, Result<R, E>>
     where
-        for<'c> F: FnOnce(&'c mut Transaction<'_, Self::Database>) -> BoxFuture<'c, Result<R, E>>
-            + 'a
+        for<'c> F: FnOnce(&'c mut Transaction<'a, Self::Database>) -> ScopedBoxFuture<'b, 'c, Result<R, E>>
+            + 'b
             + Send
             + Sync,
         Self: Sized,
-        R: Send,
-        E: From<Error> + Send,
+        R: Send + 'fut,
+        E: From<Error> + Send + 'fut,
+        'a: 'fut,
+        'b: 'fut,
     {
         Box::pin(async move {
             let mut transaction = self.begin().await?;
