@@ -28,8 +28,6 @@ impl PgConnection {
             // Sets the client-side encoding (character set).
             // <https://www.postgresql.org/docs/devel/multibyte.html#MULTIBYTE-CHARSET-SUPPORTED>
             ("client_encoding", "UTF8"),
-            // Sets the time zone for displaying and interpreting time stamps.
-            ("TimeZone", "UTC"),
         ];
 
         if let Some(ref extra_float_digits) = options.extra_float_digits {
@@ -40,9 +38,17 @@ impl PgConnection {
             params.push(("application_name", application_name));
         }
 
+        if let Some(ref timezone) = options.timezone {
+            params.push(("TimeZone", timezone));
+        }else {
+            params.push(("TimeZone", "UTC"));
+        }
+
         if let Some(ref options) = options.options {
             params.push(("options", options));
         }
+
+      
 
         stream
             .send(Startup {

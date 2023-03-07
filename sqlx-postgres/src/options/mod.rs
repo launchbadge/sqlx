@@ -36,6 +36,7 @@ mod ssl_mode;
 /// | `user` | result of `whoami` | PostgreSQL user name to connect as. |
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
+/// | `timezone` | `None` | The database time zone for displaying and interpreting time stamps. |
 /// | `dbname` | `None` | The database name. |
 /// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
@@ -93,6 +94,7 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
+    pub(crate) timezone: Option<String>,
     pub(crate) options: Option<String>,
 }
 
@@ -118,7 +120,7 @@ impl PgConnectOptions {
     ///  * `PGSSLKEY`
     ///  * `PGSSLMODE`
     ///  * `PGAPPNAME`
-    ///
+    ///  * `PGTIMEZONE`
     /// # Example
     ///
     /// ```rust
@@ -141,6 +143,8 @@ impl PgConnectOptions {
 
         let database = var("PGDATABASE").ok();
 
+        let timezone = var("PGTIMEZONE").ok();
+
         PgConnectOptions {
             port,
             host,
@@ -148,6 +152,7 @@ impl PgConnectOptions {
             username,
             password: var("PGPASSWORD").ok(),
             database,
+            timezone,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
             ssl_client_key: var("PGSSLKEY").ok().map(CertificateInput::from),
@@ -265,6 +270,20 @@ impl PgConnectOptions {
     /// ```
     pub fn database(mut self, database: &str) -> Self {
         self.database = Some(database.to_owned());
+        self
+    }
+
+    /// Sets the timezone . Defaults to be UTC.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .timezone("UTC");
+    /// ```
+    pub fn timezone(mut self, timezone: &str) -> Self {
+        self.timezone = Some(timezone.to_owned());
         self
     }
 
