@@ -119,11 +119,11 @@ cargo sqlx prepare
 ```
 
 Invoking `prepare` saves query metadata to `.sqlx` in the current directory.
-For workspaces where several crates are using query macros, pass the `--workspace` flag
+For workspaces where several crates are using query macros, pass the `--merged` flag
 to generate a single `.sqlx` directory at the root of the workspace.
 
 ```bash
-cargo sqlx prepare --workspace
+cargo sqlx prepare --merged
 ```
 
 Check this directory into version control and an active database connection will 
@@ -134,7 +134,7 @@ no longer be needed to build your project.
 ```bash
 cargo sqlx prepare --check
 # OR
-cargo sqlx prepare --check --workspace
+cargo sqlx prepare --check --merged
 ```
 
 Exits with a nonzero exit status if the data in `.sqlx` is out of date with the current
