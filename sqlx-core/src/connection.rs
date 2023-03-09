@@ -73,7 +73,9 @@ pub trait Connection: Send {
         callback: F,
     ) -> BoxFuture<'fut, Result<R, E>>
     where
-        for<'c> F: FnOnce(&'c mut Transaction<'a, Self::Database>) -> ScopedBoxFuture<'b, 'c, Result<R, E>>
+        for<'c> F: FnOnce(
+                &'c mut Transaction<'fut, Self::Database>,
+            ) -> ScopedBoxFuture<'b, 'c, Result<R, E>>
             + 'b
             + Send
             + Sync,
