@@ -6,6 +6,7 @@ use crate::protocol::text::{ColumnFlags, ColumnType};
 use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use std::borrow::Cow;
+use std::sync::Arc;
 
 const COLLATE_UTF8_GENERAL_CI: u16 = 33;
 const COLLATE_UTF8_UNICODE_CI: u16 = 192;
@@ -59,6 +60,55 @@ impl Encode<'_, MySql> for &'_ str {
 impl<'r> Decode<'r, MySql> for &'r str {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         value.as_str()
+    }
+}
+
+impl Type<MySql> for Box<str> {
+    fn type_info() -> MySqlTypeInfo {
+        <str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <str as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, MySql> for Box<str> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        <&str as Encode<MySql>>::encode(&**self, buf)
+    }
+}
+
+impl Decode<'_, MySql> for Box<str> {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        <&str as Decode<MySql>>::decode(value)
+            .map(ToOwned::to_owned)
+            .map(String::into_boxed_str)
+    }
+}
+
+impl Type<MySql> for Arc<str> {
+    fn type_info() -> MySqlTypeInfo {
+        <str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <str as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, MySql> for Arc<str> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        <&str as Encode<MySql>>::encode(&**self, buf)
+    }
+}
+
+impl Decode<'_, MySql> for Arc<str> {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        <&str as Decode<MySql>>::decode(value)
+            .map(ToOwned::to_owned)
+            .map(String::into_boxed_str)
+            .map(Arc::from)
     }
 }
 

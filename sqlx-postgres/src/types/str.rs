@@ -5,6 +5,7 @@ use crate::types::array_compatible;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef, Postgres};
 use std::borrow::Cow;
+use std::sync::Arc;
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
@@ -24,6 +25,26 @@ impl Type<Postgres> for str {
 }
 
 impl Type<Postgres> for Cow<'_, str> {
+    fn type_info() -> PgTypeInfo {
+        <&str as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <&str as Type<Postgres>>::compatible(ty)
+    }
+}
+
+impl Type<Postgres> for Arc<str> {
+    fn type_info() -> PgTypeInfo {
+        <&str as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <&str as Type<Postgres>>::compatible(ty)
+    }
+}
+
+impl Type<Postgres> for Box<str> {
     fn type_info() -> PgTypeInfo {
         <&str as Type<Postgres>>::type_info()
     }
@@ -63,6 +84,26 @@ impl PgHasArrayType for Cow<'_, str> {
     }
 }
 
+impl PgHasArrayType for Arc<str> {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
+    }
+}
+
+impl PgHasArrayType for Box<str> {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
+    }
+}
+
 impl PgHasArrayType for String {
     fn array_type_info() -> PgTypeInfo {
         <&str as PgHasArrayType>::array_type_info()
@@ -90,6 +131,18 @@ impl Encode<'_, Postgres> for Cow<'_, str> {
     }
 }
 
+impl Encode<'_, Postgres> for Arc<str> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        <&str as Encode<Postgres>>::encode(&**self, buf)
+    }
+}
+
+impl Encode<'_, Postgres> for Box<str> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        <&str as Encode<Postgres>>::encode(&**self, buf)
+    }
+}
+
 impl Encode<'_, Postgres> for String {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         <&str as Encode<Postgres>>::encode(&**self, buf)
@@ -105,6 +158,18 @@ impl<'r> Decode<'r, Postgres> for &'r str {
 impl<'r> Decode<'r, Postgres> for Cow<'r, str> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Cow::Borrowed(value.as_str()?))
+    }
+}
+
+impl Decode<'_, Postgres> for Arc<str> {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(Arc::from(value.as_str()?))
+    }
+}
+
+impl Decode<'_, Postgres> for Box<str> {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(value.as_str()?.to_owned().into_boxed_str())
     }
 }
 

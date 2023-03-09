@@ -6,6 +6,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 impl Type<Any> for str {
     fn type_info() -> AnyTypeInfo {
@@ -38,6 +39,52 @@ impl<'a> Decode<'a, Any> for &'a str {
             AnyValueKind::Text(Cow::Owned(_text)) => {
                 panic!("attempting to return a borrow that outlives its buffer")
             }
+            other => other.unexpected(),
+        }
+    }
+}
+
+impl Type<Any> for Box<str> {
+    fn type_info() -> AnyTypeInfo {
+        <str as Type<Any>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Any> for Box<str> {
+    fn encode_by_ref(&self, buf: &mut <Any as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        buf.0
+            .push(AnyValueKind::Text(Cow::Owned(self.clone().into_string())));
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, Any> for Box<str> {
+    fn decode(value: <Any as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+        match value.kind {
+            AnyValueKind::Text(text) => Ok(text.into_owned().into_boxed_str()),
+            other => other.unexpected(),
+        }
+    }
+}
+
+impl Type<Any> for Arc<str> {
+    fn type_info() -> AnyTypeInfo {
+        <str as Type<Any>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Any> for Arc<str> {
+    fn encode_by_ref(&self, buf: &mut <Any as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        buf.0
+            .push(AnyValueKind::Text(Cow::Owned(self.as_ref().to_owned())));
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, Any> for Arc<str> {
+    fn decode(value: <Any as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+        match value.kind {
+            AnyValueKind::Text(text) => Ok(Arc::from(text.into_owned().into_boxed_str())),
             other => other.unexpected(),
         }
     }

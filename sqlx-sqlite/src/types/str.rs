@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -24,6 +25,65 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
 impl<'r> Decode<'r, Sqlite> for &'r str {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text()
+    }
+}
+
+impl Type<Sqlite> for Box<str> {
+    fn type_info() -> SqliteTypeInfo {
+        <&str as Type<Sqlite>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Box<str> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
+
+        IsNull::No
+    }
+
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
+
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for Box<str> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        value
+            .text()
+            .map(ToOwned::to_owned)
+            .map(String::into_boxed_str)
+    }
+}
+
+impl Type<Sqlite> for Arc<str> {
+    fn type_info() -> SqliteTypeInfo {
+        <&str as Type<Sqlite>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Arc<str> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
+
+        IsNull::No
+    }
+
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(Cow::from(self))));
+
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for Arc<str> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        value
+            .text()
+            .map(ToOwned::to_owned)
+            .map(String::into_boxed_str)
+            .map(Arc::from)
     }
 }
 
