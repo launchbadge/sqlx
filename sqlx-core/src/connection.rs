@@ -166,7 +166,7 @@ pub struct LogSettings {
 impl Default for LogSettings {
     fn default() -> Self {
         LogSettings {
-            statements_level: LevelFilter::Info,
+            statements_level: LevelFilter::Debug,
             slow_statements_level: LevelFilter::Warn,
             slow_statements_duration: Duration::from_secs(1),
         }
