@@ -157,10 +157,17 @@ where
         }
     }
 
-    pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+    pub(super) fn save_in(
+        &self,
+        dir: impl AsRef<Path>,
+        tmp_dir: impl AsRef<Path>,
+    ) -> crate::Result<()> {
         // Output to a temporary file first, then move it atomically to avoid clobbering
         // other invocations trying to write to the same path.
-        let mut tmp_file = tempfile::NamedTempFile::new()
+
+        // Use a temp directory inside the workspace to avoid potential issues
+        // with persisting the file across filesystems.
+        let mut tmp_file = tempfile::NamedTempFile::new_in(tmp_dir)
             .map_err(|err| format!("failed to create query file: {:?}", err))?;
         serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
             .map_err(|err| format!("failed to serialize query data to file: {:?}", err))?;

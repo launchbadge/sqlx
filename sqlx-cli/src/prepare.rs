@@ -147,6 +147,14 @@ fn run_prepare_step(ctx: &PrepareCtx, cache_dir: &Path) -> anyhow::Result<()> {
         "Failed to create query cache directory: {:?}",
         cache_dir
     ))?;
+
+    // Create directory to hold temporary query files before they get persisted to SQLX_OFFLINE_DIR
+    let tmp_dir = ctx.metadata.target_directory().join("sqlx-tmp");
+    fs::create_dir_all(&tmp_dir).context(format!(
+        "Failed to create temporary query cache directory: {:?}",
+        cache_dir
+    ))?;
+
     // Only delete sqlx-*.json files to avoid accidentally deleting any user data.
     for query_file in glob_query_files(cache_dir).context("Failed to read query cache files")? {
         fs::remove_file(&query_file)
@@ -163,6 +171,7 @@ fn run_prepare_step(ctx: &PrepareCtx, cache_dir: &Path) -> anyhow::Result<()> {
         check_command
             .arg("check")
             .args(&ctx.cargo_args)
+            .env("SQLX_TMP", tmp_dir)
             .env("DATABASE_URL", &ctx.connect_opts.database_url)
             .env("SQLX_OFFLINE", "false")
             .env("SQLX_OFFLINE_DIR", cache_dir);

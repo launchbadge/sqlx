@@ -357,6 +357,19 @@ where
         if let Ok(dir) = env("SQLX_OFFLINE_DIR") {
             let path = PathBuf::from(&dir);
 
+            // Prefer SQLX_TMP if set explicitly.
+            // Otherwise fallback to CARGO_TARGET_DIR and then the standard target directory.
+            let tmp_dir = if let Ok(tmp_dir) = env("SQLX_TMP") {
+                PathBuf::from(tmp_dir)
+            } else if let Ok(target_dir) = env("CARGO_TARGET_DIR") {
+                PathBuf::from(target_dir)
+            } else {
+                let tmp_target = PathBuf::from("./target/sqlx");
+                fs::create_dir_all(&tmp_target)
+                    .map_err(|e| format!("Error creating cache directory: {e:?}"))?;
+                tmp_target
+            };
+
             match fs::metadata(&path) {
                 Err(e) => {
                     if e.kind() != io::ErrorKind::NotFound {
@@ -376,7 +389,7 @@ where
                     }
 
                     // .sqlx exists and is a directory, store data.
-                    data.save_in(path)?;
+                    data.save_in(path, tmp_dir)?;
                 }
             }
         }
