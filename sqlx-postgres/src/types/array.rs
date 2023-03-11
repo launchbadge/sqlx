@@ -1,5 +1,6 @@
 use sqlx_core::bytes::Buf;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -26,6 +27,26 @@ where
 
     fn array_compatible(ty: &PgTypeInfo) -> bool {
         T::array_compatible(ty)
+    }
+}
+
+impl PgHasArrayType for Box<str> {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
+    }
+}
+
+impl PgHasArrayType for Arc<str> {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
     }
 }
 

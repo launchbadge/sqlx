@@ -20,6 +20,9 @@
 
 use crate::database::Database;
 
+mod arced;
+mod boxed;
+
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 pub mod bstr;
