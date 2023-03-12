@@ -773,7 +773,7 @@ macro_rules! query_file_scalar_unchecked (
 /// You can also set it in `build.rustflags` in `.cargo/config.toml`:
 /// ```toml,ignore
 /// [build]
-/// rustflags = ["--cfg sqlx_macros_unstable"]
+/// rustflags = ["--cfg=sqlx_macros_unstable"]
 /// ```
 ///
 /// And then continue building and running your project normally.
