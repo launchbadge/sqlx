@@ -57,6 +57,12 @@ use crate::types::Type;
 #[serde(transparent)]
 pub struct Json<T: ?Sized>(pub T);
 
+impl<T> From<T> for Json<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
 impl<T> Deref for Json<T> {
     type Target = T;
 
