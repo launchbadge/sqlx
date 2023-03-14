@@ -1,6 +1,7 @@
 extern crate time_ as time;
 
 use std::ops::Bound;
+use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -71,6 +72,14 @@ test_type!(string<String>(Postgres,
     "'this is foo'" == format!("this is foo"),
 ));
 
+test_type!(boxed_str<Box<str>>(Postgres,
+    "'this is foo'" == Box::<str>::from("this is foo"),
+));
+
+test_type!(arced_str<Arc<str>>(Postgres,
+    "'this is foo'" == Arc::<str>::from("this is foo"),
+));
+
 test_type!(string_vec<Vec<String>>(Postgres,
     "array['one','two','three']::text[]"
         == vec!["one","two","three"],
@@ -80,6 +89,28 @@ test_type!(string_vec<Vec<String>>(Postgres,
 
     "array['Hello, World', '', 'Goodbye']::text[]"
         == vec!["Hello, World", "", "Goodbye"]
+));
+
+test_type!(boxed_str_boxed_array<Box<[Box<str>]>>(Postgres,
+    "array['one','two','three']::text[]"
+        == Box::<[Box::<str>]>::from(["one".into(),"two".into(),"three".into()]),
+
+    "array['', '\"']::text[]"
+        == Box::<[Box::<str>]>::from(["".into(), "\"".into()]),
+
+    "array['Hello, World', '', 'Goodbye']::text[]"
+        == Box::<[Box::<str>]>::from(["Hello, World".into(), "".into(), "Goodbye".into()])
+));
+
+test_type!(arced_str_arced_array<Arc<[Arc<str>]>>(Postgres,
+    "array['one','two','three']::text[]"
+        == Arc::<[Arc::<str>]>::from(["one".into(),"two".into(),"three".into()].as_slice()),
+
+    "array['', '\"']::text[]"
+        == Arc::<[Arc::<str>]>::from(["".into(), "\"".into()].as_slice()),
+
+    "array['Hello, World', '', 'Goodbye']::text[]"
+        == Arc::<[Arc::<str>]>::from(["Hello, World".into(), "".into(), "Goodbye".into()].as_slice())
 ));
 
 test_type!(string_array<[String; 3]>(Postgres,

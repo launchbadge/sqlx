@@ -1,5 +1,7 @@
 extern crate time_ as time;
 
+use std::sync::Arc;
+
 use sqlx::sqlite::{Sqlite, SqliteRow};
 use sqlx_core::row::Row;
 use sqlx_test::new;
@@ -27,6 +29,18 @@ test_type!(str<String>(Sqlite,
     "''" == ""
 ));
 
+/*test_type!(boxed_str<Box<str>>(Sqlite,
+    "'this is foo'" == Box::<str>::from("this is foo"),
+    "cast(x'7468697320006973206E756C2D636F6E7461696E696E67' as text)" == Box::<str>::from("this \0is nul-containing"),
+    "''" == Box::<str>::from("")
+));
+
+test_type!(arced_str<Arc<str>>(Sqlite,
+    "'this is foo'" == Arc::<str>::from("this is foo"),
+    "cast(x'7468697320006973206E756C2D636F6E7461696E696E67' as text)" == Arc::<str>::from("this \0is nul-containing"),
+    "''" == Arc::<str>::from("")
+));*/
+
 test_type!(bytes<Vec<u8>>(Sqlite,
     "X'DEADBEEF'"
         == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
@@ -35,6 +49,24 @@ test_type!(bytes<Vec<u8>>(Sqlite,
     "X'0000000052'"
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
+
+/*test_type!(boxed_bytes<Box<[u8]>>(Sqlite,
+    "X'DEADBEEF'"
+        == Box::<[u8]>::from([0xDE_u8, 0xAD, 0xBE, 0xEF]),
+    "X''"
+        == Box::<[u8]>::from([]),
+    "X'0000000052'"
+        == Box::<[u8]>::from([0_u8, 0, 0, 0, 0x52])
+));
+
+test_type!(arced_bytes<Arc<[u8]>>(Sqlite,
+    "X'DEADBEEF'"
+        == Arc::<[u8]>::from([0xDE_u8, 0xAD, 0xBE, 0xEF].as_slice()),
+    "X''"
+        == Arc::<[u8]>::from([].as_slice()),
+    "X'0000000052'"
+        == Arc::<[u8]>::from([0_u8, 0, 0, 0, 0x52].as_slice())
+));*/
 
 #[cfg(feature = "json")]
 mod json_tests {

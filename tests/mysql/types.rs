@@ -2,6 +2,7 @@ extern crate time_ as time;
 
 #[cfg(feature = "decimal")]
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
@@ -33,6 +34,20 @@ test_type!(string<String>(MySql,
     "''" == ""
 ));
 
+test_type!(boxed_str<Box<str>>(MySql,
+    "'helloworld'"
+        == Box::<str>::from("helloworld"),
+    "''"
+        == Box::<str>::from("")
+));
+
+test_type!(arced_str<Arc<str>>(MySql,
+    "'helloworld'"
+        == Arc::<str>::from("helloworld"),
+    "''"
+        == Arc::<str>::from("")
+));
+
 test_type!(bytes<Vec<u8>>(MySql,
     "X'DEADBEEF'"
         == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
@@ -40,6 +55,24 @@ test_type!(bytes<Vec<u8>>(MySql,
         == Vec::<u8>::new(),
     "X'0000000052'"
         == vec![0_u8, 0, 0, 0, 0x52]
+));
+
+test_type!(boxed_array<Box<[u8]>>(MySql,
+    "X'DEADBEEF'"
+        == Box::<[u8]>::from([0xDE_u8, 0xAD, 0xBE, 0xEF]),
+    "X''"
+        == Box::<[u8]>::from([]),
+    "X'0000000052'"
+        == Box::<[u8]>::from([0_u8, 0, 0, 0, 0x52])
+));
+
+test_type!(arced_array<Arc<[u8]>>(MySql,
+    "X'DEADBEEF'"
+        == Arc::<[u8]>::from([0xDE_u8, 0xAD, 0xBE, 0xEF].as_slice()),
+    "X''"
+        == Arc::<[u8]>::from([].as_slice()),
+    "X'0000000052'"
+        == Arc::<[u8]>::from([0_u8, 0, 0, 0, 0x52].as_slice())
 ));
 
 #[cfg(feature = "uuid")]
