@@ -729,7 +729,10 @@ async fn concurrent_read_and_write() {
 #[sqlx_macros::test]
 async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
-    conn.set_progress_handler(1, || false).await;
+    conn.lock_handle()
+        .await?
+        .set_progress_handler(1, || false)
+        .await;
 
     match sqlx::query("SELECT 'hello' AS title")
         .fetch_all(&mut conn)
