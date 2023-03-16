@@ -117,6 +117,9 @@ with C, those interactions are `unsafe`.
 
 SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and, the [`native-tls`] and [`rustls`] TLS backends. When adding the dependency, you must chose a runtime feature that is `runtime` + `tls`.
 
+NOTE: these examples are for the coming 0.7 release, which is currently in an alpha cycle.
+For the last stable release, 0.6.2, see [the previous verison of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
+
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
 [`actix`]: https://github.com/actix/actix-net
@@ -129,18 +132,18 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 # PICK ONE OF THE FOLLOWING:
 
 # tokio (no TLS)
-sqlx = { version = "0.6", features = [ "runtime-tokio" ] }
+sqlx = { version = "0.7", features = [ "runtime-tokio" ] }
 # tokio + native-tls
-sqlx = { version = "0.6", features = [ "runtime-tokio", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native" ] }
 # tokio + rustls
-sqlx = { version = "0.6", features = [ "runtime-tokio", "tls-rustls" ] }
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls" ] }
 
 # async-std (no TLS)
-sqlx = { version = "0.6", features = [ "runtime-async-std" ] }
+sqlx = { version = "0.7", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.6", features = [ "runtime-async-std", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native" ] }
 # async-std + rustls
-sqlx = { version = "0.6", features = [ "runtime-async-std", "tls-rustls" ] }
+sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls" ] }
 ```
 
 #### Cargo Feature Flags
@@ -153,25 +156,17 @@ be removed in the future.
 
 -   `runtime-async-std`: Use the `async-std` runtime without enabling a TLS backend.
 
--   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend.
+-   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend (SOFT-DEPRECATED).
 
--   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
+-   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend (SOFT-DEPRECATED).
 
 -   `runtime-tokio`: Use the `tokio` runtime without enabling a TLS backend.
 
--   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
+-   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend (SOFT-DEPRECATED).
 
--   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend.
-
--   `runtime-actix`: Use the `actix` runtime without enabling a TLS backend.
-
--   `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
-
--   `runtime-actix-rustls`: Use the `actix` runtime and `rustls` TLS backend.
+-   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend (SOFT-DEPRECATED).
 
     - Actix-web is fully compatible with Tokio and so a separate runtime feature is no longer needed.
-      The above three features exist only for backwards compatibility, and are in fact merely aliases to their 
-      `runtime-tokio` counterparts.
 
 -   `tls-native`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
 
@@ -199,8 +194,6 @@ be removed in the future.
 
 -   `bstr`: Add support for `bstr::BString`.
 
--   `git2`: Add support for `git2::Oid`.
-
 -   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
 -   `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
@@ -209,8 +202,7 @@ be removed in the future.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
 
--   `offline`: Enables building the macros in offline mode when a live database is not available (such as CI). 
-    -   Requires `sqlx-cli` installed to use. See [sqlx-cli/README.md][readme-offline].
+-   Offline mode is now always enabled. See [sqlx-cli/README.md][readme-offline].
 
 [readme-offline]: sqlx-cli/README.md#enable-building-in-offline-mode-with-query
 
@@ -238,21 +230,8 @@ See the `examples/` folder for more in-depth usage.
 
 ### Quickstart
 
-```toml
-[dependencies]
-# PICK ONE:
-# Async-std:
-sqlx = { version = "0.6", features = [  "runtime-async-std-native-tls", "postgres" ] }
-async-std = { version = "1", features = [ "attributes" ] }
-
-# Tokio:
-sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls" , "postgres" ] }
-tokio = { version = "1", features = ["full"] }
-
-# Actix-web:
-sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "postgres" ] }
-actix-web = "4"
-```
+NOTE: these examples are for the coming 0.7.0 release, which is currently in an alpha cycle.
+For the last stable release, 0.6.2, see [the previous verison of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
 
 ```rust
 use sqlx::postgres::PgPoolOptions;
