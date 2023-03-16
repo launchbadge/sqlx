@@ -36,8 +36,7 @@ impl Encode<'_, Postgres> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // FIXME: We should *really* be returning an error, Encode needs to be fallible
         // TIMESTAMP is encoded as the microseconds since the epoch
-        let epoch = NaiveDate::from_ymd(2000, 1, 1).and_hms(0, 0, 0);
-        let us = (*self - epoch)
+        let us = (*self - postgres_epoch_datetime())
             .num_microseconds()
             .unwrap_or_else(|| panic!("NaiveDateTime out of range for Postgres: {:?}", self));
 
@@ -54,9 +53,8 @@ impl<'r> Decode<'r, Postgres> for NaiveDateTime {
         Ok(match value.format() {
             PgValueFormat::Binary => {
                 // TIMESTAMP is encoded as the microseconds since the epoch
-                let epoch = NaiveDate::from_ymd(2000, 1, 1).and_hms(0, 0, 0);
                 let us = Decode::<Postgres>::decode(value)?;
-                epoch + Duration::microseconds(us)
+                postgres_epoch_datetime() + Duration::microseconds(us)
             }
 
             PgValueFormat::Text => {
@@ -106,4 +104,12 @@ impl<'r> Decode<'r, Postgres> for DateTime<FixedOffset> {
         let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
         Ok(Utc.fix().from_utc_datetime(&naive))
     }
+}
+
+#[inline]
+fn postgres_epoch_datetime() -> NaiveDateTime {
+    NaiveDate::from_ymd_opt(2000, 1, 1)
+        .expect("expected 2000-01-01 to be a valid NaiveDate")
+        .and_hms_opt(0, 0, 0)
+        .expect("expected 2000-01-01T00:00:00 to be a valid NaiveDateTime")
 }

@@ -71,15 +71,20 @@ mod chrono {
 
                     // TIME is encoded as the microseconds since midnight
                     let us = buf.read_i64::<BigEndian>()?;
-                    let time = NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(us);
+                    // default is midnight, there is a canary test for this
+                    // in `sqlx-postgres/src/types/chrono/time.rs`
+                    let time = NaiveTime::default() + Duration::microseconds(us);
 
                     // OFFSET is encoded as seconds from UTC
-                    let seconds = buf.read_i32::<BigEndian>()?;
+                    let offset_seconds = buf.read_i32::<BigEndian>()?;
 
-                    Ok(PgTimeTz {
-                        time,
-                        offset: FixedOffset::west(seconds),
-                    })
+                    let offset = FixedOffset::west_opt(offset_seconds).ok_or_else(|| {
+                        format!(
+                            "server returned out-of-range offset for `TIMETZ`: {offset_seconds} seconds"
+                        )
+                    })?;
+
+                    Ok(PgTimeTz { time, offset })
                 }
 
                 PgValueFormat::Text => {

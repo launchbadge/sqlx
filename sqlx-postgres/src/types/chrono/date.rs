@@ -21,7 +21,7 @@ impl PgHasArrayType for NaiveDate {
 impl Encode<'_, Postgres> for NaiveDate {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // DATE is encoded as the days since epoch
-        let days = (*self - NaiveDate::from_ymd(2000, 1, 1)).num_days() as i32;
+        let days = (*self - postgres_epoch_date()).num_days() as i32;
         Encode::<Postgres>::encode(&days, buf)
     }
 
@@ -36,10 +36,15 @@ impl<'r> Decode<'r, Postgres> for NaiveDate {
             PgValueFormat::Binary => {
                 // DATE is encoded as the days since epoch
                 let days: i32 = Decode::<Postgres>::decode(value)?;
-                NaiveDate::from_ymd(2000, 1, 1) + Duration::days(days.into())
+                postgres_epoch_date() + Duration::days(days.into())
             }
 
             PgValueFormat::Text => NaiveDate::parse_from_str(value.as_str()?, "%Y-%m-%d")?,
         })
     }
+}
+
+#[inline]
+fn postgres_epoch_date() -> NaiveDate {
+    NaiveDate::from_ymd_opt(2000, 1, 1).expect("expected 2000-01-01 to be a valid NaiveDate")
 }

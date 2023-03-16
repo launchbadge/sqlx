@@ -106,7 +106,8 @@ impl<'r> Decode<'r, MySql> for NaiveTime {
                 // are 0 then the length is 0 and no further data is send
                 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
                 if len == 0 {
-                    return Ok(NaiveTime::from_hms_micro(0, 0, 0, 0));
+                    return Ok(NaiveTime::from_hms_micro_opt(0, 0, 0, 0)
+                        .expect("expected NaiveTime to construct from all zeroes"));
                 }
 
                 // is negative : int<1>
@@ -117,7 +118,7 @@ impl<'r> Decode<'r, MySql> for NaiveTime {
                 // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
                 buf.advance(4);
 
-                Ok(decode_time(len - 5, buf))
+                decode_time(len - 5, buf)
             }
 
             MySqlValueFormat::Text => {
@@ -152,7 +153,7 @@ impl<'r> Decode<'r, MySql> for NaiveDate {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
-                decode_date(&value.as_bytes()?[1..]).ok_or_else(|| UnexpectedNullError.into())
+                decode_date(&value.as_bytes()?[1..])?.ok_or_else(|| UnexpectedNullError.into())
             }
 
             MySqlValueFormat::Text => {
@@ -212,12 +213,13 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
                 let buf = value.as_bytes()?;
 
                 let len = buf[0];
-                let date = decode_date(&buf[1..]).ok_or(UnexpectedNullError)?;
+                let date = decode_date(&buf[1..])?.ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {
-                    date.and_time(decode_time(len - 4, &buf[5..]))
+                    date.and_time(decode_time(len - 4, &buf[5..])?)
                 } else {
-                    date.and_hms(0, 0, 0)
+                    date.and_hms_opt(0, 0, 0)
+                        .expect("expected `NaiveDate::and_hms_opt(0, 0, 0)` to be valid")
                 };
 
                 Ok(dt)
@@ -241,17 +243,21 @@ fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) {
     buf.push(date.day() as u8);
 }
 
-fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
-    if buf.len() == 0 {
+fn decode_date(mut buf: &[u8]) -> Result<Option<NaiveDate>, BoxDynError> {
+    match buf.len() {
         // MySQL specifies that if there are no bytes, this is all zeros
-        None
-    } else {
-        let year = buf.get_u16_le();
-        Some(NaiveDate::from_ymd(
-            year as i32,
-            buf[0] as u32,
-            buf[1] as u32,
-        ))
+        0 => Ok(None),
+        4.. => {
+            let year = buf.get_u16_le() as i32;
+            let month = buf[0] as u32;
+            let day = buf[1] as u32;
+
+            let date = NaiveDate::from_ymd_opt(year, month, day)
+                .ok_or_else(|| format!("server returned invalid date: {year}/{month}/{day}"))?;
+
+            Ok(Some(date))
+        }
+        len => Err(format!("expected at least 4 bytes for date, got {len}").into()),
     }
 }
 
@@ -265,7 +271,7 @@ fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
     }
 }
 
-fn decode_time(len: u8, mut buf: &[u8]) -> NaiveTime {
+fn decode_time(len: u8, mut buf: &[u8]) -> Result<NaiveTime, BoxDynError> {
     let hour = buf.get_u8();
     let minute = buf.get_u8();
     let seconds = buf.get_u8();
@@ -277,5 +283,6 @@ fn decode_time(len: u8, mut buf: &[u8]) -> NaiveTime {
         0
     };
 
-    NaiveTime::from_hms_micro(hour as u32, minute as u32, seconds as u32, micros as u32)
+    NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, seconds as u32, micros as u32)
+        .ok_or_else(|| format!("server returned invalid time: {hour:02}:{minute:02}:{seconds:02}; micros: {micros}").into())
 }
