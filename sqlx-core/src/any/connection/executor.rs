@@ -1,7 +1,4 @@
-use crate::any::{
-    Any, AnyColumn, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo,
-};
-use crate::database::Database;
+use crate::any::{Any, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -55,25 +52,5 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         'c: 'e,
     {
         self.backend.describe(sql)
-    }
-}
-
-fn map_describe<DB: Database>(info: Describe<DB>) -> Describe<Any>
-where
-    AnyTypeInfo: From<DB::TypeInfo>,
-    AnyColumn: From<DB::Column>,
-{
-    let parameters = match info.parameters {
-        None => None,
-        Some(Either::Right(num)) => Some(Either::Right(num)),
-        Some(Either::Left(params)) => {
-            Some(Either::Left(params.into_iter().map(Into::into).collect()))
-        }
-    };
-
-    Describe {
-        parameters,
-        nullable: info.nullable,
-        columns: info.columns.into_iter().map(Into::into).collect(),
     }
 }

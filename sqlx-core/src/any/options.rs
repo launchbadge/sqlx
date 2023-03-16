@@ -45,7 +45,7 @@ impl ConnectOptions for AnyConnectOptions {
 
     #[inline]
     fn connect(&self) -> BoxFuture<'_, Result<AnyConnection, Error>> {
-        Box::pin(AnyConnection::establish(self))
+        AnyConnection::connect(self)
     }
 
     fn log_statements(mut self, level: LevelFilter) -> Self {

@@ -14,7 +14,6 @@ use sqlx_core::transaction::{
 };
 use sqlx_core::Either;
 
-use crate::connection::collation::create_collation;
 use crate::connection::describe::describe;
 use crate::connection::establish::EstablishParams;
 use crate::connection::ConnectionState;
@@ -30,7 +29,7 @@ use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStateme
 pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<Command>,
     /// The `sqlite3` pointer. NOTE: access is unsynchronized!
-    pub(crate) handle_raw: ConnectionHandleRaw,
+    pub(crate) _handle_raw: ConnectionHandleRaw,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
 }
@@ -63,10 +62,6 @@ enum Command {
     },
     Rollback {
         tx: Option<rendezvous_oneshot::Sender<Result<(), Error>>>,
-    },
-    CreateCollation {
-        create_collation:
-            Box<dyn FnOnce(&mut ConnectionState) -> Result<(), Error> + Send + Sync + 'static>,
     },
     UnlockDb,
     ClearCache {
@@ -109,7 +104,7 @@ impl ConnectionWorker {
                 if establish_tx
                     .send(Ok(Self {
                         command_tx,
-                        handle_raw: conn.handle.to_raw(),
+                        _handle_raw: conn.handle.to_raw(),
                         shared: Arc::clone(&shared),
                     }))
                     .is_err()
@@ -241,11 +236,6 @@ impl ConnectionWorker {
                                 }
                             }
                         }
-                        Command::CreateCollation { create_collation } => {
-                            if let Err(error) = (create_collation)(&mut conn) {
-                                tracing::warn!(%error, "error applying collation in background worker");
-                            }
-                        }
                         Command::ClearCache { tx } => {
                             conn.statements.clear();
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
@@ -362,23 +352,6 @@ impl ConnectionWorker {
             .map_err(|_| Error::WorkerCrashed)?;
 
         rx.recv().await.map_err(|_| Error::WorkerCrashed)
-    }
-
-    pub fn create_collation(
-        &mut self,
-        name: &str,
-        compare: impl Fn(&str, &str) -> std::cmp::Ordering + Send + Sync + 'static,
-    ) -> Result<(), Error> {
-        let name = name.to_string();
-
-        self.command_tx
-            .send(Command::CreateCollation {
-                create_collation: Box::new(move |conn| {
-                    create_collation(&mut conn.handle, &name, compare)
-                }),
-            })
-            .map_err(|_| Error::WorkerCrashed)?;
-        Ok(())
     }
 
     pub(crate) async fn clear_cache(&mut self) -> Result<(), Error> {

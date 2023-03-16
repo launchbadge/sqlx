@@ -10,7 +10,6 @@ use serde::{Serialize, Serializer};
 
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
-use sqlx_core::executor::Executor;
 
 use crate::database::DatabaseExt;
 
@@ -26,13 +25,6 @@ pub struct QueryData<DB: Database> {
 }
 
 impl<DB: Database> QueryData<DB> {
-    pub async fn from_db(
-        conn: impl Executor<'_, Database = DB>,
-        query: &str,
-    ) -> crate::Result<Self> {
-        Ok(Self::from_describe(query, conn.describe(query).await?))
-    }
-
     pub fn from_describe(query: &str, describe: Describe<DB>) -> Self {
         QueryData {
             db_name: SerializeDbName::default(),

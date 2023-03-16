@@ -86,12 +86,6 @@ impl ConnectionHandle {
     }
 }
 
-impl ConnectionHandleRaw {
-    pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
-        self.0.as_ptr()
-    }
-}
-
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         unsafe {

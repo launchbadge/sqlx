@@ -1,14 +1,8 @@
 use std::borrow::Cow;
-use std::marker::PhantomData;
-use std::num::TryFromIntError;
 
-use crate::any::error::mismatched_types;
 use crate::any::{Any, AnyTypeInfo, AnyTypeInfoKind};
 use crate::database::{Database, HasValueRef};
-use crate::decode::Decode;
-use crate::error::{BoxDynError, Error};
-use crate::io::Encode;
-use crate::type_info::TypeInfo;
+use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::value::{Value, ValueRef};
 
