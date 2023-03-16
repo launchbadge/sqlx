@@ -9,6 +9,8 @@ use rand::Rng;
 use sha2::{Digest, Sha256};
 use stringprep::saslprep;
 
+use base64::prelude::{Engine as _, BASE64_STANDARD};
+
 const GS2_HEADER: &str = "n,,";
 const CHANNEL_ATTR: &str = "c";
 const USERNAME_ATTR: &str = "n";
@@ -48,7 +50,8 @@ pub(crate) async fn authenticate(
     }
 
     // channel-binding = "c=" base64
-    let channel_binding = format!("{}={}", CHANNEL_ATTR, base64::encode(GS2_HEADER));
+    let mut channel_binding = format!("{}=", CHANNEL_ATTR);
+    BASE64_STANDARD.encode_string(GS2_HEADER, &mut channel_binding);
 
     // "n=" saslname ;; Usernames are prepared using SASLprep.
     let username = format!("{}={}", USERNAME_ATTR, options.username);
@@ -144,12 +147,12 @@ pub(crate) async fn authenticate(
     mac.update(&auth_message.as_bytes());
 
     // client-final-message = client-final-message-without-proof "," proof
-    let client_final_message = format!(
-        "{client_final_message_wo_proof},{client_proof_attr}={client_proof}",
+    let mut client_final_message = format!(
+        "{client_final_message_wo_proof},{client_proof_attr}=",
         client_final_message_wo_proof = client_final_message_wo_proof,
         client_proof_attr = CLIENT_PROOF_ATTR,
-        client_proof = base64::encode(&client_proof)
     );
+    BASE64_STANDARD.encode_string(client_proof, &mut client_final_message);
 
     stream.send(SaslResponse(&client_final_message)).await?;
 
