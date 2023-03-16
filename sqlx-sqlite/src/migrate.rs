@@ -7,7 +7,6 @@ use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
 use crate::query::query;
 use crate::query_as::query_as;
-use crate::query_scalar::query_scalar;
 use crate::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
 use std::str::FromStr;

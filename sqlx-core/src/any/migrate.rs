@@ -1,10 +1,8 @@
 use crate::any::driver;
-use crate::any::kind::AnyKind;
 use crate::any::{Any, AnyConnection};
 use crate::error::Error;
 use crate::migrate::{AppliedMigration, Migrate, MigrateDatabase, MigrateError, Migration};
 use futures_core::future::BoxFuture;
-use std::str::FromStr;
 use std::time::Duration;
 
 impl MigrateDatabase for Any {

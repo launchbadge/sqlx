@@ -77,7 +77,7 @@ where
     #[cfg(feature = "_tls-native-tls")]
     return Ok(with_socket.with_socket(tls_native_tls::handshake(socket, config).await?));
 
-    #[cfg(feature = "_tls-rustls")]
+    #[cfg(all(feature = "_tls-rustls", not(feature = "_tls-native-tls")))]
     return Ok(with_socket.with_socket(tls_rustls::handshake(socket, config).await?));
 
     #[cfg(not(any(feature = "_tls-native-tls", feature = "_tls-rustls")))]

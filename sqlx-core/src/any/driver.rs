@@ -1,21 +1,12 @@
 use crate::any::connection::AnyConnectionBackend;
-use crate::any::{
-    Any, AnyArguments, AnyConnectOptions, AnyConnection, AnyQueryResult, AnyRow, AnyStatement,
-    AnyTypeInfo,
-};
+use crate::any::{AnyConnectOptions, AnyConnection};
 use crate::common::DebugFn;
 use crate::connection::Connection;
 use crate::database::Database;
-use crate::describe::Describe;
-use crate::error::BoxDynError;
-use crate::transaction::Transaction;
 use crate::Error;
-use either::Either;
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
 use once_cell::sync::OnceCell;
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use url::Url;
 
 static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();
@@ -52,7 +43,7 @@ impl AnyDriver {
         Self {
             name: DB::NAME,
             url_schemes: DB::URL_SCHEMES,
-            connect: DebugFn(AnyConnection::connect::<DB>),
+            connect: DebugFn(AnyConnection::connect_with_db::<DB>),
             migrate_database: None,
         }
     }

@@ -1,5 +1,4 @@
 use futures_util::future;
-use rustls::{Certificate, PrivateKey};
 use std::io::{self, BufReader, Cursor, Read, Write};
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -13,7 +12,7 @@ use rustls::{
 use crate::error::Error;
 use crate::io::ReadBuf;
 use crate::net::tls::util::StdSocket;
-use crate::net::tls::{CertificateInput, TlsConfig};
+use crate::net::tls::TlsConfig;
 use crate::net::Socket;
 
 pub struct RustlsSocket<S: Socket> {

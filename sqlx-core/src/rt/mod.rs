@@ -23,7 +23,6 @@ pub enum JoinHandle<T> {
     _Phantom(PhantomData<fn() -> T>),
 }
 
-#[track_caller]
 pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, TimeoutError> {
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {
@@ -43,7 +42,6 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     missing_rt((duration, f))
 }
 
-#[track_caller]
 pub async fn sleep(duration: Duration) {
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {
@@ -99,7 +97,6 @@ where
     missing_rt(f)
 }
 
-#[track_caller]
 pub async fn yield_now() {
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {

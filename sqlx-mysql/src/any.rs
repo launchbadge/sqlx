@@ -7,7 +7,6 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
-use sqlx_core::any::driver::AnyDriver;
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
@@ -17,7 +16,6 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
-use std::borrow::Cow;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
 
@@ -102,7 +100,7 @@ impl AnyConnectionBackend for MySqlConnection {
         let args = arguments.as_ref().map(AnyArguments::convert_to);
 
         Box::pin(async move {
-            let mut stream = self.run(query, args, persistent).await?;
+            let stream = self.run(query, args, persistent).await?;
             futures_util::pin_mut!(stream);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {

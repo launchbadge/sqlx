@@ -5,23 +5,17 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
-use std::borrow::Cow;
-use std::sync::Arc;
 
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
-    AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValue, AnyValueKind,
+    AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind,
 };
 
 use crate::type_info::DataType;
-use sqlx_core::any::driver::AnyDriver;
-use sqlx_core::column::Column;
 use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
-use sqlx_core::ext::ustr::UStr;
-use sqlx_core::row::Row;
 use sqlx_core::transaction::TransactionManager;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Sqlite);
@@ -109,7 +103,7 @@ impl AnyConnectionBackend for SqliteConnection {
         let args = arguments.map(map_arguments);
 
         Box::pin(async move {
-            let mut stream = self
+            let stream = self
                 .worker
                 .execute(query, args, self.row_channel_size, persistent)
                 .map_ok(flume::Receiver::into_stream)

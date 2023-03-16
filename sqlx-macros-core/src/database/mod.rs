@@ -62,7 +62,7 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
 
             let conn = match cache.entry(database_url.to_string()) {
                 hash_map::Entry::Occupied(hit) => hit.into_mut(),
-                hash_map::Entry::Vacant(mut miss) => {
+                hash_map::Entry::Vacant(miss) => {
                     miss.insert(DB::Connection::connect(&database_url).await?)
                 }
             };

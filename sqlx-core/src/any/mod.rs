@@ -69,8 +69,7 @@ where
 {
     fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> crate::encode::IsNull {
         if let Some(value) = self {
-            value.encode_by_ref(buf);
-            crate::encode::IsNull::No
+            value.encode_by_ref(buf)
         } else {
             buf.0.push(AnyValueKind::Null);
             crate::encode::IsNull::Yes

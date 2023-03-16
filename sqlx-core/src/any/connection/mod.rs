@@ -10,7 +10,6 @@ pub use backend::AnyConnectionBackend;
 use crate::transaction::Transaction;
 
 mod backend;
-mod establish;
 mod executor;
 
 /// A connection to _any_ SQLx database.
@@ -33,7 +32,14 @@ impl AnyConnection {
         self.backend.name()
     }
 
-    pub(crate) fn connect<DB: Database>(
+    pub(crate) fn connect(options: &AnyConnectOptions) -> BoxFuture<'_, crate::Result<Self>> {
+        Box::pin(async {
+            let driver = crate::any::driver::from_url(&options.database_url)?;
+            (driver.connect)(options).await
+        })
+    }
+
+    pub(crate) fn connect_with_db<DB: Database>(
         options: &AnyConnectOptions,
     ) -> BoxFuture<'_, crate::Result<Self>>
     where

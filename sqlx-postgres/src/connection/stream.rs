@@ -5,10 +5,7 @@ use std::str::FromStr;
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
-use sqlx_core::{
-    bytes::{Buf, Bytes},
-    logger,
-};
+use sqlx_core::bytes::{Buf, Bytes};
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
