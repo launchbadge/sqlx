@@ -54,9 +54,8 @@ pub struct LockedSqliteHandle<'a> {
 }
 
 /// Represents a callback handler that will be shared with the underlying sqlite3 connection.
-pub(crate) struct Handler(NonNull<dyn FnMut() -> bool>);
+pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send>);
 unsafe impl Send for Handler {}
-unsafe impl Sync for Handler {}
 
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
@@ -75,9 +74,12 @@ pub(crate) struct ConnectionState {
 
 impl ConnectionState {
     /// Drops the `progress_handler_callback` if it exists.
-    pub(crate) fn drop_progress_handler_callback(&mut self) {
+    pub(crate) fn remove_progress_handler(&mut self) {
         if let Some(mut handler) = self.progress_handler_callback.take() {
-            let _ = unsafe { Box::from_raw(handler.0.as_mut()) };
+            unsafe {
+                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, 0 as *mut _);
+                let _ = { Box::from_raw(handler.0.as_mut()) };
+            }
         }
     }
 }
@@ -250,14 +252,16 @@ impl LockedSqliteHandle<'_> {
     /// The progress handler callback must not do anything that will modify the database connection that invoked
     /// the progress handler. Note that sqlite3_prepare_v2() and sqlite3_step() both modify their database connections
     /// in this context.
-    pub async fn set_progress_handler<F>(&mut self, num_ops: i32, mut callback: F)
+    pub fn set_progress_handler<F>(&mut self, num_ops: i32, mut callback: F)
     where
         F: FnMut() -> bool + Send + 'static,
     {
         unsafe {
-            let callback = NonNull::new_unchecked(&mut callback as *mut _);
+            let callback_boxed = Box::new(callback);
+            // SAFETY: `Box::into_raw()` always returns a non-null pointer.
+            let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
             let handler = callback.as_ptr() as *mut _;
-            self.guard.drop_progress_handler_callback();
+            self.guard.remove_progress_handler();
             self.guard.progress_handler_callback = Some(Handler(callback));
 
             sqlite3_progress_handler(
@@ -268,21 +272,13 @@ impl LockedSqliteHandle<'_> {
             );
         }
     }
-
-    /// Removes a previously set progress handler on a database connection.
-    pub async fn remove_progress_handler(&mut self) {
-        unsafe {
-            sqlite3_progress_handler(self.as_raw_handle().as_mut(), 0, None, 0 as *mut _);
-            self.guard.drop_progress_handler_callback();
-        }
-    }
 }
 
 impl Drop for ConnectionState {
     fn drop(&mut self) {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
-        self.drop_progress_handler_callback();
+        self.remove_progress_handler();
     }
 }
 
