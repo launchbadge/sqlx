@@ -272,6 +272,11 @@ impl LockedSqliteHandle<'_> {
             );
         }
     }
+
+    /// Removes the progress handler on a database connection. The method does nothing if no handler was set.
+    pub fn remove_progress_handler(&mut self) {
+        self.guard.remove_progress_handler();
+    }
 }
 
 impl Drop for ConnectionState {
