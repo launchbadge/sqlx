@@ -6,6 +6,8 @@ use sqlx_core::bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::io::Decode;
 
+use base64::prelude::{Engine as _, BASE64_STANDARD};
+
 // On startup, the server sends an appropriate authentication request message,
 // to which the frontend must reply with an appropriate authentication
 // response message (such as a password).
@@ -150,7 +152,7 @@ impl Decode<'_> for AuthenticationSaslContinue {
                 }
 
                 b's' => {
-                    salt = base64::decode(value).map_err(Error::protocol)?;
+                    salt = BASE64_STANDARD.decode(value).map_err(Error::protocol)?;
                 }
 
                 _ => {}
@@ -180,7 +182,7 @@ impl Decode<'_> for AuthenticationSaslFinal {
             let value = &item[2..];
 
             if let b'v' = key {
-                verifier = base64::decode(value).map_err(Error::protocol)?;
+                verifier = BASE64_STANDARD.decode(value).map_err(Error::protocol)?;
             }
         }
 
