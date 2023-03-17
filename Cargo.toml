@@ -48,7 +48,7 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all", "runtime-tokio-native-tls"]
+features = ["all-databases", "_unstable-all-types"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
