@@ -55,6 +55,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["any", "macros", "migrate", "json"]
 macros = ["sqlx-macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
+offline = ["sqlx-core/offline"]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
