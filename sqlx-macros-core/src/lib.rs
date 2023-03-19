@@ -14,6 +14,11 @@
 //! And then make releases in lockstep with `sqlx-core`. We recommend all driver crates, in-tree
 //! or otherwise, use the same version numbers as `sqlx-core` to avoid confusion.
 
+#![cfg_attr(
+    any(sqlx_macros_unstable, procmacro2_semver_exempt),
+    feature(track_path)
+)]
+
 use once_cell::sync::Lazy;
 
 use crate::query::QueryDriver;
