@@ -1,3 +1,6 @@
+#[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
+extern crate proc_macro;
+
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha384};
