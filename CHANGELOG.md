@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### 0.6.3 - 2023-03-21
+
+This is a hotfix to address the breakage caused by transitive dependencies upgrading to `syn = "2"`.
+
+We set `default-features = false` for our dependency on `syn = "1"` to be good crates.io citizens, 
+but failed to enable the features we actually used, which went undetected because we transitively depended on
+`syn` with the default features enabled through other crates, 
+and so they were also on for us because features are additive.
+
+When those other dependencies upgraded to `syn = "2"` it was no longer enabling those features for us, 
+and so compilation broke for projects that don't also depend on `syn = "1"`, transitively or otherwise.
+
+There is no PR for this fix as there was no longer a dedicated development branch for `0.6`, 
+but discussion can be found in [issue #2418].
+
+As of this release, the `0.7` release is in alpha and so development is no longer occurring against `0.6`.
+This fix will be forward-ported to `0.7`.
+
+[issue #2418]: https://github.com/launchbadge/sqlx/issues/2418
+
 ## 0.6.2 - 2022-09-14
 
 [25 pull requests][0.6.2-prs] were merged this release cycle.
