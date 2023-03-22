@@ -1,6 +1,3 @@
-#![feature(unboxed_closures)]
-#![feature(fn_traits)]
-
 use futures::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -10,7 +7,7 @@ use sqlx::{
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -754,40 +751,32 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::Result<()> {
-    static OBJECTS_DROPPED: AtomicUsize = AtomicUsize::new(0);
-
-    struct Handler(pub &'static str);
-    impl FnOnce<()> for Handler {
-        type Output = bool;
-
-        extern "rust-call" fn call_once(mut self, args: ()) -> bool {
-            self.call_mut(args)
-        }
-    }
-    impl FnMut<()> for Handler {
-        extern "rust-call" fn call_mut(&mut self, _args: ()) -> bool {
-            assert_eq!(3, self.0.len());
-            false
-        }
-    }
-    impl Drop for Handler {
-        fn drop(&mut self) {
-            OBJECTS_DROPPED.fetch_add(1, Ordering::Relaxed);
-        }
-    }
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
 
     {
         let mut conn = new::<Sqlite>().await?;
 
-        conn.lock_handle()
-            .await?
-            .set_progress_handler(1, Handler("foo"));
-        conn.lock_handle()
-            .await?
-            .set_progress_handler(1, Handler("bar"));
-        conn.lock_handle()
-            .await?
-            .set_progress_handler(1, Handler("baz"));
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         match sqlx::query("SELECT 'hello' AS title")
             .fetch_all(&mut conn)
@@ -802,10 +791,6 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
         conn.lock_handle().await?.remove_progress_handler();
     }
 
-    assert_eq!(
-        3,
-        OBJECTS_DROPPED.load(Ordering::Relaxed),
-        "expected all handlers to be dropped"
-    );
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
 }

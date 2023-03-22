@@ -54,7 +54,7 @@ pub struct LockedSqliteHandle<'a> {
 }
 
 /// Represents a callback handler that will be shared with the underlying sqlite3 connection.
-pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send>);
+pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send + 'static>);
 unsafe impl Send for Handler {}
 
 pub(crate) struct ConnectionState {
