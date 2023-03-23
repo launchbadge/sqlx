@@ -28,6 +28,7 @@ path = "src/bin/cargo-sqlx.rs"
 dotenvy = "0.15.0"
 tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread"] }
 sqlx = { workspace = true, default-features = false, features = [
+    "runtime-tokio",
     "migrate",
     "any",
 ] }
