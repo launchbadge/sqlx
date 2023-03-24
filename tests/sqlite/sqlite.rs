@@ -7,6 +7,7 @@ use sqlx::{
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
+use std::sync::Arc;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -724,4 +725,72 @@ async fn concurrent_read_and_write() {
 
     read.await;
     write.await;
+}
+
+#[sqlx_macros::test]
+async fn test_query_with_progress_handler() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_progress_handler(1, move || {
+        assert_eq!(state, "test");
+        false
+    });
+
+    match sqlx::query("SELECT 'hello' AS title")
+        .fetch_all(&mut conn)
+        .await
+    {
+        Err(sqlx::Error::Database(err)) => assert_eq!(err.message(), String::from("interrupted")),
+        _ => panic!("expected an interrupt"),
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::Result<()> {
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+
+    {
+        let mut conn = new::<Sqlite>().await?;
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            println!("{:?}", o);
+            false
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        match sqlx::query("SELECT 'hello' AS title")
+            .fetch_all(&mut conn)
+            .await
+        {
+            Err(sqlx::Error::Database(err)) => {
+                assert_eq!(err.message(), String::from("interrupted"))
+            }
+            _ => panic!("expected an interrupt"),
+        }
+
+        conn.lock_handle().await?.remove_progress_handler();
+    }
+
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
 }
