@@ -6,7 +6,8 @@ use std::time::SystemTime;
 
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, WebPkiVerifier},
-    ClientConfig, ClientConnection, Error as TlsError, OwnedTrustAnchor, RootCertStore, ServerName,
+    CertificateError, ClientConfig, ClientConnection, Error as TlsError, OwnedTrustAnchor,
+    RootCertStore, ServerName,
 };
 
 use crate::error::Error;
@@ -234,8 +235,8 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             ocsp_response,
             now,
         ) {
-            Err(TlsError::InvalidCertificateData(reason))
-                if reason.contains("CertNotValidForName") =>
+            Err(TlsError::InvalidCertificate(reason))
+                if reason == CertificateError::NotValidForName =>
             {
                 Ok(ServerCertVerified::assertion())
             }
