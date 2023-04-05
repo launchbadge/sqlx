@@ -24,7 +24,8 @@ impl<'s> MigrationSource<'s> for &'s Path {
             let mut migrations = Vec::new();
 
             while let Some(entry) = s.next().await? {
-                if !entry.metadata.is_file() {
+                // std::fs::metadata traverses symlinks
+                if !std::fs::metadata(&entry.path)?.is_file() {
                     // not a file; ignore
                     continue;
                 }
