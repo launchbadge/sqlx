@@ -175,6 +175,8 @@ rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
+criterion = {version = "0.4", features = ["async_tokio"]}
+
 # Needed to test SQLCipher
 libsqlite3-sys = { version = "0.25.1", features = ["bundled-sqlcipher"] }
 
@@ -249,6 +251,12 @@ required-features = ["sqlite", "macros", "migrate"]
 name = "sqlite-migrate"
 path = "tests/sqlite/migrate.rs"
 required-features = ["sqlite", "macros", "migrate"]
+
+[[bench]]
+name = "sqlite-describe"
+path = "benches/sqlite/describe.rs"
+harness = false
+required-features = ["sqlite"]
 
 #
 # MySQL
@@ -332,3 +340,4 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-migrate"
 path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
+
