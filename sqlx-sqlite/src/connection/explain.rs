@@ -408,6 +408,30 @@ impl BranchStateHash {
     }
 }
 
+struct BranchList {
+    states: Vec<QueryState>,
+    visited_branch_state: HashSet<BranchStateHash>,
+}
+
+impl BranchList {
+    pub fn new(state: QueryState) -> Self {
+        Self {
+            states: vec![state],
+            visited_branch_state: HashSet::new(),
+        }
+    }
+    pub fn push(&mut self, state: QueryState) {
+        let bs_hash = BranchStateHash::from_query_state(&state);
+        if !self.visited_branch_state.contains(&bs_hash) {
+            self.visited_branch_state.insert(bs_hash);
+            self.states.push(state);
+        }
+    }
+    pub fn pop(&mut self) -> Option<QueryState> {
+        self.states.pop()
+    }
+}
+
 // Opcode Reference: https://sqlite.org/opcode.html
 pub(super) fn explain(
     conn: &mut ConnectionState,
@@ -424,7 +448,7 @@ pub(super) fn explain(
     let mut logger =
         crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
 
-    let mut states = vec![QueryState {
+    let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],
         history: Vec::new(),
         result: None,
@@ -433,9 +457,7 @@ pub(super) fn explain(
             r: HashMap::with_capacity(6),
             p: HashMap::with_capacity(6),
         },
-    }];
-
-    let mut visited_branch_state: HashSet<BranchStateHash> = HashSet::new();
+    });
 
     let mut gas = MAX_TOTAL_INSTRUCTION_COUNT;
     let mut result_states = Vec::new();
@@ -501,12 +523,7 @@ pub(super) fn explain(
 
                     let mut branch_state = state.clone();
                     branch_state.mem.program_i = p2 as usize;
-
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    states.push(branch_state);
 
                     state.mem.program_i += 1;
                     continue;
@@ -534,11 +551,7 @@ pub(super) fn explain(
                             *nullable = Some(false);
                         }
 
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        states.push(branch_state);
                     }
 
                     if might_not_branch {
@@ -561,12 +574,7 @@ pub(super) fn explain(
                     if p2 != 0 {
                         let mut branch_state = state.clone();
                         branch_state.mem.program_i = p2 as usize;
-
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        states.push(branch_state);
                     }
 
                     state.mem.program_i += 1;
@@ -593,11 +601,7 @@ pub(super) fn explain(
                             branch_state.mem.r.insert(p1, RegDataType::Int(1));
                         }
 
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        states.push(branch_state);
                     }
 
                     if might_not_branch {
@@ -807,27 +811,15 @@ pub(super) fn explain(
 
                     let mut branch_state = state.clone();
                     branch_state.mem.program_i = p1 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    states.push(branch_state);
 
                     let mut branch_state = state.clone();
                     branch_state.mem.program_i = p2 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    states.push(branch_state);
 
                     let mut branch_state = state.clone();
                     branch_state.mem.program_i = p3 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    states.push(branch_state);
                 }
 
                 OP_COLUMN => {
