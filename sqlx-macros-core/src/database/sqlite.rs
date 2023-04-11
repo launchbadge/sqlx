@@ -24,6 +24,9 @@ impl_database_ext! {
         #[cfg(feature = "time")]
         sqlx::types::time::OffsetDateTime,
 
+        #[cfg(feature = "time")]
+        sqlx::types::time::Date,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
     },
