@@ -1,3 +1,4 @@
+use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
@@ -136,7 +137,7 @@ enum ColumnType {
         datatype: DataType,
         nullable: Option<bool>,
     },
-    Record(Vec<ColumnType>),
+    Record(IntMap<ColumnType>),
 }
 
 impl Default for ColumnType {
@@ -199,45 +200,37 @@ impl RegDataType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum CursorDataType {
     Normal {
-        cols: HashMap<i64, ColumnType>,
+        cols: IntMap<ColumnType>,
+
         is_empty: Option<bool>,
     },
     Pseudo(i64),
 }
 
 impl CursorDataType {
-    fn from_sparse_record(record: &HashMap<i64, ColumnType>, is_empty: Option<bool>) -> Self {
+    fn from_sparse_record(record: &IntMap<ColumnType>, is_empty: Option<bool>) -> Self {
         Self::Normal {
-            cols: record
-                .iter()
-                .map(|(colnum, datatype)| (*colnum, datatype.clone()))
-                .collect(),
+            cols: record.clone(),
             is_empty,
         }
     }
 
     fn from_dense_record(record: &Vec<ColumnType>, is_empty: Option<bool>) -> Self {
         Self::Normal {
-            cols: (0..).zip(record.iter().cloned()).collect(),
+            cols: IntMap::from_dense_record(record),
             is_empty,
         }
     }
 
-    fn map_to_dense_record(&self, registers: &HashMap<i64, RegDataType>) -> Vec<ColumnType> {
+    fn map_to_dense_record(&self, registers: &IntMap<RegDataType>) -> IntMap<ColumnType> {
         match self {
-            Self::Normal { cols, .. } => {
-                let mut rowdata = vec![ColumnType::default(); cols.len()];
-                for (idx, col) in cols.iter() {
-                    rowdata[*idx as usize] = col.clone();
-                }
-                rowdata
-            }
+            Self::Normal { cols, .. } => cols.clone(),
             Self::Pseudo(i) => match registers.get(i) {
                 Some(RegDataType::Single(ColumnType::Record(r))) => r.clone(),
-                _ => Vec::new(),
+                _ => IntMap::new(),
             },
         }
     }
@@ -247,11 +240,9 @@ impl CursorDataType {
         registers: &HashMap<i64, RegDataType>,
     ) -> HashMap<i64, ColumnType> {
         match self {
-            Self::Normal { cols, .. } => cols.clone(),
+            Self::Normal { cols, .. } => cols.map_to_sparse_record(),
             Self::Pseudo(i) => match registers.get(i) {
-                Some(RegDataType::Single(ColumnType::Record(r))) => {
-                    (0..).zip(r.iter().cloned()).collect()
-                }
+                Some(RegDataType::Single(ColumnType::Record(r))) => r.map_to_sparse_record(),
                 _ => HashMap::new(),
             },
         }
@@ -292,7 +283,7 @@ fn opcode_to_type(op: &str) -> DataType {
 
 fn root_block_columns(
     conn: &mut ConnectionState,
-) -> Result<HashMap<(i64, i64), HashMap<i64, ColumnType>>, Error> {
+) -> Result<HashMap<(i64, i64), IntMap<ColumnType>>, Error> {
     let table_block_columns: Vec<(i64, i64, i64, String, bool)> = execute::iter(
         conn,
         "SELECT s.dbnum, s.rootpage, col.cid as colnum, col.type, col.\"notnull\"
@@ -319,7 +310,7 @@ fn root_block_columns(
     .map(|row| FromRow::from_row(&row?))
     .collect::<Result<Vec<_>, Error>>()?;
 
-    let mut row_info: HashMap<(i64, i64), HashMap<i64, ColumnType>> = HashMap::new();
+    let mut row_info: HashMap<(i64, i64), IntMap<ColumnType>> = HashMap::new();
     for (dbnum, block, colnum, datatype, notnull) in table_block_columns {
         let row_info = row_info.entry((dbnum, block)).or_default();
         row_info.insert(
@@ -346,71 +337,19 @@ struct QueryState {
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct MemoryState {
     // Next instruction to execute
     pub program_i: usize,
     // Registers
-    pub r: HashMap<i64, RegDataType>,
+    pub r: IntMap<RegDataType>,
     // Rows that pointers point to
-    pub p: HashMap<i64, CursorDataType>,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct BranchStateHash {
-    instruction: usize,
-    //register index, data type
-    registers: Vec<(i64, RegDataType)>,
-    //cursor index, is_empty, pseudo register index
-    cursor_metadata: Vec<(i64, Option<bool>, Option<i64>)>,
-    //cursor index, column index, data type
-    cursors: Vec<(i64, i64, Option<ColumnType>)>,
-}
-
-impl BranchStateHash {
-    pub fn from_query_state(st: &QueryState) -> Self {
-        let mut reg = vec![];
-        for (k, v) in &st.mem.r {
-            reg.push((*k, v.clone()));
-        }
-        reg.sort_by_key(|v| v.0);
-
-        let mut cur = vec![];
-        let mut cur_meta = vec![];
-        for (k, v) in &st.mem.p {
-            match v {
-                CursorDataType::Normal { cols, is_empty } => {
-                    cur_meta.push((*k, *is_empty, None));
-                    for (i, col) in cols {
-                        cur.push((*k, *i, Some(col.clone())));
-                    }
-                }
-                CursorDataType::Pseudo(i) => {
-                    cur_meta.push((*k, None, Some(*i)));
-                    //don't bother copying columns, they are in register i
-                }
-            }
-        }
-        cur_meta.sort_by(|a, b| a.0.cmp(&b.0));
-        cur.sort_by(|a, b| {
-            if a.0 == b.0 {
-                a.1.cmp(&b.1)
-            } else {
-                a.0.cmp(&b.0)
-            }
-        });
-        Self {
-            instruction: st.mem.program_i,
-            registers: reg,
-            cursor_metadata: cur_meta,
-            cursors: cur,
-        }
-    }
+    pub p: IntMap<CursorDataType>,
 }
 
 struct BranchList {
     states: Vec<QueryState>,
-    visited_branch_state: HashSet<BranchStateHash>,
+    visited_branch_state: HashSet<MemoryState>,
 }
 
 impl BranchList {
@@ -421,9 +360,8 @@ impl BranchList {
         }
     }
     pub fn push(&mut self, state: QueryState) {
-        let bs_hash = BranchStateHash::from_query_state(&state);
-        if !self.visited_branch_state.contains(&bs_hash) {
-            self.visited_branch_state.insert(bs_hash);
+        if !self.visited_branch_state.contains(&state.mem) {
+            self.visited_branch_state.insert(state.mem.clone());
             self.states.push(state);
         }
     }
@@ -454,8 +392,8 @@ pub(super) fn explain(
         result: None,
         mem: MemoryState {
             program_i: 0,
-            r: HashMap::with_capacity(6),
-            p: HashMap::with_capacity(6),
+            r: IntMap::new(),
+            p: IntMap::new(),
         },
     });
 
@@ -828,7 +766,7 @@ pub(super) fn explain(
                         .mem
                         .p
                         .get(&p1)
-                        .map(|c| c.map_to_sparse_record(&state.mem.r))
+                        .map(|c| c.map_to_dense_record(&state.mem.r))
                     {
                         if let Some(col) = record.get(&p2) {
                             // insert into p3 the datatype of the col
@@ -872,7 +810,7 @@ pub(super) fn explain(
                         state
                             .mem
                             .r
-                            .insert(p2, RegDataType::Single(ColumnType::Record(Vec::new())));
+                            .insert(p2, RegDataType::Single(ColumnType::Record(IntMap::new())));
                     }
                 }
 
@@ -889,10 +827,10 @@ pub(super) fn explain(
                                 .unwrap_or(ColumnType::default()),
                         );
                     }
-                    state
-                        .mem
-                        .r
-                        .insert(p3, RegDataType::Single(ColumnType::Record(record)));
+                    state.mem.r.insert(
+                        p3,
+                        RegDataType::Single(ColumnType::Record(IntMap::from_dense_record(&record))),
+                    );
                 }
 
                 OP_INSERT | OP_IDX_INSERT | OP_SORTER_INSERT => {
@@ -903,7 +841,7 @@ pub(super) fn explain(
                             state.mem.p.get_mut(&p1)
                         {
                             // Insert the record into wherever pointer p1 is
-                            *cols = (0..).zip(record.iter().cloned()).collect();
+                            *cols = record.clone();
                             *is_empty = Some(false);
                         }
                     }
@@ -937,7 +875,7 @@ pub(super) fn explain(
                             state.mem.p.insert(
                                 p1,
                                 CursorDataType::Normal {
-                                    cols: HashMap::with_capacity(6),
+                                    cols: IntMap::new(),
                                     is_empty: None,
                                 },
                             );
@@ -946,7 +884,7 @@ pub(super) fn explain(
                         state.mem.p.insert(
                             p1,
                             CursorDataType::Normal {
-                                cols: HashMap::with_capacity(6),
+                                cols: IntMap::new(),
                                 is_empty: None,
                             },
                         );
