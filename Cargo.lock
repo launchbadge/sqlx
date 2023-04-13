@@ -1737,9 +1737,9 @@ checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.24.2"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "898745e570c7d0453cc1fbc4a701eb6c662ed54e8fec8b7d14be137ebeeb9d14"
+checksum = "afc22eff61b133b115c6e8c74e818c628d6d5e7a502afea6f64dee076dd94326"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2991,7 +2991,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3030,7 +3030,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3055,7 +3055,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "ahash 0.7.6",
  "atoi",
@@ -3217,7 +3217,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "dotenvy",
  "either",
@@ -3237,7 +3237,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "async-native-tls",
  "async-std",
