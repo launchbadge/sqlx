@@ -428,12 +428,20 @@ pub(super) fn explain(
 
     let mut visited_branch_state: HashSet<BranchStateHash> = HashSet::new();
 
+    let mut gas = 500_000;
     let mut result_states = Vec::new();
 
     while let Some(mut state) = states.pop() {
         while state.program_i < program_size {
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
             state.history.push(state.program_i);
+
+            //limit the number of 'instructions' that can be evaluated
+            if gas > 0 {
+                gas -= 1;
+            } else if gas == 0 {
+                break;
+            }
 
             if state.visited[state.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {
