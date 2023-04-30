@@ -170,12 +170,12 @@ pub enum MigrateCommand {
         force: bool,
     },
 
-    /// Delete all database tables & re-run migrations
+    /// Delete all database tables & re-run migrations.
     Fresh {
         #[clap(flatten)]
         source: Source,
 
-        /// List all the migrations to be run without applying
+        /// Force the command to run.
         #[clap(long)]
         force: bool,
 
