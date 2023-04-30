@@ -169,6 +169,19 @@ pub enum MigrateCommand {
         #[clap(long)]
         force: bool,
     },
+
+    /// Delete all database tables & re-run migrations
+    Fresh {
+        #[clap(flatten)]
+        source: Source,
+
+        /// List all the migrations to be run without applying
+        #[clap(long)]
+        force: bool,
+
+        #[clap(flatten)]
+        connect_opts: ConnectOpts,
+    },
 }
 
 /// Argument for the migration scripts source.

@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use futures_core::future::BoxFuture;
 pub(crate) use sqlx_core::migrate::*;
+use sqlx_core::row::Row;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -278,6 +279,26 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let elapsed = start.elapsed();
 
             Ok(elapsed)
+        })
+    }
+
+
+    fn reset<'e>(&'e mut self) -> BoxFuture<'e, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let database = current_database(self).await?;
+            let mut tx = self.begin().await?;
+            let start = Instant::now();
+
+            let rows: Vec<(String,)> = query_as("SELECT table_name FROM information_schema.tables WHERE table_schema = ?")
+                .bind(database)
+                .fetch_all(&mut *tx)
+                .await?;
+
+            for row in rows {
+                query(format!("DROP TABLE IF EXISTS {}", row.0).as_str()).execute(&mut *tx).await?;
+            }
+
+            Ok(start.elapsed())
         })
     }
 }

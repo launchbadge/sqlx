@@ -43,6 +43,11 @@ pub async fn run(opt: Opt) -> Result<()> {
                 connect_opts,
             } => migrate::info(&source, &connect_opts).await?,
             MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
+            MigrateCommand::Fresh {
+                source,
+                force,
+                connect_opts,
+            } => migrate::fresh(&source, &connect_opts, force).await?,
         },
 
         Command::Database(database) => match database.command {

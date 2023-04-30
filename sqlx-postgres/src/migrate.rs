@@ -258,6 +258,25 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+
+    fn reset<'e>(&'e mut self) -> BoxFuture<'e, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let database = current_database(self).await?;
+            let mut tx = self.begin().await?;
+            let start = Instant::now();
+
+            let rows: Vec<(String,)> = query_as("SELECT table_name FROM information_schema.tables WHERE table_schema = ?")
+                .bind(database)
+                .fetch_all(&mut *tx)
+                .await?;
+
+            for row in rows {
+                query(format!("DROP TABLE IF EXISTS {}", row.0).as_str()).execute(&mut *tx).await?;
+            }
+
+            Ok(start.elapsed())
+        })
+    }
 }
 
 async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateError> {

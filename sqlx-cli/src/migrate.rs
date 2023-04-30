@@ -339,3 +339,27 @@ fn main() {{
 
     Ok(())
 }
+
+pub async fn fresh(
+    migration_source: &str,
+    connect_opts: &ConnectOpts,
+    force: bool,
+) -> anyhow::Result<()> {
+    let mut conn = crate::connect(connect_opts).await?;
+
+    if !force {
+        bail!(MigrateError::MustForce);
+    }
+
+    conn.reset()
+        .await?;
+
+    run(
+        migration_source,
+        connect_opts,
+        false,
+        true
+    ).await?;
+
+    Ok(())
+}

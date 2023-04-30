@@ -207,4 +207,21 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+
+    fn reset<'e>(&'e mut self) -> BoxFuture<'e, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let mut tx = self.begin().await?;
+            let start = Instant::now();
+
+            let rows: Vec<(String,)> = query_as("SELECT name FROM sqlite_master WHERE type = 'table'")
+                .fetch_all(&mut *tx)
+                .await?;
+
+            for row in rows {
+                query(format!("DROP TABLE IF EXISTS {}", row.0).as_str()).execute(&mut *tx).await?;
+            }
+
+            Ok(start.elapsed())
+        })
+    }
 }

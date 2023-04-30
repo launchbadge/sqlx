@@ -43,7 +43,7 @@ pub trait Migrate {
 
     // run SQL from migration in a DDL transaction
     // insert new row to [_migrations] table on completion (success or failure)
-    // returns the time taking to run the migration SQL
+    // returns the time taken to run the migration SQL
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
@@ -51,9 +51,13 @@ pub trait Migrate {
 
     // run a revert SQL from migration in a DDL transaction
     // deletes the row in [_migrations] table with specified migration version on completion (success or failure)
-    // returns the time taking to run the migration SQL
+    // returns the time taken to run the migration SQL
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+
+    // run SQL to drop all tables in the configured database
+    // returns the time taken to run the SQL
+    fn reset<'e>(&'e mut self) -> BoxFuture<'e, Result<Duration, MigrateError>>;
 }

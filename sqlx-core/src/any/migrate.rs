@@ -70,4 +70,8 @@ impl Migrate for AnyConnection {
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async { self.get_migrate()?.revert(migration).await })
     }
+
+    fn reset<'e>(&'e mut self) -> BoxFuture<'e, Result<Duration, MigrateError>> {
+        Box::pin(async { self.get_migrate()?.reset().await })
+    }
 }
