@@ -1,8 +1,8 @@
 use crate::database::DatabaseExt;
 use crate::query::QueryMacroInput;
 use either::Either;
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote, quote_spanned};
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use sqlx_core::describe::Describe;
 use syn::spanned::Spanned;
 use syn::{Expr, ExprCast, ExprGroup, ExprType, Type};
@@ -32,6 +32,8 @@ pub fn quote_args<DB: DatabaseExt>(
         #(let #arg_name = &(#arg_expr);)*
     };
 
+    let mut args_warnings: Vec<TokenStream> = vec![];
+
     let args_check = match info.parameters() {
         None | Some(Either::Right(_)) => {
             // all we can do is check arity which we did
@@ -52,7 +54,12 @@ pub fn quote_args<DB: DatabaseExt>(
                     let param_ty = match get_type_override(expr) {
                         // cast or type ascription will fail to compile if the type does not match
                         // and we strip casts to wildcard
-                        Some(_) => return Ok(quote!()),
+                        Some((_, false)) => return Ok(quote!()),
+                        Some((ty, true)) => {
+                            let warning = create_warning(name.clone(), ty.clone(), expr.clone());
+                            args_warnings.push(warning);
+                            return Ok(quote!())
+                        },
                         None => {
                             DB::param_type_for_id(&param_ty)
                                 .ok_or_else(|| {
@@ -101,6 +108,8 @@ pub fn quote_args<DB: DatabaseExt>(
     let args_count = input.arg_exprs.len();
 
     Ok(quote! {
+        #(#args_warnings)*
+
         #arg_bindings
 
         #args_check
@@ -114,11 +123,37 @@ pub fn quote_args<DB: DatabaseExt>(
     })
 }
 
-fn get_type_override(expr: &Expr) -> Option<&Type> {
+fn create_warning(name: Ident, ty: Type, expr: Expr) -> TokenStream {
+    let span = expr.span();
+    let stripped = strip_wildcard(expr).to_token_stream();
+    let current = quote!(#stripped: #ty).to_string();
+    let fix = quote!(#stripped as #ty).to_string();
+
+    let message = format!(
+        "
+\t\tType ascription pattern is deprecated, prefer casting
+\t\tTry changing from
+\t\t\t`{current}`
+\t\tto
+\t\t\t`{fix}`
+
+\t\tSee <https://github.com/rust-lang/rfcs/pull/3307> for more information
+"
+    );
+    let name = Ident::new(&format!("warning_{name}"), span);
+    quote_spanned!(span =>
+        #[deprecated(note = #message)]
+        #[allow(non_upper_case_globals)]
+        const #name: () = ();
+        let _ = #name;
+    )
+}
+
+fn get_type_override(expr: &Expr) -> Option<(&Type, bool)> {
     match expr {
         Expr::Group(group) => get_type_override(&group.expr),
-        Expr::Cast(cast) => Some(&cast.ty),
-        Expr::Type(ascription) => Some(&ascription.ty),
+        Expr::Cast(cast) => Some((&cast.ty, false)),
+        Expr::Type(ascription) => Some((&ascription.ty, true)),
         _ => None,
     }
 }
