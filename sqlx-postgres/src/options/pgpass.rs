@@ -21,9 +21,15 @@ pub fn load_password(
     }
 
     #[cfg(not(target_os = "windows"))]
-    let default_file = dirs::home_dir().map(|path| path.join(".pgpass"));
+    let default_file = home::home_dir().map(|path| path.join(".pgpass"));
     #[cfg(target_os = "windows")]
-    let default_file = dirs::data_dir().map(|path| path.join("postgres").join("pgpass.conf"));
+    let default_file = {
+        use etcetera::BaseStrategy;
+
+        etcetera::base_strategy::Windows::new()
+            .ok()
+            .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
+    };
     load_password_from_file(default_file?, host, port, username, database)
 }
 
