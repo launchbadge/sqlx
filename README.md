@@ -294,7 +294,7 @@ conn.execute("BEGIN").await?; // unprepared, simple query
 conn.execute(sqlx::query("DELETE FROM table")).await?; // prepared, cached query
 ```
 
-We should prefer to use the high-level, `query` interface whenever possible. To make this easier, there are finalizers
+We should prefer to use the high-level `query` interface whenever possible. To make this easier, there are finalizers
 on the type to avoid the need to wrap with an executor.
 
 ```rust
