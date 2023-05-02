@@ -2,7 +2,7 @@ use crate::database::DatabaseExt;
 use crate::query::QueryMacroInput;
 use either::Either;
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned};
 use sqlx_core::describe::Describe;
 use syn::spanned::Spanned;
 use syn::{Expr, ExprCast, ExprGroup, ExprType, Type};
@@ -32,8 +32,6 @@ pub fn quote_args<DB: DatabaseExt>(
         #(let #arg_name = &(#arg_expr);)*
     };
 
-    let mut args_warnings: Vec<TokenStream> = vec![];
-
     let args_check = match info.parameters() {
         None | Some(Either::Right(_)) => {
             // all we can do is check arity which we did
@@ -52,14 +50,11 @@ pub fn quote_args<DB: DatabaseExt>(
                 .enumerate()
                 .map(|(i, (param_ty, (name, expr)))| -> crate::Result<_> {
                     let param_ty = match get_type_override(expr) {
-                        // cast or type ascription will fail to compile if the type does not match
+                        // cast will fail to compile if the type does not match
                         // and we strip casts to wildcard
                         Some((_, false)) => return Ok(quote!()),
-                        Some((ty, true)) => {
-                            let warning = create_warning(name.clone(), ty.clone(), expr.clone());
-                            args_warnings.push(warning);
-                            return Ok(quote!())
-                        },
+                        // type ascription is deprecated
+                        Some((ty, true)) => return Ok(create_warning(name.clone(), &ty, &expr)),
                         None => {
                             DB::param_type_for_id(&param_ty)
                                 .ok_or_else(|| {
@@ -108,8 +103,6 @@ pub fn quote_args<DB: DatabaseExt>(
     let args_count = input.arg_exprs.len();
 
     Ok(quote! {
-        #(#args_warnings)*
-
         #arg_bindings
 
         #args_check
@@ -123,11 +116,13 @@ pub fn quote_args<DB: DatabaseExt>(
     })
 }
 
-fn create_warning(name: Ident, ty: Type, expr: Expr) -> TokenStream {
-    let span = expr.span();
-    let stripped = strip_wildcard(expr).to_token_stream();
+fn create_warning(name: Ident, ty: &Type, expr: &Expr) -> TokenStream {
+    let Expr::Type(ExprType { expr: stripped, .. }) = expr else {
+        return quote!();
+    };
     let current = quote!(#stripped: #ty).to_string();
     let fix = quote!(#stripped as #ty).to_string();
+    let name = Ident::new(&format!("warning_{name}"), expr.span());
 
     let message = format!(
         "
@@ -140,12 +135,15 @@ fn create_warning(name: Ident, ty: Type, expr: Expr) -> TokenStream {
 \t\tSee <https://github.com/rust-lang/rfcs/pull/3307> for more information
 "
     );
-    let name = Ident::new(&format!("warning_{name}"), span);
-    quote_spanned!(span =>
-        #[deprecated(note = #message)]
-        #[allow(non_upper_case_globals)]
-        const #name: () = ();
-        let _ = #name;
+
+    quote_spanned!(expr.span() =>
+        // this shouldn't actually run
+        if false {
+            #[deprecated(note = #message)]
+            #[allow(non_upper_case_globals)]
+            const #name: () = ();
+            let _ = #name;
+        }
     )
 }
 
