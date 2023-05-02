@@ -325,7 +325,7 @@ while let Some(row) = rows.try_next().await? {
 }
 ```
 
-To assist with mapping the row into a domain type, two idioms may be used:
+To assist with mapping the row into a domain type, one of two idioms may be used:
 
 ```rust
 let mut stream = sqlx::query("SELECT * FROM users")
