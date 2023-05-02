@@ -282,7 +282,7 @@ let pool = MySqlPool::connect("mysql://user:pass@host/database").await?;
 
 In SQL, queries can be separated into prepared (parameterized) or unprepared (simple). Prepared queries have their
 query plan _cached_, use a binary mode of communication (lower bandwidth and faster decoding), and utilize parameters
-to avoid SQL injection. Unprepared queries are simple and intended only for the use case where a prepared statement
+to avoid SQL injection. Unprepared queries are simple and intended only for use where a prepared statement
 will not work, such as various database commands (e.g., `PRAGMA` or `SET` or `BEGIN`).
 
 SQLx supports all operations with both types of queries. In SQLx, a `&str` is treated as an unprepared query,
