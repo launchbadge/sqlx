@@ -271,7 +271,7 @@ use sqlx::Connection;
 let conn = SqliteConnection::connect("sqlite::memory:").await?;
 ```
 
-Generally, you will want to instead create a connection pool (`sqlx::Pool`) for application to
+Generally, you will want to instead create a connection pool (`sqlx::Pool`) for the application to
 regulate how many server-side connections it's using.
 
 ```rust
