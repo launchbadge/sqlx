@@ -5,7 +5,10 @@ use crate::type_info::DataType;
 use crate::types::Type;
 use crate::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
 use std::borrow::Cow;
-use uuid::{fmt::Hyphenated, Uuid};
+use uuid::{
+    fmt::{Hyphenated, Simple},
+    Uuid,
+};
 
 impl Type<Sqlite> for Uuid {
     fn type_info() -> SqliteTypeInfo {
@@ -54,5 +57,28 @@ impl Decode<'_, Sqlite> for Hyphenated {
             Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);
 
         Ok(uuid?.hyphenated())
+    }
+}
+
+impl Type<Sqlite> for Simple {
+    fn type_info() -> SqliteTypeInfo {
+        SqliteTypeInfo(DataType::Text)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Simple {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+
+        IsNull::No
+    }
+}
+
+impl Decode<'_, Sqlite> for Simple {
+    fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
+        let uuid: Result<Uuid, BoxDynError> =
+            Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);
+
+        Ok(uuid?.simple())
     }
 }

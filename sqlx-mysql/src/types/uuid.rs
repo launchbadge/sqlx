@@ -1,4 +1,7 @@
-use uuid::{fmt::Hyphenated, Uuid};
+use uuid::{
+    fmt::{Hyphenated, Simple},
+    Uuid,
+};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -62,5 +65,35 @@ impl Decode<'_, MySql> for Hyphenated {
         Uuid::parse_str(text)
             .map_err(Into::into)
             .map(|u| u.hyphenated())
+    }
+}
+
+impl Type<MySql> for Simple {
+    fn type_info() -> MySqlTypeInfo {
+        <&str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&str as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, MySql> for Simple {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.put_str_lenenc(&self.to_string());
+
+        IsNull::No
+    }
+}
+
+impl Decode<'_, MySql> for Simple {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        // delegate to the &str type to decode from MySQL
+        let text = <&str as Decode<MySql>>::decode(value)?;
+
+        // parse a UUID from the text
+        Uuid::parse_str(text)
+            .map_err(Into::into)
+            .map(|u| u.simple())
     }
 }

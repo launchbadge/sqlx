@@ -63,6 +63,7 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
 //! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
+//! | `uuid::fmt::Simple`                   | CHAR(32)                                             |
 //!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
