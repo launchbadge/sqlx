@@ -2,7 +2,7 @@ use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use futures_core::future::BoxFuture;
 
@@ -60,7 +60,12 @@ impl TestSupport for MySql {
             let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
             let mut conn = MySqlConnection::connect(&url).await?;
-            let num_deleted = do_cleanup(&mut conn).await?;
+
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap();
+
+            let num_deleted = do_cleanup(&mut conn, now).await?;
             let _ = conn.close().await;
             Ok(Some(num_deleted))
         })
@@ -123,9 +128,16 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
     )
     .await?;
 
+    // Record the current time _before_ we acquire the `DO_CLEANUP` permit. This
+    // prevents the first test thread from accidentally deleting new test dbs
+    // created by other test threads if we're a bit slow.
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
+
     // Only run cleanup if the test binary just started.
     if DO_CLEANUP.swap(false, Ordering::SeqCst) {
-        do_cleanup(&mut conn).await?;
+        do_cleanup(&mut conn, now).await?;
     }
 
     query("insert into _sqlx_test_databases(test_path) values (?)")
@@ -163,10 +175,12 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
     })
 }
 
-async fn do_cleanup(conn: &mut MySqlConnection) -> Result<usize, Error> {
+async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Result<usize, Error> {
     let delete_db_ids: Vec<u64> = query_scalar(
-        "select db_id from _sqlx_test_databases where created_at < current_timestamp()",
+        "select db_id from _sqlx_test_databases \
+            where created_at < (cast(from_unixtime($1) as timestamp))",
     )
+    .bind(&created_before.as_secs())
     .fetch_all(&mut *conn)
     .await?;
 
