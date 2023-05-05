@@ -196,3 +196,11 @@ test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(Sqlite,
     "'00000000-0000-0000-0000-000000000000'"
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
+
+#[cfg(feature = "uuid")]
+test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(Sqlite,
+    "'b731678f636f4135bc6f19440c13bd19'"
+        == sqlx::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
+    "'00000000000000000000000000000000'"
+        == sqlx::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
+));

@@ -19,8 +19,6 @@
     feature(track_path)
 )]
 
-use once_cell::sync::Lazy;
-
 use crate::query::QueryDriver;
 
 pub type Error = Box<dyn std::error::Error>;
@@ -54,6 +52,7 @@ where
 {
     #[cfg(feature = "_rt-tokio")]
     {
+        use once_cell::sync::Lazy;
         use tokio::runtime::{self, Runtime};
 
         // We need a single, persistent Tokio runtime since we're caching connections,

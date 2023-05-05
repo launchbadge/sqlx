@@ -128,6 +128,7 @@ const OP_HALT: &str = "Halt";
 const OP_HALT_IF_NULL: &str = "HaltIfNull";
 
 const MAX_LOOP_COUNT: u8 = 2;
+const MAX_TOTAL_INSTRUCTION_COUNT: u32 = 100_000;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum ColumnType {
@@ -428,12 +429,20 @@ pub(super) fn explain(
 
     let mut visited_branch_state: HashSet<BranchStateHash> = HashSet::new();
 
+    let mut gas = MAX_TOTAL_INSTRUCTION_COUNT;
     let mut result_states = Vec::new();
 
     while let Some(mut state) = states.pop() {
         while state.program_i < program_size {
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
             state.history.push(state.program_i);
+
+            //limit the number of 'instructions' that can be evaluated
+            if gas > 0 {
+                gas -= 1;
+            } else {
+                break;
+            }
 
             if state.visited[state.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {

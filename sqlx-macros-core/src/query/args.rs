@@ -1,7 +1,7 @@
 use crate::database::DatabaseExt;
 use crate::query::QueryMacroInput;
 use either::Either;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 use sqlx_core::describe::Describe;
 use syn::spanned::Spanned;
@@ -50,9 +50,11 @@ pub fn quote_args<DB: DatabaseExt>(
                 .enumerate()
                 .map(|(i, (param_ty, (name, expr)))| -> crate::Result<_> {
                     let param_ty = match get_type_override(expr) {
-                        // cast or type ascription will fail to compile if the type does not match
+                        // cast will fail to compile if the type does not match
                         // and we strip casts to wildcard
-                        Some(_) => return Ok(quote!()),
+                        Some((_, false)) => return Ok(quote!()),
+                        // type ascription is deprecated
+                        Some((ty, true)) => return Ok(create_warning(name.clone(), &ty, &expr)),
                         None => {
                             DB::param_type_for_id(&param_ty)
                                 .ok_or_else(|| {
@@ -114,11 +116,42 @@ pub fn quote_args<DB: DatabaseExt>(
     })
 }
 
-fn get_type_override(expr: &Expr) -> Option<&Type> {
+fn create_warning(name: Ident, ty: &Type, expr: &Expr) -> TokenStream {
+    let Expr::Type(ExprType { expr: stripped, .. }) = expr else {
+        return quote!();
+    };
+    let current = quote!(#stripped: #ty).to_string();
+    let fix = quote!(#stripped as #ty).to_string();
+    let name = Ident::new(&format!("warning_{name}"), expr.span());
+
+    let message = format!(
+        "
+\t\tType ascription pattern is deprecated, prefer casting
+\t\tTry changing from
+\t\t\t`{current}`
+\t\tto
+\t\t\t`{fix}`
+
+\t\tSee <https://github.com/rust-lang/rfcs/pull/3307> for more information
+"
+    );
+
+    quote_spanned!(expr.span() =>
+        // this shouldn't actually run
+        if false {
+            #[deprecated(note = #message)]
+            #[allow(non_upper_case_globals)]
+            const #name: () = ();
+            let _ = #name;
+        }
+    )
+}
+
+fn get_type_override(expr: &Expr) -> Option<(&Type, bool)> {
     match expr {
         Expr::Group(group) => get_type_override(&group.expr),
-        Expr::Cast(cast) => Some(&cast.ty),
-        Expr::Type(ascription) => Some(&ascription.ty),
+        Expr::Cast(cast) => Some((&cast.ty, false)),
+        Expr::Type(ascription) => Some((&ascription.ty, true)),
         _ => None,
     }
 }

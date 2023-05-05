@@ -2,7 +2,7 @@ use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use futures_core::future::BoxFuture;
 
@@ -57,7 +57,12 @@ impl TestSupport for Postgres {
             let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
             let mut conn = PgConnection::connect(&url).await?;
-            let num_deleted = do_cleanup(&mut conn).await?;
+
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap();
+
+            let num_deleted = do_cleanup(&mut conn, now).await?;
             let _ = conn.close().await;
             Ok(Some(num_deleted))
         })
@@ -133,9 +138,16 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     )
     .await?;
 
+    // Record the current time _before_ we acquire the `DO_CLEANUP` permit. This
+    // prevents the first test thread from accidentally deleting new test dbs
+    // created by other test threads if we're a bit slow.
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
+
     // Only run cleanup if the test binary just started.
     if DO_CLEANUP.swap(false, Ordering::SeqCst) {
-        do_cleanup(&mut conn).await?;
+        do_cleanup(&mut conn, now).await?;
     }
 
     let new_db_name: String = query_scalar(
@@ -170,11 +182,16 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     })
 }
 
-async fn do_cleanup(conn: &mut PgConnection) -> Result<usize, Error> {
-    let delete_db_names: Vec<String> =
-        query_scalar("select db_name from _sqlx_test.databases where created_at < now()")
-            .fetch_all(&mut *conn)
-            .await?;
+async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result<usize, Error> {
+    let created_before = i64::try_from(created_before.as_secs()).unwrap();
+
+    let delete_db_names: Vec<String> = query_scalar(
+        "select db_name from _sqlx_test.databases \
+            where created_at < (to_timestamp($1) at time zone 'UTC')",
+    )
+    .bind(&created_before)
+    .fetch_all(&mut *conn)
+    .await?;
 
     if delete_db_names.is_empty() {
         return Ok(0);
