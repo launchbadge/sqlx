@@ -62,6 +62,7 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BLOB, TEXT                                           |
 //! | `uuid::fmt::Hyphenated`               | TEXT                                                 |
+//! | `uuid::fmt::Simple`                   | TEXT                                                 |
 //!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
