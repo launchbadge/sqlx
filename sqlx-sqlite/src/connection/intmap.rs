@@ -1,5 +1,3 @@
-use sqlx_core::HashMap;
-
 /// Simplistic map implementation built on a Vec of Options (index = key)
 #[derive(Debug, Clone, Eq, Default)]
 pub(crate) struct IntMap<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash>(
@@ -23,25 +21,12 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
         Self(record.iter().cloned().map(Some).collect())
     }
 
-    pub(crate) fn map_to_sparse_record(&self) -> HashMap<i64, V> {
-        (0..)
-            .zip(self.0.iter())
-            .filter_map(|(i, v)| v.as_ref().map(|v| (i, v.clone())))
-            .collect()
-    }
-
     pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.0.iter_mut().filter_map(Option::as_mut)
     }
 
     pub(crate) fn values(&self) -> impl Iterator<Item = &V> {
         self.0.iter().filter_map(Option::as_ref)
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (i64, &V)> {
-        (0..)
-            .zip(self.0.iter())
-            .filter_map(|(i, v)| v.as_ref().map(|v| (i, v)))
     }
 
     pub(crate) fn get(&self, idx: &i64) -> Option<&V> {
@@ -81,15 +66,6 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
             Some(content) => std::mem::replace(content, None),
             None => None,
         }
-    }
-}
-
-impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash + Default> IntMap<V> {
-    pub(crate) fn map_to_dense_record(&self) -> Vec<V> {
-        self.0
-            .iter()
-            .map(|v| v.clone().unwrap_or_default())
-            .collect()
     }
 }
 

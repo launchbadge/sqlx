@@ -211,7 +211,7 @@ enum CursorDataType {
 }
 
 impl CursorDataType {
-    fn from_sparse_record(record: &IntMap<ColumnType>, is_empty: Option<bool>) -> Self {
+    fn from_intmap(record: &IntMap<ColumnType>, is_empty: Option<bool>) -> Self {
         Self::Normal {
             cols: record.clone(),
             is_empty,
@@ -225,25 +225,12 @@ impl CursorDataType {
         }
     }
 
-    fn map_to_dense_record(&self, registers: &IntMap<RegDataType>) -> IntMap<ColumnType> {
+    fn map_to_intmap(&self, registers: &IntMap<RegDataType>) -> IntMap<ColumnType> {
         match self {
             Self::Normal { cols, .. } => cols.clone(),
             Self::Pseudo(i) => match registers.get(i) {
                 Some(RegDataType::Single(ColumnType::Record(r))) => r.clone(),
                 _ => IntMap::new(),
-            },
-        }
-    }
-
-    fn map_to_sparse_record(
-        &self,
-        registers: &HashMap<i64, RegDataType>,
-    ) -> HashMap<i64, ColumnType> {
-        match self {
-            Self::Normal { cols, .. } => cols.map_to_sparse_record(),
-            Self::Pseudo(i) => match registers.get(i) {
-                Some(RegDataType::Single(ColumnType::Record(r))) => r.map_to_sparse_record(),
-                _ => HashMap::new(),
             },
         }
     }
@@ -762,11 +749,8 @@ pub(super) fn explain(
 
                 OP_COLUMN => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                    if let Some(record) = state
-                        .mem
-                        .p
-                        .get(&p1)
-                        .map(|c| c.map_to_dense_record(&state.mem.r))
+                    if let Some(record) =
+                        state.mem.p.get(&p1).map(|c| c.map_to_intmap(&state.mem.r))
                     {
                         if let Some(col) = record.get(&p2) {
                             // insert into p3 the datatype of the col
@@ -801,7 +785,7 @@ pub(super) fn explain(
                 OP_ROW_DATA | OP_SORTER_DATA => {
                     //Get entire row from cursor p1, store it into register p2
                     if let Some(record) = state.mem.p.get(&p1) {
-                        let rowdata = record.map_to_dense_record(&state.mem.r);
+                        let rowdata = record.map_to_intmap(&state.mem.r);
                         state
                             .mem
                             .r
@@ -870,7 +854,7 @@ pub(super) fn explain(
                             state
                                 .mem
                                 .p
-                                .insert(p1, CursorDataType::from_sparse_record(columns, None));
+                                .insert(p1, CursorDataType::from_intmap(columns, None));
                         } else {
                             state.mem.p.insert(
                                 p1,
