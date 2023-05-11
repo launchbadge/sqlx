@@ -36,9 +36,9 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.20.6", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
+rustls = { version = "0.21", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
-webpki-roots = { version = "0.22.0", optional = true }
+webpki-roots = { version = "0.23", optional = true }
 
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
