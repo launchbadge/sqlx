@@ -204,28 +204,13 @@ impl RegDataType {
 enum CursorDataType {
     Normal {
         cols: IntMap<ColumnType>,
-
         is_empty: Option<bool>,
     },
     Pseudo(i64),
 }
 
 impl CursorDataType {
-    fn from_intmap(record: &IntMap<ColumnType>, is_empty: Option<bool>) -> Self {
-        Self::Normal {
-            cols: record.clone(),
-            is_empty,
-        }
-    }
-
-    fn from_dense_record(record: &Vec<ColumnType>, is_empty: Option<bool>) -> Self {
-        Self::Normal {
-            cols: IntMap::from_dense_record(record),
-            is_empty,
-        }
-    }
-
-    fn map_to_intmap(&self, registers: &IntMap<RegDataType>) -> IntMap<ColumnType> {
+    fn columns(&self, registers: &IntMap<RegDataType>) -> IntMap<ColumnType> {
         match self {
             Self::Normal { cols, .. } => cols.clone(),
             Self::Pseudo(i) => match registers.get(i) {
@@ -756,9 +741,7 @@ pub(super) fn explain(
 
                 OP_COLUMN => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                    if let Some(record) =
-                        state.mem.p.get(&p1).map(|c| c.map_to_intmap(&state.mem.r))
-                    {
+                    if let Some(record) = state.mem.p.get(&p1).map(|c| c.columns(&state.mem.r)) {
                         if let Some(col) = record.get(&p2) {
                             // insert into p3 the datatype of the col
                             state.mem.r.insert(p3, RegDataType::Single(col.clone()));
@@ -791,12 +774,11 @@ pub(super) fn explain(
 
                 OP_ROW_DATA | OP_SORTER_DATA => {
                     //Get entire row from cursor p1, store it into register p2
-                    if let Some(record) = state.mem.p.get(&p1) {
-                        let rowdata = record.map_to_intmap(&state.mem.r);
+                    if let Some(record) = state.mem.p.get(&p1).map(|c| c.columns(&state.mem.r)) {
                         state
                             .mem
                             .r
-                            .insert(p2, RegDataType::Single(ColumnType::Record(rowdata)));
+                            .insert(p2, RegDataType::Single(ColumnType::Record(record)));
                     } else {
                         state
                             .mem
@@ -858,10 +840,11 @@ pub(super) fn explain(
                     //Create a new pointer which is referenced by p1, take column metadata from db schema if found
                     if p3 == 0 || p3 == 1 {
                         if let Some(columns) = root_block_cols.get(&(p3, p2)) {
-                            state
-                                .mem
-                                .p
-                                .insert(p1, CursorDataType::from_intmap(columns, None));
+                            let cursor_columns = CursorDataType::Normal {
+                                cols: columns.clone(),
+                                is_empty: None,
+                            };
+                            state.mem.p.insert(p1, cursor_columns);
                         } else {
                             state.mem.p.insert(
                                 p1,
@@ -886,10 +869,10 @@ pub(super) fn explain(
                     //Create a new pointer which is referenced by p1
                     state.mem.p.insert(
                         p1,
-                        CursorDataType::from_dense_record(
-                            &vec![ColumnType::null(); p2 as usize],
-                            Some(true),
-                        ),
+                        CursorDataType::Normal {
+                            cols: IntMap::from_dense_record(&vec![ColumnType::null(); p2 as usize]),
+                            is_empty: Some(true),
+                        },
                     );
                 }
 
