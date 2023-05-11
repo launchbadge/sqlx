@@ -200,6 +200,12 @@ impl RegDataType {
     }
 }
 
+impl Default for RegDataType {
+    fn default() -> Self {
+        Self::Single(ColumnType::default())
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum CursorDataType {
     Normal {
@@ -216,6 +222,40 @@ impl CursorDataType {
             Self::Pseudo(i) => match registers.get(i) {
                 Some(RegDataType::Single(ColumnType::Record(r))) => r.clone(),
                 _ => IntMap::new(),
+            },
+        }
+    }
+
+    fn columns_ref<'s, 'r, 'o>(
+        &'s self,
+        registers: &'r IntMap<RegDataType>,
+    ) -> Option<&'o IntMap<ColumnType>>
+    where
+        's: 'o,
+        'r: 'o,
+    {
+        match self {
+            Self::Normal { cols, .. } => Some(cols),
+            Self::Pseudo(i) => match registers.get(i) {
+                Some(RegDataType::Single(ColumnType::Record(r))) => Some(r),
+                _ => None,
+            },
+        }
+    }
+
+    fn columns_mut<'s, 'r, 'o>(
+        &'s mut self,
+        registers: &'r mut IntMap<RegDataType>,
+    ) -> Option<&'o mut IntMap<ColumnType>>
+    where
+        's: 'o,
+        'r: 'o,
+    {
+        match self {
+            Self::Normal { cols, .. } => Some(cols),
+            Self::Pseudo(i) => match registers.get_mut(i) {
+                Some(RegDataType::Single(ColumnType::Record(r))) => Some(r),
+                _ => None,
             },
         }
     }
@@ -741,22 +781,17 @@ pub(super) fn explain(
 
                 OP_COLUMN => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                    if let Some(record) = state.mem.p.get(&p1).map(|c| c.columns(&state.mem.r)) {
-                        if let Some(col) = record.get(&p2) {
-                            // insert into p3 the datatype of the col
-                            state.mem.r.insert(p3, RegDataType::Single(col.clone()));
-                        } else {
-                            state
-                                .mem
-                                .r
-                                .insert(p3, RegDataType::Single(ColumnType::default()));
-                        }
-                    } else {
-                        state
-                            .mem
-                            .r
-                            .insert(p3, RegDataType::Single(ColumnType::default()));
-                    }
+                    let value: ColumnType = state
+                        .mem
+                        .p
+                        .get(&p1)
+                        .and_then(|c| c.columns_ref(&state.mem.r))
+                        .and_then(|cc| cc.get(&p2))
+                        .cloned()
+                        .unwrap_or_else(|| ColumnType::default());
+
+                    // insert into p3 the datatype of the col
+                    state.mem.r.insert(p3, RegDataType::Single(value));
                 }
 
                 OP_SEQUENCE => {
@@ -796,7 +831,7 @@ pub(super) fn explain(
                                 .mem
                                 .r
                                 .get(&reg)
-                                .map(|d| d.clone().map_to_columntype())
+                                .map(|d| d.map_to_columntype())
                                 .unwrap_or(ColumnType::default()),
                         );
                     }
@@ -895,7 +930,7 @@ pub(super) fn explain(
                 }
 
                 OP_FUNCTION => {
-                    // r[p1] = func( _ )
+                    // r[p3] = func( _ ), registered function name is in p4
                     match from_utf8(p4).map_err(Error::protocol)? {
                         "last_insert_rowid(0)" => {
                             // last_insert_rowid() -> INTEGER
@@ -944,8 +979,11 @@ pub(super) fn explain(
 
                 OP_NULL_ROW => {
                     // all columns in cursor X are potentially nullable
-                    if let Some(CursorDataType::Normal { ref mut cols, .. }) =
-                        state.mem.p.get_mut(&p1)
+                    if let Some(ref mut cols) = state
+                        .mem
+                        .p
+                        .get_mut(&p1)
+                        .and_then(|c| c.columns_mut(&mut state.mem.r))
                     {
                         for col in cols.values_mut() {
                             if let ColumnType::Single {
@@ -1102,48 +1140,32 @@ pub(super) fn explain(
                 OP_OR | OP_AND | OP_BIT_AND | OP_BIT_OR | OP_SHIFT_LEFT | OP_SHIFT_RIGHT
                 | OP_ADD | OP_SUBTRACT | OP_MULTIPLY | OP_DIVIDE | OP_REMAINDER | OP_CONCAT => {
                     // r[p3] = r[p1] + r[p2]
-                    match (state.mem.r.get(&p1).cloned(), state.mem.r.get(&p2).cloned()) {
-                        (Some(a), Some(b)) => {
-                            state.mem.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: if matches!(a.map_to_datatype(), DataType::Null) {
-                                        b.map_to_datatype()
-                                    } else {
-                                        a.map_to_datatype()
-                                    },
-                                    nullable: match (a.map_to_nullable(), b.map_to_nullable()) {
-                                        (Some(a_n), Some(b_n)) => Some(a_n | b_n),
-                                        (Some(a_n), None) => Some(a_n),
-                                        (None, Some(b_n)) => Some(b_n),
-                                        (None, None) => None,
-                                    },
-                                }),
-                            );
-                        }
+                    let value = match (state.mem.r.get(&p1), state.mem.r.get(&p2)) {
+                        (Some(a), Some(b)) => RegDataType::Single(ColumnType::Single {
+                            datatype: if matches!(a.map_to_datatype(), DataType::Null) {
+                                b.map_to_datatype()
+                            } else {
+                                a.map_to_datatype()
+                            },
+                            nullable: match (a.map_to_nullable(), b.map_to_nullable()) {
+                                (Some(a_n), Some(b_n)) => Some(a_n | b_n),
+                                (Some(a_n), None) => Some(a_n),
+                                (None, Some(b_n)) => Some(b_n),
+                                (None, None) => None,
+                            },
+                        }),
+                        (Some(v), None) => RegDataType::Single(ColumnType::Single {
+                            datatype: v.map_to_datatype(),
+                            nullable: None,
+                        }),
+                        (None, Some(v)) => RegDataType::Single(ColumnType::Single {
+                            datatype: v.map_to_datatype(),
+                            nullable: None,
+                        }),
+                        _ => RegDataType::default(),
+                    };
 
-                        (Some(v), None) => {
-                            state.mem.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: v.map_to_datatype(),
-                                    nullable: None,
-                                }),
-                            );
-                        }
-
-                        (None, Some(v)) => {
-                            state.mem.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: v.map_to_datatype(),
-                                    nullable: None,
-                                }),
-                            );
-                        }
-
-                        _ => {}
-                    }
+                    state.mem.r.insert(p3, value);
                 }
 
                 OP_OFFSET_LIMIT => {
