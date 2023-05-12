@@ -14,7 +14,7 @@ impl_database_ext! {
 
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDate,
-            
+
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDateTime,
 
