@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -114,17 +114,17 @@ regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.7.0-alpha.2", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.7.0-alpha.2", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.7.0-alpha.2", path = "sqlx-macros" }
+sqlx-core = { version = "=0.7.0-alpha.3", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.7.0-alpha.3", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.7.0-alpha.3", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.7.0-alpha.2", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.7.0-alpha.2", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.7.0-alpha.2", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.7.0-alpha.3", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.7.0-alpha.3", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.7.0-alpha.3", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.7.0-alpha.2", path = "." }
+sqlx = { version = "=0.7.0-alpha.3", path = "." }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -175,8 +175,10 @@ rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
+criterion = {version = "0.4", features = ["async_tokio"]}
+
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.25.1", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 
 #
 # Any
@@ -249,6 +251,12 @@ required-features = ["sqlite", "macros", "migrate"]
 name = "sqlite-migrate"
 path = "tests/sqlite/migrate.rs"
 required-features = ["sqlite", "macros", "migrate"]
+
+[[bench]]
+name = "sqlite-describe"
+path = "benches/sqlite/describe.rs"
+harness = false
+required-features = ["sqlite"]
 
 #
 # MySQL
@@ -332,3 +340,4 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-migrate"
 path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
+

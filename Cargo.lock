@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anes"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
+
+[[package]]
 name = "anyhow"
 version = "1.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -410,6 +416,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -431,6 +443,33 @@ dependencies = [
  "num-integer",
  "num-traits",
  "winapi",
+]
+
+[[package]]
+name = "ciborium"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c137568cc60b904a7724001b35ce2630fd00d5d84805fbb608ab89509d788f"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346de753af073cc87b52b2083a506b38ac176a44cfb05497b622e27be899b369"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213030a2b5a4e0c0892b6652260cf6ccac84827b83a85a534e178e3906c4cf1b"
+dependencies = [
+ "ciborium-io",
+ "half",
 ]
 
 [[package]]
@@ -571,6 +610,44 @@ name = "crc-catalog"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d0165d2900ae6778e36e80bbc4da3b5eefccee9ba939761f9c2882a5d9af3ff"
+
+[[package]]
+name = "criterion"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
+dependencies = [
+ "anes",
+ "atty",
+ "cast",
+ "ciborium",
+ "clap",
+ "criterion-plot",
+ "futures",
+ "itertools",
+ "lazy_static",
+ "num-traits",
+ "oorandom",
+ "plotters",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tinytemplate",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
+dependencies = [
+ "cast",
+ "itertools",
+]
 
 [[package]]
 name = "crossbeam-channel"
@@ -1061,6 +1138,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "half"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
+
+[[package]]
 name = "hashbrown"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1260,9 +1343,9 @@ checksum = "33a33a362ce288760ec6a508b94caaec573ae7d3bbbd91b87aa0bad4456839db"
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.25.2"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29f835d03d717946d28b1d1ed632eb6f0e24a299388ee623d0c23118d3e8a7fa"
+checksum = "afc22eff61b133b115c6e8c74e818c628d6d5e7a502afea6f64dee076dd94326"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1488,6 +1571,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18a6dbe30758c9f83eb00cbea4ac95966305f5a7772f3f42ebfc7fc7eddbd8e1"
 
 [[package]]
+name = "oorandom"
+version = "11.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
+
+[[package]]
 name = "openssl"
 version = "0.10.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1657,6 +1746,34 @@ name = "pkg-config"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1df8c4ec4b0627e53bdf214615ad287367e482558cf84b109250b37464dc03ae"
+
+[[package]]
+name = "plotters"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2538b639e642295546c50fcd545198c9d64ee2a38620a628724a3b266d5fbf97"
+dependencies = [
+ "num-traits",
+ "plotters-backend",
+ "plotters-svg",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "plotters-backend"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "193228616381fecdc1224c62e96946dfbc73ff4384fba576e052ff8c1bea8142"
+
+[[package]]
+name = "plotters-svg"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9a81d2759aae1dae668f783c308bc5c8ebd191ff4184aaa1b37f65a6ae5a56f"
+dependencies = [
+ "plotters-backend",
+]
 
 [[package]]
 name = "polling"
@@ -2029,13 +2146,13 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.20.6"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aab8ee6c7097ed6057f43c187a62418d0c05a4bd5f18b3571db50ee0f9ce033"
+checksum = "c911ba11bc8433e811ce56fde130ccf32f5127cab0e0194e9c68c5a5b671791e"
 dependencies = [
  "ring",
+ "rustls-webpki",
  "sct",
- "webpki",
 ]
 
 [[package]]
@@ -2045,6 +2162,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7522c9de787ff061458fe9a829dc790a3f5b22dc571694fc5883f448b94d9a9"
 dependencies = [
  "base64 0.13.0",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.100.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6207cd5ed3d8dca7816f8f3725513a34609c0c765bf652b8c3cb4cfd87db46b"
+dependencies = [
+ "ring",
+ "untrusted",
 ]
 
 [[package]]
@@ -2076,6 +2203,15 @@ name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3f6f92acf49d1b98f7a81226834412ada05458b7364277387724a237f062695"
+
+[[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
+]
 
 [[package]]
 name = "schannel"
@@ -2279,10 +2415,11 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "anyhow",
  "async-std",
+ "criterion",
  "dotenvy",
  "env_logger",
  "futures",
@@ -2308,7 +2445,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2333,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "ahash",
  "async-io",
@@ -2395,7 +2532,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2406,7 +2543,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros-core"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "async-std",
  "dotenvy",
@@ -2431,7 +2568,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-mysql"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "atoi",
  "base64 0.21.0",
@@ -2476,7 +2613,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-postgres"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "atoi",
  "base64 0.21.0",
@@ -2522,7 +2659,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-sqlite"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 dependencies = [
  "atoi",
  "bitflags",
@@ -2691,6 +2828,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a460aeb8de6dcb0f381e1ee05f1cd56fcf5a5f6eb8187ff3d8f0b11078d38b7c"
 dependencies = [
  "time-core",
+]
+
+[[package]]
+name = "tinytemplate"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2912,6 +3059,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d5b2c62b4012a3e1eca5a7e077d13b3bf498c4073e33ccd58626607748ceeca"
 
 [[package]]
+name = "walkdir"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36df944cda56c7d8d8b7496af378e6b16de9284591917d307c9b4d313c44e698"
+dependencies = [
+ "same-file",
+ "winapi-util",
+]
+
+[[package]]
 name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2994,22 +3151,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "webpki"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
-dependencies = [
- "ring",
- "untrusted",
-]
-
-[[package]]
 name = "webpki-roots"
-version = "0.22.4"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1c760f0d366a6c24a02ed7816e23e691f5d92291f94d15e836006fd11b04daf"
+checksum = "aa54963694b65584e170cf5dc46aeb4dcaa5584e652ff5f3952e56d66aff0125"
 dependencies = [
- "webpki",
+ "rustls-webpki",
 ]
 
 [[package]]
