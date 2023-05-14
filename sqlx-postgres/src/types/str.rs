@@ -18,6 +18,7 @@ impl Type<Postgres> for str {
             PgTypeInfo::BPCHAR,
             PgTypeInfo::VARCHAR,
             PgTypeInfo::UNKNOWN,
+            PgTypeInfo::with_name("citext"),
         ]
         .contains(ty)
     }

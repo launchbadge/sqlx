@@ -175,6 +175,7 @@ pub(crate) use sqlx_core::types::{Json, Type};
 mod array;
 mod bool;
 mod bytes;
+mod citext;
 mod float;
 mod int;
 mod interval;
@@ -224,6 +225,7 @@ mod mac_address;
 mod bit_vec;
 
 pub use array::PgHasArrayType;
+pub use citext::PgCitext;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;

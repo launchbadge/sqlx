@@ -2,7 +2,7 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgCitext, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 
@@ -79,7 +79,7 @@ test_type!(string_vec<Vec<String>>(Postgres,
         == vec!["", "\""],
 
     "array['Hello, World', '', 'Goodbye']::text[]"
-        == vec!["Hello, World", "", "Goodbye"]
+        == vec!["Hello, World", "", "Goodbye"],
 ));
 
 test_type!(string_array<[String; 3]>(Postgres,
@@ -547,6 +547,14 @@ test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)))
 
 test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
+));
+
+test_prepared_type!(citext_array<Vec<PgCitext>>(Postgres,
+    "array['one','two','three']::citext[]" == vec![
+        PgCitext::new("one".to_string()),
+        PgCitext::new("two".to_string()),
+        PgCitext::new("three".to_string()),
+    ],
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
