@@ -31,7 +31,7 @@ impl PgCitext {
 
 impl Type<Postgres> for PgCitext {
     fn type_info() -> PgTypeInfo {
-        // Since `ltree` is enabled by an extension, it does not have a stable OID.
+        // Since `citext` is enabled by an extension, it does not have a stable OID.
         PgTypeInfo::with_name("citext")
     }
 
