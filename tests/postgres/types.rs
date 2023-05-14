@@ -65,6 +65,7 @@ test_type!(str<&str>(Postgres,
     "'identifier'::name" == "identifier",
     "'five'::char(4)" == "five",
     "'more text'::varchar" == "more text",
+    "'case insensitive searching'::citext" == "case insensitive searching",
 ));
 
 test_type!(string<String>(Postgres,
