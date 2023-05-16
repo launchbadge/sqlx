@@ -11,6 +11,7 @@ use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
 };
+use std::str::FromStr;
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
@@ -189,7 +190,7 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for MySqlConnectOptions {
     type Error = sqlx_core::Error;
 
     fn try_from(any_opts: &'a AnyConnectOptions) -> Result<Self, Self::Error> {
-        let mut opts = Self::parse_from_url(&any_opts.database_url)?;
+        let mut opts = Self::from_str(&any_opts.database_url)?;
         opts.log_settings = any_opts.log_settings.clone();
         Ok(opts)
     }

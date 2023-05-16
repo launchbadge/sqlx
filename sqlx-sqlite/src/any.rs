@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::{
     Either, Sqlite, SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnectOptions,
     SqliteConnection, SqliteQueryResult, SqliteRow, SqliteTransactionManager, SqliteTypeInfo,
@@ -12,7 +13,7 @@ use sqlx_core::any::{
 };
 
 use crate::type_info::DataType;
-use sqlx_core::connection::{ConnectOptions, Connection};
+use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
@@ -190,7 +191,7 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     type Error = sqlx_core::Error;
 
     fn try_from(opts: &'a AnyConnectOptions) -> Result<Self, Self::Error> {
-        let mut opts_out = SqliteConnectOptions::from_url(&opts.database_url)?;
+        let mut opts_out = SqliteConnectOptions::from_str(&opts.database_url)?;
         opts_out.log_settings = opts.log_settings.clone();
         Ok(opts_out)
     }

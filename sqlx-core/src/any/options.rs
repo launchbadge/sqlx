@@ -17,7 +17,7 @@ use url::Url;
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct AnyConnectOptions {
-    pub database_url: Url,
+    pub database_url: String,
     pub log_settings: LogSettings,
 }
 impl FromStr for AnyConnectOptions {
@@ -25,9 +25,7 @@ impl FromStr for AnyConnectOptions {
 
     fn from_str(url: &str) -> Result<Self, Self::Err> {
         Ok(AnyConnectOptions {
-            database_url: url
-                .parse::<Url>()
-                .map_err(|e| Error::Configuration(e.into()))?,
+            database_url: url.to_owned(),
             log_settings: LogSettings::default(),
         })
     }
@@ -38,7 +36,7 @@ impl ConnectOptions for AnyConnectOptions {
 
     fn from_url(url: &Url) -> Result<Self, Error> {
         Ok(AnyConnectOptions {
-            database_url: url.clone(),
+            database_url: url.to_string(),
             log_settings: LogSettings::default(),
         })
     }

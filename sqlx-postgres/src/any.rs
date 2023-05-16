@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::{
     Either, PgColumn, PgConnectOptions, PgConnection, PgQueryResult, PgRow, PgTransactionManager,
     PgTypeInfo, Postgres,
@@ -223,7 +224,7 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for PgConnectOptions {
     type Error = sqlx_core::Error;
 
     fn try_from(value: &'a AnyConnectOptions) -> Result<Self, Self::Error> {
-        let mut opts = PgConnectOptions::parse_from_url(&value.database_url)?;
+        let mut opts = PgConnectOptions::from_str(&value.database_url)?;
         opts.log_settings = value.log_settings.clone();
         Ok(opts)
     }

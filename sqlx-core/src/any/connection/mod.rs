@@ -34,7 +34,7 @@ impl AnyConnection {
 
     pub(crate) fn connect(options: &AnyConnectOptions) -> BoxFuture<'_, crate::Result<Self>> {
         Box::pin(async {
-            let driver = crate::any::driver::from_url(&options.database_url)?;
+            let driver = crate::any::driver::from_str(&options.database_url)?;
             (driver.connect)(options).await
         })
     }

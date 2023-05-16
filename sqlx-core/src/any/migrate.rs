@@ -8,7 +8,7 @@ use std::time::Duration;
 impl MigrateDatabase for Any {
     fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async {
-            driver::from_url_str(url)?
+            driver::from_str(url)?
                 .get_migrate_database()?
                 .create_database(url)
                 .await
@@ -17,7 +17,7 @@ impl MigrateDatabase for Any {
 
     fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
         Box::pin(async {
-            driver::from_url_str(url)?
+            driver::from_str(url)?
                 .get_migrate_database()?
                 .database_exists(url)
                 .await
@@ -26,7 +26,7 @@ impl MigrateDatabase for Any {
 
     fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async {
-            driver::from_url_str(url)?
+            driver::from_str(url)?
                 .get_migrate_database()?
                 .drop_database(url)
                 .await

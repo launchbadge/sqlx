@@ -7,7 +7,6 @@ use crate::Error;
 use futures_core::future::BoxFuture;
 use once_cell::sync::OnceCell;
 use std::fmt::{Debug, Formatter};
-use url::Url;
 
 static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();
 
@@ -124,12 +123,10 @@ pub fn install_drivers(
         .map_err(|_| "drivers already installed".into())
 }
 
-pub(crate) fn from_url_str(url: &str) -> crate::Result<&'static AnyDriver> {
-    from_url(&url.parse().map_err(Error::config)?)
-}
-
-pub(crate) fn from_url(url: &Url) -> crate::Result<&'static AnyDriver> {
-    let scheme = url.scheme();
+pub(crate) fn from_str(url: &str) -> crate::Result<&'static AnyDriver> {
+    let mut scheme_and_params = url.splitn(2, ':');
+    let scheme = scheme_and_params.next().ok_or(Error::Configuration(format!("Invalid connection string, missing scheme").into()))?;
+    scheme_and_params.next().ok_or(Error::Configuration(format!("Invalid connection string, missing parameters for {}", scheme).into()))?;
 
     let drivers: &[AnyDriver] = DRIVERS
         .get()
@@ -137,7 +134,7 @@ pub(crate) fn from_url(url: &Url) -> crate::Result<&'static AnyDriver> {
 
     drivers
         .iter()
-        .find(|driver| driver.url_schemes.contains(&url.scheme()))
+        .find(|driver| driver.url_schemes.contains(&scheme))
         .ok_or_else(|| {
             Error::Configuration(format!("no driver found for URL scheme {:?}", scheme).into())
         })

@@ -258,7 +258,7 @@ impl LockedSqliteHandle<'_> {
     /// The progress handler callback must not do anything that will modify the database connection that invoked
     /// the progress handler. Note that sqlite3_prepare_v2() and sqlite3_step() both modify their database connections
     /// in this context.
-    pub fn set_progress_handler<F>(&mut self, num_ops: i32, mut callback: F)
+    pub fn set_progress_handler<F>(&mut self, num_ops: i32, callback: F)
     where
         F: FnMut() -> bool + Send + 'static,
     {
