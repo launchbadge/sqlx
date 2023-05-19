@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::from_row::FromRow;
@@ -46,6 +46,20 @@ where
             init_len: init.len(),
             query: init,
             arguments: Some(Default::default()),
+        }
+    }
+
+    pub fn new_with<A>(init: impl Into<String>, arguments: A) -> Self
+    where
+        DB: Database,
+        A: IntoArguments<'args, DB>,
+    {
+        let init = init.into();
+
+        QueryBuilder {
+            init_len: init.len(),
+            query: init,
+            arguments: Some(arguments.into_arguments()),
         }
     }
 
