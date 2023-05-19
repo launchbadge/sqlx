@@ -649,4 +649,23 @@ mod test {
             "SELECT * FROM users WHERE id = 99"
         );
     }
+
+    #[test]
+    fn test_query_builder_with_args() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
+
+        let query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+
+        let mut qb: QueryBuilder<'_, Postgres> =
+            QueryBuilder::new_with(query.sql(), query.take_arguments());
+        let query = qb.push("OR membership_level =").push_bind(3i32).build();
+
+        assert_eq!(
+            query.sql(),
+            "SELECT * FROM users WHERE id = $1 OR membership_level = $2"
+        );
+    }
 }
