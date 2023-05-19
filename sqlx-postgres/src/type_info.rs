@@ -166,9 +166,9 @@ impl PgTypeInfo {
         self.0.kind()
     }
 
-    /// Returns the OID for this type.
-    pub fn oid(&self) -> Oid {
-        self.0.oid()
+    /// Returns the OID for this type, if any.
+    pub fn try_oid(&self) -> Option<Oid> {
+        self.0.try_oid()
     }
 
     #[doc(hidden)]
