@@ -1,9 +1,12 @@
 use sqlx::query;
+use sqlx::Acquire;
+use sqlx::Connection;
 
 async fn insert_and_verify(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     test_id: i64,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let connection = transaction.acquire().await?;
     query!(
         r#"INSERT INTO todos (id, description)
         VALUES ( $1, $2 )
@@ -11,12 +14,12 @@ async fn insert_and_verify(
         test_id,
         "test todo"
     )
-    .execute(&mut *transaction)
+    .execute(&mut *connection)
     .await?;
 
     // check that inserted todo can be fetched inside the uncommitted transaction
     let _ = query!(r#"SELECT FROM todos WHERE id = $1"#, test_id)
-        .fetch_one(transaction)
+        .fetch_one(&mut *connection)
         .await?;
 
     Ok(())
@@ -60,6 +63,33 @@ async fn commit_example(
     Ok(())
 }
 
+async fn insert_and_update_description(
+    pool: &sqlx::PgPool,
+    test_id: i64,
+    new_description: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut connection = pool.acquire().await?;
+
+    connection
+        .transaction(|tx| {
+            Box::pin(async {
+                insert_and_verify(tx, test_id).await.unwrap();
+                let conn = tx.acquire().await?;
+                query!(
+                    r#"UPDATE todos set description = $1 where id = $2"#,
+                    new_description,
+                    test_id,
+                )
+                .execute(conn)
+                .await?;
+                Ok::<_, sqlx::Error>(())
+            })
+        })
+        .await?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn_str =
@@ -99,6 +129,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await;
 
     assert!(inserted_todo.is_ok());
+
+    let test_id = 2;
+
+    let description = String::from("hello world");
+    insert_and_update_description(&pool, test_id, &description).await?;
+
+    // check that inserted todo is visible outside the transaction after commit
+    let inserted_todo: Result<_, _> = query!(r#"SELECT * FROM todos WHERE id = $1"#, test_id)
+        .fetch_one(&pool)
+        .await;
+
+    assert!(inserted_todo.is_ok());
+    assert_eq!(inserted_todo.unwrap().description, description);
 
     Ok(())
 }
