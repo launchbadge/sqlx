@@ -26,24 +26,26 @@ impl Decode<'_> for AuthSwitchRequest {
 
         let plugin = buf.get_str_nul()?.parse()?;
 
+        if matches!(plugin, AuthPlugin::MySqlClearPassword) && buf.is_empty() {
+            // Contrary to the MySQL protocol, AWS Aurora with IAM sends
+            // no data. That is fine because the mysql_clear_password says to
+            // ignore any data sent.
+            // See: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_authentication_methods_clear_text_password.html
+            return Ok(Self {
+                plugin,
+                data: Bytes::new(),
+            });
+        }
+
         // See: https://github.com/mysql/mysql-server/blob/ea7d2e2d16ac03afdd9cb72a972a95981107bf51/sql/auth/sha2_password.cc#L942
-        let data = if buf.len() != 21 {
-            if matches!(plugin, AuthPlugin::MySqlClearPassword) {
-                // Contrary to the MySQL protocol, AWS Aurora with IAM sends
-                // no data. That is fine because the MySQL protocol says to
-                // ignore any data sent.
-                Bytes::new()
-            } else {
-                return Err(err_protocol!(
-                    "expected 21 bytes but found {} bytes",
-                    buf.len()
-                ));
-            }
-        } else {
-            let data = buf.get_bytes(20);
-            buf.advance(1); // NUL-terminator
-            data
-        };
+        if buf.len() != 21 {
+            return Err(err_protocol!(
+                "expected 21 bytes but found {} bytes",
+                buf.len()
+            ));
+        }
+        let data = buf.get_bytes(20);
+        buf.advance(1); // NUL-terminator
 
         Ok(Self { plugin, data })
     }
@@ -56,4 +58,24 @@ impl Encode<'_, Capabilities> for AuthSwitchResponse {
     fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) {
         buf.extend_from_slice(&self.0);
     }
+}
+
+#[test]
+fn test_decode_auth_switch_packet_data() {
+    const AUTH_SWITCH_NO_DATA: &[u8] = b"\xfecaching_sha2_password\x00abcdefghijabcdefghij\x00";
+
+    let p = AuthSwitchRequest::decode_with(AUTH_SWITCH_NO_DATA.into(), ()).unwrap();
+
+    assert!(matches!(p.plugin, AuthPlugin::CachingSha2Password));
+    assert_eq!(p.data, &b"abcdefghijabcdefghij"[..]);
+}
+
+#[test]
+fn test_decode_auth_switch_packet_no_data() {
+    const AUTH_SWITCH_NO_DATA: &[u8] = b"\xfemysql_clear_password\x00";
+
+    let p = AuthSwitchRequest::decode_with(AUTH_SWITCH_NO_DATA.into(), ()).unwrap();
+
+    assert!(matches!(p.plugin, AuthPlugin::MySqlClearPassword));
+    assert_eq!(p.data, Bytes::new());
 }
