@@ -134,7 +134,7 @@ impl<'a> DoHandshake<'a> {
                 }
 
                 0xfe => {
-                    let switch: AuthSwitchRequest = packet.decode()?;
+                    let switch: AuthSwitchRequest = packet.decode_with(self.options.enable_cleartext_plugin)?;
 
                     plugin = Some(switch.plugin);
                     let nonce = switch.data.chain(Bytes::new());

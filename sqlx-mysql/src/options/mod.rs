@@ -68,6 +68,7 @@ pub struct MySqlConnectOptions {
     pub(crate) collation: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
+    pub(crate) enable_cleartext_plugin: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -95,6 +96,7 @@ impl MySqlConnectOptions {
             statement_cache_capacity: 100,
             log_settings: Default::default(),
             pipes_as_concat: true,
+            enable_cleartext_plugin: false,
         }
     }
 
@@ -256,6 +258,17 @@ impl MySqlConnectOptions {
     /// cases.
     pub fn pipes_as_concat(mut self, flag_val: bool) -> Self {
         self.pipes_as_concat = flag_val;
+        self
+    }
+
+    /// Enables mysql_clear_password plugin support.
+    ///
+    /// Security Note:
+    /// Sending passwords as cleartext may be a security problem in some
+    /// configurations. Please consider using TLS or encrypted tunnels for
+    /// server connection.
+    pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
+        self.enable_cleartext_plugin = flag_val;
         self
     }
 }
