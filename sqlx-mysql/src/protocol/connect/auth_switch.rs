@@ -30,7 +30,8 @@ impl Decode<'_> for AuthSwitchRequest {
         let data = if buf.len() != 21 {
             if matches!(plugin, AuthPlugin::MySqlClearPassword) {
                 // Contrary to the MySQL protocol, AWS Aurora with IAM sends
-                // no data.
+                // no data. That is fine because the MySQL protocol says to
+                // ignore any data sent.
                 Bytes::new()
             } else {
                 return Err(err_protocol!(
