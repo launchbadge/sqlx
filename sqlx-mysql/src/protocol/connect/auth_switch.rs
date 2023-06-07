@@ -27,14 +27,22 @@ impl Decode<'_> for AuthSwitchRequest {
         let plugin = buf.get_str_nul()?.parse()?;
 
         // See: https://github.com/mysql/mysql-server/blob/ea7d2e2d16ac03afdd9cb72a972a95981107bf51/sql/auth/sha2_password.cc#L942
-        if buf.len() != 21 {
-            return Err(err_protocol!(
-                "expected 21 bytes but found {} bytes",
-                buf.len()
-            ));
-        }
-        let data = buf.get_bytes(20);
-        buf.advance(1); // NUL-terminator
+        let data = if buf.len() != 21 {
+            if matches!(plugin, AuthPlugin::MySqlClearPassword) {
+                // Contrary to the MySQL protocol, AWS Aurora with IAM sends
+                // no data.
+                Bytes::new()
+            } else {
+                return Err(err_protocol!(
+                    "expected 21 bytes but found {} bytes",
+                    buf.len()
+                ));
+            }
+        } else {
+            let data = buf.get_bytes(20);
+            buf.advance(1); // NUL-terminator
+            data
+        };
 
         Ok(Self { plugin, data })
     }
