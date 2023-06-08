@@ -361,7 +361,7 @@ mod tests {
         let sample_metadata = std::fs::read_to_string(sample_metadata_path)?;
         let metadata: Metadata = sample_metadata.parse()?;
 
-        let action = minimal_project_recompile_action(&metadata)?;
+        let action = minimal_project_recompile_action(&metadata);
         assert_eq!(
             action,
             ProjectRecompileAction {
