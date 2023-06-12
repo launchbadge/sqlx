@@ -865,3 +865,106 @@ async fn it_describes_with_recursive() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_analytical_function() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe("select row_number() over () from accounts")
+        .await?;
+    dbg!(&d);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn.describe("select rank() over () from accounts").await?;
+    dbg!(&d);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select dense_rank() over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select percent_rank() over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "REAL");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select cume_dist() over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "REAL");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select ntile(1) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select lag(id) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select lag(name) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select lead(id) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select lead(name) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select first_value(id) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select first_value(name) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select last_value(id) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn
+        .describe("select first_value(name) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    //assert_eq!(d.nullable(0), Some(false)); //this should be null, but it's hard to prove that it will be
+
+    let d = conn
+        .describe("select nth_value(id,10) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn
+        .describe("select nth_value(name,10) over () from accounts")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(true));
+
+    Ok(())
+}
