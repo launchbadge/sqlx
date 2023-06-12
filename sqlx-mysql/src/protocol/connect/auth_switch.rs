@@ -80,7 +80,10 @@ fn test_decode_auth_switch_cleartext_disabled() {
 
     let e = AuthSwitchRequest::decode_with(AUTH_SWITCH_CLEARTEXT.into(), false).unwrap_err();
 
-    assert_eq!(e.to_string(), "encountered unexpected or invalid data: mysql_cleartext_plugin disabled");
+    assert_eq!(
+        e.to_string(),
+        "encountered unexpected or invalid data: mysql_cleartext_plugin disabled"
+    );
 }
 
 #[test]
