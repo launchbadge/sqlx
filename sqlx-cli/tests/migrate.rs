@@ -36,7 +36,7 @@ async fn run_reversible_migrations() {
 
         // Upgrade to an old version.
         db.run_migration(false, Some(20230301000000), false)
-            .success();
+            .failure();
         assert_eq!(db.applied_migrations().await, all_migrations);
     }
     // With --target-version, incrementally upgrade.
@@ -128,7 +128,7 @@ async fn revert_migrations() {
 
         // Try downgrading to a newer version.
         db.run_migration(true, Some(20230401000000), false)
-            .success();
+            .failure();
         assert_eq!(db.applied_migrations().await, all_migrations[..3]);
 
         // Try downgrading to a non-existent version.

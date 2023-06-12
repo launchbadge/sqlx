@@ -204,7 +204,6 @@ pub async fn run(
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-
     if let Some(target_version) = target_version {
         if !migrator.iter().any(|m| target_version == m.version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -222,6 +221,17 @@ pub async fn run(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version < latest_version {
+            bail!(MigrateError::VersionTooOld(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -289,7 +299,6 @@ pub async fn revert(
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-
     if let Some(target_version) = target_version {
         if target_version != 0 && !migrator.iter().any(|m| target_version == m.version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -307,6 +316,17 @@ pub async fn revert(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version > latest_version {
+            bail!(MigrateError::VersionTooNew(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
