@@ -177,7 +177,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
             #(#instantiations)*
 
-            Ok(#out_ty { #(#ident: #var_name),* })
+            ::std::result::Result::Ok(#out_ty { #(#ident: #var_name),* })
         })
     }
 }
