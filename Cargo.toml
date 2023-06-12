@@ -132,7 +132,7 @@ bigdecimal = "0.3.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.22", default-features = false }
 ipnetwork = "0.20.0"
-mac_address = "1.1.3"
+mac_address = "1.1.5"
 rust_decimal = "1.26.1"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
