@@ -169,7 +169,7 @@ impl PgTypeInfo {
     /// Returns the OID for this type, if available.
     ///
     /// The OID may not be available if SQLx only knows the type by name.
-    /// It will have to be resolved by a `PgConnection` at runtime which 
+    /// It will have to be resolved by a `PgConnection` at runtime which
     /// will yield a new and semantically distinct `TypeInfo` instance.
     ///
     /// This method does not perform any such lookup.
