@@ -3,8 +3,14 @@ use quote::quote;
 use syn::LitStr;
 
 struct Args {
-    fixtures: Vec<LitStr>,
+    fixtures: FixturesOpt,
     migrations: MigrationsOpt,
+}
+
+enum FixturesOpt {
+    None,
+    InferredPath(Vec<LitStr>),
+    ExplicitPath(Vec<LitStr>),
 }
 
 enum MigrationsOpt {
@@ -72,16 +78,35 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
 
     let fn_arg_types = inputs.iter().map(|_| quote! { _ });
 
-    let fixtures = args.fixtures.into_iter().map(|fixture| {
-        let path = format!("fixtures/{}.sql", fixture.value());
+    let fixtures = match args.fixtures {
+        FixturesOpt::None => vec![],
+        FixturesOpt::InferredPath(fixtures) => fixtures
+            .into_iter()
+            .map(|fixture| {
+                let path = format!("fixtures/{}.sql", fixture.value());
 
-        quote! {
-            ::sqlx::testing::TestFixture {
-                path: #path,
-                contents: include_str!(#path),
-            }
-        }
-    });
+                quote! {
+                    ::sqlx::testing::TestFixture {
+                        path: #path,
+                        contents: include_str!(#path),
+                    }
+                }
+            })
+            .collect(),
+        FixturesOpt::ExplicitPath(fixtures) => fixtures
+            .into_iter()
+            .map(|fixture| {
+                let path = format!("{}.sql", fixture.value());
+
+                quote! {
+                    ::sqlx::testing::TestFixture {
+                        path: #path,
+                        contents: include_str!(#path),
+                    }
+                }
+            })
+            .collect(),
+    };
 
     let migrations = match args.migrations {
         MigrationsOpt::ExplicitPath(path) => {
@@ -128,23 +153,30 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
 
 #[cfg(feature = "migrate")]
 fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
-    let mut fixtures = vec![];
+    let mut fixtures = FixturesOpt::None;
     let mut migrations = MigrationsOpt::InferredPath;
 
     for arg in attr_args {
         match arg {
-            syn::NestedMeta::Meta(syn::Meta::List(list)) if list.path.is_ident("fixtures") => {
-                if !fixtures.is_empty() {
-                    return Err(syn::Error::new_spanned(list, "duplicate `fixtures` arg"));
+            syn::NestedMeta::Meta(syn::Meta::List(list)) if list.path.is_ident("fixtures") || list.path.is_ident("fixtures_path") => {
+                if !matches!(fixtures, FixturesOpt::None) {
+                    return Err(syn::Error::new_spanned(list, "cannot have more than one `fixtures` or `fixtures_path` arg"));
                 }
+
+                let mut fixtures_local = vec![];
 
                 for nested in list.nested {
                     match nested {
-                        syn::NestedMeta::Lit(syn::Lit::Str(litstr)) => fixtures.push(litstr),
+                        syn::NestedMeta::Lit(syn::Lit::Str(litstr)) => fixtures_local.push(litstr),
                         other => {
                             return Err(syn::Error::new_spanned(other, "expected string literal"))
                         }
                     }
+                }
+                fixtures = if list.path.is_ident("fixtures") {
+                    FixturesOpt::InferredPath(fixtures_local)
+                } else {
+                    FixturesOpt::ExplicitPath(fixtures_local)
                 }
             }
             syn::NestedMeta::Meta(syn::Meta::NameValue(namevalue))
@@ -204,7 +236,7 @@ fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
             other => {
                 return Err(syn::Error::new_spanned(
                     other,
-                    "expected `fixtures(\"<filename>\", ...)` or `migrations = \"<path>\" | false` or `migrator = \"<rust path>\"`",
+                    "expected `fixtures(\"<filename>\", ...)` or `fixtures_path(\"<path/filename>\", ...)` or `migrations = \"<path>\" | false` or `migrator = \"<rust path>\"`",
                 ))
             }
         }
