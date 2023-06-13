@@ -42,7 +42,11 @@ async fn it_gets_users(pool: PgPool) -> sqlx::Result<()> {
     Ok(())
 }
 
-#[sqlx::test(migrations = "tests/postgres/migrations", fixtures("users", "posts"))]
+// This should apply migrations and then `../fixtures-postgres/users.sql` and `../fixtures-postgres/posts.sql`
+#[sqlx::test(
+    migrations = "tests/postgres/migrations",
+    fixtures_path("../fixtures-postgres/users", "../fixtures-postgres/posts")
+)]
 async fn it_gets_posts(pool: PgPool) -> sqlx::Result<()> {
     let post_contents: Vec<String> =
         sqlx::query_scalar("SELECT content FROM post ORDER BY created_at")
