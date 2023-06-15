@@ -185,7 +185,7 @@ similarly to migrations but are solely intended to insert test data and be arbit
 Imagine a basic social app that has users, posts and comments. To test the comment routes, you'd want
 the database to already have users and posts in it so the comments tests don't have to duplicate that work.
 
-You can pass a list of fixture names to the attribute like so, and they will be applied in the given order<sup>3</sup>:
+You can either pass a list of fixture names to the attribute `fixtures` like so, or a list of fixture with paths to the attribute `fixtures_path` and they will be applied in the given order<sup>3</sup>:
 
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
@@ -195,6 +195,7 @@ You can pass a list of fixture names to the attribute like so, and they will be 
 use sqlx::PgPool;
 use serde_json::json;
 
+// Using `fixtures_path`: #[sqlx::test(fixtures_path("./fixtures/users", "./fixtures/posts"))]
 #[sqlx::test(fixtures("users", "posts"))]
 async fn test_create_comment(pool: PgPool) -> sqlx::Result<()> {
     // See examples/postgres/social-axum-with-tests for a more in-depth example. 
@@ -211,7 +212,7 @@ async fn test_create_comment(pool: PgPool) -> sqlx::Result<()> {
 # }
 ```
 
-Fixtures are resolved relative to the current file as `./fixtures/{name}.sql`.
+Both fixtures are resolved relative to the current file, specifically fixtures passed using `fixtures` are resolved as `./fixtures/{name}.sql`.
 
 <sup>3</sup>Ordering for test fixtures is entirely up to the application, and each test may choose which fixtures to
 apply and which to omit. However, since each fixture is applied separately (sent as a single command string, so wrapped 
