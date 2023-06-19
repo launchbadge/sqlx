@@ -22,10 +22,10 @@ impl_database_ext! {
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
 
         #[cfg(feature = "time")]
-        sqlx::types::time::PrimitiveDateTime,
+        sqlx::types::time::OffsetDateTime,
 
         #[cfg(feature = "time")]
-        sqlx::types::time::OffsetDateTime,
+        sqlx::types::time::PrimitiveDateTime,
 
         #[cfg(feature = "time")]
         sqlx::types::time::Date,
