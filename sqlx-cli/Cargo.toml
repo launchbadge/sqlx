@@ -34,6 +34,7 @@ sqlx = { workspace = true, default-features = false, features = [
 ] }
 futures = "0.3.19"
 clap = { version = "3.1.0", features = ["derive", "env"] }
+clap_complete = { version = "3.1.0", optional = true }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 anyhow = "1.0.52"
 url = { version = "2.2.2", default-features = false }
@@ -52,7 +53,7 @@ filetime = "0.2"
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
-default = ["postgres", "sqlite", "mysql", "native-tls"]
+default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]
 rustls = ["sqlx/runtime-tokio-rustls"]
 native-tls = ["sqlx/runtime-tokio-native-tls"]
 
@@ -63,3 +64,5 @@ sqlite = ["sqlx/sqlite"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
+
+completions = ["dep:clap_complete"]

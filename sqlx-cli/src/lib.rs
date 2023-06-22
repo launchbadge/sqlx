@@ -12,6 +12,8 @@ mod database;
 mod metadata;
 // mod migration;
 // mod migrator;
+#[cfg(feature = "completions")]
+mod completions;
 mod migrate;
 mod opt;
 mod prepare;
@@ -68,6 +70,9 @@ pub async fn run(opt: Opt) -> Result<()> {
             connect_opts,
             args,
         } => prepare::run(check, workspace, connect_opts, args).await?,
+
+        #[cfg(feature = "completions")]
+        Command::Completions { shell } => completions::run(shell),
     };
 
     Ok(())
