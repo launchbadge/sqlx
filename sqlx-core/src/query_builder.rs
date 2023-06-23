@@ -49,7 +49,12 @@ where
         }
     }
 
-    pub fn new_with<A>(init: impl Into<String>, arguments: A) -> Self
+
+    /// Construct a `QueryBuilder` with existing SQL and arguments.
+    ///
+    /// ### Note
+    /// This does *not* check if `arguments` is valid for the given SQL.
+    pub fn with_arguments<A>(init: impl Into<String>, arguments: A) -> Self
     where
         DB: Database,
         A: IntoArguments<'args, DB>,
