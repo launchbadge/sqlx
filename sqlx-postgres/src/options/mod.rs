@@ -2,14 +2,19 @@ use std::borrow::Cow;
 use std::env::var;
 use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub use ssl_mode::PgSslMode;
 
+use crate::PgSeverity;
 use crate::{connection::LogSettings, net::tls::CertificateInput};
+
+use self::preferences::PgClientPreferences;
 
 mod connect;
 mod parse;
 mod pgpass;
+pub(crate) mod preferences;
 mod ssl_mode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
@@ -94,6 +99,7 @@ pub struct PgConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
     pub(crate) options: Option<String>,
+    pub(crate) client_preferences: PgClientPreferences,
 }
 
 impl Default for PgConnectOptions {
@@ -160,6 +166,7 @@ impl PgConnectOptions {
             extra_float_digits: Some("3".into()),
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
+            client_preferences: Default::default(),
         }
     }
 
@@ -470,6 +477,22 @@ impl PgConnectOptions {
 
             write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
         }
+        self
+    }
+
+    /// Customize the client-side logging level for notice responses.
+    //
+    // While we are transitioning to [`tracing`], we use [`log::Level`] because
+    // we can match on it.
+    pub fn notice_response_log_level(
+        mut self,
+        level_fn: impl Fn(PgSeverity) -> log::Level + Sync + Send + 'static,
+    ) -> Self {
+        self.client_preferences.notice_response_log_levels_fn = Some(Arc::new(move |severity| {
+            let log_level = level_fn(severity);
+            let tracing_level = crate::options::preferences::compute_tracing_level(log_level);
+            (log_level, tracing_level)
+        }));
         self
     }
 

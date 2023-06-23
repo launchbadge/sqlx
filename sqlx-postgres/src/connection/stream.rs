@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
-use log::Level;
 use sqlx_core::bytes::{Buf, Bytes};
 
 use crate::connection::tls::MaybeUpgradeTls;
@@ -12,7 +11,8 @@ use crate::error::Error;
 use crate::io::{Decode, Encode};
 use crate::message::{Message, MessageFormat, Notice, Notification, ParameterStatus};
 use crate::net::{self, BufferedSocket, Socket};
-use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
+use crate::options::preferences::PgClientPreferences;
+use crate::{PgConnectOptions, PgDatabaseError};
 
 // the stream is a separate type from the connection to uphold the invariant where an instantiated
 // [PgConnection] is a **valid** connection to postgres
@@ -36,6 +36,8 @@ pub struct PgStream {
     pub(crate) parameter_statuses: BTreeMap<String, String>,
 
     pub(crate) server_version_num: Option<u32>,
+
+    pub(crate) preferences: PgClientPreferences,
 }
 
 impl PgStream {
@@ -52,6 +54,7 @@ impl PgStream {
             notifications: None,
             parameter_statuses: BTreeMap::default(),
             server_version_num: None,
+            preferences: options.client_preferences.clone(),
         })
     }
 
@@ -136,37 +139,8 @@ impl PgStream {
                 }
 
                 MessageFormat::NoticeResponse => {
-                    // do we need this to be more configurable?
-                    // if you are reading this comment and think so, open an issue
-
                     let notice: Notice = message.decode()?;
-
-                    let (log_level, tracing_level) = match notice.severity() {
-                        PgSeverity::Fatal | PgSeverity::Panic | PgSeverity::Error => {
-                            (Level::Error, tracing::Level::ERROR)
-                        }
-                        PgSeverity::Warning => (Level::Warn, tracing::Level::WARN),
-                        PgSeverity::Notice => (Level::Info, tracing::Level::INFO),
-                        PgSeverity::Debug => (Level::Debug, tracing::Level::DEBUG),
-                        PgSeverity::Info | PgSeverity::Log => (Level::Trace, tracing::Level::TRACE),
-                    };
-
-                    let log_is_enabled = log::log_enabled!(
-                        target: "sqlx::postgres::notice",
-                        log_level
-                    ) || sqlx_core::private_tracing_dynamic_enabled!(
-                        target: "sqlx::postgres::notice",
-                        tracing_level
-                    );
-                    if log_is_enabled {
-                        let message = format!("{}", notice.message());
-                        sqlx_core::private_tracing_dynamic_event!(
-                            target: "sqlx::postgres::notice",
-                            tracing_level,
-                            message
-                        );
-                    }
-
+                    self.process_notice_response(notice);
                     continue;
                 }
 
@@ -174,6 +148,28 @@ impl PgStream {
             }
 
             return Ok(message);
+        }
+    }
+
+    fn process_notice_response(&self, notice: Notice) {
+        let (log_level, tracing_level) = self
+            .preferences
+            .notice_response_log_levels(notice.severity());
+
+        let log_is_enabled = log::log_enabled!(
+            target: "sqlx::postgres::notice",
+            log_level
+        ) || sqlx_core::private_tracing_dynamic_enabled!(
+            target: "sqlx::postgres::notice",
+            tracing_level
+        );
+        if log_is_enabled {
+            let message = format!("{}", notice.message());
+            sqlx_core::private_tracing_dynamic_event!(
+                target: "sqlx::postgres::notice",
+                tracing_level,
+                message
+            );
         }
     }
 }
