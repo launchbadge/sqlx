@@ -49,7 +49,6 @@ where
         }
     }
 
-
     /// Construct a `QueryBuilder` with existing SQL and arguments.
     ///
     /// ### Note
