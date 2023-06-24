@@ -166,6 +166,7 @@ impl<'r> Decode<'r, Postgres> for PgLQuery {
 
 bitflags! {
     /// Modifiers that can be set to non-star labels
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct PgLQueryVariantFlag: u16 {
         /// * - Match any label with this prefix, for example foo* matches foobar
         const ANY_END = 0x01;
@@ -263,7 +264,7 @@ impl FromStr for PgLQueryVariant {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut label_length = s.len();
         let mut rev_iter = s.bytes().rev();
-        let mut modifiers = PgLQueryVariantFlag { bits: 0 };
+        let mut modifiers = PgLQueryVariantFlag::empty();
 
         while let Some(b) = rev_iter.next() {
             match b {
