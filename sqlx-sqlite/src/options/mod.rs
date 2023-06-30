@@ -25,6 +25,9 @@ use sqlx_core::IndexMap;
 /// A value of `SqliteConnectOptions` can be parsed from a connection URL,
 /// as described by [SQLite](https://www.sqlite.org/uri.html).
 ///
+/// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
+/// containing a connection URL and then further adjust options if necessary (see example below).
+///
 /// | URL | Description |
 /// | -- | -- |
 /// `sqlite::memory:` | Open an in-memory database. |
@@ -36,20 +39,17 @@ use sqlx_core::IndexMap;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::connection::ConnectOptions;
-/// # use sqlx_core::error::Error;
-/// # use sqlx_sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// # async fn example() -> sqlx::Result<()> {
+/// use sqlx::ConnectOptions;
+/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
-/// # fn main() {
-/// # #[cfg(feature = "_rt-async-std")]
-/// # sqlx::__rt::test_block_on(async move {
 /// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
 ///     .read_only(true)
 ///     .connect().await?;
-/// # Result::<(), Error>::Ok(())
-/// # }).unwrap();
+/// #
+/// # Ok(())
 /// # }
 /// ```
 #[derive(Clone, Debug)]
