@@ -1,6 +1,8 @@
 use std::ops::{Deref, Not};
 
 use clap::{Args, Parser};
+#[cfg(feature = "completions")]
+use clap_complete::Shell;
 
 #[derive(Parser, Debug)]
 #[clap(version, about, author)]
@@ -46,6 +48,10 @@ pub enum Command {
 
     #[clap(alias = "mig")]
     Migrate(MigrateOpt),
+
+    #[cfg(feature = "completions")]
+    /// Generate shell completions for the specified shell
+    Completions { shell: Shell },
 }
 
 /// Group of commands for creating and dropping your database.
