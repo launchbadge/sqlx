@@ -13,16 +13,17 @@ use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValue
 
 // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/include/utils/rangetypes.h#L35-L44
 bitflags! {
-  struct RangeFlags: u8 {
-      const EMPTY = 0x01;
-      const LB_INC = 0x02;
-      const UB_INC = 0x04;
-      const LB_INF = 0x08;
-      const UB_INF = 0x10;
-      const LB_NULL = 0x20; // not used
-      const UB_NULL = 0x40; // not used
-      const CONTAIN_EMPTY = 0x80; // internal
-  }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    struct RangeFlags: u8 {
+        const EMPTY = 0x01;
+        const LB_INC = 0x02;
+        const UB_INC = 0x04;
+        const LB_INF = 0x08;
+        const UB_INF = 0x10;
+        const LB_NULL = 0x20; // not used
+        const UB_NULL = 0x40; // not used
+        const CONTAIN_EMPTY = 0x80; // internal
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -1,6 +1,7 @@
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__capabilities__flags.html
 // https://mariadb.com/kb/en/library/connection/#capabilities
 bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Capabilities: u64 {
         // [MariaDB] MySQL compatibility
         const MYSQL = 1;
