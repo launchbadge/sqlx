@@ -11,12 +11,12 @@ pub(crate) use sqlx_core::error::*;
 pub struct MySqlDatabaseError(pub(super) ErrPacket);
 
 impl MySqlDatabaseError {
-    /// The [SQLSTATE](https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html) code for this error.
+    /// The [SQLSTATE](https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html) code for this error.
     pub fn code(&self) -> Option<&str> {
         self.0.sql_state.as_deref()
     }
 
-    /// The [number](https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html)
+    /// The [number](https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html)
     /// for this error.
     ///
     /// MySQL tends to use SQLSTATE as a general error category, and the error number as a more
