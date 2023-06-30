@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::from_row::FromRow;
@@ -46,6 +46,24 @@ where
             init_len: init.len(),
             query: init,
             arguments: Some(Default::default()),
+        }
+    }
+
+    /// Construct a `QueryBuilder` with existing SQL and arguments.
+    ///
+    /// ### Note
+    /// This does *not* check if `arguments` is valid for the given SQL.
+    pub fn with_arguments<A>(init: impl Into<String>, arguments: A) -> Self
+    where
+        DB: Database,
+        A: IntoArguments<'args, DB>,
+    {
+        let init = init.into();
+
+        QueryBuilder {
+            init_len: init.len(),
+            query: init,
+            arguments: Some(arguments.into_arguments()),
         }
     }
 
@@ -633,6 +651,25 @@ mod test {
         assert_eq!(
             query.statement.unwrap_left(),
             "SELECT * FROM users WHERE id = 99"
+        );
+    }
+
+    #[test]
+    fn test_query_builder_with_args() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
+
+        let query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+
+        let mut qb: QueryBuilder<'_, Postgres> =
+            QueryBuilder::new_with(query.sql(), query.take_arguments());
+        let query = qb.push("OR membership_level =").push_bind(3i32).build();
+
+        assert_eq!(
+            query.sql(),
+            "SELECT * FROM users WHERE id = $1 OR membership_level = $2"
         );
     }
 }
