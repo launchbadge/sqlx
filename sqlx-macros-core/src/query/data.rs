@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
+use std::io::Write as _;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -161,8 +162,15 @@ where
         // with persisting the file across filesystems.
         let mut tmp_file = tempfile::NamedTempFile::new_in(tmp_dir)
             .map_err(|err| format!("failed to create query file: {:?}", err))?;
+
         serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
             .map_err(|err| format!("failed to serialize query data to file: {:?}", err))?;
+        // Ensure there is a newline at the end of the JSON file to avoid accidental modification by IDE
+        // and make github diff tool happier
+        tmp_file
+            .as_file_mut()
+            .write_all(b"\n")
+            .map_err(|err| format!("failed to append a newline to file: {:?}", err))?;
 
         tmp_file
             .persist(dir.as_ref().join(format!("query-{}.json", self.hash)))
