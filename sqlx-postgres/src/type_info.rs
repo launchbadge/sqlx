@@ -166,6 +166,25 @@ impl PgTypeInfo {
         self.0.kind()
     }
 
+    /// Returns the OID for this type, if available.
+    ///
+    /// The OID may not be available if SQLx only knows the type by name.
+    /// It will have to be resolved by a `PgConnection` at runtime which
+    /// will yield a new and semantically distinct `TypeInfo` instance.
+    ///
+    /// This method does not perform any such lookup.
+    ///
+    /// ### Note
+    /// With the exception of [the default `pg_type` catalog][pg_type], type OIDs are *not* stable in PostgreSQL.
+    /// If a type is added by an extension, its OID will be assigned when the `CREATE EXTENSION` statement is executed,
+    /// and so can change depending on what extensions are installed and in what order, as well as the exact
+    /// version of PostgreSQL.
+    ///
+    /// [pg_type]: https://github.com/postgres/postgres/blob/master/src/include/catalog/pg_type.dat
+    pub fn oid(&self) -> Option<Oid> {
+        self.0.try_oid()
+    }
+
     #[doc(hidden)]
     pub fn __type_feature_gate(&self) -> Option<&'static str> {
         if [
