@@ -12,10 +12,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
     let pool = sqlx::PgPool::connect(&conn_str).await?;
 
-    let mut listener = PgListener::connect(&conn_str).await?;
+    let mut listener = PgListener::connect_with(&pool).await?;
 
     // let notify_pool = pool.clone();
-    let _t = async_std::task::spawn(async move {
+    let _t = tokio::spawn(async move {
         stream::interval(Duration::from_secs(2))
             .for_each(|_| notify(&pool))
             .await

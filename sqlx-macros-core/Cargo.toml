@@ -8,6 +8,8 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
+default = []
+
 # for conditional compilation
 _rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
 _rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
@@ -36,7 +38,7 @@ time = ["sqlx-core/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlit
 uuid = ["sqlx-core/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
 
 [dependencies]
-sqlx-core = { workspace = true, default-features = false, features = ["offline"] }
+sqlx-core = { workspace = true, features = ["offline"] }
 sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = true }
 sqlx-postgres = { workspace = true, features = ["offline", "migrate"], optional = true }
 sqlx-sqlite = { workspace = true, features = ["offline", "migrate"], optional = true }
