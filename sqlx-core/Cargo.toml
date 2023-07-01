@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["offline", "runtime-tokio-native-tls"]
+features = ["offline"]
 
 [features]
 default = []
