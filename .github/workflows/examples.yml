@@ -268,12 +268,23 @@ jobs:
         with:
           key: sqlite-examples
 
-      - name: TODOs
-        working-directory: examples/sqlite/todos
+      - name: TODOs (Setup)
         env:
           DATABASE_URL: sqlite://todos.sqlite
-        # Testing with the `actions-rs/cargo` action was behaving weirdly,
-        # like it dropped the WAL file or something.
         run: |
-          sqlx db setup
-          cargo run
+          sqlx db setup --source=examples/sqlite/todos/migrations
+          ls -al
+
+      - name: TODOs (Run)
+        uses: actions-rs/cargo@v1
+        continue-on-error: true
+        env:
+          DATABASE_URL: sqlite://todos.sqlite
+        with:
+          command: run
+          args: -p sqlx-example-sqlite-todos
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: todos-sqlite
+          path: todos.sqlite
