@@ -16,9 +16,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // let notify_pool = pool.clone();
     let _t = tokio::spawn(async move {
-        stream::interval(Duration::from_secs(2))
-            .for_each(|_| notify(&pool))
-            .await
+        let mut interval = tokio::time::interval(Duration::from_secs(2));
+
+        loop {
+            interval.tick().await;
+            notify(&pool).await;
+        }
     });
 
     println!("Starting LISTEN loop.");

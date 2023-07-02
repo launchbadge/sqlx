@@ -14,7 +14,7 @@ enum Command {
     Done { id: u64 },
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let args = Args::from_args_safe()?;
     let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;

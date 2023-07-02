@@ -26,7 +26,7 @@ impl Display for PostWithAuthorQuery {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&dotenvy::var("DATABASE_URL")?).await?;
 
