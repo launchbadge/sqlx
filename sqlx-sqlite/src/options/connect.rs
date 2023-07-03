@@ -5,6 +5,7 @@ use sqlx_core::connection::ConnectOptions;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
 use std::fmt::Write;
+use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
@@ -12,7 +13,15 @@ impl ConnectOptions for SqliteConnectOptions {
     type Connection = SqliteConnection;
 
     fn from_url(url: &Url) -> Result<Self, Error> {
-        Self::from_db_and_params(url.path(), url.query())
+        // SQLite URL parsing is handled specially;
+        // we want to treat the following URLs as equivalent:
+        //
+        // * sqlite:foo.db
+        // * sqlite://foo.db
+        //
+        // If we used `Url::path()`, the latter would return an empty string
+        // because `foo.db` gets parsed as the hostname.
+        Self::from_str(url.as_str())
     }
 
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>

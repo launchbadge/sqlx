@@ -11,6 +11,7 @@ repository.workspace = true
 proc-macro = true
 
 [features]
+default = []
 
 # for conditional compilation
 _rt-async-std = ["sqlx-macros-core/_rt-async-std"]
@@ -39,7 +40,7 @@ uuid = ["sqlx-macros-core/uuid"]
 json = ["sqlx-macros-core/json"]
 
 [dependencies]
-sqlx-core = { workspace = true, default-features = false, features = ["any"] }
+sqlx-core = { workspace = true, features = ["any"] }
 sqlx-macros-core = { workspace = true }
 
 proc-macro2 = { version = "1.0.36", default-features = false }

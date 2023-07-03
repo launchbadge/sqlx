@@ -14,7 +14,7 @@ enum Command {
     Done { id: i64 },
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let args = Args::from_args_safe()?;
     let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
@@ -53,7 +53,7 @@ VALUES ( ?1 )
         "#,
         description
     )
-    .execute(&mut conn)
+    .execute(&mut *conn)
     .await?
     .last_insert_rowid();
 

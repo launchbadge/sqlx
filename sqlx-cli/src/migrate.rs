@@ -3,6 +3,7 @@ use anyhow::{bail, Context};
 use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
+use sqlx::Connection;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -170,6 +171,8 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
         }
     }
 
+    let _ = conn.close().await;
+
     Ok(())
 }
 
@@ -249,6 +252,13 @@ pub async fn run(
         }
     }
 
+    // Close the connection before exiting:
+    // * For MySQL and Postgres this should ensure timely cleanup on the server side,
+    //   including decrementing the open connection count.
+    // * For SQLite this should checkpoint and delete the WAL file to ensure the migrations
+    //   were actually applied to the database file and aren't just sitting in the WAL file.
+    let _ = conn.close().await;
+
     Ok(())
 }
 
@@ -309,6 +319,8 @@ pub async fn revert(
     if !is_applied {
         println!("No migrations available to revert");
     }
+
+    let _ = conn.close().await;
 
     Ok(())
 }

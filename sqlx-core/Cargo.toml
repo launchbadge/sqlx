@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["offline", "runtime-tokio-native-tls"]
+features = ["offline"]
 
 [features]
 default = []
@@ -93,5 +93,5 @@ event-listener = "2.5.2"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate"] }
+sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros"] }
 tokio = { version = "1", features = ["rt"] }

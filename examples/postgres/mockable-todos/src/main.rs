@@ -15,7 +15,7 @@ enum Command {
     Done { id: i64 },
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let args = Args::from_args_safe()?;
