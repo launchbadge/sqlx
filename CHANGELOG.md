@@ -34,6 +34,23 @@ See [[#2483]] for details.
 * [[#1960]]: Fix sqlite update return and order by type inference [[@tyrelr]]
 * [[#1984]]: Sqlite EXPLAIN type inference improvements [[@rongcuid]]
 * [[#2039]]: Break drivers out into separate crates, clean up some technical debt [[@abonander]]
+    * All deprecated items have been removed.
+    * The `mssql` feature and associated database driver has been deleted from the source tree. It will return as part of our planned SQLx Pro offering as a from-scratch rewrite with extra features (such as TLS) and type integrations that were previously missing.
+    * The `runtime-actix-*` features have been deleted. They were previously changed to be aliases of their `runtime-tokio-*` counterparts for backwards compatibility reasons, but their continued existence is misleading as SQLx has no special knowledge of Actix anymore.
+        * To fix, simply replace the `runtime-actix-*` feature with its `runtime-tokio-*` equivalent.
+    * The `git2` feature has been removed. This was a requested integration from a while ago that over time made less and less sense to be part of SQLx itself. We have to be careful with the crates we add to our public API as each one introduces yet another semver hazard. The expected replacement is to make `#[derive(sqlx::Type)]` useful enough that users can write wrapper types for whatever they want to use without SQLx needing to be specifically aware of it.
+    * The `Executor` impls for `Transaction` and `PoolConnection` have been deleted because they cannot exist in the new crate architecture without rewriting the `Executor` trait entirely.
+        * To fix this breakage, simply add a dereference where an `impl Executor` is expected, as they both dereference to the inner connection type which will still implement it:
+            * `&mut transaction` -> `&mut *transaction`
+            * `&mut connection` -> `&mut *connection`
+        * These cannot be blanket impls as it triggers an overflow in the compiler due to the lack of lazy normalization, and
+          the driver crates cannot provide their own impls due to the orphan rule.
+        * We're expecting to do another major refactor of traits to incorporate generic associated types (GAT).
+          This will mean another major release of SQLx but ideally most API usage will not need to change significantly, if at all.
+    * The fields of `Migrator` are now `#[doc(hidden)]` and semver-exempt; they weren't meant to be public.
+    * The `offline` feature has been removed from the `sqlx` facade crate and is enabled unconditionally as most users are expected to have enabled it anyway and disabling it doesn't seem to appreciably affect compile times.
+    * The `decimal` feature has been renamed to `rust_decimal` to match the crate it actually provides integrations for.
+    * `AnyDriver` and `AnyConnection` now require either `sqlx::any::install_drivers()` or `sqlx::any::install_default_drivers()` to be called at some point during the process' lifetime before the first connection is made, as the set of possible drivers is now determined at runtime. This was determined to be the least painful way to provide knowledge of database drivers to `Any` without them being hardcoded.
 * [[#2109]]: feat: better database errors [[@saiintbrisson]]
 * [[#2094]]: Update libsqlite3-sys to 0.25.1 [[@penberg]]
   * Alongside this upgrade, we are now considering the linkage to `libsqlite3-sys` to be **semver-exempt**,
