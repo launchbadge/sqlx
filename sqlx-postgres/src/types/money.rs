@@ -81,7 +81,7 @@ impl PgMoney {
     /// See the type-level docs for an explanation of `locale_frac_digits`.
     ///
     /// [`Decimal`]: crate::types::Decimal
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     pub fn to_decimal(self, locale_frac_digits: u32) -> rust_decimal::Decimal {
         rust_decimal::Decimal::new(self.0, locale_frac_digits)
     }
@@ -94,7 +94,7 @@ impl PgMoney {
     /// If the value is larger than 63 bits it will be truncated.
     ///
     /// [`Decimal`]: crate::types::Decimal
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     pub fn from_decimal(mut decimal: rust_decimal::Decimal, locale_frac_digits: u32) -> Self {
         // this is all we need to convert to our expected locale's `frac_digits`
         decimal.rescale(locale_frac_digits);
@@ -316,7 +316,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     fn conversion_to_decimal_works() {
         assert_eq!(
             rust_decimal::Decimal::new(12345, 2),
@@ -325,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     fn conversion_from_decimal_works() {
         assert_eq!(
             PgMoney(12345),
