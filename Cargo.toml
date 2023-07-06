@@ -70,12 +70,12 @@ _unstable-all-types = [
 ]
 
 # Base runtime features without TLS
-runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros/_rt-async-std"]
-runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros/_rt-tokio"]
+runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
+runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # TLS features
-tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros/_tls-native-tls"]
-tls-rustls = ["sqlx-core/_tls-rustls", "sqlx-macros/_tls-rustls"]
+tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros?/_tls-native-tls"]
+tls-rustls = ["sqlx-core/_tls-rustls", "sqlx-macros?/_tls-rustls"]
 
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
