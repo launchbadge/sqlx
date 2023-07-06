@@ -143,7 +143,7 @@ impl Type<Postgres> for PgRange<bigdecimal::BigDecimal> {
     }
 }
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 impl Type<Postgres> for PgRange<rust_decimal::Decimal> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::NUM_RANGE
