@@ -117,8 +117,8 @@ with C, those interactions are `unsafe`.
 
 SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; and, the [`native-tls`] and [`rustls`] TLS backends. When adding the dependency, you must choose a runtime feature that is `runtime` + `tls`.
 
-NOTE: these examples are for the coming 0.7 release, which is currently in an alpha cycle.
-For the last stable release, 0.6.2, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
+NOTE: these examples are for the 0.7 release.
+For the previous stable release, 0.6.3, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.3/README.md).
 
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
