@@ -134,14 +134,14 @@ For the previous stable release, 0.6.3, see [the previous version of this docume
 # tokio (no TLS)
 sqlx = { version = "0.7", features = [ "runtime-tokio" ] }
 # tokio + native-tls
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native-tls" ] }
 # tokio + rustls
 sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls" ] }
 
 # async-std (no TLS)
 sqlx = { version = "0.7", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native-tls" ] }
 # async-std + rustls
 sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls" ] }
 ```
@@ -168,7 +168,7 @@ be removed in the future.
 
     - Actix-web is fully compatible with Tokio and so a separate runtime feature is no longer needed.
 
--   `tls-native`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
+-   `tls-native-tls`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
 
 -   `tls-rustls`: Use the `rustls` TLS backend (cross-platform backend, only supports TLS 1.2 and 1.3).
 
