@@ -90,9 +90,9 @@ impl<DB: Database> Clone for PoolOptions<DB> {
     fn clone(&self) -> Self {
         PoolOptions {
             test_before_acquire: self.test_before_acquire,
-            after_connect: self.after_connect.as_ref().map(Arc::clone),
-            before_acquire: self.before_acquire.as_ref().map(Arc::clone),
-            after_release: self.after_release.as_ref().map(Arc::clone),
+            after_connect: self.after_connect.clone(),
+            before_acquire: self.before_acquire.clone(),
+            after_release: self.after_release.clone(),
             max_connections: self.max_connections,
             acquire_timeout: self.acquire_timeout,
             min_connections: self.min_connections,
