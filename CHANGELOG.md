@@ -23,7 +23,8 @@ If interested, please email your inquiry to sqlx@launchbadge.com.
 
 The offline mode for the queries has been changed to use a separate file per `query!()` invocation,
 which is intended to reduce the number of conflicts when merging branches in a project that both modified queries.
-See [[#2363]] for details.
+This means that CLI flag `--merged` is no longer supported. See [[#2363]] for details and make sure that your
+`sqlx-cli` version is in sync with the `sqlx` version in your project.
 
 The type ascription override syntax for the query macros has been deprecated,
 as parse support for it has been removed in `syn 2.0`, which we'll be upgrading to in the next breaking release. 
