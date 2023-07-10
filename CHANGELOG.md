@@ -51,6 +51,7 @@ See [[#2483]] for details.
     * The `offline` feature has been removed from the `sqlx` facade crate and is enabled unconditionally as most users are expected to have enabled it anyway and disabling it doesn't seem to appreciably affect compile times.
     * The `decimal` feature has been renamed to `rust_decimal` to match the crate it actually provides integrations for.
     * `AnyDriver` and `AnyConnection` now require either `sqlx::any::install_drivers()` or `sqlx::any::install_default_drivers()` to be called at some point during the process' lifetime before the first connection is made, as the set of possible drivers is now determined at runtime. This was determined to be the least painful way to provide knowledge of database drivers to `Any` without them being hardcoded.
+    * The `AnyEncode` trait has been removed.
 * [[#2109]]: feat: better database errors [[@saiintbrisson]]
 * [[#2094]]: Update libsqlite3-sys to 0.25.1 [[@penberg]]
   * Alongside this upgrade, we are now considering the linkage to `libsqlite3-sys` to be **semver-exempt**,
