@@ -196,7 +196,7 @@ be removed in the future.
 
 -   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
--   `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
+-   `rust_decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
 
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
