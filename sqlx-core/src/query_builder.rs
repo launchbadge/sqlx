@@ -10,6 +10,7 @@ use crate::encode::Encode;
 use crate::from_row::FromRow;
 use crate::query::Query;
 use crate::query_as::QueryAs;
+use crate::query_scalar::QueryScalar;
 use crate::types::Type;
 use crate::Either;
 
@@ -463,6 +464,30 @@ where
         QueryAs {
             inner: self.build(),
             output: PhantomData,
+        }
+    }
+
+    /// Produce an executable query from this builder.
+    ///
+    /// ### Note: Query is not Checked
+    /// It is your responsibility to ensure that you produce a syntactically correct query here,
+    /// this API has no way to check it for you.
+    ///
+    /// ### Note: Reuse
+    /// You can reuse this builder afterwards to amortize the allocation overhead of the query
+    /// string, however you must call [`.reset()`][Self::reset] first, which returns `Self`
+    /// to the state it was in immediately after [`new()`][Self::new].
+    ///
+    /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
+    pub fn build_query_scalar<'q, T>(
+        &'q mut self,
+    ) -> QueryScalar<'q, DB, T, <DB as HasArguments<'args>>::Arguments>
+    where
+        DB: Database,
+        (T,): for<'r> FromRow<'r, DB::Row>,
+    {
+        QueryScalar {
+            inner: self.build_query_as(),
         }
     }
 
