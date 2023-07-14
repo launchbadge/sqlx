@@ -56,6 +56,7 @@ pub struct SqlxContainerAttributes {
     pub type_name: Option<TypeName>,
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
+    pub no_pg_array: bool,
 }
 
 pub struct SqlxChildAttributes {
@@ -71,6 +72,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     let mut repr = None;
     let mut type_name = None;
     let mut rename_all = None;
+    let mut no_pg_array = None;
 
     for attr in input
         .iter()
@@ -86,6 +88,10 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                         NestedMeta::Meta(meta) => match meta {
                             Meta::Path(p) if p.is_ident("transparent") => {
                                 try_set!(transparent, true, value)
+                            }
+
+                            Meta::Path(p) if p.is_ident("no_pg_array") => {
+                                try_set!(no_pg_array, true, value);
                             }
 
                             Meta::NameValue(MetaNameValue {
@@ -148,6 +154,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
         repr,
         type_name,
         rename_all,
+        no_pg_array: no_pg_array.unwrap_or(false),
     })
 }
 
@@ -229,6 +236,12 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAt
         input
     );
 
+    assert_attribute!(
+        !attributes.no_pg_array,
+        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for enums",
+        input
+    );
+
     Ok(attributes)
 }
 
@@ -285,6 +298,12 @@ pub fn check_struct_attributes<'a>(
     assert_attribute!(
         attributes.rename_all.is_none(),
         "unexpected #[sqlx(rename_all = ..)]",
+        input
+    );
+
+    assert_attribute!(
+        !attributes.no_pg_array,
+        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for custom structs",
         input
     );
 
