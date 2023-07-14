@@ -10,6 +10,13 @@ use std::ops::Bound;
 #[sqlx(transparent)]
 struct Transparent(i32);
 
+#[derive(PartialEq, Debug, sqlx::Type)]
+// https://github.com/launchbadge/sqlx/issues/2611
+// Previously, the derive would generate a `PgHasArrayType` impl that errored on an
+// impossible-to-satisfy `where` bound. This attribute allows the user to opt-out.
+#[sqlx(transparent, no_pg_array)]
+struct TransparentArray(Vec<i64>);
+
 #[sqlx_macros::test]
 async fn test_transparent_slice_to_array() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
@@ -137,6 +144,11 @@ struct RangeInclusive(PgRange<i32>);
 test_type!(transparent<Transparent>(Postgres,
     "0" == Transparent(0),
     "23523" == Transparent(23523)
+));
+
+test_type!(transparent_array<TransparentArray>(Postgres,
+    "'{}'::int8[]" == TransparentArray(vec![]),
+    "'{ 23523, 123456, 789 }'::int8[]" == TransparentArray(vec![23523, 123456, 789])
 ));
 
 test_type!(weak_enum<Weak>(Postgres,

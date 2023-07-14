@@ -104,13 +104,42 @@ pub use json::{Json, JsonRawValue, JsonValue};
 ///
 /// ### Transparent
 ///
-/// Rust-only domain or wrappers around SQL types. The generated implementations directly delegate
+/// Rust-only domain wrappers around SQL types. The generated implementations directly delegate
 /// to the implementation of the inner type.
 ///
 /// ```rust,ignore
 /// #[derive(sqlx::Type)]
 /// #[sqlx(transparent)]
 /// struct UserId(i64);
+/// ```
+///
+/// ##### Note: `PgHasArrayType`
+/// If you have the `postgres` feature enabled, this derive also generates a `PgHasArrayType` impl
+/// so that you may use it with `Vec` and other types that decode from an array in Postgres:
+///
+/// ```rust,ignore
+/// let user_ids: Vec<UserId> = sqlx::query_scalar("select '{ 123, 456 }'::int8[]")
+///    .fetch(&mut pg_connection)
+///    .await?;
+/// ```
+///
+/// However, if you are wrapping a type that does not implement `PgHasArrayType`
+/// (e.g. `Vec` itself, because we don't currently support multidimensional arrays),
+/// you may receive an error:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)] // ERROR: `Vec<i64>` does not implement `PgHasArrayType`
+/// #[sqlx(transparent)]
+/// struct UserIds(Vec<i64>);
+/// ```
+///
+/// To remedy this, add `#[sqlx(no_pg_array)]`, which disables the generation
+/// of the `PgHasArrayType` impl:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent, no_pg_array)]
+/// struct UserIds(Vec<i64>);
 /// ```
 ///
 /// ##### Attributes
@@ -121,6 +150,7 @@ pub use json::{Json, JsonRawValue, JsonValue};
 ///   given type is different than that of the inferred type (e.g. if you rename the above to
 ///   `VARCHAR`). Affects Postgres only.
 /// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in FromRow`](crate::from_row::FromRow#rename_all)
+/// * `#[sqlx(no_pg_array)]`: do not emit a `PgHasArrayType` impl (see above).
 ///
 /// ### Enumeration
 ///
