@@ -205,6 +205,7 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
             .into_iter()
             .map(|val| match val {
                 AnyValueKind::Null => SqliteArgumentValue::Null,
+                AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
                 AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
                 AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
                 AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
