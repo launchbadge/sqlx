@@ -178,7 +178,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Result<usize, Error> {
     let delete_db_ids: Vec<u64> = query_scalar(
         "select db_id from _sqlx_test_databases \
-            where created_at < (cast(from_unixtime($1) as timestamp))",
+            where created_at < from_unixtime(?)",
     )
     .bind(&created_before.as_secs())
     .fetch_all(&mut *conn)
