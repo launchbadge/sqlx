@@ -212,6 +212,14 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
         None
     }
 
+    /// Returns the name of the table that was affected by the error, if applicable.
+    ///
+    /// ### Note
+    /// Currently only populated by the Postgres driver.
+    fn table(&self) -> Option<&str> {
+        None
+    }
+
     /// Returns the kind of the error, if supported.
     ///
     /// ### Note
