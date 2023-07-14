@@ -30,6 +30,16 @@ where
     arguments: Option<<DB as HasArguments<'args>>::Arguments>,
 }
 
+impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
+    fn default() -> Self {
+        QueryBuilder {
+            init_len: 0,
+            query: String::default(),
+            arguments: Some(Default::default()),
+        }
+    }
+}
+
 impl<'args, DB: Database> QueryBuilder<'args, DB>
 where
     DB: Database,
