@@ -6,8 +6,6 @@ set -e
 PULLS='[]'
 CURSOR='null'
 
-VERSION=$1
-
 MIN_MERGED_AT=$(date --date="$1" +%s)
 
 while true
