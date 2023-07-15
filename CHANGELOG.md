@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.1 - 2023-07-14
+
+This release mainly addresses issues reported with the 0.7.0 release.
+
+16 pull requests were merged this release cycle.
+
+### Added
+* [[#2551]]: Introduce build_query_scalar for QueryBuilder [[@iamquang95]]
+* [[#2605]]: Implement Default for QueryBuilder [[@Xydez]]
+* [[#2616]]: feat(sqlx-core): add table function to database error [[@saiintbrisson]]
+* [[#2619]]: feat: allow opt-out of `PgHasArrayType` with `#[derive(sqlx::Type)]` [[@abonander]]
+  * TL;DR: if you're getting errors from `#[derive(sqlx::Type)]` with `#[sqlx(transparent)]`
+    regarding `PgHasArrayType` not being implemented, add `#[sqlx(no_pg_array)]` to fix.
+
+### Changed
+* [[#2566]]: improve docs about migration files [[@jnnnnn]]
+* [[#2576]]: Major Version Update clap to 4.0 [[@titaniumtraveler]]
+* [[#2597]]: Bump webpki-roots to v0.24 [[@paolobarbolini]]
+* [[#2603]]: docs(changelog): be more verbose about offline mode breaking change [[@mrl5]]
+
+### Fixed
+* [[#2553]]: Implement `Clone` for `PoolOptions` manually (#2548) [[@alilleybrinker]]
+* [[#2580]]: Update README.md now that 0.7.0 is no longer in alpha [[@saolof]]
+* [[#2585]]: Fix for Issue #2549 - cannot use feature "rust_decimal" without also using "bigdecimal" [[@deneut]]
+* [[#2586]]: Fix optional dependency on sqlx-macros [[@kitterion]]
+* [[#2593]]: Correct mention of the `tls-native-tls` in the documentation. [[@denschub]]
+* [[#2599]]: Remove incorrect CAST in test database cleanup for MySQL. [[@fd]]
+* [[#2613]]: Fix readme.md to reduce confusion about optional features (decimal->rust_decimal) [[@vabka]]
+* [[#2620]]: fix(sqlite/any): encode bool as integer [[@saiintbrisson]]
+
+[#2551]: https://github.com/launchbadge/sqlx/pull/2551
+[#2553]: https://github.com/launchbadge/sqlx/pull/2553
+[#2566]: https://github.com/launchbadge/sqlx/pull/2566
+[#2576]: https://github.com/launchbadge/sqlx/pull/2576
+[#2580]: https://github.com/launchbadge/sqlx/pull/2580
+[#2585]: https://github.com/launchbadge/sqlx/pull/2585
+[#2586]: https://github.com/launchbadge/sqlx/pull/2586
+[#2593]: https://github.com/launchbadge/sqlx/pull/2593
+[#2597]: https://github.com/launchbadge/sqlx/pull/2597
+[#2599]: https://github.com/launchbadge/sqlx/pull/2599
+[#2603]: https://github.com/launchbadge/sqlx/pull/2603
+[#2605]: https://github.com/launchbadge/sqlx/pull/2605
+[#2613]: https://github.com/launchbadge/sqlx/pull/2613
+[#2616]: https://github.com/launchbadge/sqlx/pull/2616
+[#2619]: https://github.com/launchbadge/sqlx/pull/2619
+[#2620]: https://github.com/launchbadge/sqlx/pull/2620
+
 ## 0.7.0 - 2023-06-30
 
 At least **70 pull requests** were merged this release cycle! (The exact count is muddied with pull requests for alpha
@@ -1882,3 +1929,13 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@titaniumtraveler]: https://github.com/titaniumtraveler
 [@nyurik]: https://github.com/nyurik
 [@stepantubanov]: https://github.com/stepantubanov
+[@iamquang95]: https://github.com/iamquang95
+[@jnnnnn]: https://github.com/jnnnnn
+[@saolof]: https://github.com/saolof
+[@deneut]: https://github.com/deneut
+[@kitterion]: https://github.com/kitterion
+[@denschub]: https://github.com/denschub
+[@fd]: https://github.com/fd
+[@mrl5]: https://github.com/mrl5
+[@Xydez]: https://github.com/Xydez
+[@vabka]: https://github.com/vabka
