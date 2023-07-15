@@ -27,7 +27,9 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 description,
                 reversible,
-            } => migrate::add(&source, &description, reversible).await?,
+                sequential,
+                timestamp,
+            } => migrate::add(&source, &description, reversible, sequential, timestamp).await?,
             MigrateCommand::Run {
                 source,
                 dry_run,

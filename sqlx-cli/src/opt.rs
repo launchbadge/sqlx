@@ -110,7 +110,7 @@ pub struct MigrateOpt {
 #[derive(Parser, Debug)]
 pub enum MigrateCommand {
     /// Create a new migration with the given description,
-    /// and the current time as the version.
+    /// and (by default) the current time as the version.
     Add {
         description: String,
 
@@ -121,6 +121,14 @@ pub enum MigrateCommand {
         /// else creates a single sql file
         #[clap(short)]
         reversible: bool,
+
+        /// If true, migrations are named by timestamp
+        #[clap(short, long)]
+        timestamp: bool,
+
+        /// If true, migrations are named sequentially
+        #[clap(short, long, conflicts_with = "timestamp")]
+        sequential: bool,
     },
 
     /// Run all pending migrations.
