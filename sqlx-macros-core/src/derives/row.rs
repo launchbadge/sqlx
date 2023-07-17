@@ -123,7 +123,7 @@ fn expand_derive_from_row_struct(
                     predicates
                         .push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::types::Type<R::Database>));
-                    
+
                     parse_quote!(
                         row.try_get::<::sqlx::types::Json<_>, _>(#id_s).and_then(|v|
                             <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
