@@ -61,7 +61,7 @@
 //!
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
+//! | `uuid::Uuid`                          | BINARY(16), VARCHAR, CHAR, TEXT                      |
 //! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
 //! | `uuid::fmt::Simple`                   | CHAR(32)                                             |
 //!
