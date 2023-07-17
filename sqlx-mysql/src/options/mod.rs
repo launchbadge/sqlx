@@ -265,8 +265,12 @@ impl MySqlConnectOptions {
     ///
     /// Security Note:
     /// Sending passwords as cleartext may be a security problem in some
-    /// configurations. Please consider using TLS or encrypted tunnels for
-    /// server connection.
+    /// configurations. Without additional defensive configuration like
+    /// ssl-mode=VERIFY_IDENTITY, an attacker can compromise a router
+    /// and trick the application into divulging its credentials.
+    ///
+    /// It is strongly recommended to set `.ssl_mode` to `Required`,
+    /// `VerifyCa`, or `VerifyIdentity` when enabling cleartext plugin.
     pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
         self.enable_cleartext_plugin = flag_val;
         self
