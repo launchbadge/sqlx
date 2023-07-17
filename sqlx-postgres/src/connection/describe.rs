@@ -451,15 +451,11 @@ WHERE rngtypid = $1
 
         let mut nullables = Vec::new();
 
-        if let Explain::Plan(
-            plan @ Plan {
-                output: Some(outputs),
-                ..
-            },
-        ) = &explain
-        {
-            nullables.resize(outputs.len(), None);
-            visit_plan(&plan, outputs, &mut nullables);
+        if let Explain::QueryPlan(query_plan @ QueryPlan { plan, .. }) = &explain {
+            if let Some(outputs) = &query_plan.plan.output {
+                nullables.resize(outputs.len(), None);
+                visit_plan(&plan, outputs, &mut nullables);
+            }
         }
 
         Ok(nullables)
@@ -492,13 +488,25 @@ fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>
 }
 
 #[derive(serde::Deserialize)]
+#[serde(untagged)]
 enum Explain {
     /// {"Plan": ...} -- returned for most statements
-    Plan(Plan),
+    QueryPlan(QueryPlan),
     /// The string "Utility Statement" -- returned for
     /// a CALL statement
     #[serde(rename = "Utility Statement")]
     UtilityStatement,
+}
+
+#[derive(serde::Deserialize)]
+struct QueryPlan {
+    #[serde(rename = "Plan")]
+    plan: Plan,
+    /// present when either pg_stat_statements is loaded and/or compute_query_id is enabled
+    /// https://www.postgresql.org/docs/current/pgstatstatements.html
+    /// https://www.postgresql.org/docs/current/runtime-config-statistics.html#GUC-COMPUTE-QUERY-ID
+    #[serde(rename = "Query Identifier", skip)]
+    _query_identifier: Option<u64>,
 }
 
 #[derive(serde::Deserialize)]
