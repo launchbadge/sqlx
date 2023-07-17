@@ -494,8 +494,7 @@ enum Explain {
     QueryPlan(QueryPlan),
     /// The string "Utility Statement" -- returned for
     /// a CALL statement
-    #[serde(rename = "Utility Statement")]
-    UtilityStatement,
+    UtilityStatement(String),
 }
 
 #[derive(serde::Deserialize)]
