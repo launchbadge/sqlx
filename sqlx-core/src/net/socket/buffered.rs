@@ -151,7 +151,7 @@ impl WriteBuffer {
             self.buf.truncate(self.bytes_written);
             self.buf.extend_from_slice(slice);
         }
-
+        self.advance(slice.len());
         self.sanity_check();
     }
 
