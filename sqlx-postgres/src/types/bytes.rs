@@ -18,7 +18,7 @@ impl PgHasArrayType for &'_ [u8] {
 
 impl<const N: usize> PgHasArrayType for &'_ [u8; N] {
     fn array_type_info() -> PgTypeInfo {
-	PgTypeInfo::BYTEA_ARRAY
+        PgTypeInfo::BYTEA_ARRAY
     }
 }
 
