@@ -501,11 +501,6 @@ enum Explain {
 struct QueryPlan {
     #[serde(rename = "Plan")]
     plan: Plan,
-    /// present when either pg_stat_statements is loaded and/or compute_query_id is enabled
-    /// https://www.postgresql.org/docs/current/pgstatstatements.html
-    /// https://www.postgresql.org/docs/current/runtime-config-statistics.html#GUC-COMPUTE-QUERY-ID
-    #[serde(rename = "Query Identifier", skip)]
-    _query_identifier: Option<u64>,
 }
 
 #[derive(serde::Deserialize)]
