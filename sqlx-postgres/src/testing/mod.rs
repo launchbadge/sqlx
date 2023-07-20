@@ -91,6 +91,15 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
         .connect_lazy_with(master_opts);
 
+    // Record the current time _before_ we acquire the `DO_CLEANUP` permit. This
+    // prevents the first test thread from accidentally deleting new test dbs
+    // created by other test threads if we're a bit slow.
+    let first_now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
+
+    let first_test_thread = DO_CLEANUP.swap(false, Ordering::SeqCst);
+
     let master_pool = match MASTER_POOL.try_insert(pool) {
         Ok(inserted) => inserted,
         Err((existing, pool)) => {
@@ -127,7 +136,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         create table if not exists _sqlx_test.databases (
             db_name text primary key,
             test_path text not null,
-            created_at timestamptz not null default now()
+            created_at timestamptz not null
         );
 
         create index if not exists databases_created_at 
@@ -138,26 +147,23 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     )
     .await?;
 
-    // Record the current time _before_ we acquire the `DO_CLEANUP` permit. This
-    // prevents the first test thread from accidentally deleting new test dbs
-    // created by other test threads if we're a bit slow.
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap();
-
     // Only run cleanup if the test binary just started.
-    if DO_CLEANUP.swap(false, Ordering::SeqCst) {
-        do_cleanup(&mut conn, now).await?;
+    if first_test_thread {
+        do_cleanup(&mut conn, first_now).await?;
     }
 
+    let created_at = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
     let new_db_name: String = query_scalar(
         r#"
-            insert into _sqlx_test.databases(db_name, test_path)
-            select '_sqlx_test_' || nextval('_sqlx_test.database_ids'), $1
+            insert into _sqlx_test.databases(db_name, test_path, created_at)
+            select '_sqlx_test_' || nextval('_sqlx_test.database_ids'), $1, (to_timestamp($2) at time zone 'UTC')
             returning db_name
         "#,
     )
     .bind(&args.test_path)
+    .bind(i64::try_from(created_at.as_secs()).unwrap())
     .fetch_one(&mut *conn)
     .await?;
 
