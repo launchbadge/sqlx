@@ -32,6 +32,14 @@ impl MigrationType {
         }
     }
 
+    pub fn is_up_migration(&self) -> bool {
+        match self {
+            MigrationType::Simple => true,
+            MigrationType::ReversibleUp => true,
+            MigrationType::ReversibleDown => false,
+        }
+    }
+
     pub fn is_down_migration(&self) -> bool {
         match self {
             MigrationType::Simple => false,

@@ -70,7 +70,12 @@ impl MigrationOrdering {
             ),
             (false, false) => {
                 // inferring the naming scheme
-                let migrations = migrator.iter().rev().take(2).collect::<Vec<_>>();
+                let migrations = migrator
+                    .iter()
+                    .filter(|migration| migration.migration_type.is_up_migration())
+                    .rev()
+                    .take(2)
+                    .collect::<Vec<_>>();
                 if let [last, pre_last] = &migrations[..] {
                     // there are at least two migrations, compare the last twothere's only one existing migration
                     if last.version - pre_last.version == 1 {
