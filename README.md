@@ -230,8 +230,8 @@ See the `examples/` folder for more in-depth usage.
 
 ### Quickstart
 
-NOTE: these examples are for the coming 0.7.0 release, which is currently in an alpha cycle.
-For the last stable release, 0.6.2, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
+NOTE: these examples are for the 0.7 release.
+For the previous stable release, 0.6.3, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.3/README.md).
 
 ```rust
 use sqlx::postgres::PgPoolOptions;
