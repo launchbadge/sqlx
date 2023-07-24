@@ -109,8 +109,22 @@ pub struct MigrateOpt {
 
 #[derive(Parser, Debug)]
 pub enum MigrateCommand {
-    /// Create a new migration with the given description,
-    /// and the current time as the version.
+    /// Create a new migration with the given description.
+    ///
+    /// A version number will be automatically assigned to the migration.
+    ///
+    /// For convenience, this command will attempt to detect if sequential versioning is in use,
+    /// and if so, continue the sequence.
+    ///
+    /// Sequential versioning is inferred if:
+    ///
+    /// * The version numbers of the last two migrations differ by exactly 1, or:
+    ///
+    /// * only one migration exists and its version number is either 0 or 1.
+    ///
+    /// Otherwise timestamp versioning is assumed.
+    ///
+    /// This behavior can overridden by `--sequential` or `--timestamp`, respectively.
     Add {
         description: String,
 
@@ -121,6 +135,14 @@ pub enum MigrateCommand {
         /// else creates a single sql file
         #[clap(short)]
         reversible: bool,
+
+        /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
+        #[clap(short, long)]
+        timestamp: bool,
+
+        /// If set, use timestamp versioning for the new migration. Conflicts with `--timestamp`.
+        #[clap(short, long, conflicts_with = "timestamp")]
+        sequential: bool,
     },
 
     /// Run all pending migrations.

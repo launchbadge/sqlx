@@ -37,10 +37,75 @@ fn create_file(
     Ok(())
 }
 
+enum MigrationOrdering {
+    Timestamp(String),
+    Sequential(String),
+}
+
+impl MigrationOrdering {
+    fn timestamp() -> MigrationOrdering {
+        Self::Timestamp(Utc::now().format("%Y%m%d%H%M%S").to_string())
+    }
+
+    fn sequential(version: i64) -> MigrationOrdering {
+        Self::Sequential(format!("{:04}", version))
+    }
+
+    fn file_prefix(&self) -> &str {
+        match self {
+            MigrationOrdering::Timestamp(prefix) => prefix,
+            MigrationOrdering::Sequential(prefix) => prefix,
+        }
+    }
+
+    fn infer(sequential: bool, timestamp: bool, migrator: &Migrator) -> Self {
+        match (timestamp, sequential) {
+            (true, true) => panic!("Impossible to specify both timestamp and sequential mode"),
+            (true, false) => MigrationOrdering::timestamp(),
+            (false, true) => MigrationOrdering::sequential(
+                migrator
+                    .iter()
+                    .last()
+                    .map_or(1, |last_migration| last_migration.version + 1),
+            ),
+            (false, false) => {
+                // inferring the naming scheme
+                let migrations = migrator
+                    .iter()
+                    .filter(|migration| migration.migration_type.is_up_migration())
+                    .rev()
+                    .take(2)
+                    .collect::<Vec<_>>();
+                if let [last, pre_last] = &migrations[..] {
+                    // there are at least two migrations, compare the last twothere's only one existing migration
+                    if last.version - pre_last.version == 1 {
+                        // their version numbers differ by 1, infer sequential
+                        MigrationOrdering::sequential(last.version + 1)
+                    } else {
+                        MigrationOrdering::timestamp()
+                    }
+                } else if let [last] = &migrations[..] {
+                    // there is only one existing migration
+                    if last.version == 0 || last.version == 1 {
+                        // infer sequential if the version number is 0 or 1
+                        MigrationOrdering::sequential(last.version + 1)
+                    } else {
+                        MigrationOrdering::timestamp()
+                    }
+                } else {
+                    MigrationOrdering::timestamp()
+                }
+            }
+        }
+    }
+}
+
 pub async fn add(
     migration_source: &str,
     description: &str,
     reversible: bool,
+    sequential: bool,
+    timestamp: bool,
 ) -> anyhow::Result<()> {
     fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
 
@@ -50,15 +115,16 @@ pub async fn add(
         .unwrap_or(false);
 
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // This checks if all existing migrations are of the same type as the reverisble flag passed
+    // This checks if all existing migrations are of the same type as the reversible flag passed
     for migration in migrator.iter() {
         if migration.migration_type.is_reversible() != reversible {
             bail!(MigrateError::InvalidMixReversibleAndSimple);
         }
     }
 
-    let dt = Utc::now();
-    let file_prefix = dt.format("%Y%m%d%H%M%S").to_string();
+    let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
+    let file_prefix = ordering.file_prefix();
+
     if reversible {
         create_file(
             migration_source,
