@@ -144,7 +144,9 @@ pub fn quote_query_as<DB: DatabaseExt>(
                     // binding to a `let` avoids confusing errors about
                     // "try expression alternatives have incompatible types"
                     // it doesn't seem to hurt inference in the other branches
-                    let #var_name = row.try_get_unchecked::<#type_, _>(#i)?.into();
+                    let #var_name = row.try_get_unchecked::<#type_, _>(#i)?
+                        .try_into()
+                        .map_err(|err| ::sqlx::Error::Decode(err.into()))?;
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
                 (true, ColumnType::Wildcard) => quote! ( let #var_name = row.try_get(#i)?; ),
