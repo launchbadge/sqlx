@@ -344,6 +344,22 @@ impl PgConnectOptions {
         self
     }
 
+    /// Sets the SSL client certificate from a byte slice.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// let options = PgConnectOptions::new()
+    ///     // Providing a CA certificate with less than VerifyCa is pointless
+    ///     .ssl_mode(PgSslMode::VerifyCa)
+    ///     .ssl_client_cert_from_bytes(vec![]);
+    /// ```
+    pub fn ssl_client_cert_from_bytes(mut self, cert: impl AsRef<[u8]>) -> Self {
+        self.ssl_client_cert = Some(CertificateInput::Inline(cert.as_ref().to_vec()));
+        self
+    }
+
     /// Sets the name of a file containing SSL client key.
     ///
     /// # Example
@@ -357,6 +373,22 @@ impl PgConnectOptions {
     /// ```
     pub fn ssl_client_key(mut self, key: impl AsRef<Path>) -> Self {
         self.ssl_client_key = Some(CertificateInput::File(key.as_ref().to_path_buf()));
+        self
+    }
+
+    /// Sets the SSL client key from a byte slice.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// let options = PgConnectOptions::new()
+    ///     // Providing a CA certificate with less than VerifyCa is pointless
+    ///     .ssl_mode(PgSslMode::VerifyCa)
+    ///     .ssl_client_key_from_bytes(vec![]);
+    /// ```
+    pub fn ssl_client_key_from_bytes(mut self, key: impl AsRef<[u8]>) -> Self {
+        self.ssl_client_key = Some(CertificateInput::Inline(key.as_ref().to_vec()));
         self
     }
 
