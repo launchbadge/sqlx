@@ -153,6 +153,15 @@ jobs:
           command: test
           args: -p sqlx-example-postgres-axum-social
 
+      # The Chat example has an interactive TUI which is not trivial to test automatically,
+      # so we only check that it compiles.
+      - name: Chat (Check)
+        uses: actions-rs/cargo@v1
+        env:
+        with:
+          command: check
+          args: -p sqlx-example-postgres-check
+
       - name: Files (Setup)
         working-directory: examples/postgres/files
         env:
