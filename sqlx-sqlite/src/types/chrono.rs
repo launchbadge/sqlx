@@ -201,6 +201,6 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
             }
         }
 
-        Err(format!("invalid time: {}", value).into())
+        Err(format!("invalid time: {value}").into())
     }
 }

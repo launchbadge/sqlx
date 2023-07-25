@@ -64,7 +64,7 @@ impl SqliteConnectOptions {
 
         for (key, opt_value) in &self.pragmas {
             if let Some(value) = opt_value {
-                write!(string, "PRAGMA {} = {}; ", key, value).ok();
+                write!(string, "PRAGMA {key} = {value}; ").ok();
             }
         }
 

@@ -73,7 +73,7 @@ impl DataType {
             SQLITE_TEXT => DataType::Text,
 
             // https://sqlite.org/c3ref/c_blob.html
-            _ => panic!("unknown data type code {}", code),
+            _ => panic!("unknown data type code {code}"),
         }
     }
 }
@@ -104,7 +104,7 @@ impl FromStr for DataType {
             _ if s.contains("real") || s.contains("floa") || s.contains("doub") => DataType::Float,
 
             _ => {
-                return Err(format!("unknown type: `{}`", s).into());
+                return Err(format!("unknown type: `{s}`").into());
             }
         })
     }

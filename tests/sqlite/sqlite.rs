@@ -651,7 +651,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     for i in 0..1_000_000 {
         if i % 1_000 == 0 {
-            println!("{}", i);
+            println!("{i}");
         }
         let key = rng.gen_range(0..1_000);
         let value = rng.gen_range(0..1_000);
@@ -759,21 +759,21 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));

@@ -73,7 +73,7 @@ fn ask_to_continue(connect_opts: &ConnectOpts) -> bool {
                 }
             }
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
                 return false;
             }
         }

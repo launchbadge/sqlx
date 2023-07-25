@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
             );
 
             let person_id = add_person(&pool, person).await?;
-            println!("Added new person with ID {}", person_id);
+            println!("Added new person with ID {person_id}");
         }
         None => {
             println!("Printing all people");

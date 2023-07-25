@@ -480,8 +480,7 @@ fn parse_bound<T>(ch: char, value: Option<T>) -> Result<Bound<T>, BoxDynError> {
 
             _ => {
                 return Err(format!(
-                    "expected `(`, ')', '[', or `]` but found `{}` for range literal",
-                    ch
+                    "expected `(`, ')', '[', or `]` but found `{ch}` for range literal"
                 )
                 .into());
             }
@@ -498,14 +497,14 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.start {
             Bound::Unbounded => f.write_str("(,")?,
-            Bound::Excluded(v) => write!(f, "({},", v)?,
-            Bound::Included(v) => write!(f, "[{},", v)?,
+            Bound::Excluded(v) => write!(f, "({v},")?,
+            Bound::Included(v) => write!(f, "[{v},")?,
         }
 
         match &self.end {
             Bound::Unbounded => f.write_str(")")?,
-            Bound::Excluded(v) => write!(f, "{})", v)?,
-            Bound::Included(v) => write!(f, "{}]", v)?,
+            Bound::Excluded(v) => write!(f, "{v})")?,
+            Bound::Included(v) => write!(f, "{v}]")?,
         }
 
         Ok(())

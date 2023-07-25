@@ -116,7 +116,7 @@ where
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
         self.sanity_check();
 
-        write!(self.query, "{}", sql).expect("error formatting `sql`");
+        write!(self.query, "{sql}").expect("error formatting `sql`");
 
         self
     }
@@ -258,9 +258,9 @@ where
     /// // This would normally produce values forever!
     /// let users = (0..).map(|i| User {
     ///     id: i,
-    ///     username: format!("test_user_{}", i),
-    ///     email: format!("test-user-{}@example.com", i),
-    ///     password: format!("Test!User@Password#{}", i),
+    ///     username: format!("test_user_{i}"),
+    ///     email: format!("test-user-{i}@example.com"),
+    ///     password: format!("Test!User@Password#{i}"),
     /// });
     ///
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
@@ -365,9 +365,9 @@ where
     /// // This would normally produce values forever!
     /// let users = (0..).map(|i| User {
     ///     id: i,
-    ///     username: format!("test_user_{}", i),
-    ///     email: format!("test-user-{}@example.com", i),
-    ///     password: format!("Test!User@Password#{}", i),
+    ///     username: format!("test_user_{i}"),
+    ///     email: format!("test-user-{i}@example.com"),
+    ///     password: format!("Test!User@Password#{i}"),
     /// });
     ///
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(

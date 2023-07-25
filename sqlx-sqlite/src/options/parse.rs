@@ -18,7 +18,7 @@ impl SqliteConnectOptions {
             options.in_memory = true;
             options.shared_cache = true;
             let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
-            options.filename = Cow::Owned(PathBuf::from(format!("file:sqlx-in-memory-{}", seqno)));
+            options.filename = Cow::Owned(PathBuf::from(format!("file:sqlx-in-memory-{seqno}")));
         } else {
             // % decode to allow for `?` or `#` in the filename
             options.filename = Cow::Owned(
@@ -58,7 +58,7 @@ impl SqliteConnectOptions {
 
                             _ => {
                                 return Err(Error::Configuration(
-                                    format!("unknown value {:?} for `mode`", value).into(),
+                                    format!("unknown value {value:?} for `mode`").into(),
                                 ));
                             }
                         }
@@ -78,7 +78,7 @@ impl SqliteConnectOptions {
 
                         _ => {
                             return Err(Error::Configuration(
-                                format!("unknown value {:?} for `cache`", value).into(),
+                                format!("unknown value {value:?} for `cache`").into(),
                             ));
                         }
                     },
@@ -92,7 +92,7 @@ impl SqliteConnectOptions {
                         }
                         _ => {
                             return Err(Error::Configuration(
-                                format!("unknown value {:?} for `immutable`", value).into(),
+                                format!("unknown value {value:?} for `immutable`").into(),
                             ));
                         }
                     },
@@ -101,11 +101,8 @@ impl SqliteConnectOptions {
 
                     _ => {
                         return Err(Error::Configuration(
-                            format!(
-                                "unknown query parameter `{}` while parsing connection URL",
-                                key
-                            )
-                            .into(),
+                            format!("unknown query parameter `{key}` while parsing connection URL")
+                                .into(),
                         ));
                     }
                 }

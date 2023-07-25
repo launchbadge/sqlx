@@ -15,7 +15,7 @@ use sqlx_core::describe::Describe;
 use crate::database::DatabaseExt;
 
 #[derive(serde::Serialize)]
-#[serde(bound(serialize = "Describe<DB>: serde::Serialize",))]
+#[serde(bound(serialize = "Describe<DB>: serde::Serialize"))]
 #[derive(Debug)]
 pub struct QueryData<DB: Database> {
     db_name: SerializeDbName<DB>,
@@ -161,20 +161,20 @@ where
         // Use a temp directory inside the workspace to avoid potential issues
         // with persisting the file across filesystems.
         let mut tmp_file = tempfile::NamedTempFile::new_in(tmp_dir)
-            .map_err(|err| format!("failed to create query file: {:?}", err))?;
+            .map_err(|err| format!("failed to create query file: {err:?}"))?;
 
         serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
-            .map_err(|err| format!("failed to serialize query data to file: {:?}", err))?;
+            .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
         // Ensure there is a newline at the end of the JSON file to avoid accidental modification by IDE
         // and make github diff tool happier
         tmp_file
             .as_file_mut()
             .write_all(b"\n")
-            .map_err(|err| format!("failed to append a newline to file: {:?}", err))?;
+            .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
 
         tmp_file
             .persist(dir.as_ref().join(format!("query-{}.json", self.hash)))
-            .map_err(|err| format!("failed to move query file: {:?}", err))?;
+            .map_err(|err| format!("failed to move query file: {err:?}"))?;
 
         Ok(())
     }

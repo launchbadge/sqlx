@@ -148,11 +148,8 @@ impl<'a> TryFrom<&'a SqliteTypeInfo> for AnyTypeInfo {
                 DataType::Text => AnyTypeInfoKind::Text,
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(
-                        format!(
-                            "Any driver does not support the SQLite type {:?}",
-                            sqlite_type
-                        )
-                        .into(),
+                        format!("Any driver does not support the SQLite type {sqlite_type:?}")
+                            .into(),
                     ))
                 }
             },
@@ -214,7 +211,7 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
                 AnyValueKind::Text(t) => SqliteArgumentValue::Text(t),
                 AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b),
                 // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
-                _ => unreachable!("BUG: missing mapping for {:?}", val),
+                _ => unreachable!("BUG: missing mapping for {val:?}"),
             })
             .collect(),
     }

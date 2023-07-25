@@ -236,7 +236,7 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
 fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) {
     // MySQL supports years from 1000 - 9999
     let year = u16::try_from(date.year())
-        .unwrap_or_else(|_| panic!("NaiveDateTime out of range for Mysql: {}", date));
+        .unwrap_or_else(|_| panic!("NaiveDateTime out of range for Mysql: {date}"));
 
     buf.extend_from_slice(&year.to_le_bytes());
     buf.push(date.month() as u8);

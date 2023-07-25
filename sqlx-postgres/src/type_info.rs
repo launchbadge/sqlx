@@ -768,7 +768,7 @@ impl PgType {
                 unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
             }
             PgType::DeclareWithName(name) => {
-                unreachable!("(bug) use of unresolved type declaration [name={}]", name);
+                unreachable!("(bug) use of unresolved type declaration [name={name}]");
             }
         }
     }
@@ -887,7 +887,7 @@ impl PgType {
                 unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
             }
             PgType::DeclareWithName(name) => {
-                unreachable!("(bug) use of unresolved type declaration [name={}]", name);
+                unreachable!("(bug) use of unresolved type declaration [name={name}]");
             }
         }
     }

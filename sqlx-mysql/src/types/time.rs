@@ -223,7 +223,7 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
 fn encode_date(date: &Date, buf: &mut Vec<u8>) {
     // MySQL supports years from 1000 - 9999
     let year = u16::try_from(date.year())
-        .unwrap_or_else(|_| panic!("Date out of range for Mysql: {}", date));
+        .unwrap_or_else(|_| panic!("Date out of range for Mysql: {date}"));
 
     buf.extend_from_slice(&year.to_le_bytes());
     buf.push(date.month().into());
@@ -268,5 +268,5 @@ fn decode_time(len: u8, mut buf: &[u8]) -> Result<Time, BoxDynError> {
     };
 
     Time::from_hms_micro(hour, minute, seconds, micros as u32)
-        .map_err(|e| format!("Time out of range for MySQL: {}", e).into())
+        .map_err(|e| format!("Time out of range for MySQL: {e}").into())
 }
