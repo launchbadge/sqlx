@@ -39,10 +39,12 @@ pub trait DatabaseExt: Database {
     fn describe_blocking(query: &str, database_url: &str) -> sqlx_core::Result<Describe<Self>>;
 }
 
+#[allow(dead_code)]
 pub struct CachingDescribeBlocking<DB: DatabaseExt> {
     connections: Lazy<Mutex<HashMap<String, DB::Connection>>>,
 }
 
+#[allow(dead_code)]
 impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
     pub const fn new() -> Self {
         CachingDescribeBlocking {
