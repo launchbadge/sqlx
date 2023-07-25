@@ -17,8 +17,8 @@ const COLLATE_UTF8MB4_0900_AI_CI: u16 = 255;
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
-            r#type: ColumnType::VarString,        // VARCHAR
-            char_set: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
+            r#type: ColumnType::VarString,         // VARCHAR
+            collation: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
             max_size: None,
         }
@@ -37,7 +37,7 @@ impl Type<MySql> for str {
                 | ColumnType::VarString
                 | ColumnType::Enum
         ) && matches!(
-            ty.char_set,
+            ty.collation,
             COLLATE_UTF8MB4_UNICODE_CI
                 | COLLATE_UTF8_UNICODE_CI
                 | COLLATE_UTF8_GENERAL_CI

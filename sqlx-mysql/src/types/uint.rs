@@ -10,7 +10,7 @@ fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
     MySqlTypeInfo {
         r#type: ty,
         flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
-        char_set: 63,
+        collation: 63,
         max_size: None,
     }
 }
