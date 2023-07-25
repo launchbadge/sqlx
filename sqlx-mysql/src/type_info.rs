@@ -10,7 +10,7 @@ use crate::protocol::text::{ColumnDefinition, ColumnFlags, ColumnType};
 pub struct MySqlTypeInfo {
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
-    pub(crate) char_set: u16,
+    pub(crate) collation: u16,
 
     // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
     #[cfg_attr(feature = "offline", serde(default))]
@@ -22,7 +22,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: ty,
             flags: ColumnFlags::BINARY,
-            char_set: 63,
+            collation: 63,
             max_size: None,
         }
     }
@@ -32,7 +32,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: ColumnType::Enum,
             flags: ColumnFlags::BINARY,
-            char_set: 63,
+            collation: 63,
             max_size: None,
         }
     }
@@ -55,7 +55,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: column.r#type,
             flags: column.flags,
-            char_set: column.char_set,
+            collation: column.collation,
             max_size: Some(column.max_size),
         }
     }
@@ -73,7 +73,7 @@ impl TypeInfo for MySqlTypeInfo {
     }
 
     fn name(&self) -> &str {
-        self.r#type.name(self.char_set, self.flags, self.max_size)
+        self.r#type.name(self.collation, self.flags, self.max_size)
     }
 }
 
@@ -102,7 +102,7 @@ impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
             | ColumnType::String
             | ColumnType::VarString
             | ColumnType::Enum => {
-                return self.char_set == other.char_set;
+                return self.collation == other.collation;
             }
 
             _ => {}
