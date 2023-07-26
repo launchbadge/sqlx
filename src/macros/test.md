@@ -10,7 +10,7 @@ By default, this behaves identically to `#[tokio::test]`<sup>1</sup> or `#[async
 # // lines prefixed with `#` are not meant to be shown;
 # // they are supporting code to help the examples to compile successfully.
 # #[cfg(feature = "_rt-tokio")]
-#[sqlx::test]
+#[sqlx_oldapi::test]
 async fn test_async_fn() {
     tokio::task::yield_now().await;
 } 

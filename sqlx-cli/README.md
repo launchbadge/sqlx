@@ -109,7 +109,7 @@ error: cannot mix reversible migrations with simple migrations. All migrations s
 There are 3 steps to building with "offline mode":
 
 1. Enable the SQLx's Cargo feature `offline`
-    - E.g. in your `Cargo.toml`, `sqlx = { features = [ "offline", ... ] }`
+    - E.g. in your `Cargo.toml`, `sqlx = { package = "sqlx-oldapi",  features = [ "offline", ... ] }`
 2. Save query metadata for offline usage
     - `cargo sqlx prepare`
 3. Build

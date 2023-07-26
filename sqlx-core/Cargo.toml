@@ -1,7 +1,7 @@
 [package]
-name = "sqlx-core"
-version = "0.6.2"
-repository = "https://github.com/launchbadge/sqlx"
+name = "sqlx-core-oldapi"
+version = "0.6.3"
+repository = "https://github.com/lovasoa/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -135,7 +135,7 @@ itoa = "1.0.1"
 ipnetwork = { version = "0.19.0", default-features = false, optional = true }
 mac_address = { version = "1.1.2", default-features = false, optional = true }
 libc = "0.2.112"
-libsqlite3-sys = { version = "0.24.1", optional = true, default-features = false, features = [
+libsqlite3-sys = { version = "0.26.0", optional = true, default-features = false, features = [
     "pkg-config",
     "vcpkg",
     "bundled",
@@ -178,5 +178,5 @@ event-listener = "2.5.2"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { version = "0.6.2", path = "..", features = ["postgres", "sqlite", "mysql"] }
+sqlx = { package = "sqlx-oldapi",  version = "0.6.3", path = "..", features = ["postgres", "sqlite", "mysql"] }
 tokio = { version = "1", features = ["rt"] }

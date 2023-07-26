@@ -1,3 +1,4 @@
+use sqlx_oldapi as sqlx;
 use sqlx::migrate::Migrator;
 use std::path::Path;
 
