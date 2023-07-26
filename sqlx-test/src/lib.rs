@@ -94,7 +94,7 @@ macro_rules! test_unprepared_type {
         paste::item! {
             #[sqlx_macros::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::prelude::*;
+                use sqlx_oldapi::prelude::*;
                 use futures::TryStreamExt;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
@@ -123,14 +123,14 @@ macro_rules! __test_prepared_decode_type {
         paste::item! {
             #[sqlx_macros::test]
             async fn [< test_prepared_decode_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::Row;
+                use sqlx_oldapi::Row;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
 
-                    let row = sqlx::query(&query)
+                    let row = sqlx_oldapi::query(&query)
                         .fetch_one(&mut conn)
                         .await?;
 
@@ -152,7 +152,7 @@ macro_rules! __test_prepared_type {
         paste::item! {
             #[sqlx_macros::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::Row;
+                use sqlx_oldapi::Row;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
 
@@ -160,7 +160,7 @@ macro_rules! __test_prepared_type {
                     let query = format!($sql, $text);
                     println!("{query}");
 
-                    let row = sqlx::query(&query)
+                    let row = sqlx_oldapi::query(&query)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)
