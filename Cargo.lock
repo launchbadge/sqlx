@@ -3064,7 +3064,7 @@ dependencies = [
  "dotenvy",
  "once_cell",
  "sqlx-oldapi",
- "sqlx-rt",
+ "sqlx-rt-oldapi",
 ]
 
 [[package]]
@@ -3152,7 +3152,7 @@ dependencies = [
  "smallvec",
  "sqlformat",
  "sqlx-oldapi",
- "sqlx-rt",
+ "sqlx-rt-oldapi",
  "stringprep",
  "thiserror",
  "time 0.3.23",
@@ -3269,7 +3269,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx-core-oldapi",
- "sqlx-rt",
+ "sqlx-rt-oldapi",
  "syn 1.0.109",
  "url",
 ]
@@ -3292,7 +3292,7 @@ dependencies = [
  "serde_json",
  "sqlx-core-oldapi",
  "sqlx-macros-oldapi",
- "sqlx-rt",
+ "sqlx-rt-oldapi",
  "sqlx-test",
  "tempdir",
  "time 0.3.23",
@@ -3302,7 +3302,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-rt"
+name = "sqlx-rt-oldapi"
 version = "0.6.4"
 dependencies = [
  "async-native-tls",
