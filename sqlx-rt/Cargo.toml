@@ -40,5 +40,5 @@ once_cell = { version = "1.4", features = ["std"], optional = true }
 
 [dependencies.tokio]
 version = "1.0.1"
-features = ["fs", "net", "rt", "rt-multi-thread", "time", "io-util"]
+features = ["fs", "net", "rt", "rt-multi-thread", "time", "io-util", "sync"]
 optional = true
