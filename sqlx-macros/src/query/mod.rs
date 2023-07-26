@@ -340,7 +340,7 @@ where
         let sql = &input.sql;
 
         quote! {
-            ::sqlx_oldapi::query_with::<#db_path, _>(#sql, #query_args)
+            ::sqlx::query_with::<#db_path, _>(#sql, #query_args)
         }
     } else {
         match input.record_type {
@@ -398,7 +398,7 @@ where
         {
             #[allow(clippy::all)]
             {
-                use ::sqlx_oldapi::Arguments as _;
+                use ::sqlx::Arguments as _;
 
                 #args_tokens
 

@@ -64,36 +64,36 @@ fn expand_derive_has_sql_type_transparent(
 
         generics
             .params
-            .insert(0, parse_quote!(DB: ::sqlx_oldapi::Database));
+            .insert(0, parse_quote!(DB: ::sqlx::Database));
         generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#ty: ::sqlx_oldapi::Type<DB>));
+            .push(parse_quote!(#ty: ::sqlx::Type<DB>));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         array_generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#ty: ::sqlx_oldapi::postgres::PgHasArrayType));
+            .push(parse_quote!(#ty: ::sqlx::postgres::PgHasArrayType));
         let (array_impl_generics, _, array_where_clause) = array_generics.split_for_impl();
 
         return Ok(quote!(
             #[automatically_derived]
-            impl #impl_generics ::sqlx_oldapi::Type< DB > for #ident #ty_generics #where_clause {
+            impl #impl_generics ::sqlx::Type< DB > for #ident #ty_generics #where_clause {
                 fn type_info() -> DB::TypeInfo {
-                    <#ty as ::sqlx_oldapi::Type<DB>>::type_info()
+                    <#ty as ::sqlx::Type<DB>>::type_info()
                 }
 
                 fn compatible(ty: &DB::TypeInfo) -> ::std::primitive::bool {
-                    <#ty as ::sqlx_oldapi::Type<DB>>::compatible(ty)
+                    <#ty as ::sqlx::Type<DB>>::compatible(ty)
                 }
             }
             #[automatically_derived]
             #[cfg(feature = "postgres")]
-            impl #array_impl_generics ::sqlx_oldapi::postgres::PgHasArrayType for #ident #ty_generics
+            impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics
             #array_where_clause {
-                fn array_type_info() -> ::sqlx_oldapi::postgres::PgTypeInfo {
-                    <#ty as ::sqlx_oldapi::postgres::PgHasArrayType>::array_type_info()
+                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    <#ty as ::sqlx::postgres::PgHasArrayType>::array_type_info()
                 }
             }
         ));
@@ -106,9 +106,9 @@ fn expand_derive_has_sql_type_transparent(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx_oldapi::Type<::sqlx_oldapi::postgres::Postgres> for #ident #ty_generics {
-                fn type_info() -> ::sqlx_oldapi::postgres::PgTypeInfo {
-                    ::sqlx_oldapi::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::sqlx::Type<::sqlx::postgres::Postgres> for #ident #ty_generics {
+                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -126,16 +126,16 @@ fn expand_derive_has_sql_type_weak_enum(
     let ident = &input.ident;
     let ts = quote!(
         #[automatically_derived]
-        impl<DB: ::sqlx_oldapi::Database> ::sqlx_oldapi::Type<DB> for #ident
+        impl<DB: ::sqlx::Database> ::sqlx::Type<DB> for #ident
         where
-            #repr: ::sqlx_oldapi::Type<DB>,
+            #repr: ::sqlx::Type<DB>,
         {
             fn type_info() -> DB::TypeInfo {
-                <#repr as ::sqlx_oldapi::Type<DB>>::type_info()
+                <#repr as ::sqlx::Type<DB>>::type_info()
             }
 
             fn compatible(ty: &DB::TypeInfo) -> bool {
-                <#repr as ::sqlx_oldapi::Type<DB>>::compatible(ty)
+                <#repr as ::sqlx::Type<DB>>::compatible(ty)
             }
         }
     );
@@ -155,13 +155,13 @@ fn expand_derive_has_sql_type_strong_enum(
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx_oldapi::Type<::sqlx_oldapi::MySql> for #ident {
-                fn type_info() -> ::sqlx_oldapi::mysql::MySqlTypeInfo {
-                    ::sqlx_oldapi::mysql::MySqlTypeInfo::__enum()
+            impl ::sqlx::Type<::sqlx::MySql> for #ident {
+                fn type_info() -> ::sqlx::mysql::MySqlTypeInfo {
+                    ::sqlx::mysql::MySqlTypeInfo::__enum()
                 }
 
-                fn compatible(ty: &::sqlx_oldapi::mysql::MySqlTypeInfo) -> ::std::primitive::bool {
-                    *ty == ::sqlx_oldapi::mysql::MySqlTypeInfo::__enum()
+                fn compatible(ty: &::sqlx::mysql::MySqlTypeInfo) -> ::std::primitive::bool {
+                    *ty == ::sqlx::mysql::MySqlTypeInfo::__enum()
                 }
             }
         ));
@@ -172,9 +172,9 @@ fn expand_derive_has_sql_type_strong_enum(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx_oldapi::Type<::sqlx_oldapi::Postgres> for #ident {
-                fn type_info() -> ::sqlx_oldapi::postgres::PgTypeInfo {
-                    ::sqlx_oldapi::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::sqlx::Type<::sqlx::Postgres> for #ident {
+                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -183,13 +183,13 @@ fn expand_derive_has_sql_type_strong_enum(
     if cfg!(feature = "sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl sqlx::Type<::sqlx_oldapi::Sqlite> for #ident {
-                fn type_info() -> ::sqlx_oldapi::sqlite::SqliteTypeInfo {
-                    <::std::primitive::str as ::sqlx_oldapi::Type<sqlx::Sqlite>>::type_info()
+            impl sqlx::Type<::sqlx::Sqlite> for #ident {
+                fn type_info() -> ::sqlx::sqlite::SqliteTypeInfo {
+                    <::std::primitive::str as ::sqlx::Type<sqlx::Sqlite>>::type_info()
                 }
 
-                fn compatible(ty: &::sqlx_oldapi::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
-                    <&::std::primitive::str as ::sqlx_oldapi::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
+                fn compatible(ty: &::sqlx::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
+                    <&::std::primitive::str as ::sqlx::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
                 }
             }
         ));
@@ -212,9 +212,9 @@ fn expand_derive_has_sql_type_struct(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx_oldapi::Type<::sqlx_oldapi::Postgres> for #ident {
-                fn type_info() -> ::sqlx_oldapi::postgres::PgTypeInfo {
-                    ::sqlx_oldapi::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::sqlx::Type<::sqlx::Postgres> for #ident {
+                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));

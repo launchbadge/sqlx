@@ -28,7 +28,7 @@ use crate::value::ValueRef;
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {
-/// # type Err = sqlx_core::error::Error;
+/// # type Err = sqlx_core_oldapi::error::Error;
 /// # fn from_str(s: &str) -> Result<Self, Self::Err> { todo!() }
 /// # }
 /// #

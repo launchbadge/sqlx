@@ -64,26 +64,26 @@ fn expand_derive_decode_transparent(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, parse_quote!(DB: ::sqlx_oldapi::Database));
+        .insert(0, parse_quote!(DB: ::sqlx::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<'r, DB>));
+        .push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics ::sqlx_oldapi::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
+        impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
             fn decode(
-                value: <DB as ::sqlx_oldapi::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                <#ty as ::sqlx_oldapi::decode::Decode<'r, DB>>::decode(value).map(Self)
+                <#ty as ::sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
             }
         }
     );
@@ -113,23 +113,23 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'r, DB: ::sqlx_oldapi::Database> ::sqlx_oldapi::decode::Decode<'r, DB> for #ident
+        impl<'r, DB: ::sqlx::Database> ::sqlx::decode::Decode<'r, DB> for #ident
         where
-            #repr: ::sqlx_oldapi::decode::Decode<'r, DB>,
+            #repr: ::sqlx::decode::Decode<'r, DB>,
         {
             fn decode(
-                value: <DB as ::sqlx_oldapi::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                let value = <#repr as ::sqlx_oldapi::decode::Decode<'r, DB>>::decode(value)?;
+                let value = <#repr as ::sqlx::decode::Decode<'r, DB>>::decode(value)?;
 
                 match value {
                     #(#arms)*
-                    _ => ::std::result::Result::Err(::std::boxed::Box::new(::sqlx_oldapi::Error::Decode(
+                    _ => ::std::result::Result::Err(::std::boxed::Box::new(::sqlx::Error::Decode(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     )))
                 }
@@ -176,9 +176,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::mysql::MySql> for #ident {
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::mysql::MySql> for #ident {
                 fn decode(
-                    value: ::sqlx_oldapi::mysql::MySqlValueRef<'r>,
+                    value: ::sqlx::mysql::MySqlValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -188,9 +188,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx_oldapi::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
                         'r,
-                        ::sqlx_oldapi::mysql::MySql,
+                        ::sqlx::mysql::MySql,
                     >>::decode(value)?;
 
                     #values
@@ -202,9 +202,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "postgres") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::postgres::Postgres> for #ident {
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::postgres::Postgres> for #ident {
                 fn decode(
-                    value: ::sqlx_oldapi::postgres::PgValueRef<'r>,
+                    value: ::sqlx::postgres::PgValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -214,9 +214,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx_oldapi::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
                         'r,
-                        ::sqlx_oldapi::postgres::Postgres,
+                        ::sqlx::postgres::Postgres,
                     >>::decode(value)?;
 
                     #values
@@ -228,9 +228,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::sqlite::Sqlite> for #ident {
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite> for #ident {
                 fn decode(
-                    value: ::sqlx_oldapi::sqlite::SqliteValueRef<'r>,
+                    value: ::sqlx::sqlite::SqliteValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -240,9 +240,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx_oldapi::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
                         'r,
-                        ::sqlx_oldapi::sqlite::Sqlite,
+                        ::sqlx::sqlite::Sqlite,
                     >>::decode(value)?;
 
                     #values
@@ -279,9 +279,9 @@ fn expand_derive_decode_struct(
             let ty = &field.ty;
 
             predicates.push(
-                parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::Postgres>),
+                parse_quote!(#ty: ::sqlx::decode::Decode<'r, ::sqlx::Postgres>),
             );
-            predicates.push(parse_quote!(#ty: ::sqlx_oldapi::types::Type<::sqlx_oldapi::Postgres>));
+            predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
         }
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -299,11 +299,11 @@ fn expand_derive_decode_struct(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl #impl_generics ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::Postgres> for #ident #ty_generics
+            impl #impl_generics ::sqlx::decode::Decode<'r, ::sqlx::Postgres> for #ident #ty_generics
             #where_clause
             {
                 fn decode(
-                    value: ::sqlx_oldapi::postgres::PgValueRef<'r>,
+                    value: ::sqlx::postgres::PgValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -313,7 +313,7 @@ fn expand_derive_decode_struct(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let mut decoder = ::sqlx_oldapi::postgres::types::PgRecordDecoder::new(value)?;
+                    let mut decoder = ::sqlx::postgres::types::PgRecordDecoder::new(value)?;
 
                     #(#reads)*
 

@@ -55,7 +55,7 @@ fn expand_simple(input: syn::ItemFn) -> TokenStream {
         #[::core::prelude::v1::test]
         #(#attrs)*
         fn #name() #ret {
-            ::sqlx_oldapi::test_block_on(async { #body })
+            ::sqlx::test_block_on(async { #body })
         }
     }
 }
@@ -76,7 +76,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
         let path = format!("fixtures/{}.sql", fixture.value());
 
         quote! {
-            ::sqlx_oldapi::testing::TestFixture {
+            ::sqlx::testing::TestFixture {
                 path: #path,
                 contents: include_str!(#path),
             }
@@ -112,7 +112,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
                 #body
             }
 
-            let mut args = ::sqlx_oldapi::testing::TestArgs::new(concat!(module_path!(), "::", stringify!(#name)));
+            let mut args = ::sqlx::testing::TestArgs::new(concat!(module_path!(), "::", stringify!(#name)));
 
             #migrations
 
@@ -121,7 +121,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             // We need to give a coercion site or else we get "unimplemented trait" errors.
             let f: fn(#(#fn_arg_types),*) -> _ = inner;
 
-            ::sqlx_oldapi::testing::TestFn::run_test(f, args)
+            ::sqlx::testing::TestFn::run_test(f, args)
         }
     })
 }

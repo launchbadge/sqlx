@@ -97,7 +97,7 @@ impl Migrator {
     /// #     sqlx_rt::block_on(async move {
     /// # use sqlx_core_oldapi::migrate::Migrator;
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
-    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// let pool = sqlx_core_oldapi::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.run(&pool).await
     /// #     })
     /// # }
@@ -176,7 +176,7 @@ impl Migrator {
     /// #     sqlx_rt::block_on(async move {
     /// # use sqlx_core_oldapi::migrate::Migrator;
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
-    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// let pool = sqlx_core_oldapi::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.undo(&pool, 4).await
     /// #     })
     /// # }

@@ -55,7 +55,7 @@ fn expand_derive_from_row_struct(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
+        .insert(0, parse_quote!(R: ::sqlx::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -63,7 +63,7 @@ fn expand_derive_from_row_struct(
 
     let predicates = &mut generics.make_where_clause().predicates;
 
-    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: ::sqlx_oldapi::ColumnIndex<R>));
+    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: ::sqlx::ColumnIndex<R>));
 
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
@@ -76,13 +76,13 @@ fn expand_derive_from_row_struct(
 
             let expr: Expr = match (attributes.flatten, attributes.try_from) {
                 (true, None) => {
-                    predicates.push(parse_quote!(#ty: ::sqlx_oldapi::FromRow<#lifetime, R>));
-                    parse_quote!(<#ty as ::sqlx_oldapi::FromRow<#lifetime, R>>::from_row(row))
+                    predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
+                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
                 }
                 (false, None) => {
                     predicates
-                        .push(parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>));
-                    predicates.push(parse_quote!(#ty: ::sqlx_oldapi::types::Type<R::Database>));
+                        .push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
 
                     let id_s = attributes
                         .rename
@@ -95,13 +95,13 @@ fn expand_derive_from_row_struct(
                     parse_quote!(row.try_get(#id_s))
                 }
                 (true,Some(try_from)) => {
-                    predicates.push(parse_quote!(#try_from: ::sqlx_oldapi::FromRow<#lifetime, R>));
-                    parse_quote!(<#try_from as ::sqlx_oldapi::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx_oldapi::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
+                    predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
+                    parse_quote!(<#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
                 }
                 (false,Some(try_from)) => {
-                    let predicate = parse_quote!(#try_from: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>);
+                    let predicate = parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>);
                     predicates.push(predicate);
-                    predicates.push(parse_quote!(#try_from: ::sqlx_oldapi::types::Type<R::Database>)); 
+                    predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>)); 
 
                     let id_s = attributes
                         .rename
@@ -111,13 +111,13 @@ fn expand_derive_from_row_struct(
                             None => s,
                         })
                         .unwrap();
-                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx_oldapi::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                 }
             };
 
             if attributes.default {
                 Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                ::sqlx_oldapi::Error::ColumnNotFound(_) => {
+                ::sqlx::Error::ColumnNotFound(_) => {
                     ::std::result::Result::Ok(Default::default())
                 },
                 e => ::std::result::Result::Err(e)
@@ -136,8 +136,8 @@ fn expand_derive_from_row_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics ::sqlx_oldapi::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime R) -> ::sqlx_oldapi::Result<Self> {
+        impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -167,7 +167,7 @@ fn expand_derive_from_row_struct_unnamed(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
+        .insert(0, parse_quote!(R: ::sqlx::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -176,14 +176,14 @@ fn expand_derive_from_row_struct_unnamed(
     let predicates = &mut generics.make_where_clause().predicates;
 
     predicates.push(parse_quote!(
-        ::std::primitive::usize: ::sqlx_oldapi::ColumnIndex<R>
+        ::std::primitive::usize: ::sqlx::ColumnIndex<R>
     ));
 
     for field in fields {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>));
-        predicates.push(parse_quote!(#ty: ::sqlx_oldapi::types::Type<R::Database>));
+        predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
+        predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -195,8 +195,8 @@ fn expand_derive_from_row_struct_unnamed(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics ::sqlx_oldapi::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime R) -> ::sqlx_oldapi::Result<Self> {
+        impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))

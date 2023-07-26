@@ -98,7 +98,7 @@ impl PgAdvisoryLock {
     /// [hkdf]: https://datatracker.ietf.org/doc/html/rfc5869
     /// ### Example
     /// ```rust
-    /// # extern crate sqlx_core as sqlx;
+    /// # extern crate sqlx_core_oldapi as sqlx;
     /// use sqlx::postgres::{PgAdvisoryLock, PgAdvisoryLockKey};
     ///
     /// let lock = PgAdvisoryLock::new("my first Postgres advisory lock!");
