@@ -1220,15 +1220,6 @@ dependencies = [
 
 [[package]]
 name = "fragile"
-version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7464c5c4a3f014d9b2ec4073650e5c06596f385060af740fc45ad5a19f959e8"
-dependencies = [
- "fragile 2.0.0",
-]
-
-[[package]]
-name = "fragile"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
@@ -1917,13 +1908,13 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.11.0"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d4d70639a72f972725db16350db56da68266ca368b2a1fe26724a903ad3d6b8"
+checksum = "4c84490118f2ee2d74570d114f3d0493cbf02790df303d2707606c3e14e07c96"
 dependencies = [
  "cfg-if",
  "downcast",
- "fragile 1.2.2",
+ "fragile",
  "lazy_static",
  "mockall_derive",
  "predicates",
@@ -1932,9 +1923,9 @@ dependencies = [
 
 [[package]]
 name = "mockall_derive"
-version = "0.11.0"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79ef208208a0dea3f72221e26e904cdc6db2e481d9ade89081ddd494f1dbaa6b"
+checksum = "22ce75669015c4f47b289fd4d4f56e894e4c96003ffdf3ac51313126f94c6cbb"
 dependencies = [
  "cfg-if",
  "proc-macro2",
@@ -3078,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3103,7 +3094,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core-oldapi"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "ahash 0.8.3",
  "atoi",
@@ -3265,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.6.2"
+version = "0.6.4"
 dependencies = [
  "dotenvy",
  "either",
@@ -3285,7 +3276,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-oldapi"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3312,7 +3303,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.6.2"
+version = "0.6.4"
 dependencies = [
  "async-native-tls",
  "async-std",
