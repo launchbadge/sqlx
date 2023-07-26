@@ -11,6 +11,7 @@ use crate::mysql::protocol::Capabilities;
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
 
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
     pub(crate) struct ColumnFlags: u16 {
         /// Field can't be `NULL`.

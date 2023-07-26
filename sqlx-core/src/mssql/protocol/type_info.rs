@@ -7,6 +7,7 @@ use crate::error::Error;
 use crate::mssql::Mssql;
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
     pub(crate) struct CollationFlags: u8 {
         const IGNORE_CASE = (1 << 0);

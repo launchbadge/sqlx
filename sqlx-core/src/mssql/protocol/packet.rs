@@ -96,6 +96,7 @@ impl PacketType {
 // Status is a bit field used to indicate the message state. Status is a 1-byte unsigned char.
 // The following Status bit flags are defined.
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct Status: u8 {
         // "Normal" message.
         const NORMAL = 0x00;

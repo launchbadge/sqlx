@@ -15,6 +15,7 @@ use crate::types::Type;
 
 // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/include/utils/rangetypes.h#L35-L44
 bitflags! {
+  #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
   struct RangeFlags: u8 {
       const EMPTY = 0x01;
       const LB_INC = 0x02;

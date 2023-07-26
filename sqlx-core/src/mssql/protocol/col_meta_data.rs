@@ -31,6 +31,7 @@ pub(crate) struct ColumnData {
 
 bitflags! {
     #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct Flags: u16 {
         // Its value is 1 if the column is nullable.
         const NULLABLE = 0x0001;

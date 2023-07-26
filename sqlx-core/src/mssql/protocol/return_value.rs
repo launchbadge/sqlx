@@ -21,6 +21,7 @@ pub(crate) struct ReturnValue {
 }
 
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct ReturnValueStatus: u8 {
         // If ReturnValue corresponds to OUTPUT parameter of a stored procedure invocation
         const OUTPUT_PARAM = 0x01;

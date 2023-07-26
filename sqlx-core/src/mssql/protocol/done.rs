@@ -32,6 +32,7 @@ impl Done {
 }
 
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct Status: u16 {
         // This DONEINPROC message is not the final DONE/DONEPROC/DONEINPROC message in
         // the response; more data streams are to follow.

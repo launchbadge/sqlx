@@ -241,7 +241,7 @@ impl Display for Version {
 bitflags! {
     /// During the Pre-Login handshake, the client and the server negotiate the
     /// wire encryption to be used.
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct Encrypt: u8 {
         /// Encryption is available but on.
         const ON = 0x01;

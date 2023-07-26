@@ -111,7 +111,7 @@ base64 = { version = "0.21.2", default-features = false, optional = true, featur
 bigdecimal_ = { version = "0.4.1", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.19.0", optional = true }
 bit-vec = { version = "0.6.3", optional = true }
-bitflags = { version = "2.3.3", default-features = false }
+bitflags = { version = "2.3.3", default-features = false, features = ["serde"] }
 bytes = "1.1.0"
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"], optional = true }

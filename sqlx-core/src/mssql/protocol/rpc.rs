@@ -37,6 +37,7 @@ pub(crate) enum Procedure {
 }
 
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct OptionFlags: u16 {
         const WITH_RECOMPILE = 1;
 
@@ -50,6 +51,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(crate) struct StatusFlags: u8 {
         // if the parameter is passed by reference (OUTPUT parameter) or
         // 0 if parameter is passed by value
@@ -85,7 +87,7 @@ impl Encode<'_> for RpcRequest<'_> {
             }
         }
 
-        buf.extend(&self.options.bits.to_le_bytes());
+        buf.extend(&self.options.bits().to_le_bytes());
         buf.extend(&self.arguments.data);
     }
 }
