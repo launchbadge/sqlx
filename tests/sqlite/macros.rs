@@ -1,3 +1,4 @@
+use sqlx_oldapi as sqlx;
 use sqlx_oldapi::Sqlite;
 use sqlx_test::new;
 

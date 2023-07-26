@@ -11,7 +11,7 @@ jobs:
     name: Format
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -35,7 +35,7 @@ jobs:
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -70,7 +70,7 @@ jobs:
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -110,7 +110,7 @@ jobs:
 #            bin: target/debug/cargo-sqlx
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -142,7 +142,7 @@ jobs:
         tls: [native-tls, rustls]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
 
@@ -179,7 +179,7 @@ jobs:
         tls: [native-tls, rustls]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -239,7 +239,7 @@ jobs:
         tls: [native-tls, rustls]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -290,7 +290,7 @@ jobs:
         tls: [native-tls, rustls]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -330,7 +330,7 @@ jobs:
         tls: [native-tls, rustls]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:

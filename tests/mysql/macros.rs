@@ -1,3 +1,4 @@
+use sqlx_oldapi as sqlx;
 use sqlx_oldapi::{Connection, MySql, MySqlConnection, Transaction};
 use sqlx_test::new;
 
