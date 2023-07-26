@@ -7,7 +7,6 @@ use crate::{
     sqlite::{type_info::DataType, Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef},
     types::Type,
 };
-use bitflags::_core::fmt::Display;
 use chrono::{
     DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
 };
@@ -57,7 +56,7 @@ impl Type<Sqlite> for NaiveTime {
 
 impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
 where
-    Tz::Offset: Display,
+    Tz::Offset: core::fmt::Display,
 {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
         Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
