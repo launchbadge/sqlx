@@ -83,14 +83,16 @@ mod chrono {
 
                     // TIME is encoded as the microseconds since midnight
                     let us = buf.read_i64::<BigEndian>()?;
-                    let time = NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(us);
+                    let time = NaiveTime::default() + Duration::microseconds(us);
 
                     // OFFSET is encoded as seconds from UTC
                     let seconds = buf.read_i32::<BigEndian>()?;
+                    let offset = FixedOffset::west_opt(seconds)
+                        .ok_or("invaid time offset")?;
 
                     Ok(PgTimeTz {
                         time,
-                        offset: FixedOffset::west(seconds),
+                        offset,
                     })
                 }
 

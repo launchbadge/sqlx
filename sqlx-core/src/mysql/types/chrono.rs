@@ -106,7 +106,7 @@ impl<'r> Decode<'r, MySql> for NaiveTime {
                 // are 0 then the length is 0 and no further data is send
                 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
                 if len == 0 {
-                    return Ok(NaiveTime::from_hms_micro(0, 0, 0, 0));
+                    return Ok(NaiveTime::default());
                 }
 
                 // is negative : int<1>
@@ -214,13 +214,13 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
                 let len = buf[0];
                 let date = decode_date(&buf[1..]).ok_or(UnexpectedNullError)?;
 
-                let dt = if len > 4 {
-                    date.and_time(decode_time(len - 4, &buf[5..]))
+                let t = if len > 4 {
+                    decode_time(len - 4, &buf[5..])
                 } else {
-                    date.and_hms(0, 0, 0)
+                    NaiveTime::default()
                 };
 
-                Ok(dt)
+                Ok(date.and_time(t))
             }
 
             MySqlValueFormat::Text => {
@@ -247,11 +247,11 @@ fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
         None
     } else {
         let year = buf.get_u16_le();
-        Some(NaiveDate::from_ymd(
+        NaiveDate::from_ymd_opt(
             year as i32,
             buf[0] as u32,
             buf[1] as u32,
-        ))
+        )
     }
 }
 
@@ -277,5 +277,6 @@ fn decode_time(len: u8, mut buf: &[u8]) -> NaiveTime {
         0
     };
 
-    NaiveTime::from_hms_micro(hour as u32, minute as u32, seconds as u32, micros as u32)
+    NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, seconds as u32, micros as u32)
+        .unwrap_or_else(NaiveTime::default)
 }

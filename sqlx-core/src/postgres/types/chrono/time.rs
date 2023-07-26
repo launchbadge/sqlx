@@ -24,7 +24,7 @@ impl Encode<'_, Postgres> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // TIME is encoded as the microseconds since midnight
         // NOTE: panic! is on overflow and 1 day does not have enough micros to overflow
-        let us = (*self - NaiveTime::from_hms(0, 0, 0))
+        let us = (*self - NaiveTime::default())
             .num_microseconds()
             .unwrap();
 
@@ -42,7 +42,7 @@ impl<'r> Decode<'r, Postgres> for NaiveTime {
             PgValueFormat::Binary => {
                 // TIME is encoded as the microseconds since midnight
                 let us: i64 = Decode::<Postgres>::decode(value)?;
-                NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(us)
+                NaiveTime::default() + Duration::microseconds(us)
             }
 
             PgValueFormat::Text => NaiveTime::parse_from_str(value.as_str()?, "%H:%M:%S%.f")?,
