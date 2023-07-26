@@ -1,5 +1,5 @@
 [package]
-name = "sqlx-rt"
+name = "sqlx-rt-oldapi"
 version = "0.6.4"
 repository = "https://github.com/launchbadge/sqlx"
 license = "MIT OR Apache-2.0"
