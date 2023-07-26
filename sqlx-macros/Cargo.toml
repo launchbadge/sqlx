@@ -80,6 +80,11 @@ sqlx-rt = { version = "0.6.2", default-features = false, path = "../sqlx-rt" }
 serde = { version = "1.0.132", features = ["derive"], optional = true }
 serde_json = { version = "1.0.73", optional = true }
 sha2 = { version = "0.10.0", optional = true }
-syn = { version = "1.0.84", default-features = false, features = ["full"] }
 quote = { version = "1.0.14", default-features = false }
 url = { version = "2.2.2", default-features = false }
+
+[dependencies.syn]
+# This is basically default features plus "full" but if they add more defaults later then we don't need to enable those.
+version = "1.0.109"
+default-features = false
+features = ["full", "parsing", "printing", "derive", "clone-impls", "proc-macro"]
