@@ -62,7 +62,9 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let id = sqlx_oldapi::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    let id = sqlx_oldapi::query_scalar!("select 1")
+        .fetch_one(&mut conn)
+        .await?;
     // MySQL tells us `LONG LONG` while MariaDB just `LONG`
     assert_eq!(id, 1);
 
@@ -190,10 +192,12 @@ async fn with_test_row<'a>(
     conn: &'a mut MySqlConnection,
 ) -> anyhow::Result<(Transaction<'a, MySql>, MyInt)> {
     let mut transaction = conn.begin().await?;
-    let id = sqlx_oldapi::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
-        .execute(&mut transaction)
-        .await?
-        .last_insert_id();
+    let id = sqlx_oldapi::query!(
+        "INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)"
+    )
+    .execute(&mut transaction)
+    .await?
+    .last_insert_id();
     Ok((transaction, MyInt(id as i64)))
 }
 

@@ -97,7 +97,8 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn it_can_inspect_errors() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let res: Result<_, sqlx_oldapi::Error> = sqlx_oldapi::query("select f").execute(&mut conn).await;
+    let res: Result<_, sqlx_oldapi::Error> =
+        sqlx_oldapi::query("select f").execute(&mut conn).await;
     let err = res.unwrap_err();
 
     // can also do [as_database_error] or use `match ..`
@@ -264,21 +265,22 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let tuple = sqlx_oldapi::query("SELECT NULL, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-        .map(|row: PgRow| {
-            (
-                row.get::<Option<i32>, _>(0),
-                row.get::<Option<i32>, _>(1),
-                row.get::<Option<i32>, _>(2),
-                row.get::<Option<i32>, _>(3),
-                row.get::<Option<i32>, _>(4),
-                row.get::<Option<i32>, _>(5),
-                row.get::<Option<i32>, _>(6),
-                row.get::<Option<i32>, _>(7),
-            )
-        })
-        .fetch_one(&mut conn)
-        .await?;
+    let tuple =
+        sqlx_oldapi::query("SELECT NULL, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
+            .map(|row: PgRow| {
+                (
+                    row.get::<Option<i32>, _>(0),
+                    row.get::<Option<i32>, _>(1),
+                    row.get::<Option<i32>, _>(2),
+                    row.get::<Option<i32>, _>(3),
+                    row.get::<Option<i32>, _>(4),
+                    row.get::<Option<i32>, _>(5),
+                    row.get::<Option<i32>, _>(6),
+                    row.get::<Option<i32>, _>(7),
+                )
+            })
+            .fetch_one(&mut conn)
+            .await?;
 
     assert_eq!(tuple.0, None);
     assert_eq!(tuple.1, Some(10));
@@ -344,10 +346,14 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 async fn it_can_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let scalar: i32 = sqlx_oldapi::query_scalar("SELECT 42").fetch_one(&mut conn).await?;
+    let scalar: i32 = sqlx_oldapi::query_scalar("SELECT 42")
+        .fetch_one(&mut conn)
+        .await?;
     assert_eq!(scalar, 42);
 
-    let scalar: Option<i32> = sqlx_oldapi::query_scalar("SELECT 42").fetch_one(&mut conn).await?;
+    let scalar: Option<i32> = sqlx_oldapi::query_scalar("SELECT 42")
+        .fetch_one(&mut conn)
+        .await?;
     assert_eq!(scalar, Some(42));
 
     let scalar: Option<i32> = sqlx_oldapi::query_scalar("SELECT NULL")
@@ -360,7 +366,9 @@ async fn it_can_query_scalar() -> anyhow::Result<()> {
         .await?;
     assert_eq!(scalar, Some(42));
 
-    let scalar: Option<i16> = sqlx_oldapi::query_scalar("").fetch_optional(&mut conn).await?;
+    let scalar: Option<i16> = sqlx_oldapi::query_scalar("")
+        .fetch_optional(&mut conn)
+        .await?;
     assert_eq!(scalar, None);
 
     Ok(())
@@ -519,10 +527,11 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
             let mut tx = conn.begin().await?;
 
             // do actually something before dropping
-            let _user = sqlx_oldapi::query("INSERT INTO _sqlx_users_3952 (id) VALUES ($1) RETURNING id")
-                .bind(20_i32)
-                .fetch_one(&mut tx)
-                .await?;
+            let _user =
+                sqlx_oldapi::query("INSERT INTO _sqlx_users_3952 (id) VALUES ($1) RETURNING id")
+                    .bind(20_i32)
+                    .fetch_one(&mut tx)
+                    .await?;
         }
 
         let (count,): (i64,) = sqlx_oldapi::query_as("SELECT COUNT(*) FROM _sqlx_users_3952")
@@ -784,10 +793,11 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
     let mut tx = conn.begin().await?;
 
-    let tweet_id: i64 =
-        sqlx_oldapi::query_scalar("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' ) RETURNING id")
-            .fetch_one(&mut tx)
-            .await?;
+    let tweet_id: i64 = sqlx_oldapi::query_scalar(
+        "INSERT INTO tweet ( text ) VALUES ( 'Hello, World' ) RETURNING id",
+    )
+    .fetch_one(&mut tx)
+    .await?;
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
 
@@ -834,7 +844,10 @@ async fn test_issue_622() -> anyhow::Result<()> {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx_oldapi::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx_oldapi::query("SELECT 1")
+                    .fetch_one(&mut conn)
+                    .await
+                    .unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }
@@ -1124,14 +1137,15 @@ CREATE TABLE heating_bills (
     let result = result.unwrap();
     assert_eq!(result.rows_affected(), 0);
 
-    let result =
-        sqlx_oldapi::query("INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);")
-            .bind(WinterYearMonth {
-                year: 2021,
-                month: MonthId(1),
-            })
-            .execute(&mut conn)
-            .await;
+    let result = sqlx_oldapi::query(
+        "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
+    )
+    .bind(WinterYearMonth {
+        year: 2021,
+        month: MonthId(1),
+    })
+    .execute(&mut conn)
+    .await;
 
     let result = result.unwrap();
     assert_eq!(result.rows_affected(), 1);
@@ -1720,7 +1734,8 @@ async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> 
     conn.execute("SET bytea_output = 'escape';").await?;
     for value in ["", "DEADBEEF"] {
         let query = format!("SELECT '\\x{}'::bytea", value);
-        let res: sqlx_oldapi::Result<Vec<u8>> = conn.fetch_one(query.as_str()).await?.try_get(0usize);
+        let res: sqlx_oldapi::Result<Vec<u8>> =
+            conn.fetch_one(query.as_str()).await?.try_get(0usize);
         // Deserialization only supports hex format so this should error and definitely not panic.
         res.unwrap_err();
     }

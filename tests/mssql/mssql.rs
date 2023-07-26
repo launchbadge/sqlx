@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
+use sqlx_core::mssql::MssqlRow;
 use sqlx_oldapi::mssql::{Mssql, MssqlPoolOptions};
 use sqlx_oldapi::{Column, Connection, Executor, MssqlConnection, Row, Statement, TypeInfo};
-use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
@@ -59,7 +59,8 @@ async fn it_can_fail_to_connect() -> anyhow::Result<()> {
 async fn it_can_inspect_errors() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
-    let res: Result<_, sqlx_oldapi::Error> = sqlx_oldapi::query("select f").execute(&mut conn).await;
+    let res: Result<_, sqlx_oldapi::Error> =
+        sqlx_oldapi::query("select f").execute(&mut conn).await;
     let err = res.unwrap_err();
 
     // can also do [as_database_error] or use `match ..`

@@ -278,7 +278,9 @@ fn expand_derive_decode_struct(
         for field in fields {
             let ty = &field.ty;
 
-            predicates.push(parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::Postgres>));
+            predicates.push(
+                parse_quote!(#ty: ::sqlx_oldapi::decode::Decode<'r, ::sqlx_oldapi::Postgres>),
+            );
             predicates.push(parse_quote!(#ty: ::sqlx_oldapi::types::Type<::sqlx_oldapi::Postgres>));
         }
 

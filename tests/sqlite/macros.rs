@@ -114,7 +114,9 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let id = sqlx_oldapi::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    let id = sqlx_oldapi::query_scalar!("select 1")
+        .fetch_one(&mut conn)
+        .await?;
     assert_eq!(id, 1i32);
 
     // invalid column names are ignored

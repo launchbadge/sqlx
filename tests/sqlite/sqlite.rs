@@ -138,7 +138,8 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let val = row.try_get_raw("dflt_value")?;
             let ty = val.type_info().clone().into_owned();
 
-            let val: Option<i32> = Decode::<Sqlite>::decode(val).map_err(sqlx_oldapi::Error::Decode)?;
+            let val: Option<i32> =
+                Decode::<Sqlite>::decode(val).map_err(sqlx_oldapi::Error::Decode)?;
 
             if val.is_some() {
                 assert_eq!(ty.name(), "TEXT");
@@ -180,7 +181,9 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
     // there were a few that triggered *sometimes* while building out StatementWorker
     for _ in 0..1000_usize {
         let mut conn = new::<Sqlite>().await?;
-        let v: Vec<(i32,)> = sqlx_oldapi::query_as("SELECT 1").fetch_all(&mut conn).await?;
+        let v: Vec<(i32,)> = sqlx_oldapi::query_as("SELECT 1")
+            .fetch_all(&mut conn)
+            .await?;
 
         assert_eq!(v[0].0, 1);
     }

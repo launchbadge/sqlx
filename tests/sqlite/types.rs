@@ -1,7 +1,7 @@
 extern crate time_ as time;
 
-use sqlx_oldapi::sqlite::{Sqlite, SqliteRow};
 use sqlx_core::row::Row;
+use sqlx_oldapi::sqlite::{Sqlite, SqliteRow};
 use sqlx_test::new;
 use sqlx_test::test_type;
 
@@ -79,11 +79,12 @@ mod json_tests {
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = new::<Sqlite>().await?;
 
-        let value = sqlx_oldapi::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
-            .bind(42_i32)
-            .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
-            .fetch_one(&mut conn)
-            .await?;
+        let value =
+            sqlx_oldapi::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+                .bind(42_i32)
+                .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+                .fetch_one(&mut conn)
+                .await?;
 
         assert_eq!(true, value);
 
@@ -94,7 +95,9 @@ mod json_tests {
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx_oldapi::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
+    use sqlx_oldapi::types::chrono::{
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc,
+    };
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)

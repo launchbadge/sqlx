@@ -137,7 +137,9 @@ async fn it_drops_results_in_affected_rows() -> anyhow::Result<()> {
 async fn it_selects_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let (val,): (Option<i32>,) = sqlx_oldapi::query_as("SELECT NULL").fetch_one(&mut conn).await?;
+    let (val,): (Option<i32>,) = sqlx_oldapi::query_as("SELECT NULL")
+        .fetch_one(&mut conn)
+        .await?;
 
     assert!(val.is_none());
 
@@ -359,7 +361,10 @@ async fn test_issue_622() -> anyhow::Result<()> {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx_oldapi::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx_oldapi::query("SELECT 1")
+                    .fetch_one(&mut conn)
+                    .await
+                    .unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }

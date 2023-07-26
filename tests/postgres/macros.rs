@@ -47,7 +47,9 @@ async fn test_no_result() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
     let mut tx = conn.begin().await?;
 
-    let _ = sqlx_oldapi::query!("DELETE FROM tweet").execute(&mut tx).await?;
+    let _ = sqlx_oldapi::query!("DELETE FROM tweet")
+        .execute(&mut tx)
+        .await?;
 
     // let the transaction rollback so we don't actually delete the tweets
 
@@ -180,7 +182,9 @@ async fn test_query_file_as() -> anyhow::Result<()> {
 async fn test_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let id = sqlx_oldapi::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    let id = sqlx_oldapi::query_scalar!("select 1")
+        .fetch_one(&mut conn)
+        .await?;
     // nullability inference can't handle expressions
     assert_eq!(id, Some(1i32));
 
@@ -424,9 +428,11 @@ async fn with_test_row<'a>(
     conn: &'a mut PgConnection,
 ) -> anyhow::Result<Transaction<'a, Postgres>> {
     let mut transaction = conn.begin().await?;
-    sqlx_oldapi::query!("INSERT INTO tweet(id, text, owner_id) VALUES (1, '#sqlx is pretty cool!', 1)")
-        .execute(&mut transaction)
-        .await?;
+    sqlx_oldapi::query!(
+        "INSERT INTO tweet(id, text, owner_id) VALUES (1, '#sqlx is pretty cool!', 1)"
+    )
+    .execute(&mut transaction)
+    .await?;
     Ok(transaction)
 }
 

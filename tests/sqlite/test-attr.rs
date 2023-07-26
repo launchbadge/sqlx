@@ -76,22 +76,24 @@ async fn it_gets_posts(pool: SqlitePool) -> sqlx_oldapi::Result<()> {
 // Try `migrator`
 #[sqlx_oldapi::test(migrator = "MIGRATOR", fixtures("users", "posts", "comments"))]
 async fn it_gets_comments(pool: SqlitePool) -> sqlx_oldapi::Result<()> {
-    let post_1_comments: Vec<String> =
-        sqlx_oldapi::query_scalar("SELECT content FROM comment WHERE post_id = ? ORDER BY created_at")
-            .bind(&1)
-            .fetch_all(&pool)
-            .await?;
+    let post_1_comments: Vec<String> = sqlx_oldapi::query_scalar(
+        "SELECT content FROM comment WHERE post_id = ? ORDER BY created_at",
+    )
+    .bind(&1)
+    .fetch_all(&pool)
+    .await?;
 
     assert_eq!(
         post_1_comments,
         ["lol bet ur still bad, 1v1 me", "you're on!"]
     );
 
-    let post_2_comments: Vec<String> =
-        sqlx_oldapi::query_scalar("SELECT content FROM comment WHERE post_id = ? ORDER BY created_at")
-            .bind(&2)
-            .fetch_all(&pool)
-            .await?;
+    let post_2_comments: Vec<String> = sqlx_oldapi::query_scalar(
+        "SELECT content FROM comment WHERE post_id = ? ORDER BY created_at",
+    )
+    .bind(&2)
+    .fetch_all(&pool)
+    .await?;
 
     assert_eq!(post_2_comments, ["lol you're just mad you lost :P"]);
 
