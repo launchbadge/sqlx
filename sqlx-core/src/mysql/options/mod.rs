@@ -30,9 +30,9 @@ pub use ssl_mode::MySqlSslMode;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
+/// # use sqlx_core_oldapi::error::Error;
+/// # use sqlx_core_oldapi::connection::{Connection, ConnectOptions};
+/// # use sqlx_core_oldapi::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 /// #
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
@@ -147,7 +147,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_core_oldapi::mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::Required);
     /// ```
@@ -161,7 +161,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_core_oldapi::mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca("path/to/ca.crt");
@@ -176,7 +176,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_core_oldapi::mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca_from_pem(vec![]);

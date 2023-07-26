@@ -44,11 +44,11 @@ pub trait Connection: Send {
     /// # Example
     ///
     /// ```rust
-    /// use sqlx_core::connection::Connection;
-    /// use sqlx_core::error::Error;
-    /// use sqlx_core::executor::Executor;
-    /// use sqlx_core::postgres::{PgConnection, PgRow};
-    /// use sqlx_core::query::query;
+    /// use sqlx_core_oldapi::connection::Connection;
+    /// use sqlx_core_oldapi::error::Error;
+    /// use sqlx_core_oldapi::executor::Executor;
+    /// use sqlx_core_oldapi::postgres::{PgConnection, PgRow};
+    /// use sqlx_core_oldapi::query::query;
     ///
     /// # pub async fn _f(conn: &mut PgConnection) -> Result<Vec<PgRow>, Error> {
     /// conn.transaction(|conn|Box::pin(async move {

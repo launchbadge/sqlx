@@ -16,9 +16,9 @@ use crate::value::ValueRef;
 /// use the concrete [`ValueRef`](HasValueRef::ValueRef) and [`TypeInfo`](Database::TypeInfo) types.
 ///
 /// ```rust
-/// # use sqlx_core::database::{Database, HasValueRef};
-/// # use sqlx_core::decode::Decode;
-/// # use sqlx_core::types::Type;
+/// # use sqlx_core_oldapi::database::{Database, HasValueRef};
+/// # use sqlx_core_oldapi::decode::Decode;
+/// # use sqlx_core_oldapi::types::Type;
 /// # use std::error::Error;
 /// #
 /// struct MyType;

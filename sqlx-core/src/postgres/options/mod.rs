@@ -53,9 +53,9 @@ pub use ssl_mode::PgSslMode;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
+/// # use sqlx_core_oldapi::error::Error;
+/// # use sqlx_core_oldapi::connection::{Connection, ConnectOptions};
+/// # use sqlx_core_oldapi::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
@@ -116,7 +116,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
@@ -180,7 +180,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .host("localhost");
     /// ```
@@ -196,7 +196,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .port(5432);
     /// ```
@@ -222,7 +222,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("postgres");
     /// ```
@@ -236,7 +236,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("root")
     ///     .password("safe-and-secure");
@@ -251,7 +251,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .database("postgres");
     /// ```
@@ -265,7 +265,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .database("postgres");
     /// assert!(options.get_database().is_some());
@@ -285,7 +285,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_core_oldapi::postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     .ssl_mode(PgSslMode::Require);
     /// ```
@@ -301,7 +301,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_core_oldapi::postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -317,7 +317,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_core_oldapi::postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -344,7 +344,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .application_name("my-app");
     /// ```
@@ -391,7 +391,7 @@ impl PgConnectOptions {
     ///
     /// ### Examples
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     ///
     /// let mut options = PgConnectOptions::new()
     ///     // for Redshift and Postgres 10
@@ -411,7 +411,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_core_oldapi::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .options([("geqo", "off"), ("statement_timeout", "5min")]);
     /// ```

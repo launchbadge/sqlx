@@ -36,8 +36,8 @@ use indexmap::IndexMap;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::connection::ConnectOptions;
-/// # use sqlx_core::error::Error;
+/// # use sqlx_core_oldapi::connection::ConnectOptions;
+/// # use sqlx_core_oldapi::error::Error;
 /// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
@@ -430,7 +430,7 @@ impl SqliteConnectOptions {
     /// Multiple extensions can be loaded by calling the method repeatedly on the options struct, they
     /// will be loaded in the order they are added.
     /// ```rust,no_run
-    /// # use sqlx_core::error::Error;
+    /// # use sqlx_core_oldapi::error::Error;
     /// use std::str::FromStr;
     /// use sqlx::sqlite::SqliteConnectOptions;
     /// # fn options() -> Result<SqliteConnectOptions, Error> {

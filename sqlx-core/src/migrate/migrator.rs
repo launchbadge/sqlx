@@ -37,10 +37,10 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
+    /// # use sqlx_core_oldapi::migrate::MigrateError;
     /// # fn main() -> Result<(), MigrateError> {
     /// # sqlx_rt::block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
+    /// # use sqlx_core_oldapi::migrate::Migrator;
     /// use std::path::Path;
     ///
     /// // Read migrations from a local folder: ./migrations
@@ -91,11 +91,11 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
+    /// # use sqlx_core_oldapi::migrate::MigrateError;
     /// # #[cfg(feature = "sqlite")]
     /// # fn main() -> Result<(), MigrateError> {
     /// #     sqlx_rt::block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
+    /// # use sqlx_core_oldapi::migrate::Migrator;
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
     /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.run(&pool).await
@@ -170,11 +170,11 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
+    /// # use sqlx_core_oldapi::migrate::MigrateError;
     /// # #[cfg(feature = "sqlite")]
     /// # fn main() -> Result<(), MigrateError> {
     /// #     sqlx_rt::block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
+    /// # use sqlx_core_oldapi::migrate::Migrator;
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
     /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.undo(&pool, 4).await
