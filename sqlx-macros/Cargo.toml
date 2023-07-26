@@ -1,5 +1,5 @@
 [package]
-name = "sqlx-macros"
+name = "sqlx-macros-oldapi"
 version = "0.6.4"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."

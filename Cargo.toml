@@ -126,7 +126,7 @@ git2 = ["sqlx-core/git2"]
 
 [dependencies]
 sqlx-core = { package = "sqlx-core-oldapi",  version = "0.6.4", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.6.4", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-macros = { package = "sqlx-macros-oldapi", version = "0.6.4", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
