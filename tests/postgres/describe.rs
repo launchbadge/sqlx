@@ -1,4 +1,4 @@
-use sqlx::{postgres::Postgres, Column, Executor, TypeInfo};
+use sqlx_oldapi::{postgres::Postgres, Column, Executor, TypeInfo};
 use sqlx_test::new;
 
 #[sqlx_macros::test]

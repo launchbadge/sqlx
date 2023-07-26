@@ -3,8 +3,8 @@ extern crate time_ as time;
 #[cfg(feature = "decimal")]
 use std::str::FromStr;
 
-use sqlx::mysql::MySql;
-use sqlx::{Executor, Row};
+use sqlx_oldapi::mysql::MySql;
+use sqlx_oldapi::{Executor, Row};
 use sqlx_test::{new, test_type};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
@@ -43,25 +43,25 @@ test_type!(bytes<Vec<u8>>(MySql,
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid<sqlx::types::Uuid>(MySql,
+test_type!(uuid<sqlx_oldapi::types::Uuid>(MySql,
     "x'b731678f636f4135bc6f19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == sqlx_oldapi::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == sqlx_oldapi::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(MySql,
+test_type!(uuid_hyphenated<sqlx_oldapi::types::uuid::fmt::Hyphenated>(MySql,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
+        == sqlx_oldapi::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
+        == sqlx_oldapi::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
     test_type!(chrono_date<NaiveDate>(MySql,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
@@ -103,7 +103,7 @@ mod chrono {
 
         // date
 
-        let row = sqlx::query("SELECT DATE '0000-00-00'")
+        let row = sqlx_oldapi::query("SELECT DATE '0000-00-00'")
             .fetch_one(&mut conn)
             .await?;
 
@@ -114,7 +114,7 @@ mod chrono {
 
         // datetime
 
-        let row = sqlx::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
+        let row = sqlx_oldapi::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
             .fetch_one(&mut conn)
             .await?;
 
@@ -130,7 +130,7 @@ mod chrono {
 #[cfg(feature = "time")]
 mod time_tests {
     use super::*;
-    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use sqlx_oldapi::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, time};
 
     test_type!(time_date<Date>(
@@ -179,7 +179,7 @@ mod time_tests {
 
         // date
 
-        let row = sqlx::query("SELECT DATE '0000-00-00'")
+        let row = sqlx_oldapi::query("SELECT DATE '0000-00-00'")
             .fetch_one(&mut conn)
             .await?;
 
@@ -190,7 +190,7 @@ mod time_tests {
 
         // datetime
 
-        let row = sqlx::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
+        let row = sqlx_oldapi::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
             .fetch_one(&mut conn)
             .await?;
 
@@ -204,33 +204,33 @@ mod time_tests {
 }
 
 #[cfg(feature = "bigdecimal")]
-test_type!(bigdecimal<sqlx::types::BigDecimal>(
+test_type!(bigdecimal<sqlx_oldapi::types::BigDecimal>(
     MySql,
-    "CAST(0 as DECIMAL(0, 0))" == "0".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(1 AS DECIMAL(1, 0))" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(10000 AS DECIMAL(5, 0))" == "10000".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(0.1 AS DECIMAL(2, 1))" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(0.01234 AS DECIMAL(6, 5))" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(12.34 AS DECIMAL(4, 2))" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "CAST(12345.6789 AS DECIMAL(9, 4))" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "CAST(0 as DECIMAL(0, 0))" == "0".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(1 AS DECIMAL(1, 0))" == "1".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(10000 AS DECIMAL(5, 0))" == "10000".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(0.1 AS DECIMAL(2, 1))" == "0.1".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(0.01234 AS DECIMAL(6, 5))" == "0.01234".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(12.34 AS DECIMAL(4, 2))" == "12.34".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "CAST(12345.6789 AS DECIMAL(9, 4))" == "12345.6789".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
 ));
 
 #[cfg(feature = "decimal")]
-test_type!(decimal<sqlx::types::Decimal>(MySql,
-    "CAST(0 as DECIMAL(0, 0))" == sqlx::types::Decimal::from_str("0").unwrap(),
-    "CAST(1 AS DECIMAL(1, 0))" == sqlx::types::Decimal::from_str("1").unwrap(),
-    "CAST(10000 AS DECIMAL(5, 0))" == sqlx::types::Decimal::from_str("10000").unwrap(),
-    "CAST(0.1 AS DECIMAL(2, 1))" == sqlx::types::Decimal::from_str("0.1").unwrap(),
-    "CAST(0.01234 AS DECIMAL(6, 5))" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
-    "CAST(12.34 AS DECIMAL(4, 2))" == sqlx::types::Decimal::from_str("12.34").unwrap(),
-    "CAST(12345.6789 AS DECIMAL(9, 4))" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+test_type!(decimal<sqlx_oldapi::types::Decimal>(MySql,
+    "CAST(0 as DECIMAL(0, 0))" == sqlx_oldapi::types::Decimal::from_str("0").unwrap(),
+    "CAST(1 AS DECIMAL(1, 0))" == sqlx_oldapi::types::Decimal::from_str("1").unwrap(),
+    "CAST(10000 AS DECIMAL(5, 0))" == sqlx_oldapi::types::Decimal::from_str("10000").unwrap(),
+    "CAST(0.1 AS DECIMAL(2, 1))" == sqlx_oldapi::types::Decimal::from_str("0.1").unwrap(),
+    "CAST(0.01234 AS DECIMAL(6, 5))" == sqlx_oldapi::types::Decimal::from_str("0.01234").unwrap(),
+    "CAST(12.34 AS DECIMAL(4, 2))" == sqlx_oldapi::types::Decimal::from_str("12.34").unwrap(),
+    "CAST(12345.6789 AS DECIMAL(9, 4))" == sqlx_oldapi::types::Decimal::from_str("12345.6789").unwrap(),
 ));
 
 #[cfg(feature = "json")]
 mod json_tests {
     use super::*;
     use serde_json::{json, Value as JsonValue};
-    use sqlx::types::Json;
+    use sqlx_oldapi::types::Json;
     use sqlx_test::test_type;
 
     test_type!(json<JsonValue>(
@@ -285,14 +285,14 @@ CREATE TEMPORARY TABLE with_bits (
     )
     .await?;
 
-    sqlx::query("INSERT INTO with_bits (value_1, value_n) VALUES (?, ?)")
+    sqlx_oldapi::query("INSERT INTO with_bits (value_1, value_n) VALUES (?, ?)")
         .bind(&1_u8)
         .bind(&510202_u32)
         .execute(&mut conn)
         .await?;
 
     // BINARY
-    let (v1, vn): (u8, u64) = sqlx::query_as("SELECT value_1, value_n FROM with_bits")
+    let (v1, vn): (u8, u64) = sqlx_oldapi::query_as("SELECT value_1, value_n FROM with_bits")
         .fetch_one(&mut conn)
         .await?;
 

@@ -2,8 +2,8 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
-use sqlx::postgres::Postgres;
+use sqlx_oldapi::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
+use sqlx_oldapi::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 use std::str::FromStr;
 
@@ -150,66 +150,66 @@ test_decode_type!(string_tuple<(String, String, String)>(Postgres,
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid<sqlx::types::Uuid>(Postgres,
+test_type!(uuid<sqlx_oldapi::types::Uuid>(Postgres,
     "'b731678f-636f-4135-bc6f-19440c13bd19'::uuid"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == sqlx_oldapi::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "'00000000-0000-0000-0000-000000000000'::uuid"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == sqlx_oldapi::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid_vec<Vec<sqlx::types::Uuid>>(Postgres,
+test_type!(uuid_vec<Vec<sqlx_oldapi::types::Uuid>>(Postgres,
     "'{b731678f-636f-4135-bc6f-19440c13bd19,00000000-0000-0000-0000-000000000000}'::uuid[]"
         == vec![
-           sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
-           sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+           sqlx_oldapi::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+           sqlx_oldapi::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
         ]
 ));
 
 #[cfg(feature = "ipnetwork")]
-test_type!(ipnetwork<sqlx::types::ipnetwork::IpNetwork>(Postgres,
+test_type!(ipnetwork<sqlx_oldapi::types::ipnetwork::IpNetwork>(Postgres,
     "'127.0.0.1'::inet"
         == "127.0.0.1"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
     "'8.8.8.8/24'::inet"
         == "8.8.8.8/24"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
     "'::ffff:1.2.3.0'::inet"
         == "::ffff:1.2.3.0"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
     "'2001:4f8:3:ba::/64'::inet"
         == "2001:4f8:3:ba::/64"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
     "'192.168'::cidr"
         == "192.168.0.0/24"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
     "'::ffff:1.2.3.0/120'::cidr"
         == "::ffff:1.2.3.0/120"
-            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>()
             .unwrap(),
 ));
 
 #[cfg(feature = "mac_address")]
-test_type!(mac_address<sqlx::types::mac_address::MacAddress>(Postgres,
+test_type!(mac_address<sqlx_oldapi::types::mac_address::MacAddress>(Postgres,
     "'00:01:02:03:04:05'::macaddr"
         == "00:01:02:03:04:05"
-            .parse::<sqlx::types::mac_address::MacAddress>()
+            .parse::<sqlx_oldapi::types::mac_address::MacAddress>()
             .unwrap()
 ));
 
 #[cfg(feature = "bit-vec")]
-test_type!(bitvec<sqlx::types::BitVec>(
+test_type!(bitvec<sqlx_oldapi::types::BitVec>(
     Postgres,
     // A full byte VARBIT
-    "B'01101001'" == sqlx::types::BitVec::from_bytes(&[0b0110_1001]),
+    "B'01101001'" == sqlx_oldapi::types::BitVec::from_bytes(&[0b0110_1001]),
     // A VARBIT value missing five bits from a byte
     "B'110'" == {
-        let mut bit_vec = sqlx::types::BitVec::with_capacity(4);
+        let mut bit_vec = sqlx_oldapi::types::BitVec::with_capacity(4);
         bit_vec.push(true);
         bit_vec.push(true);
         bit_vec.push(false);
@@ -217,7 +217,7 @@ test_type!(bitvec<sqlx::types::BitVec>(
     },
     // A BIT value
     "B'01101'::bit(5)" == {
-        let mut bit_vec = sqlx::types::BitVec::with_capacity(5);
+        let mut bit_vec = sqlx_oldapi::types::BitVec::with_capacity(5);
         bit_vec.push(false);
         bit_vec.push(true);
         bit_vec.push(true);
@@ -228,31 +228,31 @@ test_type!(bitvec<sqlx::types::BitVec>(
 ));
 
 #[cfg(feature = "ipnetwork")]
-test_type!(ipnetwork_vec<Vec<sqlx::types::ipnetwork::IpNetwork>>(Postgres,
+test_type!(ipnetwork_vec<Vec<sqlx_oldapi::types::ipnetwork::IpNetwork>>(Postgres,
     "'{127.0.0.1,8.8.8.8/24}'::inet[]"
         == vec![
-           "127.0.0.1".parse::<sqlx::types::ipnetwork::IpNetwork>().unwrap(),
-           "8.8.8.8/24".parse::<sqlx::types::ipnetwork::IpNetwork>().unwrap()
+           "127.0.0.1".parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>().unwrap(),
+           "8.8.8.8/24".parse::<sqlx_oldapi::types::ipnetwork::IpNetwork>().unwrap()
         ]
 ));
 
 #[cfg(feature = "mac_address")]
-test_type!(mac_address_vec<Vec<sqlx::types::mac_address::MacAddress>>(Postgres,
+test_type!(mac_address_vec<Vec<sqlx_oldapi::types::mac_address::MacAddress>>(Postgres,
     "'{01:02:03:04:05:06,FF:FF:FF:FF:FF:FF}'::macaddr[]"
         == vec![
-           "01:02:03:04:05:06".parse::<sqlx::types::mac_address::MacAddress>().unwrap(),
-           "FF:FF:FF:FF:FF:FF".parse::<sqlx::types::mac_address::MacAddress>().unwrap()
+           "01:02:03:04:05:06".parse::<sqlx_oldapi::types::mac_address::MacAddress>().unwrap(),
+           "FF:FF:FF:FF:FF:FF".parse::<sqlx_oldapi::types::mac_address::MacAddress>().unwrap()
         ]
 ));
 
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{
+    use sqlx_oldapi::types::chrono::{
         DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
     };
 
-    type PgTimeTz = sqlx::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
+    type PgTimeTz = sqlx_oldapi::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
 
     test_type!(chrono_date<NaiveDate>(Postgres,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
@@ -306,10 +306,10 @@ mod chrono {
 #[cfg(feature = "time")]
 mod time_tests {
     use super::*;
-    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+    use sqlx_oldapi::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
     use time::macros::{date, time};
 
-    type PgTimeTz = sqlx::postgres::types::PgTimeTz<Time, UtcOffset>;
+    type PgTimeTz = sqlx_oldapi::postgres::types::PgTimeTz<Time, UtcOffset>;
 
     test_type!(time_date<Date>(
         Postgres,
@@ -350,9 +350,9 @@ mod json {
     use super::*;
     use serde_json::value::RawValue as JsonRawValue;
     use serde_json::{json, Value as JsonValue};
-    use sqlx::postgres::PgRow;
-    use sqlx::types::Json;
-    use sqlx::{Executor, Row};
+    use sqlx_oldapi::postgres::PgRow;
+    use sqlx_oldapi::types::Json;
+    use sqlx_oldapi::{Executor, Row};
     use sqlx_test::new;
 
     // When testing JSON, coerce to JSONB for `=` comparison as `JSON = JSON` is not
@@ -425,7 +425,7 @@ mod json {
 
         // prepared, binary API
         let row: PgRow = conn
-            .fetch_one(sqlx::query("SELECT '{\"hello\": \"world\"}'::jsonb"))
+            .fetch_one(sqlx_oldapi::query("SELECT '{\"hello\": \"world\"}'::jsonb"))
             .await?;
 
         let value: &JsonRawValue = row.try_get(0)?;
@@ -437,56 +437,56 @@ mod json {
 }
 
 #[cfg(feature = "bigdecimal")]
-test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
+test_type!(bigdecimal<sqlx_oldapi::types::BigDecimal>(Postgres,
 
     // https://github.com/launchbadge/sqlx/issues/283
-    "0::numeric" == "0".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0::numeric" == "0".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
 
-    "1::numeric" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "10000::numeric" == "10000".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.1::numeric" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.01::numeric" == "0.01".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.012::numeric" == "0.012".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.0123::numeric" == "0.0123".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.01234::numeric" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.012345::numeric" == "0.012345".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.0123456::numeric" == "0.0123456".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.01234567::numeric" == "0.01234567".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.012345678::numeric" == "0.012345678".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.0123456789::numeric" == "0.0123456789".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.002::numeric" == "0.002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.0002::numeric" == "0.0002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.00002::numeric" == "0.00002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.000002::numeric" == "0.000002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.0000002::numeric" == "0.0000002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "0.00000002::numeric" == "0.00000002".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "1::numeric" == "1".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "10000::numeric" == "10000".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.1::numeric" == "0.1".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.01::numeric" == "0.01".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.012::numeric" == "0.012".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.0123::numeric" == "0.0123".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.01234::numeric" == "0.01234".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.012345::numeric" == "0.012345".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.0123456::numeric" == "0.0123456".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.01234567::numeric" == "0.01234567".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.012345678::numeric" == "0.012345678".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.0123456789::numeric" == "0.0123456789".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.002::numeric" == "0.002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.0002::numeric" == "0.0002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.00002::numeric" == "0.00002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.000002::numeric" == "0.000002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.0000002::numeric" == "0.0000002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "0.00000002::numeric" == "0.00000002".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "12.34::numeric" == "12.34".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
+    "12345.6789::numeric" == "12345.6789".parse::<sqlx_oldapi::types::BigDecimal>().unwrap(),
 ));
 
 #[cfg(feature = "bigdecimal")]
-test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
+test_type!(numrange_bigdecimal<PgRange<sqlx_oldapi::types::BigDecimal>>(Postgres,
     "'(1.3,2.4)'::numrange" == PgRange::from(
-        (Bound::Excluded("1.3".parse::<sqlx::types::BigDecimal>().unwrap()),
-         Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
+        (Bound::Excluded("1.3".parse::<sqlx_oldapi::types::BigDecimal>().unwrap()),
+         Bound::Excluded("2.4".parse::<sqlx_oldapi::types::BigDecimal>().unwrap())))
 ));
 
 #[cfg(feature = "decimal")]
-test_type!(decimal<sqlx::types::Decimal>(Postgres,
-    "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
-    "1::numeric" == sqlx::types::Decimal::from_str("1").unwrap(),
-    "10000::numeric" == sqlx::types::Decimal::from_str("10000").unwrap(),
-    "0.1::numeric" == sqlx::types::Decimal::from_str("0.1").unwrap(),
-    "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
-    "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
-    "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+test_type!(decimal<sqlx_oldapi::types::Decimal>(Postgres,
+    "0::numeric" == sqlx_oldapi::types::Decimal::from_str("0").unwrap(),
+    "1::numeric" == sqlx_oldapi::types::Decimal::from_str("1").unwrap(),
+    "10000::numeric" == sqlx_oldapi::types::Decimal::from_str("10000").unwrap(),
+    "0.1::numeric" == sqlx_oldapi::types::Decimal::from_str("0.1").unwrap(),
+    "0.01234::numeric" == sqlx_oldapi::types::Decimal::from_str("0.01234").unwrap(),
+    "12.34::numeric" == sqlx_oldapi::types::Decimal::from_str("12.34").unwrap(),
+    "12345.6789::numeric" == sqlx_oldapi::types::Decimal::from_str("12345.6789").unwrap(),
 ));
 
 #[cfg(feature = "decimal")]
-test_type!(numrange_decimal<PgRange<sqlx::types::Decimal>>(Postgres,
+test_type!(numrange_decimal<PgRange<sqlx_oldapi::types::Decimal>>(Postgres,
     "'(1.3,2.4)'::numrange" == PgRange::from(
-        (Bound::Excluded(sqlx::types::Decimal::from_str("1.3").unwrap()),
-         Bound::Excluded(sqlx::types::Decimal::from_str("2.4").unwrap()))),
+        (Bound::Excluded(sqlx_oldapi::types::Decimal::from_str("1.3").unwrap()),
+         Bound::Excluded(sqlx_oldapi::types::Decimal::from_str("2.4").unwrap()))),
 ));
 
 const EXC2: Bound<i32> = Bound::Excluded(2);
@@ -550,18 +550,18 @@ test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
 #[cfg(postgres_14)]
-test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
-    "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
-    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
+test_type!(ltree<sqlx_oldapi::postgres::types::PgLTree>(Postgres,
+    "'Foo.Bar.Baz.Quux'::ltree" == sqlx_oldapi::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx_oldapi::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
 #[cfg(postgres_14)]
-test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
+test_type!(ltree_vec<Vec<sqlx_oldapi::postgres::types::PgLTree>>(Postgres,
     "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
         vec![
-            sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
-            sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
+            sqlx_oldapi::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+            sqlx_oldapi::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));

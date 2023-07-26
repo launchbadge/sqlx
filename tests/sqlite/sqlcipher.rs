@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{query, Connection, SqliteConnection};
-use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
+use sqlx_oldapi::sqlite::SqliteQueryResult;
+use sqlx_oldapi::{query, Connection, SqliteConnection};
+use sqlx_oldapi::{sqlite::SqliteConnectOptions, ConnectOptions};
 use sqlx_rt::fs::File;
 use tempdir::TempDir;
 
@@ -135,12 +135,12 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     // executed first and allow to establish valid connection
     let mut conn = SqliteConnectOptions::from_str(&url)?
         .pragma("cipher_kdf_algorithm", "PBKDF2_HMAC_SHA1")
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .journal_mode(sqlx_oldapi::sqlite::SqliteJournalMode::Wal)
         .pragma("cipher_page_size", "1024")
         .pragma("key", "the_password")
         .foreign_keys(true)
         .pragma("kdf_iter", "64000")
-        .auto_vacuum(sqlx::sqlite::SqliteAutoVacuum::Incremental)
+        .auto_vacuum(sqlx_oldapi::sqlite::SqliteAutoVacuum::Incremental)
         .pragma("cipher_hmac_algorithm", "HMAC_SHA1")
         .connect()
         .await?;

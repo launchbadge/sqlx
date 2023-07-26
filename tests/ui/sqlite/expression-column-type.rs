@@ -1,3 +1,3 @@
 fn main() {
-    let _ = sqlx::query!("select 1 as id");
+    let _ = sqlx_oldapi::query!("select 1 as id");
 }

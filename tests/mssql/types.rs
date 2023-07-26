@@ -1,4 +1,4 @@
-use sqlx::mssql::Mssql;
+use sqlx_oldapi::mssql::Mssql;
 use sqlx_test::test_type;
 
 test_type!(null<Option<i32>>(Mssql,

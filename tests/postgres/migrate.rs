@@ -1,11 +1,11 @@
-use sqlx::migrate::Migrator;
-use sqlx::pool::PoolConnection;
-use sqlx::postgres::{PgConnection, Postgres};
-use sqlx::Executor;
-use sqlx::Row;
+use sqlx_oldapi::migrate::Migrator;
+use sqlx_oldapi::pool::PoolConnection;
+use sqlx_oldapi::postgres::{PgConnection, Postgres};
+use sqlx_oldapi::Executor;
+use sqlx_oldapi::Row;
 use std::path::Path;
 
-#[sqlx::test(migrations = false)]
+#[sqlx_oldapi::test(migrations = false)]
 async fn simple(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 
@@ -27,7 +27,7 @@ async fn simple(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx_oldapi::test(migrations = false)]
 async fn reversible(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 

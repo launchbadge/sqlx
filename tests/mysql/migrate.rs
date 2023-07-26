@@ -1,11 +1,11 @@
-use sqlx::migrate::Migrator;
-use sqlx::mysql::{MySql, MySqlConnection};
-use sqlx::pool::PoolConnection;
-use sqlx::Executor;
-use sqlx::Row;
+use sqlx_oldapi::migrate::Migrator;
+use sqlx_oldapi::mysql::{MySql, MySqlConnection};
+use sqlx_oldapi::pool::PoolConnection;
+use sqlx_oldapi::Executor;
+use sqlx_oldapi::Row;
 use std::path::Path;
 
-#[sqlx::test(migrations = false)]
+#[sqlx_oldapi::test(migrations = false)]
 async fn simple(mut conn: PoolConnection<MySql>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 
@@ -27,7 +27,7 @@ async fn simple(mut conn: PoolConnection<MySql>) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx::test(migrations = false)]
+#[sqlx_oldapi::test(migrations = false)]
 async fn reversible(mut conn: PoolConnection<MySql>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 

@@ -4,7 +4,7 @@ error: trybuild test needs to fail for stderr checking
 10 |     compile_error!("trybuild test needs to fail for stderr checking");
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-warning: use of deprecated function `sqlx::_rename`: `#[sqlx(rename = "...")]` is now `#[sqlx(type_name = "...")`
+warning: use of deprecated function `sqlx_oldapi::_rename`: `#[sqlx(rename = "...")]` is now `#[sqlx(type_name = "...")`
  --> $DIR/deprecated_rename.rs:2:8
   |
 2 | #[sqlx(rename = "foo")]

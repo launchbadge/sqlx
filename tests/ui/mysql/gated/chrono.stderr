@@ -1,7 +1,7 @@
 error: optional feature `chrono` required for type DATE of column #1 ("date")
  --> $DIR/chrono.rs:2:13
   |
-2 |     let _ = sqlx::query!("select CONVERT(now(), DATE) date");
+2 |     let _ = sqlx_oldapi::query!("select CONVERT(now(), DATE) date");
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -9,7 +9,7 @@ error: optional feature `chrono` required for type DATE of column #1 ("date")
 error: optional feature `chrono` required for type TIME of column #1 ("time")
  --> $DIR/chrono.rs:4:13
   |
-4 |     let _ = sqlx::query!("select CONVERT(now(), TIME) time");
+4 |     let _ = sqlx_oldapi::query!("select CONVERT(now(), TIME) time");
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -17,7 +17,7 @@ error: optional feature `chrono` required for type TIME of column #1 ("time")
 error: optional feature `chrono` required for type DATETIME of column #1 ("datetime")
  --> $DIR/chrono.rs:6:13
   |
-6 |     let _ = sqlx::query!("select CONVERT(now(), DATETIME) datetime");
+6 |     let _ = sqlx_oldapi::query!("select CONVERT(now(), DATETIME) datetime");
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

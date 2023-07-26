@@ -1,5 +1,5 @@
-use sqlx::mssql::Mssql;
-use sqlx::{Column, Executor, TypeInfo};
+use sqlx_oldapi::mssql::Mssql;
+use sqlx_oldapi::{Column, Executor, TypeInfo};
 use sqlx_test::new;
 
 #[sqlx_macros::test]

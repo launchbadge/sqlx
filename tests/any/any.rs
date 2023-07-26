@@ -1,12 +1,12 @@
-use sqlx::any::AnyRow;
-use sqlx::{Any, Connection, Executor, Row};
+use sqlx_oldapi::any::AnyRow;
+use sqlx_oldapi::{Any, Connection, Executor, Row};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = new::<Any>().await?;
 
-    let value = sqlx::query("select 1 + 5")
+    let value = sqlx_oldapi::query("select 1 + 5")
         .try_map(|row: AnyRow| row.try_get::<i32, _>(0))
         .fetch_one(&mut conn)
         .await?;
@@ -46,18 +46,18 @@ async fn it_does_not_stop_stream_after_decoding_error() -> anyhow::Result<()> {
 
     #[derive(Debug, PartialEq)]
     struct MyType;
-    impl<'a> sqlx::FromRow<'a, AnyRow> for MyType {
-        fn from_row(row: &'a AnyRow) -> sqlx::Result<Self> {
+    impl<'a> sqlx_oldapi::FromRow<'a, AnyRow> for MyType {
+        fn from_row(row: &'a AnyRow) -> sqlx_oldapi::Result<Self> {
             let n = row.try_get::<i32, _>(0)?;
             if n == 1 {
-                Err(sqlx::Error::RowNotFound)
+                Err(sqlx_oldapi::Error::RowNotFound)
             } else {
                 Ok(MyType)
             }
         }
     }
 
-    let rows = sqlx::query_as("SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2")
+    let rows = sqlx_oldapi::query_as("SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2")
         .fetch(&pool)
         .map(|r| r.ok())
         .collect::<Vec<_>>()

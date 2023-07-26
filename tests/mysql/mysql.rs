@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx_oldapi::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
+use sqlx_oldapi::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 
@@ -18,7 +18,7 @@ async fn it_connects() -> anyhow::Result<()> {
 async fn it_maths() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let value = sqlx::query("select 1 + CAST(? AS SIGNED)")
+    let value = sqlx_oldapi::query("select 1 + CAST(? AS SIGNED)")
         .bind(5_i32)
         .try_map(|row: MySqlRow| row.try_get::<i32, _>(0))
         .fetch_one(&mut conn)
@@ -33,11 +33,11 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn it_can_fail_at_querying() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let _ = conn.execute(sqlx::query("SELECT 1")).await?;
+    let _ = conn.execute(sqlx_oldapi::query("SELECT 1")).await?;
 
     // we are testing that this does not cause a panic!
     let _ = conn
-        .execute(sqlx::query("SELECT non_existence_table"))
+        .execute(sqlx_oldapi::query("SELECT non_existence_table"))
         .await;
 
     Ok(())
@@ -56,7 +56,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         .await?;
 
     for index in 1..=10_i32 {
-        let done = sqlx::query("INSERT INTO users (id) VALUES (?)")
+        let done = sqlx_oldapi::query("INSERT INTO users (id) VALUES (?)")
             .bind(index)
             .execute(&mut conn)
             .await?;
@@ -64,7 +64,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         assert_eq!(done.rows_affected(), 1);
     }
 
-    let sum: i32 = sqlx::query("SELECT id FROM users")
+    let sum: i32 = sqlx_oldapi::query("SELECT id FROM users")
         .try_map(|row: MySqlRow| row.try_get::<i32, _>(0))
         .fetch(&mut conn)
         .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
@@ -109,7 +109,7 @@ async fn it_works_with_cache_disabled() -> anyhow::Result<()> {
     let mut conn = MySqlConnection::connect(url.as_ref()).await?;
 
     for index in 1..=10_i32 {
-        let _ = sqlx::query("SELECT ?")
+        let _ = sqlx_oldapi::query("SELECT ?")
             .bind(index)
             .execute(&mut conn)
             .await?;
@@ -137,7 +137,7 @@ async fn it_drops_results_in_affected_rows() -> anyhow::Result<()> {
 async fn it_selects_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let (val,): (Option<i32>,) = sqlx::query_as("SELECT NULL").fetch_one(&mut conn).await?;
+    let (val,): (Option<i32>,) = sqlx_oldapi::query_as("SELECT NULL").fetch_one(&mut conn).await?;
 
     assert!(val.is_none());
 
@@ -152,13 +152,13 @@ async fn it_selects_null() -> anyhow::Result<()> {
 async fn it_can_fetch_one_and_ping() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i32,) = sqlx_oldapi::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 
     conn.ping().await?;
 
-    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i32,) = sqlx_oldapi::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 
@@ -205,7 +205,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     for i in 0..2 {
-        let row = sqlx::query("SELECT ? AS val")
+        let row = sqlx_oldapi::query("SELECT ? AS val")
             .bind(i)
             .persistent(true)
             .fetch_one(&mut conn)
@@ -221,7 +221,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     assert_eq!(0, conn.cached_statements_size());
 
     for i in 0..2 {
-        let row = sqlx::query("SELECT ? AS val")
+        let row = sqlx_oldapi::query("SELECT ? AS val")
             .bind(i)
             .persistent(false)
             .fetch_one(&mut conn)
@@ -241,7 +241,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 async fn it_can_bind_null_and_non_null_issue_540() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let row = sqlx::query("SELECT ?, ?")
+    let row = sqlx_oldapi::query("SELECT ?, ?")
         .bind(50_i32)
         .bind(None::<i32>)
         .fetch_one(&mut conn)
@@ -260,7 +260,7 @@ async fn it_can_bind_null_and_non_null_issue_540() -> anyhow::Result<()> {
 async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let row = sqlx::query("SELECT ?")
+    let row = sqlx_oldapi::query("SELECT ?")
         .bind(None::<i32>)
         .fetch_one(&mut conn)
         .await?;
@@ -286,7 +286,7 @@ CREATE TEMPORARY TABLE too_many_years (
     )
     .await?;
 
-    sqlx::query(
+    sqlx_oldapi::query(
         r#"
 INSERT INTO too_many_years ( the ) VALUES ( ? );
     "#,
@@ -295,7 +295,7 @@ INSERT INTO too_many_years ( the ) VALUES ( ? );
     .execute(&mut conn)
     .await?;
 
-    let the: u16 = sqlx::query_scalar("SELECT the FROM too_many_years")
+    let the: u16 = sqlx_oldapi::query_scalar("SELECT the FROM too_many_years")
         .fetch_one(&mut conn)
         .await?;
 
@@ -309,7 +309,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
 
-    let tweet_id: u64 = sqlx::query("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' )")
+    let tweet_id: u64 = sqlx_oldapi::query("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' )")
         .execute(&mut tx)
         .await?
         .last_insert_id();
@@ -359,7 +359,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx_oldapi::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }
@@ -397,16 +397,16 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     // begin .. rollback
 
     let mut tx = conn.begin().await?;
-    sqlx::query("INSERT INTO users (id) VALUES (?)")
+    sqlx_oldapi::query("INSERT INTO users (id) VALUES (?)")
         .bind(1_i32)
         .execute(&mut tx)
         .await?;
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+    let count: i64 = sqlx_oldapi::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&mut tx)
         .await?;
     assert_eq!(count, 1);
     tx.rollback().await?;
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+    let count: i64 = sqlx_oldapi::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(count, 0);
@@ -414,12 +414,12 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     // begin .. commit
 
     let mut tx = conn.begin().await?;
-    sqlx::query("INSERT INTO users (id) VALUES (?)")
+    sqlx_oldapi::query("INSERT INTO users (id) VALUES (?)")
         .bind(1_i32)
         .execute(&mut tx)
         .await?;
     tx.commit().await?;
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+    let count: i64 = sqlx_oldapi::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(count, 1);
@@ -429,17 +429,17 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     {
         let mut tx = conn.begin().await?;
 
-        sqlx::query("INSERT INTO users (id) VALUES (?)")
+        sqlx_oldapi::query("INSERT INTO users (id) VALUES (?)")
             .bind(2)
             .execute(&mut tx)
             .await?;
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        let count: i64 = sqlx_oldapi::query_scalar("SELECT COUNT(*) FROM users")
             .fetch_one(&mut tx)
             .await?;
         assert_eq!(count, 2);
         // tx is dropped
     }
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+    let count: i64 = sqlx_oldapi::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(count, 1);

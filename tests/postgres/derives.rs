@@ -1,12 +1,12 @@
 use futures::TryStreamExt;
-use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx_oldapi::{Connection, Executor, FromRow, Postgres};
 use sqlx_core::postgres::types::PgRange;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 use std::ops::Bound;
 
 // Transparent types are rust-side wrappers over DB types
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(transparent)]
 struct Transparent(i32);
 
@@ -16,7 +16,7 @@ async fn test_transparent_slice_to_array() -> anyhow::Result<()> {
 
     let values = vec![Transparent(1), Transparent(2), Transparent(3)];
 
-    sqlx::query("SELECT 2 = ANY($1);")
+    sqlx_oldapi::query("SELECT 2 = ANY($1);")
         .bind(&values)
         .fetch_one(&mut conn)
         .await?;
@@ -25,7 +25,7 @@ async fn test_transparent_slice_to_array() -> anyhow::Result<()> {
 }
 
 // "Weak" enums map to an integer type indicated by #[repr]
-#[derive(PartialEq, Copy, Clone, Debug, sqlx::Type)]
+#[derive(PartialEq, Copy, Clone, Debug, sqlx_oldapi::Type)]
 #[repr(i32)]
 enum Weak {
     One = 0,
@@ -34,7 +34,7 @@ enum Weak {
 }
 
 // "Strong" enums can map to TEXT (25)
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "text")]
 #[sqlx(rename_all = "lowercase")]
 enum Strong {
@@ -46,7 +46,7 @@ enum Strong {
 }
 
 // rename_all variants
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_lower")]
 #[sqlx(rename_all = "lowercase")]
 enum ColorLower {
@@ -55,7 +55,7 @@ enum ColorLower {
     Blue,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_snake")]
 #[sqlx(rename_all = "snake_case")]
 enum ColorSnake {
@@ -63,7 +63,7 @@ enum ColorSnake {
     BlueBlack,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_upper")]
 #[sqlx(rename_all = "UPPERCASE")]
 enum ColorUpper {
@@ -72,7 +72,7 @@ enum ColorUpper {
     Blue,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_screaming_snake")]
 #[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]
 enum ColorScreamingSnake {
@@ -80,7 +80,7 @@ enum ColorScreamingSnake {
     BlueBlack,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_kebab_case")]
 #[sqlx(rename_all = "kebab-case")]
 enum ColorKebabCase {
@@ -88,7 +88,7 @@ enum ColorKebabCase {
     BlueBlack,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_mixed_case")]
 #[sqlx(rename_all = "camelCase")]
 enum ColorCamelCase {
@@ -96,7 +96,7 @@ enum ColorCamelCase {
     BlueBlack,
 }
 
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "color_camel_case")]
 #[sqlx(rename_all = "PascalCase")]
 enum ColorPascalCase {
@@ -105,7 +105,7 @@ enum ColorPascalCase {
 }
 
 // "Strong" enum can map to a custom type
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "mood")]
 #[sqlx(rename_all = "lowercase")]
 enum Mood {
@@ -116,7 +116,7 @@ enum Mood {
 
 // Records must map to a custom type
 // Note that all types are types in Postgres
-#[derive(PartialEq, Debug, sqlx::Type)]
+#[derive(PartialEq, Debug, sqlx_oldapi::Type)]
 #[sqlx(type_name = "inventory_item")]
 struct InventoryItem {
     name: String,
@@ -125,12 +125,12 @@ struct InventoryItem {
 }
 
 // Custom range type
-#[derive(sqlx::Type, Debug, PartialEq)]
+#[derive(sqlx_oldapi::Type, Debug, PartialEq)]
 #[sqlx(type_name = "float_range")]
 struct FloatRange(PgRange<f64>);
 
 // Custom domain type
-#[derive(sqlx::Type, Debug)]
+#[derive(sqlx_oldapi::Type, Debug)]
 #[sqlx(type_name = "int4rangeL0pC")]
 struct RangeInclusive(PgRange<i32>);
 
@@ -198,7 +198,7 @@ CREATE TABLE people (
     let mut conn = new::<Postgres>().await?;
 
     // Select from table test
-    let (people_id,): (i32,) = sqlx::query_as(
+    let (people_id,): (i32,) = sqlx_oldapi::query_as(
         "
 INSERT INTO people (mood)
 VALUES ($1)
@@ -213,13 +213,13 @@ RETURNING id
     conn.close().await?;
     let mut conn = new::<Postgres>().await?;
 
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct PeopleRow {
         id: i32,
         mood: Mood,
     }
 
-    let rec: PeopleRow = sqlx::query_as(
+    let rec: PeopleRow = sqlx_oldapi::query_as(
         "
 SELECT id, mood FROM people WHERE id = $1
             ",
@@ -250,7 +250,7 @@ SELECT id, mood FROM people WHERE id = $1
 
     // Normal type equivalency test
 
-    let rec: (bool, Mood) = sqlx::query_as(
+    let rec: (bool, Mood) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'happy'::mood, $1
             ",
@@ -262,7 +262,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, Mood::Happy);
 
-    let rec: (bool, ColorLower) = sqlx::query_as(
+    let rec: (bool, ColorLower) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'green'::color_lower, $1
             ",
@@ -274,7 +274,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorLower::Green);
 
-    let rec: (bool, ColorSnake) = sqlx::query_as(
+    let rec: (bool, ColorSnake) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'red_green'::color_snake, $1
             ",
@@ -286,7 +286,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorSnake::RedGreen);
 
-    let rec: (bool, ColorUpper) = sqlx::query_as(
+    let rec: (bool, ColorUpper) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'RED'::color_upper, $1
             ",
@@ -298,7 +298,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorUpper::Red);
 
-    let rec: (bool, ColorScreamingSnake) = sqlx::query_as(
+    let rec: (bool, ColorScreamingSnake) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'RED_GREEN'::color_screaming_snake, $1
             ",
@@ -310,7 +310,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorScreamingSnake::RedGreen);
 
-    let rec: (bool, ColorKebabCase) = sqlx::query_as(
+    let rec: (bool, ColorKebabCase) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'red-green'::color_kebab_case, $1
             ",
@@ -322,7 +322,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorKebabCase::RedGreen);
 
-    let rec: (bool, ColorCamelCase) = sqlx::query_as(
+    let rec: (bool, ColorCamelCase) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'redGreen'::color_mixed_case, $1
             ",
@@ -334,7 +334,7 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorCamelCase::RedGreen);
 
-    let rec: (bool, ColorPascalCase) = sqlx::query_as(
+    let rec: (bool, ColorPascalCase) = sqlx_oldapi::query_as(
         "
     SELECT $1 = 'RedGreen'::color_camel_case, $1
             ",
@@ -359,7 +359,7 @@ async fn test_record_type() -> anyhow::Result<()> {
         price: Some(199),
     };
 
-    let rec: (bool, InventoryItem) = sqlx::query_as(
+    let rec: (bool, InventoryItem) = sqlx_oldapi::query_as(
         "
 SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
         ",
@@ -379,13 +379,13 @@ SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
 async fn test_from_row() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct Account {
         id: i32,
         name: String,
     }
 
-    let account: Account = sqlx::query_as(
+    let account: Account = sqlx_oldapi::query_as(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
     )
     .bind(1_i32)
@@ -397,13 +397,13 @@ async fn test_from_row() -> anyhow::Result<()> {
 
     // A _single_ lifetime may be used but only when using the lowest-level API currently (Query::fetch)
 
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct RefAccount<'a> {
         id: i32,
         name: &'a str,
     }
 
-    let mut cursor = sqlx::query(
+    let mut cursor = sqlx_oldapi::query(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
     )
     .bind(1_i32)
@@ -421,7 +421,7 @@ async fn test_from_row() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row_with_keyword() -> anyhow::Result<()> {
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct AccountKeyword {
         r#type: i32,
         r#static: String,
@@ -432,7 +432,7 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    let account: AccountKeyword = sqlx::query_as(
+    let account: AccountKeyword = sqlx_oldapi::query_as(
         r#"SELECT * from (VALUES (1, 'foo', 'bar', null, null)) accounts(type, static, let, struct, name)"#
     )
     .fetch_one(&mut conn)
@@ -451,7 +451,7 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row_with_rename() -> anyhow::Result<()> {
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct AccountKeyword {
         #[sqlx(rename = "type")]
         own_type: i32,
@@ -470,7 +470,7 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    let account: AccountKeyword = sqlx::query_as(
+    let account: AccountKeyword = sqlx_oldapi::query_as(
         r#"SELECT * from (VALUES (1, 'foo', 'bar', null, null)) accounts(type, static, let, struct, name)"#
     )
     .fetch_one(&mut conn)
@@ -489,7 +489,7 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     #[sqlx(rename_all = "camelCase")]
     struct AccountKeyword {
         user_id: i32,
@@ -499,7 +499,7 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    let account: AccountKeyword = sqlx::query_as(
+    let account: AccountKeyword = sqlx_oldapi::query_as(
         r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts("userId", "userName", "userSurname")"#,
     )
     .fetch_one(&mut conn)
@@ -518,10 +518,10 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
 async fn test_from_row_tuple() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct Account(i32, String);
 
-    let account: Account = sqlx::query_as(
+    let account: Account = sqlx_oldapi::query_as(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
     )
     .bind(1_i32)
@@ -533,10 +533,10 @@ async fn test_from_row_tuple() -> anyhow::Result<()> {
 
     // A _single_ lifetime may be used but only when using the lowest-level API currently (Query::fetch)
 
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct RefAccount<'a>(i32, &'a str);
 
-    let mut cursor = sqlx::query(
+    let mut cursor = sqlx_oldapi::query(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
     )
     .bind(1_i32)
@@ -554,7 +554,7 @@ async fn test_from_row_tuple() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_default() -> anyhow::Result<()> {
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct HasDefault {
         not_default: i32,
         #[sqlx(default)]
@@ -563,7 +563,7 @@ async fn test_default() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    let has_default: HasDefault = sqlx::query_as(r#"SELECT 1 AS not_default"#)
+    let has_default: HasDefault = sqlx_oldapi::query_as(r#"SELECT 1 AS not_default"#)
         .fetch_one(&mut conn)
         .await?;
     println!("{:?}", has_default);
@@ -577,18 +577,18 @@ async fn test_default() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_flatten() -> anyhow::Result<()> {
-    #[derive(Debug, Default, sqlx::FromRow)]
+    #[derive(Debug, Default, sqlx_oldapi::FromRow)]
     struct AccountDefault {
         default: Option<i32>,
     }
 
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct UserInfo {
         name: String,
         surname: String,
     }
 
-    #[derive(Debug, sqlx::FromRow)]
+    #[derive(Debug, sqlx_oldapi::FromRow)]
     struct AccountKeyword {
         id: i32,
         #[sqlx(flatten)]
@@ -600,7 +600,7 @@ async fn test_flatten() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    let account: AccountKeyword = sqlx::query_as(
+    let account: AccountKeyword = sqlx_oldapi::query_as(
         r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts("id", "name", "surname")"#,
     )
     .fetch_one(&mut conn)

@@ -1,5 +1,5 @@
-use sqlx::mysql::MySql;
-use sqlx::{Column, Executor, Type, TypeInfo};
+use sqlx_oldapi::mysql::MySql;
+use sqlx_oldapi::{Column, Executor, Type, TypeInfo};
 use sqlx_test::new;
 
 #[sqlx_macros::test]

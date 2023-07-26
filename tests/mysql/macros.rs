@@ -1,11 +1,11 @@
-use sqlx::{Connection, MySql, MySqlConnection, Transaction};
+use sqlx_oldapi::{Connection, MySql, MySqlConnection, Transaction};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
 async fn macro_select_from_cte() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let account =
-        sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name, cast(null as char) email) accounts")
+        sqlx_oldapi::query!("select * from (select (1) as id, 'Herp Derpinson' as name, cast(null as char) email) accounts")
             .fetch_one(&mut conn)
             .await?;
 
@@ -20,7 +20,7 @@ async fn macro_select_from_cte() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let account = sqlx::query!(
+    let account = sqlx_oldapi::query!(
         "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
         1i32
     )
@@ -43,7 +43,7 @@ struct RawAccount {
 async fn test_query_as_raw() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let account = sqlx::query_as!(
+    let account = sqlx_oldapi::query_as!(
         RawAccount,
         "SELECT * from (select 1 as type, cast(null as char) as name) accounts"
     )
@@ -62,52 +62,52 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let id = sqlx::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    let id = sqlx_oldapi::query_scalar!("select 1").fetch_one(&mut conn).await?;
     // MySQL tells us `LONG LONG` while MariaDB just `LONG`
     assert_eq!(id, 1);
 
     // invalid column names are ignored
-    let id = sqlx::query_scalar!(r#"select 1 as `&foo`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `&foo`"#)
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(id, 1);
 
-    let id = sqlx::query_scalar!(r#"select 1 as `foo!`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `foo!`"#)
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(id, 1);
 
-    let id = sqlx::query_scalar!(r#"select 1 as `foo?`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `foo?`"#)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(id, Some(1));
 
-    let id = sqlx::query_scalar!(r#"select 1 as `foo: MyInt`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `foo: MyInt`"#)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(id, MyInt(1));
 
-    let id = sqlx::query_scalar!(r#"select 1 as `foo?: MyInt`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `foo?: MyInt`"#)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(id, Some(MyInt(1)));
 
-    let id = sqlx::query_scalar!(r#"select 1 as `foo!: MyInt`"#)
+    let id = sqlx_oldapi::query_scalar!(r#"select 1 as `foo!: MyInt`"#)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(id, MyInt(1));
 
-    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo: _`"#)
+    let id: MyInt = sqlx_oldapi::query_scalar!(r#"select 1 as `foo: _`"#)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(id, MyInt(1));
 
-    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo?: _`"#)
+    let id: MyInt = sqlx_oldapi::query_scalar!(r#"select 1 as `foo?: _`"#)
         .fetch_one(&mut conn)
         .await?
         // don't hint that it should be `Option<MyInt>`
@@ -115,7 +115,7 @@ async fn test_query_scalar() -> anyhow::Result<()> {
 
     assert_eq!(id, MyInt(1));
 
-    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo!: _`"#)
+    let id: MyInt = sqlx_oldapi::query_scalar!(r#"select 1 as `foo!: _`"#)
         .fetch_one(&mut conn)
         .await?;
 
@@ -133,7 +133,7 @@ async fn test_query_as_bool() -> anyhow::Result<()> {
         deleted: bool,
     }
 
-    let article = sqlx::query_as_unchecked!(
+    let article = sqlx_oldapi::query_as_unchecked!(
         Article,
         "select * from (select 51 as id, true as deleted) articles"
     )
@@ -150,7 +150,7 @@ async fn test_query_as_bool() -> anyhow::Result<()> {
 async fn test_query_bytes() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let rec = sqlx::query!("SELECT X'01AF' as _1")
+    let rec = sqlx_oldapi::query!("SELECT X'01AF' as _1")
         .fetch_one(&mut conn)
         .await?;
 
@@ -163,7 +163,7 @@ async fn test_query_bytes() -> anyhow::Result<()> {
 async fn test_column_override_not_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let record = sqlx::query!("select * from (select 1 as `id!`) records")
+    let record = sqlx_oldapi::query!("select * from (select 1 as `id!`) records")
         .fetch_one(&mut conn)
         .await?;
 
@@ -177,7 +177,7 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     // MySQL by default tells us `id` is not-null
-    let record = sqlx::query!("select * from (select 1 as `id?`) records")
+    let record = sqlx_oldapi::query!("select * from (select 1 as `id?`) records")
         .fetch_one(&mut conn)
         .await?;
 
@@ -190,14 +190,14 @@ async fn with_test_row<'a>(
     conn: &'a mut MySqlConnection,
 ) -> anyhow::Result<(Transaction<'a, MySql>, MyInt)> {
     let mut transaction = conn.begin().await?;
-    let id = sqlx::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
+    let id = sqlx_oldapi::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
         .execute(&mut transaction)
         .await?
         .last_insert_id();
     Ok((transaction, MyInt(id as i64)))
 }
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[derive(PartialEq, Eq, Debug, sqlx_oldapi::Type)]
 #[sqlx(transparent)]
 struct MyInt(i64);
 
@@ -214,20 +214,20 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as!(Record, "select id as `id: _` from tweet")
+    let record = sqlx_oldapi::query_as!(Record, "select id as `id: _` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(record.id, id);
 
     // this syntax is also useful for expressions
-    let record = sqlx::query_as!(Record, "select * from (select 1 as `id: _`) records")
+    let record = sqlx_oldapi::query_as!(Record, "select * from (select 1 as `id: _`) records")
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
 
-    let record = sqlx::query_as!(OptionalRecord, "select owner_id as `id: _` from tweet")
+    let record = sqlx_oldapi::query_as!(OptionalRecord, "select owner_id as `id: _` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -241,7 +241,7 @@ async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, _) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as!(Record, "select owner_id as `id!: _` from tweet")
+    let record = sqlx_oldapi::query_as!(Record, "select owner_id as `id!: _` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -255,7 +255,7 @@ async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as!(OptionalRecord, "select id as `id?: _` from tweet")
+    let record = sqlx_oldapi::query_as!(OptionalRecord, "select id as `id?: _` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -269,20 +269,20 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!("select id as `id: MyInt` from tweet")
+    let record = sqlx_oldapi::query!("select id as `id: MyInt` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(record.id, id);
 
     // we can also support this syntax for expressions
-    let record = sqlx::query!("select * from (select 1 as `id: MyInt`) records")
+    let record = sqlx_oldapi::query!("select * from (select 1 as `id: MyInt`) records")
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
 
-    let record = sqlx::query!("select owner_id as `id: MyInt` from tweet")
+    let record = sqlx_oldapi::query!("select owner_id as `id: MyInt` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -296,7 +296,7 @@ async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, _) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!("select owner_id as `id!: MyInt` from tweet")
+    let record = sqlx_oldapi::query!("select owner_id as `id!: MyInt` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -310,7 +310,7 @@ async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!("select id as `id?: MyInt` from tweet")
+    let record = sqlx_oldapi::query!("select id as `id?: MyInt` from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -319,7 +319,7 @@ async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[derive(PartialEq, Eq, Debug, sqlx_oldapi::Type)]
 #[sqlx(rename_all = "lowercase")]
 enum MyEnum {
     Red,
@@ -327,7 +327,7 @@ enum MyEnum {
     Blue,
 }
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[derive(PartialEq, Eq, Debug, sqlx_oldapi::Type)]
 #[repr(i32)]
 enum MyCEnum {
     Red = 0,
@@ -339,13 +339,13 @@ enum MyCEnum {
 async fn test_column_override_exact_enum() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let record = sqlx::query!("select * from (select 'red' as `color: MyEnum`) records")
+    let record = sqlx_oldapi::query!("select * from (select 'red' as `color: MyEnum`) records")
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(record.color, MyEnum::Red);
 
-    let record = sqlx::query!("select * from (select 2 as `color: MyCEnum`) records")
+    let record = sqlx_oldapi::query!("select * from (select 2 as `color: MyCEnum`) records")
         .fetch_one(&mut conn)
         .await?;
 
@@ -356,7 +356,7 @@ async fn test_column_override_exact_enum() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_try_from_attr_for_native_type() -> anyhow::Result<()> {
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct Record {
         #[sqlx(try_from = "i64")]
         id: u64,
@@ -365,7 +365,7 @@ async fn test_try_from_attr_for_native_type() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as::<_, Record>("select id from tweet")
+    let record = sqlx_oldapi::query_as::<_, Record>("select id from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -376,7 +376,7 @@ async fn test_try_from_attr_for_native_type() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_try_from_attr_for_custom_type() -> anyhow::Result<()> {
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct Record {
         #[sqlx(try_from = "i64")]
         id: Id,
@@ -394,7 +394,7 @@ async fn test_try_from_attr_for_custom_type() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as::<_, Record>("select id from tweet")
+    let record = sqlx_oldapi::query_as::<_, Record>("select id from tweet")
         .fetch_one(&mut conn)
         .await?;
 
@@ -405,13 +405,13 @@ async fn test_try_from_attr_for_custom_type() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_try_from_attr_with_flatten() -> anyhow::Result<()> {
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx_oldapi::FromRow)]
     struct Record {
         #[sqlx(try_from = "Id", flatten)]
         id: u64,
     }
 
-    #[derive(Debug, PartialEq, sqlx::FromRow)]
+    #[derive(Debug, PartialEq, sqlx_oldapi::FromRow)]
     struct Id {
         id: i64,
     }
@@ -426,7 +426,7 @@ async fn test_try_from_attr_with_flatten() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as::<_, Record>("select id from tweet")
+    let record = sqlx_oldapi::query_as::<_, Record>("select id from tweet")
         .fetch_one(&mut conn)
         .await?;
 

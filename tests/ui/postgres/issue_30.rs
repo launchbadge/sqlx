@@ -1,3 +1,3 @@
 fn main() {
-    let query = sqlx::query!("select 1 as \"'1\"");
+    let query = sqlx_oldapi::query!("select 1 as \"'1\"");
 }
