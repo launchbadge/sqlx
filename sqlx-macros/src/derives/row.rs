@@ -99,8 +99,8 @@ fn expand_derive_from_row_struct(
                     parse_quote!(<#try_from as ::sqlx_oldapi::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx_oldapi::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
                 }
                 (false,Some(try_from)) => {
-                    predicates
-                        .push(parse_quote!(#try_from: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>));
+                    let predicate = parse_quote!(#try_from: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>);
+                    predicates.push(predicate);
                     predicates.push(parse_quote!(#try_from: ::sqlx_oldapi::types::Type<R::Database>)); 
 
                     let id_s = attributes
