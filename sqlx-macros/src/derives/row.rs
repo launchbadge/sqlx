@@ -101,7 +101,8 @@ fn expand_derive_from_row_struct(
                 (false,Some(try_from)) => {
                     let predicate = parse_quote!(#try_from: ::sqlx_oldapi::decode::Decode<#lifetime, R::Database>);
                     predicates.push(predicate);
-                    predicates.push(parse_quote!(#try_from: ::sqlx_oldapi::types::Type<R::Database>)); 
+                    let predicate2 = parse_quote!(#try_from: ::sqlx_oldapi::types::Type<R::Database>);
+                    predicates.push(predicate2);
 
                     let id_s = attributes
                         .rename
