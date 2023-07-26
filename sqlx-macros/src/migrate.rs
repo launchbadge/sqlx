@@ -12,7 +12,9 @@ impl ToTokens for QuotedMigrationType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ts = match self.0 {
             MigrationType::Simple => quote! { ::sqlx_oldapi::migrate::MigrationType::Simple },
-            MigrationType::ReversibleUp => quote! { ::sqlx_oldapi::migrate::MigrationType::ReversibleUp },
+            MigrationType::ReversibleUp => {
+                quote! { ::sqlx_oldapi::migrate::MigrationType::ReversibleUp }
+            }
             MigrationType::ReversibleDown => {
                 quote! { ::sqlx_oldapi::migrate::MigrationType::ReversibleDown }
             }

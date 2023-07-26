@@ -1,5 +1,5 @@
-use sqlx_oldapi as sqlx;
 use sqlx::migrate::Migrator;
+use sqlx_oldapi as sqlx;
 use std::path::Path;
 
 static EMBEDDED_SIMPLE: Migrator = sqlx::migrate!("tests/migrate/migrations_simple");

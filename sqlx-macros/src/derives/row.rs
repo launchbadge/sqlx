@@ -53,7 +53,9 @@ fn expand_derive_from_row_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
+    generics
+        .params
+        .insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -163,7 +165,9 @@ fn expand_derive_from_row_struct_unnamed(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
+    generics
+        .params
+        .insert(0, parse_quote!(R: ::sqlx_oldapi::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
