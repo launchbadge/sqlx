@@ -23,6 +23,7 @@ use crate::types::Type;
 /// # Example
 ///
 /// ```
+/// extern crate sqlx as sqlx_oldapi;
 /// # use serde::Deserialize;
 /// #[derive(Deserialize)]
 /// struct Book {
@@ -38,6 +39,7 @@ use crate::types::Type;
 ///
 /// Can also be used to turn the json/jsonb into a hashmap
 /// ```
+/// extern crate sqlx as sqlx_oldapi;
 /// use std::collections::HashMap;
 /// use serde::Deserialize;
 ///
