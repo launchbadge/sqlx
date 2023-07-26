@@ -87,13 +87,9 @@ mod chrono {
 
                     // OFFSET is encoded as seconds from UTC
                     let seconds = buf.read_i32::<BigEndian>()?;
-                    let offset = FixedOffset::west_opt(seconds)
-                        .ok_or("invaid time offset")?;
+                    let offset = FixedOffset::west_opt(seconds).ok_or("invaid time offset")?;
 
-                    Ok(PgTimeTz {
-                        time,
-                        offset,
-                    })
+                    Ok(PgTimeTz { time, offset })
                 }
 
                 PgValueFormat::Text => {

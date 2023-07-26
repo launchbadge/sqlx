@@ -49,10 +49,7 @@ impl Notify {
 
     fn wait(&self) {
         let lock = self.mutex.lock().unwrap();
-        let _unused = self
-            .condvar
-            .wait_while(lock, |fired| !*fired)
-            .unwrap();
+        let _unused = self.condvar.wait_while(lock, |fired| !*fired).unwrap();
     }
 
     fn fire(&self) {

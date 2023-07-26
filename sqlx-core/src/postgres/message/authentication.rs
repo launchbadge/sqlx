@@ -150,7 +150,9 @@ impl Decode<'_> for AuthenticationSaslContinue {
                 }
 
                 b's' => {
-                    salt = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value).map_err(Error::protocol)?;
+                    salt =
+                        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value)
+                            .map_err(Error::protocol)?;
                 }
 
                 _ => {}
@@ -180,7 +182,9 @@ impl Decode<'_> for AuthenticationSaslFinal {
             let value = &item[2..];
 
             if let b'v' = key {
-                verifier = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value).map_err(Error::protocol)?;
+                verifier =
+                    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value)
+                        .map_err(Error::protocol)?;
             }
         }
 

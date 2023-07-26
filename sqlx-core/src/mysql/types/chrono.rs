@@ -247,11 +247,7 @@ fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
         None
     } else {
         let year = buf.get_u16_le();
-        NaiveDate::from_ymd_opt(
-            year as i32,
-            buf[0] as u32,
-            buf[1] as u32,
-        )
+        NaiveDate::from_ymd_opt(year as i32, buf[0] as u32, buf[1] as u32)
     }
 }
 

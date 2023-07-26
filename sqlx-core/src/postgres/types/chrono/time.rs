@@ -24,9 +24,7 @@ impl Encode<'_, Postgres> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // TIME is encoded as the microseconds since midnight
         // NOTE: panic! is on overflow and 1 day does not have enough micros to overflow
-        let us = (*self - NaiveTime::default())
-            .num_microseconds()
-            .unwrap();
+        let us = (*self - NaiveTime::default()).num_microseconds().unwrap();
 
         Encode::<Postgres>::encode(&us, buf)
     }

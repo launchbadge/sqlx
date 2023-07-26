@@ -6,8 +6,8 @@ use crate::postgres::{
 };
 use crate::types::Type;
 use chrono::{
-    DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc,
-    NaiveTime,
+    DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone,
+    Utc,
 };
 use std::mem;
 
@@ -39,7 +39,9 @@ impl Encode<'_, Postgres> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // FIXME: We should *really* be returning an error, Encode needs to be fallible
         // TIMESTAMP is encoded as the microseconds since the epoch
-        let epoch = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap().and_time(NaiveTime::default());
+        let epoch = NaiveDate::from_ymd_opt(2000, 1, 1)
+            .unwrap()
+            .and_time(NaiveTime::default());
         let us = (*self - epoch)
             .num_microseconds()
             .unwrap_or_else(|| panic!("NaiveDateTime out of range for Postgres: {:?}", self));
@@ -57,7 +59,9 @@ impl<'r> Decode<'r, Postgres> for NaiveDateTime {
         Ok(match value.format() {
             PgValueFormat::Binary => {
                 // TIMESTAMP is encoded as the microseconds since the epoch
-                let epoch = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap().and_time(NaiveTime::default());
+                let epoch = NaiveDate::from_ymd_opt(2000, 1, 1)
+                    .unwrap()
+                    .and_time(NaiveTime::default());
                 let us = Decode::<Postgres>::decode(value)?;
                 epoch + Duration::microseconds(us)
             }
