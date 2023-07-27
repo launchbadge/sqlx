@@ -255,8 +255,8 @@ mod chrono {
     type PgTimeTz = sqlx_oldapi::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
 
     test_type!(chrono_date<NaiveDate>(Postgres,
-        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
-        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+        "DATE '2001-01-05'" == NaiveDate::from_ymd_opt(2001, 1, 5).unwrap(),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd_opt(2050, 11, 23).unwrap()
     ));
 
     test_type!(chrono_time<NaiveTime>(Postgres,
@@ -264,32 +264,32 @@ mod chrono {
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(Postgres,
-        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
     ));
 
     test_type!(chrono_date_time_vec<Vec<NaiveDateTime>>(Postgres,
         "array['2019-01-02 05:10:20']::timestamp[]"
-            == vec![NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)]
+            == vec![NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()]
     ));
 
     test_type!(chrono_date_time_tz_utc<DateTime::<Utc>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100'"
             == DateTime::<Utc>::from_utc(
-                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+                NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_micro_opt(5, 10, 20, 115100).unwrap(),
                 Utc,
             )
     ));
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east(60 * 60 * 6 + 1800).ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100)
+            == FixedOffset::east(60 * 60 * 6 + 1800).ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
         "array['2019-01-02 05:10:20.115100']::timestamptz[]"
             == vec![
                 DateTime::<Utc>::from_utc(
-                    NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+                    NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_micro_opt(5, 10, 20, 115100).unwrap(),
                     Utc,
                 )
             ]
