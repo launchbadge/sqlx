@@ -260,7 +260,7 @@ mod chrono {
     ));
 
     test_type!(chrono_time<NaiveTime>(Postgres,
-        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(Postgres,
@@ -282,7 +282,7 @@ mod chrono {
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east(60 * 60 * 6 + 1800).ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
+            == FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap().ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
@@ -296,10 +296,10 @@ mod chrono {
     ));
 
     test_type!(chrono_time_tz<PgTimeTz>(Postgres,
-        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(0) },
-        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(60 * 60 * 6 + 1800) },
-        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::west(60 * 60 * 5) },
-        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms(5, 10, 20), offset: FixedOffset::east(60 * 60 * 2 )}
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(0).unwrap() },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap() },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::west_opt(60 * 60 * 5).unwrap() },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms(5, 10, 20), offset: FixedOffset::east_opt(60 * 60 * 2 ).unwrap()}
     ));
 }
 

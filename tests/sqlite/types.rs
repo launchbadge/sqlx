@@ -108,7 +108,7 @@ mod chrono {
     ));
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms_opt(3, 50, 23).unwrap())
+        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west_opt(5 * 3600).unwrap().ymd(2016, 11, 08).and_hms_opt(3, 50, 23).unwrap())
     ));
 }
 
