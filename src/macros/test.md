@@ -18,12 +18,12 @@ async fn test_async_fn() {
 
 However, several advanced features are also supported as shown in the next section.
 
-<sup>1</sup>`#[sqlx::test]` does not recognize any of the control arguments supported by `#[tokio::test]`
+<sup>1</sup>`#[sqlx_oldapi::test]` does not recognize any of the control arguments supported by `#[tokio::test]`
 as that would have complicated the implementation. If your use case requires any of those, feel free to open an issue.
 
 ### Automatic Test Database Management (requires `migrate` feature)
 
-`#[sqlx::test]` can automatically create test databases for you and provide live connections to your test.
+`#[sqlx_oldapi::test]` can automatically create test databases for you and provide live connections to your test.
 
 For every annotated function, a new test database is created so tests can run against a live database
 but are isolated from each other.
@@ -44,7 +44,7 @@ Where `DB` is a supported `Database` type and `Ret` is `()` or `Result<_, _>`.
 ##### Supported Databases
 
 Most of these will require you to set `DATABASE_URL` as an environment variable 
-or in a `.env` file like `sqlx::query!()` _et al_, to give the test driver a superuser connection with which
+or in a `.env` file like `sqlx_oldapi::query!()` _et al_, to give the test driver a superuser connection with which
 to manage test databases.
 
 
@@ -59,18 +59,18 @@ to facilitate debugging. Note that to simplify the implementation, panics are _a
 even for `#[should_panic]` tests.
 
 To limit disk space usage, any previously created test databases will be deleted the next time a test binary using 
-`#[sqlx::test]` is run.
+`#[sqlx_oldapi::test]` is run.
 
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
 # mod example { 
-use sqlx::PgPool;
+use sqlx_oldapi::PgPool;
 
-#[sqlx::test]
-async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
+#[sqlx_oldapi::test]
+async fn basic_test(pool: PgPool) -> sqlx_oldapi::Result<()> {
     let mut conn = pool.acquire().await?;
 
-    sqlx::query("SELECT * FROM foo")
+    sqlx_oldapi::query("SELECT * FROM foo")
         .fetch_one(&mut conn)
         .await?;
         
@@ -96,13 +96,13 @@ supported):
 ```rust,ignore
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
 # mod example { 
-use sqlx::PgPool;
+use sqlx_oldapi::PgPool;
 
-#[sqlx::test(migrations = "foo_migrations")]
-async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
+#[sqlx_oldapi::test(migrations = "foo_migrations")]
+async fn basic_test(pool: PgPool) -> sqlx_oldapi::Result<()> {
     let mut conn = pool.acquire().await?;
 
-    sqlx::query("SELECT * FROM foo")
+    sqlx_oldapi::query("SELECT * FROM foo")
         .fetch_one(&mut conn)
         .await?;
         
@@ -117,19 +117,19 @@ Or if you're already embedding migrations in your main crate, you can reference 
 
 `foo_crate/lib.rs`
 ```rust,ignore
-pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("foo_migrations");
+pub static MIGRATOR: sqlx_oldapi::migrate::Migrator = sqlx_oldapi::migrate!("foo_migrations");
 ```
 
 `foo_crate/tests/foo_test.rs`
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
 # mod example { 
-use sqlx::PgPool;
+use sqlx_oldapi::PgPool;
 
 # // This is standing in for the main crate since doc examples don't support multiple crates.
 # mod foo_crate { 
 #   use std::borrow::Cow;
-#   static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate::Migrator {
+#   static MIGRATOR: sqlx_oldapi::migrate::Migrator = sqlx_oldapi::migrate::Migrator {
 #       migrations: Cow::Borrowed(&[]),
 #       ignore_missing: false,
 #       locking: true,
@@ -137,11 +137,11 @@ use sqlx::PgPool;
 # } 
 
 // You could also do `use foo_crate::MIGRATOR` and just refer to it as `MIGRATOR` here.
-#[sqlx::test(migrator = "foo_crate::MIGRATOR")]
-async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
+#[sqlx_oldapi::test(migrator = "foo_crate::MIGRATOR")]
+async fn basic_test(pool: PgPool) -> sqlx_oldapi::Result<()> {
     let mut conn = pool.acquire().await?;
 
-    sqlx::query("SELECT * FROM foo")
+    sqlx_oldapi::query("SELECT * FROM foo")
         .fetch_one(&mut conn)
         .await?;
         
@@ -157,15 +157,15 @@ Or disable migrations processing entirely:
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
 # mod example { 
-use sqlx::PgPool;
+use sqlx_oldapi::PgPool;
 
-#[sqlx::test(migrations = false)]
-async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
+#[sqlx_oldapi::test(migrations = false)]
+async fn basic_test(pool: PgPool) -> sqlx_oldapi::Result<()> {
     let mut conn = pool.acquire().await?;
     
     conn.execute("CREATE TABLE foo(bar text)").await?;
 
-    sqlx::query("SELECT * FROM foo")
+    sqlx_oldapi::query("SELECT * FROM foo")
         .fetch_one(&mut conn)
         .await?;
         
@@ -179,7 +179,7 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
 ### Automatic Fixture Application (requires `migrate` feature)
 
 Since tests are isolated from each other but may require data to already exist in the database to keep from growing
-exponentially in complexity, `#[sqlx::test]` also supports applying test fixtures, which are SQL scripts that function
+exponentially in complexity, `#[sqlx_oldapi::test]` also supports applying test fixtures, which are SQL scripts that function
 similarly to migrations but are solely intended to insert test data and be arbitrarily composable.
 
 Imagine a basic social app that has users, posts and comments. To test the comment routes, you'd want
@@ -192,11 +192,11 @@ You can pass a list of fixture names to the attribute like so, and they will be 
 # mod example { 
 # struct App {}
 # fn create_app(pool: PgPool) -> App { App {} }
-use sqlx::PgPool;
+use sqlx_oldapi::PgPool;
 use serde_json::json;
 
-#[sqlx::test(fixtures("users", "posts"))]
-async fn test_create_comment(pool: PgPool) -> sqlx::Result<()> {
+#[sqlx_oldapi::test(fixtures("users", "posts"))]
+async fn test_create_comment(pool: PgPool) -> sqlx_oldapi::Result<()> {
     // See examples/postgres/social-axum-with-tests for a more in-depth example. 
     let mut app = create_app(pool);     
     
