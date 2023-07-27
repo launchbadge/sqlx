@@ -228,7 +228,6 @@ impl TypeInfo {
                     precision: 0,
                 }
             }
-
             _ => {
                 return Err(err_protocol!("unsupported data type {:?}", ty));
             }
@@ -251,8 +250,7 @@ impl TypeInfo {
             | DataType::BigInt
             | DataType::Money
             | DataType::DateTime
-            | DataType::Float
-            | DataType::DateN => {
+            | DataType::Float => {
                 // nothing to do
             }
 
@@ -266,6 +264,7 @@ impl TypeInfo {
             | DataType::FloatN
             | DataType::MoneyN
             | DataType::DateTimeN
+            | DataType::DateN
             | DataType::Char
             | DataType::VarChar
             | DataType::Binary
@@ -328,8 +327,8 @@ impl TypeInfo {
             | DataType::NumericN
             | DataType::FloatN
             | DataType::MoneyN
-            | DataType::DateTimeN
             | DataType::DateN
+            | DataType::DateTimeN
             | DataType::TimeN
             | DataType::DateTime2N
             | DataType::DateTimeOffsetN => {
@@ -392,6 +391,7 @@ impl TypeInfo {
             | DataType::Real
             | DataType::Money
             | DataType::DateTime
+            | DataType::DateN
             | DataType::Float
             | DataType::SmallMoney
             | DataType::BigInt => {
@@ -408,7 +408,6 @@ impl TypeInfo {
             | DataType::FloatN
             | DataType::MoneyN
             | DataType::DateTimeN
-            | DataType::DateN
             | DataType::TimeN
             | DataType::DateTime2N
             | DataType::DateTimeOffsetN
@@ -515,6 +514,10 @@ impl TypeInfo {
             DataType::Char => "CHAR",
             DataType::BigChar => "BIGCHAR",
             DataType::NChar => "NCHAR",
+            DataType::DateN => "DATE",
+            DataType::DateTimeN => "DATETIME",
+            DataType::DateTime2N => "DATETIME2",
+            DataType::DateTimeOffsetN => "DATETIMEOFFSET",
 
             _ => unimplemented!("name: unsupported data type {:?}", self.ty),
         }
@@ -577,6 +580,26 @@ impl TypeInfo {
 
             DataType::BitN => {
                 s.push_str("bit");
+            }
+
+            DataType::DateN => {
+                s.push_str("date");
+            }
+
+            DataType::DateTime | DataType::DateTimeN => {
+                s.push_str("datetime");
+            }
+
+            DataType::DateTime2N => {
+                s.push_str("datetime2(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+
+            DataType::DateTimeOffsetN => {
+                s.push_str("datetimeoffset(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
             }
 
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),

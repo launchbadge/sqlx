@@ -48,3 +48,27 @@ test_type!(bool(
     "CAST(1 as BIT)" == true,
     "CAST(0 as BIT)" == false
 ));
+
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
+    test_type!(NaiveDateTime(
+        Mssql,
+        "CAST('2016-10-23 12:45:37.1234567' as DateTime2)"
+            == NaiveDateTime::parse_from_str("2016-10-23 12:45:37.1234567", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap()
+    ));
+
+    test_type!(DateTime<_>(
+        Mssql,
+        "CAST('2016-10-23 12:45:37.1234567 +02:00' as datetimeoffset(7))" == DateTime::parse_from_rfc3339("2016-10-23T12:45:37.1234567+02:00").unwrap()
+    ));
+
+    test_type!(NaiveDate(
+        Mssql,
+        "CAST('1789-07-14' AS DATE)"
+            == NaiveDate::parse_from_str("1789-07-14", "%Y-%m-%d").unwrap()
+    ));
+}

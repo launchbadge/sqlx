@@ -8,6 +8,9 @@ mod int;
 mod str;
 mod uint;
 
+#[cfg(feature = "chrono")]
+mod chrono;
+
 impl<'q, T: 'q + Encode<'q, Mssql>> Encode<'q, Mssql> for Option<T> {
     fn encode(self, buf: &mut Vec<u8>) -> IsNull {
         if let Some(v) = self {
