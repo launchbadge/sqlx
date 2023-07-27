@@ -73,7 +73,7 @@ mod chrono {
     ));
 
     test_type!(chrono_time<NaiveTime>(MySql,
-        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt_opt(5, 10, 20, 115100).unwrap().unwrap()
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(MySql,
