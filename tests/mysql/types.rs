@@ -64,26 +64,26 @@ mod chrono {
     use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
     test_type!(chrono_date<NaiveDate>(MySql,
-        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
-        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+        "DATE '2001-01-05'" == NaiveDate::from_ymd_opt(2001, 1, 5).unwrap(),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd_opt(2050, 11, 23).unwrap()
     ));
 
     test_type!(chrono_time_zero<NaiveTime>(MySql,
-        "TIME '00:00:00.000000'" == NaiveTime::from_hms_micro(0, 0, 0, 0)
+        "TIME '00:00:00.000000'" == NaiveTime::default()
     ));
 
     test_type!(chrono_time<NaiveTime>(MySql,
-        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(MySql,
-        "TIMESTAMP '2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "TIMESTAMP '2019-01-02 05:10:20'" == NaiveDateTime::parse_from_str("2019-01-02 05:10:20", "%Y-%m-%d %H:%M:%S").unwrap()
     ));
 
     test_type!(chrono_timestamp<DateTime::<Utc>>(MySql,
         "TIMESTAMP '2019-01-02 05:10:20.115100'"
             == DateTime::<Utc>::from_utc(
-                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+                NaiveDateTime::parse_from_str("2019-01-02 05:10:20.115100", "%Y-%m-%d %H:%M:%S%.f").unwrap(),
                 Utc,
             )
     ));
