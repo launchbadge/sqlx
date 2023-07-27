@@ -26,8 +26,8 @@ jobs:
       - uses: Swatinem/rust-cache@dd05243424bd5c0e585e4b55eb2d7615cdd32f1f
       - run:
           cargo check
-            --manifest-path sqlx-core/Cargo.toml \
-            --no-default-features \
+            --manifest-path sqlx-core/Cargo.toml
+            --no-default-features
             --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - run:
