@@ -249,7 +249,7 @@ test_type!(mac_address_vec<Vec<sqlx_oldapi::types::mac_address::MacAddress>>(Pos
 mod chrono {
     use super::*;
     use sqlx_oldapi::types::chrono::{
-        DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Utc,
     };
 
     type PgTimeTz = sqlx_oldapi::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
@@ -282,7 +282,7 @@ mod chrono {
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap().ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
+            == DateTime::parse_from_rfc3339("2019-01-02T05:10:20.115100+06:30").unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
@@ -299,7 +299,7 @@ mod chrono {
         "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(0).unwrap() },
         "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap() },
         "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::west_opt(60 * 60 * 5).unwrap() },
-        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms(5, 10, 20), offset: FixedOffset::east_opt(60 * 60 * 2 ).unwrap()}
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms_opt(5, 10, 20).unwrap(), offset: FixedOffset::east_opt(60 * 60 * 2 ).unwrap()}
     ));
 }
 

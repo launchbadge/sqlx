@@ -104,11 +104,11 @@ mod chrono {
     ));
 
     test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'1996-12-20T00:39:57+00:00'" == Utc.ymd(1996, 12, 20).and_hms_opt(0, 39, 57).unwrap()
+        "'1996-12-20T00:39:57+00:00'" == DateTime::parse_from_rfc3339("1996-12-20T00:39:57+00:00").unwrap()
     ));
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west_opt(5 * 3600).unwrap().ymd(2016, 11, 08).and_hms_opt(3, 50, 23).unwrap())
+        "'2016-11-08T03:50:23-05:00'" == DateTime::parse_from_rfc3339("2016-11-08T03:50:23-05:00").unwrap()
     ));
 }
 
