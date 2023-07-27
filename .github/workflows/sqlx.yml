@@ -23,22 +23,15 @@ jobs:
         tls: [native-tls, rustls]
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --manifest-path sqlx-core/Cargo.toml
-            --no-default-features
+      - uses: Swatinem/rust-cache@dd05243424bd5c0e585e4b55eb2d7615cdd32f1f
+      - run:
+          cargo check
+            --manifest-path sqlx-core/Cargo.toml \
+            --no-default-features \
             --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
+      - run:
+          cargo check
             --no-default-features
             --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }},macros
 
@@ -51,21 +44,9 @@ jobs:
         tls: [native-tls, rustls]
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-test
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: >
+      - run:
+          cargo test
             --manifest-path sqlx-core/Cargo.toml
             --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -75,7 +56,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]#, macOS-latest]
+        os: [ubuntu-latest, windows-latest] #, macOS-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -91,22 +72,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
-
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-cli
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path sqlx-cli/Cargo.toml --bin cargo-sqlx ${{ matrix.args }}
+      - run:
+          cargo build
+            --manifest-path sqlx-cli/Cargo.toml
+            --bin cargo-sqlx
+            ${{ matrix.args }}
 
       - uses: actions/upload-artifact@v2
         with:
@@ -123,23 +94,10 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v3
-
       - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: >
+      - run:
+          cargo test
             --no-default-features
             --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
             --
