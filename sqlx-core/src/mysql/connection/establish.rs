@@ -62,26 +62,7 @@ impl MySqlConnection {
         // Upgrade to TLS if we were asked to and the server supports it
 
         #[cfg(feature = "_tls-rustls")]
-        {
-            // To aid in debugging: https://github.com/rustls/rustls/issues/893
-
-            let local_addr = stream.local_addr();
-
-            match tls::maybe_upgrade(&mut stream, options).await {
-                Ok(()) => (),
-                #[cfg(feature = "_tls-rustls")]
-                Err(Error::Io(ioe)) => {
-                    if let Some(&rustls::Error::CorruptMessage) =
-                        ioe.get_ref().and_then(|e| e.downcast_ref())
-                    {
-                        log::trace!("got corrupt message on socket {:?}", local_addr);
-                    }
-
-                    return Err(Error::Io(ioe));
-                }
-                Err(e) => return Err(e),
-            }
-        }
+        tls::maybe_upgrade(&mut stream, options).await?;
 
         #[cfg(not(feature = "_tls-rustls"))]
         {

@@ -1,7 +1,7 @@
 use crate::net::CertificateInput;
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, WebPkiVerifier},
-    ClientConfig, Error as TlsError, OwnedTrustAnchor, RootCertStore, ServerName,
+    ClientConfig, Error as TlsError, OwnedTrustAnchor, RootCertStore, ServerName, CertificateError,
 };
 use std::io::Cursor;
 use std::sync::Arc;
@@ -97,11 +97,9 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             ocsp_response,
             now,
         ) {
-            Err(TlsError::InvalidCertificateData(reason))
-                if reason.contains("CertNotValidForName") =>
-            {
-                Ok(ServerCertVerified::assertion())
-            }
+            Err(TlsError::InvalidCertificate(CertificateError::NotValidForName)) =>
+
+                Ok(ServerCertVerified::assertion()),
             res => res,
         }
     }
