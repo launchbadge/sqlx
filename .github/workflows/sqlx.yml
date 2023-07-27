@@ -23,14 +23,7 @@ jobs:
         tls: [native-tls, rustls]
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -65,7 +58,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-test
 
@@ -106,7 +99,7 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cli
 
@@ -139,7 +132,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -174,7 +167,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -234,7 +227,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -285,7 +278,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
@@ -325,7 +318,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
