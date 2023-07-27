@@ -178,5 +178,5 @@ event-listener = "2.5.2"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { package = "sqlx-oldapi",  version = "0.6.5", path = "..", features = ["postgres", "sqlite", "mysql"] }
+sqlx = { package = "sqlx-oldapi",  version = "<0.7.0", path = "..", features = ["postgres", "sqlite", "mysql"] }
 tokio = { version = "1", features = ["rt"] }
