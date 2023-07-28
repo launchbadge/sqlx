@@ -115,17 +115,14 @@ pub async fn add(
         .unwrap_or(false);
 
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // This checks if all existing migrations are of the same type as the reversible flag passed
-    for migration in migrator.iter() {
-        if migration.migration_type.is_reversible() != reversible {
-            bail!(MigrateError::InvalidMixReversibleAndSimple);
-        }
-    }
+    // Type of newly created migration will be the same as the first one
+    // or reversible flag if this is the first migration
+    let migration_type = MigrationType::infer(&migrator, reversible);
 
     let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
     let file_prefix = ordering.file_prefix();
 
-    if reversible {
+    if migration_type.is_reversible() {
         create_file(
             migration_source,
             &file_prefix,
