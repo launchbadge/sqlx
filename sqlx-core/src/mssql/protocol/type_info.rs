@@ -4,6 +4,7 @@ use encoding_rs::Encoding;
 
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
+use crate::io::BufExt;
 use crate::mssql::Mssql;
 
 bitflags! {
@@ -343,6 +344,7 @@ impl TypeInfo {
 
             DataType::Char | DataType::VarChar | DataType::Binary | DataType::VarBinary => {
                 let size = buf.get_u8();
+                println!("small size: {}", size);
 
                 if size == 0xFF {
                     None
@@ -359,12 +361,15 @@ impl TypeInfo {
             | DataType::NChar
             | DataType::Xml
             | DataType::UserDefined => {
-                let size = buf.get_u16_le();
-
-                if size == 0xFF_FF {
-                    None
+                if self.size == 0xffff {
+                    self.get_big_blob(buf)
                 } else {
-                    Some(buf.split_to(size as usize))
+                    let size = buf.get_u16_le();
+                    if size == 0xFF_FF {
+                        None
+                    } else {
+                        Some(buf.split_to(size as usize))
+                    }
                 }
             }
 
@@ -378,6 +383,33 @@ impl TypeInfo {
                 }
             }
         }
+    }
+
+    pub(crate) fn get_big_blob(&self, buf: &mut Bytes) -> Option<Bytes> {
+        // Unknown size, length-prefixed blobs
+        let len = buf.get_u64_le();
+
+        let mut data = match len {
+            // NULL
+            0xffffffffffffffff => return None,
+            // Unknown size
+            0xfffffffffffffffe => Vec::new(),
+            // Known size
+            _ => Vec::with_capacity(len as usize),
+        };
+
+        loop {
+            // We have no chunk. Start a new one.
+            let chunk_size = buf.get_u32_le() as usize;
+
+            if chunk_size == 0 {
+                break; // found a sentinel, we're done
+            }
+            let chunk = buf.split_to(chunk_size);
+            data.extend_from_slice(&chunk);
+        }
+
+        Some(data.into())
     }
 
     pub(crate) fn put_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
@@ -583,11 +615,12 @@ impl TypeInfo {
                 // size
                 if self.size < 8000 && self.size > 0 {
                     s.push_str("(");
-                    s.push_str(itoa::Buffer::new().format(self.size));
+                    s.push_str(itoa::Buffer::new().format(self.size / 2));
                     s.push_str(")");
                 } else {
                     s.push_str("(max)");
                 }
+                println!("size: {}, s={}", self.size, s);
             }
 
             DataType::BitN => {

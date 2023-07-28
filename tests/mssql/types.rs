@@ -1,6 +1,13 @@
 use sqlx_oldapi::mssql::Mssql;
 use sqlx_test::test_type;
 
+test_type!(str<String>(Mssql,
+    "'this is foo'" == "this is foo",
+    "''" == "",
+    "CAST('foo' AS VARCHAR(3))" == "foo",
+    "CAST('foo' AS VARCHAR(max))" == "foo",
+));
+
 test_type!(null<Option<i32>>(Mssql,
     "CAST(NULL as INT)" == None::<i32>
 ));
@@ -38,11 +45,6 @@ test_type!(str_nvarchar<String>(Mssql,
     "CAST('this is foo' as NVARCHAR)" == "this is foo",
 ));
 
-test_type!(str<String>(Mssql,
-    "'this is foo'" == "this is foo",
-    "''" == "",
-));
-
 test_type!(bool(
     Mssql,
     "CAST(1 as BIT)" == true,
@@ -52,6 +54,7 @@ test_type!(bool(
 test_type!(bytes<Vec<u8>>(Mssql,
     "0xDEADBEEF" == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
     "CAST(' ' AS VARBINARY)" == vec![0x20_u8],
+    "CAST(REPLICATE(' ', 31) AS VARBINARY(max))" == vec![0x20_u8; 31],
 ));
 
 #[cfg(feature = "chrono")]
