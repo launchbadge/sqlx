@@ -16,7 +16,6 @@ impl Row {
         nullable: bool,
         columns: &[MssqlColumn],
     ) -> Result<Self, Error> {
-        println!("decoding row: {:?} with columns {:?}", buf, columns);
         let mut values = Vec::with_capacity(columns.len());
         let mut column_types = Vec::with_capacity(columns.len());
 

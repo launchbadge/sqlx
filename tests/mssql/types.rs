@@ -6,7 +6,16 @@ test_type!(str<String>(Mssql,
     "''" == "",
     "CAST('foo' AS VARCHAR(3))" == "foo",
     "CAST('foo' AS VARCHAR(max))" == "foo",
+    "REPLICATE('a', 910)" == "a".repeat(910),
 ));
+
+// test_type!(str_unicode<String>(Mssql,
+//     "'￮'" == "￮",
+// ));
+
+// test_type!(long_str<String>(Mssql,
+//     "REPLICATE('a', 912)" == "a".repeat(912),
+// ));
 
 test_type!(null<Option<i32>>(Mssql,
     "CAST(NULL as INT)" == None::<i32>

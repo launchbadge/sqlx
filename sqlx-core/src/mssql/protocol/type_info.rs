@@ -4,7 +4,6 @@ use encoding_rs::Encoding;
 
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
-use crate::io::BufExt;
 use crate::mssql::Mssql;
 
 bitflags! {
@@ -280,11 +279,12 @@ impl TypeInfo {
             }
 
             DataType::BigVarBinary | DataType::BigBinary => {
-                buf.extend(&(self.size as u16).to_le_bytes());
+                buf.extend(&(u16::try_from(self.size).unwrap().to_le_bytes()));
             }
 
             DataType::BigVarChar | DataType::BigChar | DataType::NVarChar | DataType::NChar => {
-                buf.extend(&(self.size as u16).to_le_bytes());
+                let short_size = u16::try_from(self.size).unwrap();
+                buf.extend(&(short_size.to_le_bytes()));
 
                 if let Some(collation) = &self.collation {
                     collation.put(buf);
@@ -344,8 +344,6 @@ impl TypeInfo {
 
             DataType::Char | DataType::VarChar | DataType::Binary | DataType::VarBinary => {
                 let size = buf.get_u8();
-                println!("small size: {}", size);
-
                 if size == 0xFF {
                     None
                 } else {
@@ -399,7 +397,6 @@ impl TypeInfo {
         };
 
         loop {
-            // We have no chunk. Start a new one.
             let chunk_size = buf.get_u32_le() as usize;
 
             if chunk_size == 0 {
@@ -458,7 +455,11 @@ impl TypeInfo {
             | DataType::NChar
             | DataType::Xml
             | DataType::UserDefined => {
-                self.put_short_len_value(buf, value);
+                if self.size == 0xFF_FF {
+                    self.put_big_blob(buf, value);
+                } else {
+                    self.put_short_len_value(buf, value);
+                }
             }
 
             DataType::Text | DataType::Image | DataType::NText | DataType::Variant => {
@@ -499,6 +500,25 @@ impl TypeInfo {
         };
 
         buf[offset..(offset + 2)].copy_from_slice(&size.to_le_bytes());
+    }
+
+    pub(crate) fn put_big_blob<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
+        // Multiple chunks, are not supported yet
+        let start_of_value = buf.len();
+        buf.extend(&0_u64.to_le_bytes()); // total blob length
+        let start_of_chunk = buf.len();
+        buf.extend(&0_u32.to_le_bytes()); // chunk length
+        let start_of_bytes = buf.len();
+
+        let size = if let IsNull::Yes = value.encode(buf) {
+            unimplemented!("Writing NULL blobs not implemented");
+        } else {
+            u32::try_from(buf.len() - start_of_bytes).expect("blogs >4GB not supported")
+        };
+
+        buf[start_of_value..(start_of_value + 4)].copy_from_slice(&size.to_le_bytes());
+        buf[start_of_chunk..(start_of_chunk + 4)].copy_from_slice(&size.to_le_bytes());
+        buf.extend(&0_u32.to_le_bytes()); // end of chunks marker
     }
 
     pub(crate) fn put_long_len_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
@@ -586,12 +606,28 @@ impl TypeInfo {
                 n => unreachable!("invalid size {} for float", n),
             }),
 
+            DataType::NVarChar | DataType::NChar => {
+                // name
+                s.push_str(match self.ty {
+                    DataType::NVarChar => "nvarchar",
+                    DataType::NChar => "nchar",
+                    _ => unreachable!(),
+                });
+
+                if self.size == 0xFF_FF {
+                    s.push_str("(max)");
+                } else {
+                    s.push('(');
+                    let size_in_characters = self.size / 2;
+                    s.push_str(itoa::Buffer::new().format(size_in_characters));
+                    s.push(')');
+                }
+            }
+
             DataType::VarChar
-            | DataType::NVarChar
             | DataType::BigVarChar
             | DataType::Char
             | DataType::BigChar
-            | DataType::NChar
             | DataType::VarBinary
             | DataType::BigVarBinary
             | DataType::Binary
@@ -599,28 +635,23 @@ impl TypeInfo {
                 // name
                 s.push_str(match self.ty {
                     DataType::VarChar => "varchar",
-                    DataType::NVarChar => "nvarchar",
                     DataType::BigVarChar => "bigvarchar",
                     DataType::Char => "char",
                     DataType::BigChar => "bigchar",
-                    DataType::NChar => "nchar",
                     DataType::VarBinary => "varbinary",
                     DataType::BigVarBinary => "varbinary",
                     DataType::Binary => "binary",
                     DataType::BigBinary => "binary",
-
                     _ => unreachable!(),
                 });
 
-                // size
-                if self.size < 8000 && self.size > 0 {
-                    s.push_str("(");
-                    s.push_str(itoa::Buffer::new().format(self.size / 2));
-                    s.push_str(")");
-                } else {
+                if self.size == 0xFF_FF {
                     s.push_str("(max)");
+                } else {
+                    s.push('(');
+                    s.push_str(itoa::Buffer::new().format(self.size));
+                    s.push(')');
                 }
-                println!("size: {}, s={}", self.size, s);
             }
 
             DataType::BitN => {

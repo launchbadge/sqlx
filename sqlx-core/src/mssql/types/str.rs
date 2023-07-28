@@ -9,7 +9,7 @@ use std::borrow::Cow;
 
 impl Type<Mssql> for str {
     fn type_info() -> MssqlTypeInfo {
-        MssqlTypeInfo(TypeInfo::new(DataType::NVarChar, 0))
+        MssqlTypeInfo(TypeInfo::new(DataType::NVarChar, 0xFF_FF))
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
@@ -37,10 +37,16 @@ impl Type<Mssql> for String {
 
 impl Encode<'_, Mssql> for &'_ str {
     fn produces(&self) -> Option<MssqlTypeInfo> {
-        // an empty string needs to be encoded as `nvarchar(2)`
+        let len = self.encode_utf16().count().checked_mul(2)?;
+        let size = if len <= 4000 {
+            // an empty string needs to be encoded as `nvarchar(2)`
+            (len as u32).max(2)
+        } else {
+            0xFF_FF
+        };
         Some(MssqlTypeInfo(TypeInfo {
             ty: DataType::NVarChar,
-            size: ((self.len() * 2) as u32).max(2),
+            size,
             scale: 0,
             precision: 0,
             collation: Some(Collation {
