@@ -514,6 +514,10 @@ impl TypeInfo {
             DataType::Char => "CHAR",
             DataType::BigChar => "BIGCHAR",
             DataType::NChar => "NCHAR",
+            DataType::VarBinary => "VARBINARY",
+            DataType::BigVarBinary => "BIGVARBINARY",
+            DataType::Binary => "BINARY",
+            DataType::BigBinary => "BIGBINARY",
             DataType::DateN => "DATE",
             DataType::DateTimeN => "DATETIME",
             DataType::DateTime2N => "DATETIME2",
@@ -555,7 +559,11 @@ impl TypeInfo {
             | DataType::BigVarChar
             | DataType::Char
             | DataType::BigChar
-            | DataType::NChar => {
+            | DataType::NChar
+            | DataType::VarBinary
+            | DataType::BigVarBinary
+            | DataType::Binary
+            | DataType::BigBinary => {
                 // name
                 s.push_str(match self.ty {
                     DataType::VarChar => "varchar",
@@ -564,6 +572,10 @@ impl TypeInfo {
                     DataType::Char => "char",
                     DataType::BigChar => "bigchar",
                     DataType::NChar => "nchar",
+                    DataType::VarBinary => "varbinary",
+                    DataType::BigVarBinary => "varbinary",
+                    DataType::Binary => "binary",
+                    DataType::BigBinary => "binary",
 
                     _ => unreachable!(),
                 });

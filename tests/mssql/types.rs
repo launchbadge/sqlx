@@ -49,10 +49,15 @@ test_type!(bool(
     "CAST(0 as BIT)" == false
 ));
 
+test_type!(bytes<Vec<u8>>(Mssql,
+    "0xDEADBEEF" == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
+    "CAST(' ' AS VARBINARY)" == vec![0x20_u8],
+));
+
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
 
     test_type!(NaiveDateTime(
         Mssql,
