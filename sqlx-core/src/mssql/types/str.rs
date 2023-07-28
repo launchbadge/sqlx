@@ -37,7 +37,7 @@ impl Type<Mssql> for String {
 
 impl Encode<'_, Mssql> for &'_ str {
     fn produces(&self) -> Option<MssqlTypeInfo> {
-        let len = self.encode_utf16().count().checked_mul(2)?;
+        let len = self.len().checked_mul(2)?;
         let size = if len <= 4000 {
             // an empty string needs to be encoded as `nvarchar(2)`
             (len as u32).max(2)
@@ -50,7 +50,7 @@ impl Encode<'_, Mssql> for &'_ str {
             scale: 0,
             precision: 0,
             collation: Some(Collation {
-                locale: 1033,
+                locale: 0x0481,
                 flags: CollationFlags::IGNORE_CASE
                     | CollationFlags::IGNORE_WIDTH
                     | CollationFlags::IGNORE_KANA,

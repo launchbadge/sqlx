@@ -9,9 +9,10 @@ test_type!(str<String>(Mssql,
     "REPLICATE('a', 910)" == "a".repeat(910),
 ));
 
-// test_type!(str_unicode<String>(Mssql,
-//     "'￮'" == "￮",
-// ));
+test_type!(str_unicode<String>(Mssql,
+    "N'￮'" == "￮",
+    "REPLICATE(N'￮',904)" == "￮".repeat(904),
+));
 
 // test_type!(long_str<String>(Mssql,
 //     "REPLICATE('a', 912)" == "a".repeat(912),
