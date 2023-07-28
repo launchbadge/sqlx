@@ -86,7 +86,8 @@ impl MssqlStream {
 
         // overwrite the packet length now that we know it
         let len = self.inner.wbuf.len();
-        self.inner.wbuf[len_offset..(len_offset + 2)].copy_from_slice(&(len as u16).to_be_bytes());
+        let short_len = u16::try_from(len).expect("packet length overflowed");
+        self.inner.wbuf[len_offset..(len_offset + 2)].copy_from_slice(&short_len.to_be_bytes());
     }
 
     // receive the next packet from the database

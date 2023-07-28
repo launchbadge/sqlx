@@ -183,6 +183,18 @@ async fn it_binds_empty_string_and_null() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[ignore = "TODO: implement packet chunking"]
+#[sqlx_macros::test]
+async fn it_accepts_long_query_strings() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+    // try a query that does not fit in a single TDS packet
+    let (n,): (i32,) = sqlx_oldapi::query_as(&format!("SELECT {} 42", " ".repeat(0x1_00_00)))
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(n, 42);
+    Ok(())
+}
+
 #[sqlx_macros::test]
 async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
