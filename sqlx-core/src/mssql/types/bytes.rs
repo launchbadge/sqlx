@@ -14,10 +14,7 @@ impl Type<Mssql> for [u8] {
     fn compatible(ty: &MssqlTypeInfo) -> bool {
         matches!(
             ty.0.ty,
-            DataType::VarBinary
-              | DataType::Binary
-              | DataType::BigVarBinary
-              | DataType::BigBinary
+            DataType::VarBinary | DataType::Binary | DataType::BigVarBinary | DataType::BigBinary
         )
     }
 }
@@ -25,7 +22,10 @@ impl Type<Mssql> for [u8] {
 impl Encode<'_, Mssql> for &'_ [u8] {
     fn produces(&self) -> Option<MssqlTypeInfo> {
         if let Ok(short_size) = u32::try_from(self.len()) {
-            return Some(MssqlTypeInfo(TypeInfo::new(DataType::BigVarBinary, short_size)));
+            return Some(MssqlTypeInfo(TypeInfo::new(
+                DataType::BigVarBinary,
+                short_size,
+            )));
         } else {
             return Some(MssqlTypeInfo(TypeInfo::new(DataType::Image, 0)));
         }
@@ -68,9 +68,6 @@ impl Decode<'_, Mssql> for Vec<u8> {
         <&[u8] as Decode<Mssql>>::decode(value).map(ToOwned::to_owned)
     }
 }
-
-
-
 
 impl<'r> Type<Mssql> for Cow<'r, [u8]> {
     fn type_info() -> MssqlTypeInfo {
