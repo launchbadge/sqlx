@@ -1,3 +1,15 @@
+> This is a fork of the original [sqlx](https://github.com/launchbadge/sqlx) library by @launchbadge.
+> sqlx v0.7 broke backwards compatibility with v0.6 in a way that makes it difficult to upgrade.
+> sqlx v0.7 also removed support for Microsoft SQL Server (to sell it as a separate commercial product).
+> This fork is intended to be a drop-in replacement for sqlx v0.6, with the following changes:
+> - Updated to use the latest versions of dependencies, including
+>    - All missing security updates
+>    - Latest SQLite version
+> - Improved support for Microsoft SQL Server, including:
+>     -   Support for reading and writing `binary` and `varbinary` data
+>     -   Support for reading and writing `date`, `dateime`, and `datetimeoffset` data using the `chrono` feature.
+>     -   Multiple bug fixes around string handling, including better support for long strings
+
 <h1 align="center">SQLx</h1>
 <div align="center">
  <strong>
