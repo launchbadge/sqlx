@@ -21,14 +21,12 @@ impl Type<Mssql> for [u8] {
 
 impl Encode<'_, Mssql> for &'_ [u8] {
     fn produces(&self) -> Option<MssqlTypeInfo> {
-        if let Ok(short_size) = u32::try_from(self.len()) {
-            return Some(MssqlTypeInfo(TypeInfo::new(
-                DataType::BigVarBinary,
-                short_size,
-            )));
+        let size = if self.len() <= 8000 {
+            u32::try_from(self.len()).unwrap()
         } else {
-            return Some(MssqlTypeInfo(TypeInfo::new(DataType::Image, 0)));
-        }
+            0xFF_FF
+        };
+        return Some(MssqlTypeInfo(TypeInfo::new(DataType::BigVarBinary, size)));
     }
 
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {

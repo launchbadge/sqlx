@@ -11,7 +11,7 @@ test_type!(str<String>(Mssql,
 
 test_type!(str_unicode<String>(Mssql, "N'￮'" == "￮"));
 
-test_type!(long_str<String>(Mssql, 
+test_type!(long_str<String>(Mssql,
     "REPLICATE(CAST('a' AS VARCHAR), 8000)" == "a".repeat(8000),
     "REPLICATE(CAST('a' AS VARCHAR(max)), 8192)" == "a".repeat(8192),
     "REPLICATE(CAST('a' AS NVARCHAR(max)), 8192)" == "a".repeat(8192),
@@ -65,6 +65,10 @@ test_type!(bytes<Vec<u8>>(Mssql,
     "0xDEADBEEF" == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
     "CAST(' ' AS VARBINARY)" == vec![0x20_u8],
     "CAST(REPLICATE(' ', 31) AS VARBINARY(max))" == vec![0x20_u8; 31],
+));
+
+test_type!(long_byte_buffer<Vec<u8>>(Mssql,
+    "CAST(REPLICATE(CAST(' ' AS VARCHAR(max)), 100000) AS VARBINARY(max))" == vec![0x20_u8; 100000],
 ));
 
 #[cfg(feature = "chrono")]
