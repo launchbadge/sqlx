@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.6
+
+ - Fixed multiple issues with the mssql driver
+   - Fixed issues with large strings
+   - Fixed issues with large SQL queries
+   - Added support for encoding and decoding dates and times
+   - Added support for encoding and decoding binary data
+
 ## 0.6.5
 
  - Updated more outdated dependencies and legacy code
