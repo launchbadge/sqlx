@@ -75,6 +75,11 @@ test_type!(empty_varbinary<Vec<u8>>(Mssql,
     "CAST('' AS VARBINARY)" == Vec::<u8>::new(),
 ));
 
+test_type!(null_varbinary<Option<Vec<u8>>>(Mssql,
+    "CAST(NULL AS VARBINARY)" == None::<Vec<u8>>,
+    "CAST(NULL AS VARBINARY(max))" == None::<Vec<u8>>,
+));
+
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;

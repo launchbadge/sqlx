@@ -511,9 +511,9 @@ impl TypeInfo {
         let start_of_bytes = buf.len();
 
         let size = if let IsNull::Yes = value.encode(buf) {
-            unimplemented!("Writing NULL blobs not implemented");
+            unreachable!("put_big_blob should never be called with NULL value");
         } else {
-            u32::try_from(buf.len() - start_of_bytes).expect("blogs >4GB not supported")
+            u32::try_from(buf.len() - start_of_bytes).expect("blobs >4GB not supported")
         };
 
         buf[start_of_value..(start_of_value + 4)].copy_from_slice(&size.to_le_bytes());
