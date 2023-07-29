@@ -42,7 +42,7 @@ impl MssqlConnection {
                 version: 0x74000004, // SQL Server 2012 - SQL Server 2019
                 client_program_version: 0,
                 client_pid: 0,
-                packet_size: 32767, // max allowed size of TDS packet
+                packet_size: options.requested_packet_size, // max allowed size of TDS packet
                 hostname: "",
                 username: &options.username,
                 password: options.password.as_deref().unwrap_or_default(),

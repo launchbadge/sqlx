@@ -11,6 +11,8 @@ pub struct MssqlConnectOptions {
     pub(crate) database: String,
     pub(crate) password: Option<String>,
     pub(crate) log_settings: LogSettings,
+    /// Size in bytes of TDS packets to exchange with the server
+    pub(crate) requested_packet_size: u32,
 }
 
 impl Default for MssqlConnectOptions {
@@ -28,6 +30,7 @@ impl MssqlConnectOptions {
             username: String::from("sa"),
             password: None,
             log_settings: Default::default(),
+            requested_packet_size: 4096,
         }
     }
 
@@ -54,5 +57,16 @@ impl MssqlConnectOptions {
     pub fn database(mut self, database: &str) -> Self {
         self.database = database.to_owned();
         self
+    }
+
+    /// Size in bytes of TDS packets to exchange with the server.
+    /// Returns an error if the size is smaller than 512 bytes
+    pub fn requested_packet_size(mut self, size: u32) -> Result<Self, Self> {
+        if size < 512 {
+            Err(self)
+        } else {
+            self.requested_packet_size = size;
+            Ok(self)
+        }
     }
 }

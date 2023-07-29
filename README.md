@@ -9,6 +9,7 @@
 >     -   Support for reading and writing `binary` and `varbinary` data
 >     -   Support for reading and writing `date`, `dateime`, and `datetimeoffset` data using the `chrono` feature.
 >     -   Multiple bug fixes around string handling, including better support for long strings
+>     -   Support for packet chunking, which fixes a bug where large bound parameters or large queries would fail
 
 <h1 align="center">SQLx</h1>
 <div align="center">
@@ -21,24 +22,20 @@
 
 <div align="center">
   <!-- Github Actions -->
-  <img src="https://img.shields.io/github/workflow/status/launchbadge/sqlx/SQLx?style=flat-square" alt="actions status" />
+  <img src="https://img.shields.io/github/workflow/status/lovasoa/sqlx/SQLx?style=flat-square" alt="actions status" />
   <!-- Version -->
-  <a href="https://crates.io/crates/sqlx">
-    <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
+  <a href="https://crates.io/crates/sqlx-oldapi">
+    <img src="https://img.shields.io/crates/v/sqlx-oldapi.svg?style=flat-square"
     alt="Crates.io version" />
   </a>
-  <!-- Discord -->
-  <a href="https://discord.gg/uuruzJ7">
-    <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
-  </a>
   <!-- Docs -->
-  <a href="https://docs.rs/sqlx">
+  <a href="https://docs.rs/sqlx-oldapi">
     <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
       alt="docs.rs docs" />
   </a>
   <!-- Downloads -->
-  <a href="https://crates.io/crates/sqlx">
-    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
+  <a href="https://crates.io/crates/sqlx-oldapi">
+    <img src="https://img.shields.io/crates/d/sqlx-oldapi.svg?style=flat-square"
       alt="Download" />
   </a>
 </div>
@@ -53,16 +50,10 @@
       Usage
     </a>
     <span> | </span>
-    <a href="https://docs.rs/sqlx">
+    <a href="https://docs.rs/sqlx-oldapi">
       Docs
     </a>
   </h4>
-</div>
-
-<br />
-
-<div align="center">
-  <small>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a></small>
 </div>
 
 <br />

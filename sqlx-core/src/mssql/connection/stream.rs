@@ -14,7 +14,7 @@ use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::{Message, MessageType};
 use crate::mssql::protocol::order::Order;
-use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
+use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status, PACKET_HEADER_SIZE};
 use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
@@ -41,6 +41,9 @@ pub(crate) struct MssqlStream {
     // we need to store this as its needed when decoding <Row>
     pub(crate) columns: Arc<Vec<MssqlColumn>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
+
+    // Maximum size of packets to send to the server
+    pub(crate) max_packet_size: usize,
 }
 
 impl MssqlStream {
@@ -57,37 +60,16 @@ impl MssqlStream {
             pending_done_count: 0,
             transaction_descriptor: 0,
             transaction_depth: 0,
+            max_packet_size: options
+                .requested_packet_size
+                .try_into()
+                .unwrap_or(usize::MAX),
         })
     }
 
     // writes the packet out to the write buffer
-    // will (eventually) handle packet chunking
     pub(crate) fn write_packet<'en, T: Encode<'en>>(&mut self, ty: PacketType, payload: T) {
-        // TODO: Support packet chunking for large packet sizes
-        //       We likely need to double-buffer the writes so we know to chunk
-
-        // write out the packet header, leaving room for setting the packet length later
-
-        let mut len_offset = 0;
-
-        self.inner.write_with(
-            PacketHeader {
-                r#type: ty,
-                status: Status::END_OF_MESSAGE,
-                length: 0,
-                server_process_id: 0,
-                packet_id: 1,
-            },
-            &mut len_offset,
-        );
-
-        // write out the payload
-        self.inner.write(payload);
-
-        // overwrite the packet length now that we know it
-        let len = self.inner.wbuf.len();
-        let short_len = u16::try_from(len).expect("packet length overflowed");
-        self.inner.wbuf[len_offset..(len_offset + 2)].copy_from_slice(&short_len.to_be_bytes());
+        write_packets(&mut self.inner.wbuf, self.max_packet_size, ty, payload)
     }
 
     // receive the next packet from the database
@@ -145,6 +127,10 @@ impl MssqlStream {
 
                             EnvChange::CommitTransaction(_) | EnvChange::RollbackTransaction(_) => {
                                 self.transaction_descriptor = 0;
+                            }
+
+                            EnvChange::PacketSize(size) => {
+                                self.max_packet_size = size.clamp(512, 32767).try_into().unwrap();
                             }
 
                             _ => {}
@@ -220,6 +206,110 @@ impl MssqlStream {
 
         Ok(())
     }
+}
+
+// writes the packet out to the write buffer
+fn write_packets<'en, T: Encode<'en>>(
+    buffer: &mut Vec<u8>,
+    max_packet_size: usize,
+    ty: PacketType,
+    payload: T,
+) {
+    assert!(buffer.is_empty());
+
+    let mut packet_header = [0u8; PACKET_HEADER_SIZE].to_vec();
+    // leave room for setting the packet header later
+    buffer.extend_from_slice(&packet_header);
+
+    // write out the payload
+    payload.encode(buffer);
+
+    let len = buffer.len() - PACKET_HEADER_SIZE;
+
+    let max_packet_contents_size = max_packet_size - PACKET_HEADER_SIZE;
+    let mut packet_count = len / max_packet_contents_size;
+    let last_packet_contents_size = len % max_packet_contents_size;
+    if last_packet_contents_size > 0 {
+        packet_count += 1;
+    }
+
+    // Add space for the missing packet headers
+    buffer.resize(len + PACKET_HEADER_SIZE * packet_count, 0);
+    // Iterate over packets starting from the end in order to never overwrite an existing packet
+    for packet_index in (0..packet_count).rev() {
+        let header_start = packet_index * max_packet_size;
+        let target_contents_start = header_start + PACKET_HEADER_SIZE;
+        let is_last = packet_index + 1 == packet_count;
+        let packet_contents_size = if is_last && last_packet_contents_size > 0 {
+            last_packet_contents_size
+        } else {
+            max_packet_contents_size
+        };
+        let packet_size = packet_contents_size + PACKET_HEADER_SIZE;
+        let current_contents_start = PACKET_HEADER_SIZE + packet_index * max_packet_contents_size;
+        let current_contents_end = current_contents_start + packet_contents_size;
+
+        if current_contents_start != target_contents_start {
+            assert!(current_contents_start < target_contents_start);
+            buffer.copy_within(
+                current_contents_start..current_contents_end,
+                target_contents_start,
+            );
+        }
+
+        packet_header.truncate(0);
+        PacketHeader {
+            r#type: ty,
+            status: if is_last {
+                Status::END_OF_MESSAGE
+            } else {
+                Status::NORMAL
+            },
+            length: u16::try_from(packet_size).expect("packet size impossibly large"),
+            server_process_id: 0,
+            packet_id: 1,
+        }
+        .encode(&mut packet_header);
+        assert_eq!(packet_header.len(), PACKET_HEADER_SIZE);
+        buffer[header_start..target_contents_start].copy_from_slice(&packet_header);
+    }
+}
+
+#[test]
+fn test_write_packets() {
+    let mut buffer = Vec::<u8>::new();
+    // small packet sizes are forbidden, but easy for testing
+    write_packets(
+        &mut buffer,
+        PACKET_HEADER_SIZE + 4,
+        PacketType::Rpc,
+        &b"123456789"[..],
+    );
+    // Our 9-byte string was split into 3 packets, each with an 8-byte header
+    let expected = b"\
+        \x03\x00\x00\x0C\x00\x00\x01\x00\
+        1234\
+        \x03\x00\x00\x0C\x00\x00\x01\x00\
+        5678\
+        \x03\x01\x00\x09\x00\x00\x01\x00\
+        9";
+    assert_eq!(buffer, expected);
+
+    // Test the case when there is no smaller packet in the end
+    buffer.truncate(0);
+    write_packets(
+        &mut buffer,
+        PACKET_HEADER_SIZE + 4,
+        PacketType::Rpc,
+        &b"12345678"[..],
+    );
+    // Our 9-byte string was split into 3 packets, each with an 8-byte header
+    let expected = b"\
+        \x03\x00\x00\x0C\x00\x00\x01\x00\
+        1234\
+        \x03\x01\x00\x0C\x00\x00\x01\x00\
+        5678";
+    assert_eq!(buffer, expected);
 }
 
 impl Deref for MssqlStream {

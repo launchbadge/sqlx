@@ -9,7 +9,7 @@ pub(crate) enum EnvChange {
     Database(String),
     Language(String),
     CharacterSet(String),
-    PacketSize(String),
+    PacketSize(u32),
     UnicodeDataSortingLocalId(String),
     UnicodeDataSortingComparisonFlags(String),
     SqlCollation(Bytes),
@@ -41,7 +41,13 @@ impl EnvChange {
             1 => EnvChange::Database(data.get_b_varchar()?),
             2 => EnvChange::Language(data.get_b_varchar()?),
             3 => EnvChange::CharacterSet(data.get_b_varchar()?),
-            4 => EnvChange::PacketSize(data.get_b_varchar()?),
+            4 => {
+                let size_str = data.get_b_varchar()?;
+                let size = size_str
+                    .parse()
+                    .map_err(|e| err_protocol!("Invalid packet size {}: {}", size_str, e))?;
+                EnvChange::PacketSize(size)
+            }
             5 => EnvChange::UnicodeDataSortingLocalId(data.get_b_varchar()?),
             6 => EnvChange::UnicodeDataSortingComparisonFlags(data.get_b_varchar()?),
             7 => EnvChange::SqlCollation(data.get_b_varbyte()),

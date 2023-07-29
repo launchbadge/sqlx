@@ -4,6 +4,8 @@ use bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::io::{Decode, Encode};
 
+pub(crate) const PACKET_HEADER_SIZE: usize = 8;
+
 #[derive(Debug)]
 pub(crate) struct PacketHeader {
     // Type defines the type of message. Type is a 1-byte unsigned char.
@@ -25,12 +27,11 @@ pub(crate) struct PacketHeader {
     pub(crate) packet_id: u8,
 }
 
-impl<'s> Encode<'s, &'s mut usize> for PacketHeader {
-    fn encode_with(&self, buf: &mut Vec<u8>, offset: &'s mut usize) {
+impl<'s> Encode<'s, ()> for PacketHeader {
+    fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
         buf.push(self.r#type as u8);
         buf.push(self.status.bits());
 
-        *offset = buf.len();
         buf.extend(&self.length.to_be_bytes());
 
         buf.extend(&self.server_process_id.to_be_bytes());

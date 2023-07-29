@@ -183,7 +183,6 @@ async fn it_binds_empty_string_and_null() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[ignore = "TODO: implement packet chunking"]
 #[sqlx_macros::test]
 async fn it_accepts_long_query_strings() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
