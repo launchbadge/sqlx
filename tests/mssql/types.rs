@@ -71,6 +71,10 @@ test_type!(long_byte_buffer<Vec<u8>>(Mssql,
     "CAST(REPLICATE(CAST(' ' AS VARCHAR(max)), 100000) AS VARBINARY(max))" == vec![0x20_u8; 100000],
 ));
 
+test_type!(empty_varbinary<Vec<u8>>(Mssql,
+    "CAST('' AS VARBINARY)" == Vec::<u8>::new(),
+));
+
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;

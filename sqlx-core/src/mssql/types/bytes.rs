@@ -22,7 +22,7 @@ impl Type<Mssql> for [u8] {
 impl Encode<'_, Mssql> for &'_ [u8] {
     fn produces(&self) -> Option<MssqlTypeInfo> {
         let size = if self.len() <= 8000 {
-            u32::try_from(self.len()).unwrap()
+            u32::try_from(self.len()).unwrap().max(1)
         } else {
             0xFF_FF
         };
