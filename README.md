@@ -22,7 +22,7 @@
 
 <div align="center">
   <!-- Github Actions -->
-  <img src="https://img.shields.io/github/workflow/status/lovasoa/sqlx/SQLx?style=flat-square" alt="actions status" />
+  <img src="https://img.shields.io/github/actions/workflow/status/lovasoa/sqlx/sqlx.yml?branch=main" alt="actions status" />
   <!-- Version -->
   <a href="https://crates.io/crates/sqlx-oldapi">
     <img src="https://img.shields.io/crates/v/sqlx-oldapi.svg?style=flat-square"
