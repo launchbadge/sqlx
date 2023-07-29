@@ -11,7 +11,12 @@ test_type!(str<String>(Mssql,
 
 test_type!(str_unicode<String>(Mssql, "N'￮'" == "￮"));
 
-test_type!(long_str<String>(Mssql, "REPLICATE('a', 4096)" == "a".repeat(4096)));
+test_type!(long_str<String>(Mssql, 
+    "REPLICATE(CAST('a' AS VARCHAR), 8000)" == "a".repeat(8000),
+    "REPLICATE(CAST('a' AS VARCHAR(max)), 8192)" == "a".repeat(8192),
+    "REPLICATE(CAST('a' AS NVARCHAR(max)), 8192)" == "a".repeat(8192),
+    "REPLICATE(CAST('a' AS VARCHAR(max)), 100000)" == "a".repeat(100_000),
+));
 
 test_type!(null<Option<i32>>(Mssql,
     "CAST(NULL as INT)" == None::<i32>
