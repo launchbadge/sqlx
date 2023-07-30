@@ -1,8 +1,9 @@
 on:
+  workflow_dispatch: {}
   push:
+    # Sequence of patterns matched against refs/tags
     tags:
-      - "*"
-  workflow_dispatch:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Publish
 
