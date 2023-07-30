@@ -5,7 +5,7 @@ use chrono::{
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{self, BoxDynError};
 use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo, MssqlValueRef};
 use crate::types::Type;
@@ -46,6 +46,23 @@ impl Type<Mssql> for NaiveDate {
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
         matches!(ty.0.ty, DataType::DateN)
+    }
+}
+
+/// Provides conversion of chrono::NaiveTime to MS SQL Time
+impl Type<Mssql> for NaiveTime {
+    fn type_info() -> MssqlTypeInfo {
+        MssqlTypeInfo(TypeInfo {
+            scale: 7,
+            ty: DataType::TimeN,
+            size: 5,
+            collation: None,
+            precision: 0,
+        })
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::TimeN)
     }
 }
 
@@ -113,6 +130,15 @@ impl Encode<'_, Mssql> for NaiveDate {
     }
 }
 
+/// Encodes Time objects for transfer over the wire
+impl Encode<'_, Mssql> for NaiveTime {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        let encoded = encode_time(self);
+        buf.extend_from_slice(&encoded);
+        IsNull::No
+    }
+}
+
 impl<T> Encode<'_, Mssql> for DateTime<T>
 where
     T: chrono::TimeZone,
@@ -128,40 +154,30 @@ where
 }
 
 /// Determines seconds since midnight and nanoseconds since the last second
-fn decode_time(scale: u8, data: &[u8]) -> (u32, u32) {
+fn decode_time(scale: u8, data: &[u8]) -> error::Result<NaiveTime> {
     let mut acc = 0u64;
     for i in (0..data.len()).rev() {
         acc <<= 8;
         acc |= data[i] as u64;
     }
     acc *= 10u64.pow(9u32 - scale as u32);
-    let seconds = acc / 1_000_000_000;
-    let ns = acc % 1_000_000_000;
-    (seconds as u32, ns as u32)
+    let seconds = u32::try_from(acc / 1_000_000_000).unwrap();
+    let ns = u32::try_from(acc % 1_000_000_000).unwrap();
+
+    chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds, ns)
+        .ok_or_else(|| err_protocol!("invalid time: seconds={} nanoseconds={}", seconds, ns))
 }
 
-fn decode_date(bytes: &[u8]) -> Result<NaiveDate, BoxDynError> {
+fn decode_date(bytes: &[u8]) -> error::Result<NaiveDate> {
     let days_from_ce = LittleEndian::read_i24(&bytes);
-    let date = chrono::NaiveDate::from_num_days_from_ce_opt(days_from_ce + 1)
-        .ok_or_else(|| err_protocol!("invalid days offset in date: {}", days_from_ce))?;
-    Ok(date)
+    chrono::NaiveDate::from_num_days_from_ce_opt(days_from_ce + 1)
+        .ok_or_else(|| err_protocol!("invalid days offset in date: {}", days_from_ce))
 }
 
 fn decode_datetime2(scale: u8, bytes: &[u8]) -> Result<NaiveDateTime, BoxDynError> {
     let timesize = bytes.len() - 3;
-
+    let time = decode_time(scale, &bytes[0..timesize])?;
     let day = decode_date(&bytes[timesize..])?;
-
-    let (seconds, nanoseconds) = decode_time(scale, &bytes[0..timesize]);
-    let time = chrono::NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanoseconds)
-        .ok_or_else(|| {
-            err_protocol!(
-                "invalid time: seconds={} nanoseconds={}",
-                seconds,
-                nanoseconds
-            )
-        })?;
-
     Ok(day.and_time(time))
 }
 
@@ -177,7 +193,17 @@ impl Decode<'_, Mssql> for NaiveDateTime {
 impl Decode<'_, Mssql> for NaiveDate {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = value.as_bytes()?;
-        decode_date(bytes)
+        let date = decode_date(bytes)?;
+        Ok(date)
+    }
+}
+
+/// Decodes Time values received from the server
+impl Decode<'_, Mssql> for NaiveTime {
+    fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        let bytes = value.as_bytes()?;
+        let time = decode_time(value.type_info.0.scale, bytes)?;
+        Ok(time)
     }
 }
 

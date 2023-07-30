@@ -83,6 +83,7 @@ test_type!(null_varbinary<Option<Vec<u8>>>(Mssql,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
+    use sqlx_core::types::chrono::NaiveTime;
     use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
 
     test_type!(NaiveDateTime(
@@ -101,5 +102,12 @@ mod chrono {
         Mssql,
         "CAST('1789-07-14' AS DATE)"
             == NaiveDate::parse_from_str("1789-07-14", "%Y-%m-%d").unwrap()
+    ));
+
+    test_type!(NaiveTime(
+        Mssql,
+        "CAST('23:59:59.9999' AS TIME)"
+            == NaiveTime::parse_from_str("23:59:59.9999", "%H:%M:%S%.f").unwrap(),
+        "CAST('00:00' AS TIME)" == NaiveTime::default(),
     ));
 }

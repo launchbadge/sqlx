@@ -678,6 +678,12 @@ impl TypeInfo {
                 s.push_str(")");
             }
 
+            DataType::TimeN => {
+                s.push_str("time(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),
         }
     }
