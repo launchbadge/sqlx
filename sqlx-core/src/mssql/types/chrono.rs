@@ -1,5 +1,7 @@
 use byteorder::{ByteOrder, LittleEndian};
-use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, Offset, Timelike};
+use chrono::{
+    DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Offset, Timelike,
+};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -66,48 +68,31 @@ where
     }
 }
 
-/// Split the time into days from Gregorian calendar, seconds and nanoseconds
-/// as required for DateTime2
-fn split_time(date_time: &NaiveDateTime) -> (i32, u32, u32) {
-    let mut days = date_time.num_days_from_ce() - 1;
-    let mut seconds = date_time.num_seconds_from_midnight();
-    let mut ns = date_time.nanosecond();
-
-    // this date format cannot encode anything outside of 0000-01-01 to 9999-12-31
-    // so it's best to do some bounds-checking
-    if days < 0 {
-        days = 0;
-        seconds = 0;
-        ns = 0;
-    } else if days > 3652058 {
-        // corresponds to 9999-12-31, the highest plausible value for YYYY-MM-DD
-        days = 3652058;
-        seconds = 59 + 59 * 60 + 23 * 3600;
-        ns = 999999900
-    }
-    (days, seconds, ns)
-}
-
-fn encode_date(datetime: &NaiveDate) -> [u8; 3] {
-    let days = datetime.num_days_from_ce() - 1;
+fn encode_date(date: &NaiveDate) -> [u8; 3] {
+    let days = date.num_days_from_ce() - 1;
     let mut date = [0u8; 3];
     LittleEndian::write_i24(&mut date, days);
     date
 }
 
 fn encode_date_time2(datetime: &NaiveDateTime) -> [u8; 8] {
-    let (days, seconds, ns) = split_time(datetime);
+    let date = datetime.date();
+    let time = datetime.time();
+    let mut buf = [0u8; 8];
+    buf[0..5].copy_from_slice(&encode_time(&time));
+    buf[5..8].copy_from_slice(&encode_date(&date));
+    buf
+}
 
+fn encode_time(time: &NaiveTime) -> [u8; 5] {
     // always use full scale, 7 digits for nanoseconds,
     // requiring 5 bytes for seconds + nanoseconds combined
-    let mut date = [0u8; 8];
-    let ns_total = (seconds as i64) * 1_000_000_000 + ns as i64;
-    let t = ns_total / 100;
-    for i in 0..5 {
-        date[i] = (t >> i * 8) as u8;
-    }
-    LittleEndian::write_i24(&mut date[5..8], days);
-    date
+    let seconds = time.num_seconds_from_midnight();
+    let ns = time.nanosecond();
+    let mut buf = [0u8; 5];
+    let total = i64::from(seconds) * 10_000_000 + i64::from(ns / 100);
+    buf.copy_from_slice(&total.to_le_bytes()[0..5]);
+    buf
 }
 
 /// Encodes DateTime objects for transfer over the wire
