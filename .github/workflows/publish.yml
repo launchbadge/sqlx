@@ -1,0 +1,25 @@
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+name: Publish
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@dd05243424bd5c0e585e4b55eb2d7615cdd32f1f
+      - run:
+          cargo publish ${ARGS} --package sqlx-rt-oldapi
+          cargo publish ${ARGS} --package sqlx-core-oldapi
+          cargo publish ${ARGS} --package sqlx-macros-oldapi
+          cargo publish ${ARGS} --package sqlx-oldapi
+        env:
+          ARGS: 
+            --token ${{ secrets.CRATES_TOKEN }}
+            --no-default-features
+            --features runtime-actix-rustls
