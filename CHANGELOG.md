@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.6.8
 
  - mssql: Add support for DATETIME and SMALLDATETIME (in addition to the existing DATETIME2)
+ - mssql: Add support for NUMERIC and DECIMAL types
+ - mssql: Avoid crashing the entire program when encountering an unknown type
 
 ## 0.6.7
 
