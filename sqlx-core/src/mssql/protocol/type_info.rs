@@ -293,9 +293,13 @@ impl TypeInfo {
                     buf.push(0);
                 }
             }
-
-            _ => {
-                unimplemented!("unsupported data type {:?}", self.ty);
+            DataType::Xml
+            | DataType::UserDefined
+            | DataType::Text
+            | DataType::Image
+            | DataType::NText
+            | DataType::Variant => {
+                log::error!("Unsupported mssql data type argument writing {:?}", self.ty);
             }
         }
     }
