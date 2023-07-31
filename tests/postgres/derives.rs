@@ -247,7 +247,7 @@ SELECT id, mood FROM people WHERE id = $1
     conn.close().await?;
     let mut conn = new::<Postgres>().await?;
 
-    let stmt = format!("SELECT id, mood FROM people WHERE id = {}", people_id);
+    let stmt = format!("SELECT id, mood FROM people WHERE id = {people_id}");
     dbg!(&stmt);
 
     let mut cursor = conn.fetch(&*stmt);
@@ -484,7 +484,7 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
     )
     .fetch_one(&mut conn)
     .await?;
-    println!("{:?}", account);
+    println!("{account:?}");
 
     assert_eq!(1, account.r#type);
     assert_eq!("foo", account.r#static);
@@ -522,7 +522,7 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
     )
     .fetch_one(&mut conn)
     .await?;
-    println!("{:?}", account);
+    println!("{account:?}");
 
     assert_eq!(1, account.own_type);
     assert_eq!("foo", account.my_static);
@@ -551,7 +551,7 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
     )
     .fetch_one(&mut conn)
     .await?;
-    println!("{:?}", account);
+    println!("{account:?}");
 
     assert_eq!(1, account.user_id);
     assert_eq!("foo", account.user_name);
@@ -613,7 +613,7 @@ async fn test_default() -> anyhow::Result<()> {
     let has_default: HasDefault = sqlx::query_as(r#"SELECT 1 AS not_default"#)
         .fetch_one(&mut conn)
         .await?;
-    println!("{:?}", has_default);
+    println!("{has_default:?}");
 
     assert_eq!(has_default.not_default, 1);
     assert_eq!(has_default.default, None);
@@ -652,7 +652,7 @@ async fn test_flatten() -> anyhow::Result<()> {
     )
     .fetch_one(&mut conn)
     .await?;
-    println!("{:?}", account);
+    println!("{account:?}");
 
     assert_eq!(1, account.id);
     assert_eq!("foo", account.info.name);
@@ -682,7 +682,7 @@ async fn test_skip() -> anyhow::Result<()> {
     let account: AccountKeyword = sqlx::query_as(r#"SELECT * from (VALUES (1)) accounts("id")"#)
         .fetch_one(&mut conn)
         .await?;
-    println!("{:?}", account);
+    println!("{account:?}");
 
     assert_eq!(1, account.id);
     assert_eq!(None, account.default.default);

@@ -191,7 +191,7 @@ where
             .is_err();
 
         if close_timed_out {
-            eprintln!("test {} held onto Pool after exiting", test_path);
+            eprintln!("test {test_path} held onto Pool after exiting");
         }
 
         res

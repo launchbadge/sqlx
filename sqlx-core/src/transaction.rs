@@ -244,7 +244,7 @@ pub fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
     if depth == 0 {
         Cow::Borrowed("BEGIN")
     } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", depth))
+        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{depth}"))
     }
 }
 

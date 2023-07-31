@@ -128,7 +128,7 @@ where
                         continue;
                     }
 
-                    query.push(format_args!("INSERT INTO {} (", table));
+                    query.push(format_args!("INSERT INTO {table} ("));
 
                     let mut separated = query.separated(", ");
 

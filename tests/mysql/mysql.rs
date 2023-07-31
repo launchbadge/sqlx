@@ -347,7 +347,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         .connect(&std::env::var("DATABASE_URL").unwrap())
         .await?;
 
-    println!("pool state: {:?}", pool);
+    println!("pool state: {pool:?}");
 
     let mut handles = vec![];
 
@@ -375,7 +375,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
                         println!("{} acquire took {:?}", i, start.elapsed());
                         drop(conn);
                     }
-                    Err(e) => panic!("{} acquire returned error: {} pool state: {:?}", i, e, pool),
+                    Err(e) => panic!("{i} acquire returned error: {e} pool state: {pool:?}"),
                 }
             }
 

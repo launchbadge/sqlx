@@ -196,7 +196,7 @@ impl SqliteConnectOptions {
             extensions: Default::default(),
             collations: Default::default(),
             serialized: false,
-            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
+            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{id}"))),
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,

@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut counter = 0usize;
     loop {
         let notification = listener.recv().await?;
-        println!("[from recv]: {:?}", notification);
+        println!("[from recv]: {notification:?}");
 
         counter += 1;
         if counter >= 3 {
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             res = stream.try_next() => {
                 if let Some(notification) = res? {
-                    println!("[from stream]: {:?}", notification);
+                    println!("[from stream]: {notification:?}");
                 } else {
                     break;
                 }
@@ -106,5 +106,5 @@ from (
     .execute(pool)
     .await;
 
-    println!("[from notify]: {:?}", res);
+    println!("[from notify]: {res:?}");
 }

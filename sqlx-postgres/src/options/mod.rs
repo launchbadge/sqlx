@@ -476,7 +476,7 @@ impl PgConnectOptions {
                 options_str.push(' ');
             }
 
-            write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
+            write!(options_str, "-c {k}={v}").expect("failed to write an option to the string");
         }
         self
     }
@@ -500,7 +500,7 @@ impl PgConnectOptions {
 
 fn default_host(port: u16) -> String {
     // try to check for the existence of a unix socket and uses that
-    let socket = format!(".s.PGSQL.{}", port);
+    let socket = format!(".s.PGSQL.{port}");
     let candidates = [
         "/var/run/postgresql", // Debian
         "/private/tmp",        // OSX (homebrew)

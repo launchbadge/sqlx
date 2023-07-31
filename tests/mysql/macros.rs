@@ -27,7 +27,7 @@ async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    println!("{:?}", account);
+    println!("{account:?}");
     println!("{}: {}", account.id, account.name);
 
     Ok(())
@@ -53,7 +53,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     assert_eq!(account.name, None);
     assert_eq!(account.r#type, 1);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }

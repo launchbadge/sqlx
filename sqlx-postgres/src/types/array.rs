@@ -196,7 +196,7 @@ where
                 }
 
                 if ndim != 1 {
-                    return Err(format!("encountered an array of {} dimensions; only one-dimensional arrays are supported", ndim).into());
+                    return Err(format!("encountered an array of {ndim} dimensions; only one-dimensional arrays are supported").into());
                 }
 
                 // appears to have been used in the past to communicate potential NULLS
@@ -222,7 +222,7 @@ where
                 let lower = buf.get_i32();
 
                 if lower != 1 {
-                    return Err(format!("encountered an array with a lower bound of {} in the first dimension; only arrays starting at one are supported", lower).into());
+                    return Err(format!("encountered an array with a lower bound of {lower} in the first dimension; only arrays starting at one are supported").into());
                 }
 
                 let mut elements = Vec::with_capacity(len as usize);

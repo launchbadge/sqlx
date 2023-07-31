@@ -37,7 +37,7 @@ impl MigrateDatabase for MySql {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!("CREATE DATABASE `{}`", database))
+                .execute(&*format!("CREATE DATABASE `{database}`"))
                 .await?;
 
             Ok(())
@@ -66,7 +66,7 @@ impl MigrateDatabase for MySql {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!("DROP DATABASE IF EXISTS `{}`", database,))
+                .execute(&*format!("DROP DATABASE IF EXISTS `{database}`"))
                 .await?;
 
             Ok(())

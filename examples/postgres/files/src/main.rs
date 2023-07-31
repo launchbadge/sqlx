@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     for post_with_author in posts_with_authors {
-        println!("{}", post_with_author);
+        println!("{post_with_author}");
     }
 
     Ok(())

@@ -70,7 +70,7 @@ pub fn quote_args<DB: DatabaseExt>(
                                     }
                                 })?
                                 .parse::<TokenStream>()
-                                .map_err(|_| format!("Rust type mapping for {} not parsable", param_ty))?
+                                .map_err(|_| format!("Rust type mapping for {param_ty} not parsable"))?
 
                         }
                     };

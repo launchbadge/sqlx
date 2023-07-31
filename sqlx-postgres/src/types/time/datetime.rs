@@ -62,7 +62,7 @@ impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
                 let s = if s.contains('.') {
                     Cow::Borrowed(s)
                 } else {
-                    Cow::Owned(format!("{}.0", s))
+                    Cow::Owned(format!("{s}.0"))
                 };
 
                 // Contains a time-zone specifier

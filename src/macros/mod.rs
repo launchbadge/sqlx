@@ -18,7 +18,7 @@
 ///     .await?;
 ///
 /// // anonymous struct has `#[derive(Debug)]` for convenience
-/// println!("{:?}", account);
+/// println!("{account:?}");
 /// println!("{}: {}", account.id, account.name);
 ///
 /// # Ok(())
@@ -86,7 +86,7 @@
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
-/// println!("{:?}", account);
+/// println!("{account:?}");
 /// println!("{}: {}", account.id, account.name);
 /// # Ok(())
 /// # }
@@ -369,7 +369,7 @@ macro_rules! query_unchecked (
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
-/// println!("{:?}", account);
+/// println!("{account:?}");
 /// println!("{}: {}", account.id, account.name);
 ///
 /// # Ok(())
@@ -452,7 +452,7 @@ macro_rules! query_file_unchecked (
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
-/// println!("{:?}", account);
+/// println!("{account:?}");
 /// println!("{}: {}", account.id, account.name);
 ///
 /// # Ok(())
@@ -589,7 +589,7 @@ macro_rules! query_as (
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
-/// println!("{:?}", account);
+/// println!("{account:?}");
 /// println!("{}: {}", account.id, account.name);
 ///
 /// # Ok(())

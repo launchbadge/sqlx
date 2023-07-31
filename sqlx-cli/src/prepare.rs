@@ -252,7 +252,7 @@ fn minimal_project_clean(
     for file in touch_paths {
         let now = filetime::FileTime::now();
         filetime::set_file_times(&file, now, now)
-            .with_context(|| format!("Failed to update mtime for {:?}", file))?;
+            .with_context(|| format!("Failed to update mtime for {file:?}"))?;
     }
 
     // Clean entire packages.

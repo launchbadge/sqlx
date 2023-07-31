@@ -21,16 +21,16 @@ async fn main() -> anyhow::Result<()> {
 
     match args.cmd {
         Some(Command::Add { description }) => {
-            println!("Adding new todo with description '{}'", &description);
+            println!("Adding new todo with description '{description}'");
             let todo_id = add_todo(&pool, description).await?;
-            println!("Added new todo with id {}", todo_id);
+            println!("Added new todo with id {todo_id}");
         }
         Some(Command::Done { id }) => {
-            println!("Marking todo {} as done", id);
+            println!("Marking todo {id} as done");
             if complete_todo(&pool, id).await? {
-                println!("Todo {} is marked as done", id);
+                println!("Todo {id} is marked as done");
             } else {
-                println!("Invalid id {}", id);
+                println!("Invalid id {id}");
             }
         }
         None => {

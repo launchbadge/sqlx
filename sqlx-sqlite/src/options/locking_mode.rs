@@ -35,7 +35,7 @@ impl FromStr for SqliteLockingMode {
 
             _ => {
                 return Err(Error::Configuration(
-                    format!("unknown value {:?} for `locking_mode`", s).into(),
+                    format!("unknown value {s:?} for `locking_mode`").into(),
                 ));
             }
         })
