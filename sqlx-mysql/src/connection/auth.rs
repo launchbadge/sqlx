@@ -27,6 +27,12 @@ impl AuthPlugin {
 
             // https://mariadb.com/kb/en/sha256_password-plugin/
             AuthPlugin::Sha256Password => encrypt_rsa(stream, 0x01, password, nonce).await,
+
+            AuthPlugin::MySqlClearPassword => {
+                let mut pw_bytes = password.as_bytes().to_owned();
+                pw_bytes.push(0); // null terminate
+                Ok(pw_bytes)
+            }
         }
     }
 
