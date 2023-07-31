@@ -86,7 +86,16 @@ mod chrono {
     use sqlx_core::types::chrono::NaiveTime;
     use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
 
-    test_type!(NaiveDateTime(
+    test_type!(old_datetime_type<DateTime<_>>(
+        Mssql,
+        "CAST('1901-05-08 23:58:59' as DateTime)"
+            == NaiveDateTime::parse_from_str("1901-05-08 23:58:59", "%Y-%m-%d %H:%M:%S")
+                .unwrap()
+                .and_utc()
+                .fixed_offset()
+    ));
+
+    test_type!(datetime2<NaiveDateTime>(
         Mssql,
         "CAST('2016-10-23 12:45:37.1234567' as DateTime2)"
             == NaiveDateTime::parse_from_str("2016-10-23 12:45:37.1234567", "%Y-%m-%d %H:%M:%S%.f")

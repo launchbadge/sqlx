@@ -81,7 +81,13 @@ where
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::DateTimeOffsetN)
+        matches!(
+            ty.0.ty,
+            DataType::DateTimeOffsetN
+                | DataType::DateTime
+                | DataType::DateTimeN
+                | DataType::SmallDateTime
+        )
     }
 }
 
@@ -181,11 +187,32 @@ fn decode_datetime2(scale: u8, bytes: &[u8]) -> Result<NaiveDateTime, BoxDynErro
     Ok(day.and_time(time))
 }
 
+// Decodes a DATETIME (the old TSQL date time type)
+fn decode_datetime(bytes: &[u8]) -> Result<DateTime<FixedOffset>, BoxDynError> {
+    let (date_bytes, time_bytes) = bytes.split_at(4);
+    let date_bytes = <[u8; 4]>::try_from(date_bytes)?;
+    let time_bytes = <[u8; 4]>::try_from(time_bytes)?;
+    let days = i32::from_le_bytes(date_bytes); // days since January 1, 1900
+    let t = u32::from_le_bytes(time_bytes); // three-hundredths of a second since midnight
+    let naive_date =
+        NaiveDate::from_ymd_opt(1900, 1, 1).unwrap() + chrono::Duration::days(i64::from(days));
+    let millis = i64::from(t) * 1000 / 300;
+    let naive_datetime =
+        naive_date.and_time(NaiveTime::default()) + chrono::Duration::milliseconds(millis);
+    Ok(naive_datetime.and_utc().fixed_offset())
+}
+
 /// Decodes DateTime2N values received from the server
 impl Decode<'_, Mssql> for NaiveDateTime {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = value.as_bytes()?;
-        decode_datetime2(value.type_info.0.scale, bytes)
+        match value.type_info.0.ty {
+            DataType::SmallDateTime => todo!(),
+            DataType::DateTimeN => todo!(),
+            DataType::DateTime2N => decode_datetime2(value.type_info.0.scale, bytes),
+            DataType::DateTimeOffsetN => todo!(),
+            _ => Err("unsupported datetime type".into()),
+        }
     }
 }
 
@@ -210,11 +237,21 @@ impl Decode<'_, Mssql> for NaiveTime {
 impl Decode<'_, Mssql> for DateTime<FixedOffset> {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = value.as_bytes()?;
-        let naive = decode_datetime2(value.type_info.0.scale, &bytes[..bytes.len() - 2])?;
-        let offset = LittleEndian::read_i16(&bytes[bytes.len() - 2..]);
-        let offset_parsed = FixedOffset::east_opt(i32::from(offset)).ok_or_else(|| {
-            Box::new(err_protocol!("invalid offset {} in DateTime2N", offset)) as BoxDynError
-        })?;
-        Ok(DateTime::from_utc(naive, offset_parsed))
+        let scale = value.type_info.0.scale;
+        match value.type_info.0.ty {
+            DataType::SmallDateTime => todo!(),
+            DataType::DateTimeN => decode_datetime(bytes),
+            DataType::DateTimeOffsetN => decode_datetimeoffset(scale, bytes),
+            _ => Err("unsupported datetime+offset type".into()),
+        }
     }
+}
+
+fn decode_datetimeoffset(scale: u8, bytes: &[u8]) -> Result<DateTime<FixedOffset>, BoxDynError> {
+    let naive = decode_datetime2(scale, &bytes[..bytes.len() - 2])?;
+    let offset = LittleEndian::read_i16(&bytes[bytes.len() - 2..]);
+    let offset_parsed = FixedOffset::east_opt(i32::from(offset)).ok_or_else(|| {
+        Box::new(err_protocol!("invalid offset {} in DateTime2N", offset)) as BoxDynError
+    })?;
+    Ok(DateTime::from_utc(naive, offset_parsed))
 }
