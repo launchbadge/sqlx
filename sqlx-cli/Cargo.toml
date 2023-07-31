@@ -66,3 +66,6 @@ sqlite = ["sqlx/sqlite"]
 openssl-vendored = ["openssl/vendored"]
 
 completions = ["dep:clap_complete"]
+
+[dev-dependencies]
+assert_cmd = "2.0.11"

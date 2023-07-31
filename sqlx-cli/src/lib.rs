@@ -35,13 +35,33 @@ pub async fn run(opt: Opt) -> Result<()> {
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::run(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::run(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Revert {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::revert(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::revert(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Info {
                 source,
                 connect_opts,

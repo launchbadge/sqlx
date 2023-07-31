@@ -267,8 +267,15 @@ pub async fn run(
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
+    target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
+    if let Some(target_version) = target_version {
+        if !migrator.iter().any(|m| target_version == m.version) {
+            bail!(MigrateError::VersionNotPresent(target_version));
+        }
+    }
+
     let mut conn = crate::connect(connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
@@ -280,6 +287,17 @@ pub async fn run(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version < latest_version {
+            bail!(MigrateError::VersionTooOld(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -299,12 +317,23 @@ pub async fn run(
                 }
             }
             None => {
-                let elapsed = if dry_run {
+                let skip = match target_version {
+                    Some(target_version) if migration.version > target_version => true,
+                    _ => false,
+                };
+
+                let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
                     conn.apply(migration).await?
                 };
-                let text = if dry_run { "Can apply" } else { "Applied" };
+                let text = if skip {
+                    "Skipped"
+                } else if dry_run {
+                    "Can apply"
+                } else {
+                    "Applied"
+                };
 
                 println!(
                     "{} {}/{} {} {}",
@@ -333,8 +362,15 @@ pub async fn revert(
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
+    target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
+    if let Some(target_version) = target_version {
+        if target_version != 0 && !migrator.iter().any(|m| target_version == m.version) {
+            bail!(MigrateError::VersionNotPresent(target_version));
+        }
+    }
+
     let mut conn = crate::connect(&connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
@@ -346,6 +382,17 @@ pub async fn revert(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version > latest_version {
+            bail!(MigrateError::VersionTooNew(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -361,12 +408,22 @@ pub async fn revert(
         }
 
         if applied_migrations.contains_key(&migration.version) {
-            let elapsed = if dry_run {
+            let skip = match target_version {
+                Some(target_version) if migration.version <= target_version => true,
+                _ => false,
+            };
+            let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
                 conn.revert(migration).await?
             };
-            let text = if dry_run { "Can apply" } else { "Applied" };
+            let text = if skip {
+                "Skipped"
+            } else if dry_run {
+                "Can apply"
+            } else {
+                "Applied"
+            };
 
             println!(
                 "{} {}/{} {} {}",
@@ -378,8 +435,12 @@ pub async fn revert(
             );
 
             is_applied = true;
-            // Only a single migration will be reverted at a time, so we break
-            break;
+
+            // Only a single migration will be reverted at a time if no target
+            // version is supplied, so we break.
+            if let None = target_version {
+                break;
+            }
         }
     }
     if !is_applied {

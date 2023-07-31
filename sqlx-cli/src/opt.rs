@@ -159,6 +159,11 @@ pub enum MigrateCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// Apply migrations up to the specified version. If unspecified, apply all
+        /// pending migrations. If already at the target version, then no-op.
+        #[clap(long)]
+        target_version: Option<i64>,
     },
 
     /// Revert the latest migration with a down file.
@@ -175,6 +180,12 @@ pub enum MigrateCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// Revert migrations down to the specified version. If unspecified, revert
+        /// only the last migration. Set to 0 to revert all migrations. If already
+        /// at the target version, then no-op.
+        #[clap(long)]
+        target_version: Option<i64>,
     },
 
     /// List all available migrations.
