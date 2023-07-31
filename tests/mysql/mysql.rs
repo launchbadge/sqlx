@@ -448,6 +448,35 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_handle_split_packets() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute("SET GLOBAL max_allowed_packet = 4294967297").await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE large_table (data LONGBLOB);
+        "#,
+    )
+    .await?;
+
+    let data = vec![0x41; 0xFF_FF_FF * 2];
+
+    sqlx::query("INSERT INTO large_table (data) VALUES (?)")
+        .bind(&data)
+        .execute(&mut conn)
+        .await?;
+
+    let ret: Vec<u8> = sqlx::query_scalar("SELECT * FROM large_table")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, data);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_shrink_buffers() -> anyhow::Result<()> {
     // We don't really have a good way to test that `.shrink_buffers()` functions as expected
     // without exposing a lot of internals, but we can at least be sure it doesn't

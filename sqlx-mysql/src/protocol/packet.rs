@@ -22,7 +22,7 @@ where
     ) {
         let mut next_header = |len: u32| {
             let mut buf = len.to_le_bytes();
-            buf[0] = *sequence_id;
+            buf[3] = *sequence_id;
             *sequence_id = sequence_id.wrapping_add(1);
 
             buf
@@ -53,7 +53,7 @@ where
                 buf.extend(chunk);
             }
 
-            // this will also handle adding a zero sized packet if this data size is a multiple of 0xFF_FF_FF
+            // this will also handle adding a zero sized packet if the data size is a multiple of 0xFF_FF_FF
             let remainder = chunks.remainder();
             buf.reserve(remainder.len() + 4);
             buf.extend(&next_header(remainder.len() as u32));
