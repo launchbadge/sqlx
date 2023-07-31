@@ -575,7 +575,25 @@ impl TypeInfo {
             DataType::DateTime2N => "DATETIME2",
             DataType::DateTimeOffsetN => "DATETIMEOFFSET",
 
-            _ => unimplemented!("name: unsupported data type {:?}", self.ty),
+            DataType::Bit => "BIT",
+            DataType::SmallDateTime => "SMALLDATETIME",
+            DataType::Money => "MONEY",
+            DataType::DateTime => "DATETIME",
+            DataType::SmallMoney => "SMALLMONEY",
+            DataType::Guid => "UNIQUEIDENTIFIER",
+            DataType::Decimal => "DECIMAL",
+            DataType::Numeric => "NUMERIC",
+            DataType::BitN => "BIT",
+            DataType::DecimalN => "DECIMAL",
+            DataType::NumericN => "NUMERIC",
+            DataType::MoneyN => "MONEY",
+            DataType::TimeN => "TIME",
+            DataType::Xml => "XML",
+            DataType::UserDefined => "USER_DEFINED_TYPE",
+            DataType::Text => "TEXT",
+            DataType::Image => "IMAGE",
+            DataType::NText => "NTEXT",
+            DataType::Variant => "SQL_VARIANT",
         }
     }
 
