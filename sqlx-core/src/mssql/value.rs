@@ -5,7 +5,7 @@ use bytes::Bytes;
 use std::borrow::Cow;
 
 /// Implementation of [`ValueRef`] for MSSQL.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MssqlValueRef<'r> {
     pub(crate) type_info: MssqlTypeInfo,
     pub(crate) data: Option<&'r Bytes>,

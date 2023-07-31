@@ -202,15 +202,25 @@ fn decode_datetime(bytes: &[u8]) -> Result<DateTime<FixedOffset>, BoxDynError> {
     Ok(naive_datetime.and_utc().fixed_offset())
 }
 
+fn decode_smalldatetime(bytes: &[u8]) -> Result<DateTime<FixedOffset>, BoxDynError> {
+    let (date_bytes, time_bytes) = bytes.split_at(2);
+    let date_bytes = <[u8; 2]>::try_from(date_bytes)?;
+    let time_bytes = <[u8; 2]>::try_from(time_bytes)?;
+    let days = u16::from_le_bytes(date_bytes); // days since January 1, 1900
+    let minutes = u16::from_le_bytes(time_bytes); // minutes since midnight
+    let naive_date =
+        NaiveDate::from_ymd_opt(1900, 1, 1).unwrap() + chrono::Duration::days(i64::from(days));
+    let naive_datetime =
+        naive_date.and_time(NaiveTime::default()) + chrono::Duration::minutes(i64::from(minutes));
+    Ok(naive_datetime.and_utc().fixed_offset())
+}
+
 /// Decodes DateTime2N values received from the server
 impl Decode<'_, Mssql> for NaiveDateTime {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = value.as_bytes()?;
         match value.type_info.0.ty {
-            DataType::SmallDateTime => todo!(),
-            DataType::DateTimeN => todo!(),
             DataType::DateTime2N => decode_datetime2(value.type_info.0.scale, bytes),
-            DataType::DateTimeOffsetN => todo!(),
             _ => Err("unsupported datetime type".into()),
         }
     }
@@ -238,12 +248,16 @@ impl Decode<'_, Mssql> for DateTime<FixedOffset> {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = value.as_bytes()?;
         let scale = value.type_info.0.scale;
+        let size = value.type_info.0.size;
         match value.type_info.0.ty {
-            DataType::SmallDateTime => todo!(),
-            DataType::DateTimeN => decode_datetime(bytes),
+            DataType::SmallDateTime | DataType::DateTimeN if size == 4 => {
+                decode_smalldatetime(bytes)
+            }
+            DataType::DateTimeN if size == 8 => decode_datetime(bytes),
             DataType::DateTimeOffsetN => decode_datetimeoffset(scale, bytes),
             _ => Err("unsupported datetime+offset type".into()),
         }
+        .map_err(|e| format!("failed to decode {:X?}: {}", value, e).into())
     }
 }
 

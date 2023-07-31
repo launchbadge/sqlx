@@ -86,6 +86,15 @@ mod chrono {
     use sqlx_core::types::chrono::NaiveTime;
     use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
 
+    test_type!(smalldatetime_type<DateTime<_>>(
+        Mssql,
+        "CAST('2023-07-31 23:59' as SmallDateTime)"
+            == NaiveDateTime::parse_from_str("2023-07-31 23:59", "%Y-%m-%d %H:%M")
+                .unwrap()
+                .and_utc()
+                .fixed_offset()
+    ));
+
     test_type!(old_datetime_type<DateTime<_>>(
         Mssql,
         "CAST('1901-05-08 23:58:59' as DateTime)"
