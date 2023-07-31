@@ -37,7 +37,15 @@ impl Type<Mssql> for f64 {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::Float | DataType::FloatN) && ty.0.size == 8
+        matches!(
+            ty.0.ty,
+            DataType::Float
+                | DataType::FloatN
+                | DataType::Decimal
+                | DataType::DecimalN
+                | DataType::Numeric
+                | DataType::NumericN
+        )
     }
 }
 
@@ -51,6 +59,33 @@ impl Encode<'_, Mssql> for f64 {
 
 impl Decode<'_, Mssql> for f64 {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(LittleEndian::read_f64(value.as_bytes()?))
+        let ty = value.type_info.0.ty;
+        let size = value.type_info.0.size;
+        let precision = value.type_info.0.precision;
+        let scale = value.type_info.0.scale;
+        match ty {
+            DataType::Float | DataType::FloatN if size == 8 => {
+                Ok(LittleEndian::read_f64(value.as_bytes()?))
+            }
+            DataType::Numeric | DataType::NumericN | DataType::Decimal | DataType::DecimalN => {
+                decode_numeric(value.as_bytes()?, precision, scale)
+            }
+            _ => Err(err_protocol!(
+                "Decoding {:?} as a float failed because type {:?} is not implemented",
+                value,
+                ty
+            )
+            .into()),
+        }
     }
+}
+fn decode_numeric(bytes: &[u8], _precision: u8, scale: u8) -> Result<f64, BoxDynError> {
+    let negative = bytes[0] == 0;
+    let rest = &bytes[1..];
+    let mut fixed_bytes = [0u8; 16];
+    fixed_bytes[0..rest.len()].copy_from_slice(rest);
+    let numerator = u128::from_le_bytes(fixed_bytes);
+    let denominator = 10_u64.pow(u32::from(scale));
+    // TODO: fix for large numbers and large precisions that overflow f64
+    Ok((numerator as f64) / (denominator as f64) * if negative { -1.0 } else { 1.0 })
 }
