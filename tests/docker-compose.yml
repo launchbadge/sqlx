@@ -182,8 +182,10 @@ services:
             POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
         volumes:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        # Loading `pg_stat_statements` should serve as a regression test for:
+        # https://github.com/launchbadge/sqlx/issues/2622
         command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c shared_preload_libraries=pg_stat_statements
 
     postgres_15_client_ssl:
         build:
