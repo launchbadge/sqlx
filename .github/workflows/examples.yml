@@ -33,6 +33,8 @@ jobs:
             --release
             --no-default-features
             --features mysql,postgres,sqlite
+        env:
+          RUSTFLAGS: -D warnings
 
       - uses: actions/upload-artifact@v3
         with:
@@ -157,10 +159,9 @@ jobs:
       # so we only check that it compiles.
       - name: Chat (Check)
         uses: actions-rs/cargo@v1
-        env:
         with:
           command: check
-          args: -p sqlx-example-postgres-check
+          args: -p sqlx-example-postgres-chat
 
       - name: Files (Setup)
         working-directory: examples/postgres/files
