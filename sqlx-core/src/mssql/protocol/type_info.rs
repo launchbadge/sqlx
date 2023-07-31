@@ -701,8 +701,37 @@ impl TypeInfo {
                 s.push_str(itoa::Buffer::new().format(self.scale));
                 s.push_str(")");
             }
-
-            _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),
+            DataType::SmallDateTime => s.push_str("smalldatetime"),
+            DataType::Money => s.push_str("money"),
+            DataType::SmallMoney => s.push_str("smallmoney"),
+            DataType::Guid => s.push_str("uniqueidentifier"),
+            DataType::Decimal => s.push_str("decimal"),
+            DataType::Numeric => s.push_str("numeric"),
+            DataType::DecimalN => {
+                s.push_str("decimal(");
+                s.push_str(itoa::Buffer::new().format(self.precision));
+                s.push_str(", ");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+            DataType::NumericN => {
+                s.push_str("numeric(");
+                s.push_str(itoa::Buffer::new().format(self.precision));
+                s.push_str(", ");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+            DataType::MoneyN => {
+                s.push_str("money(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+            DataType::Xml => s.push_str("xml"),
+            DataType::UserDefined => s.push_str("user_defined_type"),
+            DataType::Text => s.push_str("text"),
+            DataType::Image => s.push_str("image"),
+            DataType::NText => s.push_str("ntext"),
+            DataType::Variant => s.push_str("sql_variant"),
         }
     }
 }
