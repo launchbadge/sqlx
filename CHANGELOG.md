@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.9
+ - mssql: improved chrono date and time support, fix bug with timezeone decoding
+ - MySQL: add support for DateTime<FixedOffset>
+
 ## 0.6.8
 
  - mssql: Add support for DATETIME and SMALLDATETIME (in addition to the existing DATETIME2)

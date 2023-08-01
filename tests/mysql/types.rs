@@ -61,7 +61,9 @@ test_type!(uuid_hyphenated<sqlx_oldapi::types::uuid::fmt::Hyphenated>(MySql,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx_oldapi::types::chrono::{
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Utc,
+    };
 
     test_type!(chrono_date<NaiveDate>(MySql,
         "DATE '2001-01-05'" == NaiveDate::from_ymd_opt(2001, 1, 5).unwrap(),
@@ -81,6 +83,14 @@ mod chrono {
     ));
 
     test_type!(chrono_timestamp<DateTime::<Utc>>(MySql,
+        "TIMESTAMP '2019-01-02 05:10:20.115100'"
+            == DateTime::<Utc>::from_utc(
+                NaiveDateTime::parse_from_str("2019-01-02 05:10:20.115100", "%Y-%m-%d %H:%M:%S%.f").unwrap(),
+                Utc,
+            )
+    ));
+
+    test_type!(chrono_fixed_offset<DateTime::<FixedOffset>>(MySql,
         "TIMESTAMP '2019-01-02 05:10:20.115100'"
             == DateTime::<Utc>::from_utc(
                 NaiveDateTime::parse_from_str("2019-01-02 05:10:20.115100", "%Y-%m-%d %H:%M:%S%.f").unwrap(),
