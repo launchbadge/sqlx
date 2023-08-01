@@ -28,7 +28,14 @@ impl Type<Mssql> for NaiveDateTime {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::DateTime2N)
+        matches!(
+            ty.0.ty,
+            DataType::DateTime2N
+                | DataType::DateTimeOffsetN
+                | DataType::DateTime
+                | DataType::DateTimeN
+                | DataType::SmallDateTime
+        )
     }
 }
 
@@ -151,9 +158,9 @@ where
 {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&encode_date_time2(&self.naive_utc()));
-        let from_utc = self.offset().fix().local_minus_utc();
+        let seconds_from_utc = self.offset().fix().local_minus_utc();
         let mut encoded_offset: [u8; 2] = [0, 0];
-        LittleEndian::write_i16(&mut encoded_offset, (from_utc / 60) as i16);
+        LittleEndian::write_i16(&mut encoded_offset, (seconds_from_utc / 60) as i16);
         buf.extend_from_slice(&encoded_offset);
         IsNull::No
     }
@@ -221,7 +228,9 @@ impl Decode<'_, Mssql> for NaiveDateTime {
         let bytes = value.as_bytes()?;
         match value.type_info.0.ty {
             DataType::DateTime2N => decode_datetime2(value.type_info.0.scale, bytes),
-            _ => Err("unsupported datetime type".into()),
+            _ => {
+                <DateTime<FixedOffset> as Decode<'_, Mssql>>::decode(value).map(|d| d.naive_local())
+            }
         }
     }
 }
@@ -263,9 +272,13 @@ impl Decode<'_, Mssql> for DateTime<FixedOffset> {
 
 fn decode_datetimeoffset(scale: u8, bytes: &[u8]) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let naive = decode_datetime2(scale, &bytes[..bytes.len() - 2])?;
-    let offset = LittleEndian::read_i16(&bytes[bytes.len() - 2..]);
-    let offset_parsed = FixedOffset::east_opt(i32::from(offset)).ok_or_else(|| {
-        Box::new(err_protocol!("invalid offset {} in DateTime2N", offset)) as BoxDynError
+    let offset_mins = LittleEndian::read_i16(&bytes[bytes.len() - 2..]);
+    let offset_secs = i32::from(offset_mins) * 60;
+    let offset_parsed = FixedOffset::east_opt(offset_secs).ok_or_else(|| {
+        Box::new(err_protocol!(
+            "invalid offset {} in DateTime2N",
+            offset_secs
+        )) as BoxDynError
     })?;
     Ok(DateTime::from_utc(naive, offset_parsed))
 }

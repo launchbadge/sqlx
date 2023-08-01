@@ -93,7 +93,7 @@ test_type!(null_varbinary<Option<Vec<u8>>>(Mssql,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx_core::types::chrono::NaiveTime;
+    use sqlx_core::types::chrono::{FixedOffset, NaiveTime};
     use sqlx_oldapi::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
 
     test_type!(smalldatetime_type<DateTime<_>>(
@@ -114,6 +114,13 @@ mod chrono {
                 .fixed_offset()
     ));
 
+    test_type!(old_datetime_type_as_naive<NaiveDateTime>(
+        Mssql,
+        "CAST('1901-05-08 23:58:59' as DateTime)"
+            == NaiveDateTime::parse_from_str("1901-05-08 23:58:59", "%Y-%m-%d %H:%M:%S")
+                .unwrap()
+    ));
+
     test_type!(datetime2<NaiveDateTime>(
         Mssql,
         "CAST('2016-10-23 12:45:37.1234567' as DateTime2)"
@@ -121,7 +128,7 @@ mod chrono {
                 .unwrap()
     ));
 
-    test_type!(DateTime<_>(
+    test_type!(datetimeoffset<DateTime<FixedOffset>>(
         Mssql,
         "CAST('2016-10-23 12:45:37.1234567 +02:00' as datetimeoffset(7))" == DateTime::parse_from_rfc3339("2016-10-23T12:45:37.1234567+02:00").unwrap()
     ));
