@@ -112,6 +112,7 @@ pub(crate) struct ColumnDefinition {
     table: Bytes,
     alias: Bytes,
     name: Bytes,
+    #[allow(unused)]
     pub(crate) collation: u16,
     pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
@@ -165,13 +166,8 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
 }
 
 impl ColumnType {
-    pub(crate) fn name(
-        self,
-        collation: u16,
-        flags: ColumnFlags,
-        max_size: Option<u32>,
-    ) -> &'static str {
-        let is_binary = collation == 63;
+    pub(crate) fn name(self, flags: ColumnFlags, max_size: Option<u32>) -> &'static str {
+        let is_binary = flags.contains(ColumnFlags::BINARY);
         let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
         let is_enum = flags.contains(ColumnFlags::ENUM);
 
