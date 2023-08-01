@@ -39,7 +39,7 @@ where
         // and write to our reserved space
         let len = buf.len() - offset - 4;
         let header = &mut buf[offset..];
-        
+
         header[..4].copy_from_slice(&next_header(min(len, 0xFF_FF_FF) as u32));
 
         // add more packets if we need to split the data
@@ -59,7 +59,6 @@ where
             buf.extend(&next_header(remainder.len() as u32));
             buf.extend(remainder);
         }
-
     }
 }
 

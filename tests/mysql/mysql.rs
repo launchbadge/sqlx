@@ -449,9 +449,13 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_handle_split_packets() -> anyhow::Result<()> {
-    let mut conn = new::<MySql>().await?;
+    // This will only take effect on new connections
+    new::<MySql>()
+        .await?
+        .execute("SET GLOBAL max_allowed_packet = 4294967297")
+        .await?;
 
-    conn.execute("SET GLOBAL max_allowed_packet = 4294967297").await?;
+    let mut conn = new::<MySql>().await?;
 
     conn.execute(
         r#"
