@@ -12,7 +12,6 @@ impl Type<MySql> for bool {
         // MySQL has no actual `BOOLEAN` type, the type is an alias of `TINYINT(1)`
         MySqlTypeInfo {
             flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
-            collation: 63,
             max_size: Some(1),
             r#type: ColumnType::Tiny,
         }

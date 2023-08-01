@@ -7,18 +7,10 @@ use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use std::borrow::Cow;
 
-const COLLATE_UTF8_GENERAL_CI: u16 = 33;
-const COLLATE_UTF8_UNICODE_CI: u16 = 192;
-const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
-const COLLATE_UTF8MB4_BIN: u16 = 46;
-const COLLATE_UTF8MB4_GENERAL_CI: u16 = 45;
-const COLLATE_UTF8MB4_0900_AI_CI: u16 = 255;
-
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
-            r#type: ColumnType::VarString,         // VARCHAR
-            collation: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
+            r#type: ColumnType::VarString, // VARCHAR
             flags: ColumnFlags::empty(),
             max_size: None,
         }
@@ -36,15 +28,7 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && matches!(
-            ty.collation,
-            COLLATE_UTF8MB4_UNICODE_CI
-                | COLLATE_UTF8_UNICODE_CI
-                | COLLATE_UTF8_GENERAL_CI
-                | COLLATE_UTF8MB4_BIN
-                | COLLATE_UTF8MB4_GENERAL_CI
-                | COLLATE_UTF8MB4_0900_AI_CI
-        )
+        ) && !ty.flags.contains(ColumnFlags::BINARY)
     }
 }
 
