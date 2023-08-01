@@ -221,9 +221,9 @@ impl MySqlConnectOptions {
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
-    ///     .ssl_client_cert_from_bytes(vec![]);
+    ///     .ssl_client_cert_from_pem(vec![]);
     /// ```
-    pub fn ssl_client_cert_from_bytes(mut self, cert: impl AsRef<[u8]>) -> Self {
+    pub fn ssl_client_cert_from_pem(mut self, cert: impl AsRef<[u8]>) -> Self {
         self.ssl_client_cert = Some(CertificateInput::Inline(cert.as_ref().to_vec()));
         self
     }
@@ -251,9 +251,9 @@ impl MySqlConnectOptions {
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
-    ///     .ssl_client_key_from_bytes(vec![]);
+    ///     .ssl_client_key_from_pem(vec![]);
     /// ```
-    pub fn ssl_client_key_from_bytes(mut self, key: impl AsRef<[u8]>) -> Self {
+    pub fn ssl_client_key_from_pem(mut self, key: impl AsRef<[u8]>) -> Self {
         self.ssl_client_key = Some(CertificateInput::Inline(key.as_ref().to_vec()));
         self
     }

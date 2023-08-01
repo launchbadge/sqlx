@@ -353,9 +353,9 @@ impl PgConnectOptions {
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
-    ///     .ssl_client_cert_from_bytes(vec![]);
+    ///     .ssl_client_cert_from_pem(vec![]);
     /// ```
-    pub fn ssl_client_cert_from_bytes(mut self, cert: impl AsRef<[u8]>) -> Self {
+    pub fn ssl_client_cert_from_pem(mut self, cert: impl AsRef<[u8]>) -> Self {
         self.ssl_client_cert = Some(CertificateInput::Inline(cert.as_ref().to_vec()));
         self
     }
@@ -385,9 +385,9 @@ impl PgConnectOptions {
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
-    ///     .ssl_client_key_from_bytes(vec![]);
+    ///     .ssl_client_key_from_pem(vec![]);
     /// ```
-    pub fn ssl_client_key_from_bytes(mut self, key: impl AsRef<[u8]>) -> Self {
+    pub fn ssl_client_key_from_pem(mut self, key: impl AsRef<[u8]>) -> Self {
         self.ssl_client_key = Some(CertificateInput::Inline(key.as_ref().to_vec()));
         self
     }
