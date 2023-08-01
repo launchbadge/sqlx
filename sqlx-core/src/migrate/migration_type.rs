@@ -1,3 +1,5 @@
+use super::Migrator;
+
 /// Migration Type represents the type of migration
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MigrationType {
@@ -69,6 +71,19 @@ impl MigrationType {
             MigrationType::Simple => "-- Add migration script here\n",
             MigrationType::ReversibleUp => "-- Add up migration script here\n",
             MigrationType::ReversibleDown => "-- Add down migration script here\n",
+        }
+    }
+
+    pub fn infer(migrator: &Migrator, reversible: bool) -> MigrationType {
+        match migrator.iter().next() {
+            Some(first_migration) => first_migration.migration_type,
+            None => {
+                if reversible {
+                    MigrationType::ReversibleUp
+                } else {
+                    MigrationType::Simple
+                }
+            }
         }
     }
 }

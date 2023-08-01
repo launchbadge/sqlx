@@ -72,7 +72,7 @@ sqlx migrate info --source ../relative/migrations
 
 ### Reverting Migrations
 
-If you would like to create _reversible_ migrations with corresponding "up" and "down" scripts, you use the `-r` flag when creating new migrations:
+If you would like to create _reversible_ migrations with corresponding "up" and "down" scripts, you use the `-r` flag when creating the first migration:
 
 ```bash
 $ sqlx migrate add -r <name>
@@ -94,14 +94,12 @@ $ sqlx migrate revert
 Applied 20211001154420/revert <name>
 ```
 
-**Note**: attempting to mix "simple" migrations with reversible migrations with result in an error.
+**Note**: All the subsequent migrations will be reversible as well.
 
 ```bash
 $ sqlx migrate add <name1>
-Creating migrations/20211001154420_<name>.sql
-
-$ sqlx migrate add -r <name2>
-error: cannot mix reversible migrations with simple migrations. All migrations should be reversible or simple migrations
+Creating migrations/20211001154420_<name>.up.sql
+Creating migrations/20211001154420_<name>.down.sql
 ```
 
 ### Enable building in "offline mode" with `query!()`
