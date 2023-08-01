@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian};
 use chrono::{
-    DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Offset, Timelike,
+    DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Offset, Timelike, Utc,
 };
 
 use crate::decode::Decode;
@@ -267,6 +267,13 @@ impl Decode<'_, Mssql> for DateTime<FixedOffset> {
             _ => Err("unsupported datetime+offset type".into()),
         }
         .map_err(|e| format!("failed to decode {:X?}: {}", value, e).into())
+    }
+}
+
+impl Decode<'_, Mssql> for DateTime<Utc> {
+    fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        let dt = <DateTime<FixedOffset> as Decode<'_, Mssql>>::decode(value)?;
+        Ok(dt.with_timezone(&Utc))
     }
 }
 
