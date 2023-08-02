@@ -229,9 +229,9 @@ impl Deref for Source {
 /// Argument for the database URL.
 #[derive(Args, Debug)]
 pub struct ConnectOpts {
-    /// Location of the DB, by default will be read from the DATABASE_URL env var
+    /// Location of the DB, by default will be read from the DATABASE_URL env var or `.env` files.
     #[clap(long, short = 'D', env)]
-    pub database_url: String,
+    pub database_url: Option<String>,
 
     /// The maximum time, in seconds, to try connecting to the database server before
     /// returning an error.
@@ -249,6 +249,18 @@ pub struct ConnectOpts {
     #[cfg(feature = "sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
+}
+
+impl ConnectOpts {
+    /// Require a database URL to be provided, otherwise
+    /// return an error.
+    pub fn required_db_url(&self) -> anyhow::Result<&str> {
+        self.database_url.as_deref().ok_or_else(
+            || anyhow::anyhow!(
+                "the `--database-url` option the or `DATABASE_URL` environment variable must be provided"
+            )
+        )
+    }
 }
 
 /// Argument for automatic confirmation.
