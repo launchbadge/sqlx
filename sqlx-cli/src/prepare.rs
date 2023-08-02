@@ -8,8 +8,6 @@ use std::process::Command;
 use anyhow::{bail, Context};
 use console::style;
 
-use sqlx::Connection;
-
 use crate::metadata::{manifest_dir, Metadata};
 use crate::opt::ConnectOpts;
 
