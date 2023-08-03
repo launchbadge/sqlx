@@ -11,7 +11,7 @@ use crate::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
 use crate::protocol::Capabilities;
-use crate::{MySqlConnectOptions, MySqlConnection};
+use crate::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 
 impl MySqlConnection {
     pub(crate) async fn establish(options: &MySqlConnectOptions) -> Result<Self, Error> {
@@ -48,6 +48,15 @@ impl<'a> DoHandshake<'a> {
             .map(|collation| collation.parse())
             .transpose()?
             .unwrap_or_else(|| charset.default_collation());
+
+        if options.enable_cleartext_plugin
+            && matches!(
+                options.ssl_mode,
+                MySqlSslMode::Disabled | MySqlSslMode::Preferred
+            )
+        {
+            log::warn!("Security warning: sending cleartext passwords without requiring SSL");
+        }
 
         Ok(Self {
             options,
@@ -134,7 +143,8 @@ impl<'a> DoHandshake<'a> {
                 }
 
                 0xfe => {
-                    let switch: AuthSwitchRequest = packet.decode()?;
+                    let switch: AuthSwitchRequest =
+                        packet.decode_with(self.options.enable_cleartext_plugin)?;
 
                     plugin = Some(switch.plugin);
                     let nonce = switch.data.chain(Bytes::new());

@@ -1,7 +1,7 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::LitStr;
 
+#[cfg(feature = "migrate")]
 struct Args {
     fixtures: FixturesOpt,
     migrations: MigrationsOpt,
@@ -15,7 +15,7 @@ enum FixturesOpt {
 
 enum MigrationsOpt {
     InferredPath,
-    ExplicitPath(LitStr),
+    ExplicitPath(syn::LitStr),
     ExplicitMigrator(syn::Path),
     Disabled,
 }
@@ -114,7 +114,8 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             quote! { args.migrator(&#migrator); }
         }
         MigrationsOpt::InferredPath if !inputs.is_empty() => {
-            let migrations_path = crate::common::resolve_path("./migrations", Span::call_site())?;
+            let migrations_path =
+                crate::common::resolve_path("./migrations", proc_macro2::Span::call_site())?;
 
             if migrations_path.is_dir() {
                 let migrator = crate::migrate::expand_migrator(&migrations_path)?;

@@ -4,12 +4,13 @@ use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::from_row::FromRow;
 use crate::query::Query;
 use crate::query_as::QueryAs;
+use crate::query_scalar::QueryScalar;
 use crate::types::Type;
 use crate::Either;
 
@@ -29,6 +30,16 @@ where
     arguments: Option<<DB as HasArguments<'args>>::Arguments>,
 }
 
+impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
+    fn default() -> Self {
+        QueryBuilder {
+            init_len: 0,
+            query: String::default(),
+            arguments: Some(Default::default()),
+        }
+    }
+}
+
 impl<'args, DB: Database> QueryBuilder<'args, DB>
 where
     DB: Database,
@@ -46,6 +57,24 @@ where
             init_len: init.len(),
             query: init,
             arguments: Some(Default::default()),
+        }
+    }
+
+    /// Construct a `QueryBuilder` with existing SQL and arguments.
+    ///
+    /// ### Note
+    /// This does *not* check if `arguments` is valid for the given SQL.
+    pub fn with_arguments<A>(init: impl Into<String>, arguments: A) -> Self
+    where
+        DB: Database,
+        A: IntoArguments<'args, DB>,
+    {
+        let init = init.into();
+
+        QueryBuilder {
+            init_len: init.len(),
+            query: init,
+            arguments: Some(arguments.into_arguments()),
         }
     }
 
@@ -87,7 +116,7 @@ where
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
         self.sanity_check();
 
-        write!(self.query, "{}", sql).expect("error formatting `sql`");
+        write!(self.query, "{sql}").expect("error formatting `sql`");
 
         self
     }
@@ -229,9 +258,9 @@ where
     /// // This would normally produce values forever!
     /// let users = (0..).map(|i| User {
     ///     id: i,
-    ///     username: format!("test_user_{}", i),
-    ///     email: format!("test-user-{}@example.com", i),
-    ///     password: format!("Test!User@Password#{}", i),
+    ///     username: format!("test_user_{i}"),
+    ///     email: format!("test-user-{i}@example.com"),
+    ///     password: format!("Test!User@Password#{i}"),
     /// });
     ///
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
@@ -336,9 +365,9 @@ where
     /// // This would normally produce values forever!
     /// let users = (0..).map(|i| User {
     ///     id: i,
-    ///     username: format!("test_user_{}", i),
-    ///     email: format!("test-user-{}@example.com", i),
-    ///     password: format!("Test!User@Password#{}", i),
+    ///     username: format!("test_user_{i}"),
+    ///     email: format!("test-user-{i}@example.com"),
+    ///     password: format!("Test!User@Password#{i}"),
     /// });
     ///
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
@@ -445,6 +474,30 @@ where
         QueryAs {
             inner: self.build(),
             output: PhantomData,
+        }
+    }
+
+    /// Produce an executable query from this builder.
+    ///
+    /// ### Note: Query is not Checked
+    /// It is your responsibility to ensure that you produce a syntactically correct query here,
+    /// this API has no way to check it for you.
+    ///
+    /// ### Note: Reuse
+    /// You can reuse this builder afterwards to amortize the allocation overhead of the query
+    /// string, however you must call [`.reset()`][Self::reset] first, which returns `Self`
+    /// to the state it was in immediately after [`new()`][Self::new].
+    ///
+    /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
+    pub fn build_query_scalar<'q, T>(
+        &'q mut self,
+    ) -> QueryScalar<'q, DB, T, <DB as HasArguments<'args>>::Arguments>
+    where
+        DB: Database,
+        (T,): for<'r> FromRow<'r, DB::Row>,
+    {
+        QueryScalar {
+            inner: self.build_query_as(),
         }
     }
 
@@ -633,6 +686,25 @@ mod test {
         assert_eq!(
             query.statement.unwrap_left(),
             "SELECT * FROM users WHERE id = 99"
+        );
+    }
+
+    #[test]
+    fn test_query_builder_with_args() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
+
+        let query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+
+        let mut qb: QueryBuilder<'_, Postgres> =
+            QueryBuilder::new_with(query.sql(), query.take_arguments());
+        let query = qb.push("OR membership_level =").push_bind(3i32).build();
+
+        assert_eq!(
+            query.sql(),
+            "SELECT * FROM users WHERE id = $1 OR membership_level = $2"
         );
     }
 }

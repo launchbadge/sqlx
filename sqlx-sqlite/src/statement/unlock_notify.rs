@@ -57,7 +57,8 @@ impl Notify {
     }
 
     fn fire(&self) {
-        *self.mutex.lock().unwrap() = true;
+        let mut lock = self.mutex.lock().unwrap();
+        *lock = true;
         self.condvar.notify_one();
     }
 }

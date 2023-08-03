@@ -90,7 +90,7 @@ fn expand_derive_has_sql_type_transparent(
             }
         );
 
-        if cfg!(feature = "postgres") {
+        if cfg!(feature = "postgres") && !attr.no_pg_array {
             tokens.extend(quote!(
                 #[automatically_derived]
                 impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics

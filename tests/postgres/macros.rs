@@ -114,7 +114,7 @@ async fn test_query_file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // keep trailing comma as a test
-    let account = sqlx::query_file!("tests/postgres/test-query.sql",)
+    let account = sqlx::query_file!("tests/postgres/test-query.sql")
         .fetch_one(&mut conn)
         .await?;
 
@@ -146,7 +146,7 @@ async fn test_query_as() -> anyhow::Result<()> {
     assert_eq!(1, account.id);
     assert_eq!(None, account.name);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -171,7 +171,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     assert_eq!(None, account.name);
     assert_eq!(1, account.r#type);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -180,11 +180,11 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_file_as() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let account = sqlx::query_file_as!(Account, "tests/postgres/test-query.sql",)
+    let account = sqlx::query_file_as!(Account, "tests/postgres/test-query.sql")
         .fetch_one(&mut conn)
         .await?;
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -338,7 +338,7 @@ async fn test_nullable_err() -> anyhow::Result<()> {
         }
     }
 
-    panic!("expected `UnexpectedNullError`, got {}", err)
+    panic!("expected `UnexpectedNullError`, got {err}")
 }
 
 #[sqlx_macros::test]

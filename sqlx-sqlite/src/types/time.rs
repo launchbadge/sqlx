@@ -115,7 +115,7 @@ impl<'r> Decode<'r, Sqlite> for Time {
             }
         }
 
-        Err(format!("invalid time: {}", value).into())
+        Err(format!("invalid time: {value}").into())
     }
 }
 

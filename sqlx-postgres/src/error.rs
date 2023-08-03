@@ -204,6 +204,10 @@ impl DatabaseError for PgDatabaseError {
         self.constraint()
     }
 
+    fn table(&self) -> Option<&str> {
+        self.table()
+    }
+
     fn kind(&self) -> ErrorKind {
         match self.code() {
             error_codes::UNIQUE_VIOLATION => ErrorKind::UniqueViolation,

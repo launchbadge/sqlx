@@ -16,7 +16,7 @@ migrate = ["sqlx-core/migrate"]
 offline = ["sqlx-core/offline"]
 
 # Type integration features which require additional dependencies
-rust_decimal = ["dep:rust_decimal"]
+rust_decimal = ["dep:rust_decimal", "dep:num-bigint"]
 bigdecimal = ["dep:bigdecimal", "dep:num-bigint"]
 
 [dependencies]
@@ -48,7 +48,7 @@ uuid = { workspace = true, optional = true }
 # Misc
 atoi = "2.0"
 base64 = { version = "0.21.0", default-features = false, features = ["std"] }
-bitflags = { version = "1.3.2", default-features = false }
+bitflags = { version = "2", default-features = false }
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 dotenvy = { workspace = true }
 hex = "0.4.3"

@@ -121,7 +121,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
     let env_path = if env_path.exists() {
         let res = dotenvy::from_path(&env_path);
         if let Err(e) = res {
-            panic!("failed to load environment from {:?}, {}", env_path, e);
+            panic!("failed to load environment from {env_path:?}, {e}");
         }
 
         Some(env_path)
@@ -373,16 +373,15 @@ where
                 Err(e) => {
                     if e.kind() != io::ErrorKind::NotFound {
                         // Can't obtain information about .sqlx
-                        return Err(format!("{}: {}", e, dir).into());
+                        return Err(format!("{e}: {dir}").into());
                     }
                     // .sqlx doesn't exist.
-                    return Err(format!("sqlx offline path does not exist: {}", dir).into());
+                    return Err(format!("sqlx offline path does not exist: {dir}").into());
                 }
                 Ok(meta) => {
                     if !meta.is_dir() {
                         return Err(format!(
-                            "sqlx offline path exists, but is not a directory: {}",
-                            dir
+                            "sqlx offline path exists, but is not a directory: {dir}"
                         )
                         .into());
                     }

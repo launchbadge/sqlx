@@ -78,45 +78,67 @@ fn expand_derive_from_row_struct(
                 ));
             }
 
-            let expr: Expr = match (attributes.flatten, attributes.try_from) {
-                (true, None) => {
-                    predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
-                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
-                }
-                (false, None) => {
+            let id_s = attributes
+                .rename
+                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                .map(|s| match container_attributes.rename_all {
+                    Some(pattern) => rename_all(&s, pattern),
+                    None => s,
+                })
+                .unwrap();
+
+            let expr: Expr = match (attributes.flatten, attributes.try_from, attributes.json) {
+                // <No attributes>
+                (false, None, false) => {
                     predicates
                         .push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
 
-                    let id_s = attributes
-                        .rename
-                        .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                        .map(|s| match container_attributes.rename_all {
-                            Some(pattern) => rename_all(&s, pattern),
-                            None => s,
-                        })
-                        .unwrap();
                     parse_quote!(row.try_get(#id_s))
                 }
-                (true,Some(try_from)) => {
+                // Flatten
+                (true, None, false) => {
+                    predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
+                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
+                }
+                // Flatten + Try from
+                (true, Some(try_from), false) => {
                     predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
                     parse_quote!(<#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
                 }
-                (false,Some(try_from)) => {
+                // Flatten + Json
+                (true, _, true) => {
+                    panic!("Cannot use both flatten and json")
+                }
+                // Try from
+                (false, Some(try_from), false) => {
                     predicates
                         .push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>)); 
 
-                    let id_s = attributes
-                        .rename
-                        .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                        .map(|s| match container_attributes.rename_all {
-                            Some(pattern) => rename_all(&s, pattern),
-                            None => s,
-                        })
-                        .unwrap();
                     parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                 }
+                // Try from + Json
+                (false, Some(try_from), true) => {
+                    predicates
+                        .push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::types::Type<R::Database>));
+
+                    parse_quote!(
+                        row.try_get::<::sqlx::types::Json<_>, _>(#id_s).and_then(|v|
+                            <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
+                            .map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))
+                        )
+                    )
+                },
+                // Json
+                (false, None, true) => {
+                    predicates
+                        .push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::types::Type<R::Database>));
+
+                    parse_quote!(row.try_get::<::sqlx::types::Json<_>, _>(#id_s).map(|x| x.0))
+                },
             };
 
             if attributes.default {

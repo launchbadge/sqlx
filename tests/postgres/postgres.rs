@@ -305,10 +305,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = conn
-            .fetch_one(&*format!("SELECT {}::int4", i))
-            .await?
-            .get(0);
+        let val: i32 = conn.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
 
         assert_eq!(val, i);
     }
@@ -329,10 +326,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = pool
-            .fetch_one(&*format!("SELECT {}::int4", i))
-            .await?
-            .get(0);
+        let val: i32 = pool.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
 
         assert_eq!(val, i);
     }
@@ -558,9 +552,9 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     // normal error at termination of the test
                     if matches!(e, sqlx::Error::PoolClosed) {
-                        eprintln!("pool task {} exiting normally after {} iterations", i, j);
+                        eprintln!("pool task {i} exiting normally after {j} iterations");
                     } else {
-                        eprintln!("pool task {} dying due to {} after {} iterations", i, e, j);
+                        eprintln!("pool task {i} dying due to {e} after {j} iterations");
                     }
                     break;
                 }
@@ -739,7 +733,7 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
     let mut conn = PgConnection::connect_with(&options).await?;
 
     for i in 0..5 {
-        let row = sqlx::query(&*format!("SELECT {}::int4 AS val", i))
+        let row = sqlx::query(&*format!("SELECT {i}::int4 AS val"))
             .fetch_one(&mut conn)
             .await?;
 
@@ -822,7 +816,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         .connect(&std::env::var("DATABASE_URL").unwrap())
         .await?;
 
-    println!("pool state: {:?}", pool);
+    println!("pool state: {pool:?}");
 
     let mut handles = vec![];
 
@@ -850,7 +844,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
                         println!("{} acquire took {:?}", i, start.elapsed());
                         drop(conn);
                     }
-                    Err(e) => panic!("{} acquire returned error: {} pool state: {:?}", i, e, pool),
+                    Err(e) => panic!("{i} acquire returned error: {e} pool state: {pool:?}"),
                 }
             }
 
@@ -1782,7 +1776,7 @@ async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> 
     let mut conn = new::<Postgres>().await?;
     conn.execute("SET bytea_output = 'escape';").await?;
     for value in ["", "DEADBEEF"] {
-        let query = format!("SELECT '\\x{}'::bytea", value);
+        let query = format!("SELECT '\\x{value}'::bytea");
         let res: sqlx::Result<Vec<u8>> = conn.fetch_one(query.as_str()).await?.try_get(0usize);
         // Deserialization only supports hex format so this should error and definitely not panic.
         res.unwrap_err();

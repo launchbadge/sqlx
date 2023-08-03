@@ -197,6 +197,16 @@ where
     }
 }
 
+// Implement `AsMut<DB::Connection>` so `Transaction` can be given to a
+// `PgAdvisoryLockGuard`.
+//
+// See: https://github.com/launchbadge/sqlx/issues/2520
+impl<'c, DB: Database> AsMut<DB::Connection> for Transaction<'c, DB> {
+    fn as_mut(&mut self) -> &mut DB::Connection {
+        &mut self.connection
+    }
+}
+
 impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'c, DB> {
     type Database = DB;
 
@@ -234,7 +244,7 @@ pub fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
     if depth == 0 {
         Cow::Borrowed("BEGIN")
     } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", depth))
+        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{depth}"))
     }
 }
 

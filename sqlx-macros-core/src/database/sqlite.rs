@@ -13,16 +13,22 @@ impl_database_ext! {
         Vec<u8>,
 
         #[cfg(feature = "chrono")]
+        sqlx::types::chrono::NaiveDate,
+
+        #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDateTime,
 
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
 
         #[cfg(feature = "time")]
+        sqlx::types::time::OffsetDateTime,
+
+        #[cfg(feature = "time")]
         sqlx::types::time::PrimitiveDateTime,
 
         #[cfg(feature = "time")]
-        sqlx::types::time::OffsetDateTime,
+        sqlx::types::time::Date,
 
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,

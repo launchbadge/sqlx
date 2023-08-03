@@ -112,7 +112,7 @@ impl Decode<'_, Postgres> for IpNetwork {
                 }
 
                 _ => {
-                    return Err(format!("unknown ip family {}", family).into());
+                    return Err(format!("unknown ip family {family}").into());
                 }
             }
         }

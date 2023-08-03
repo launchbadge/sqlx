@@ -59,7 +59,7 @@ impl_database_ext! {
         #[cfg(feature = "bigdecimal")]
         sqlx::types::BigDecimal,
 
-        #[cfg(feature = "decimal")]
+        #[cfg(feature = "rust_decimal")]
         sqlx::types::Decimal,
 
         #[cfg(feature = "ipnetwork")]
@@ -118,7 +118,7 @@ impl_database_ext! {
         #[cfg(feature = "bigdecimal")]
         Vec<sqlx::types::BigDecimal> | &[sqlx::types::BigDecimal],
 
-        #[cfg(feature = "decimal")]
+        #[cfg(feature = "rust_decimal")]
         Vec<sqlx::types::Decimal> | &[sqlx::types::Decimal],
 
         #[cfg(feature = "ipnetwork")]
@@ -138,7 +138,7 @@ impl_database_ext! {
         #[cfg(feature = "bigdecimal")]
         sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>,
 
-        #[cfg(feature = "decimal")]
+        #[cfg(feature = "rust_decimal")]
         sqlx::postgres::types::PgRange<sqlx::types::Decimal>,
 
         #[cfg(feature = "chrono")]

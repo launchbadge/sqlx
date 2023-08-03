@@ -143,8 +143,7 @@ impl AnyConnectionBackend for PgConnection {
                             AnyTypeInfo::try_from(type_info).map_err(|_| {
                                 sqlx_core::Error::AnyDriverError(
                                     format!(
-                                        "Any driver does not support type {} of parameter {}",
-                                        type_info, i
+                                        "Any driver does not support type {type_info} of parameter {i}"
                                     )
                                     .into(),
                                 )
@@ -181,11 +180,7 @@ impl<'a> TryFrom<&'a PgTypeInfo> for AnyTypeInfo {
                 PgType::Text => AnyTypeInfoKind::Text,
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(
-                        format!(
-                            "Any driver does not support the Postgres type {:?}",
-                            pg_type
-                        )
-                        .into(),
+                        format!("Any driver does not support the Postgres type {pg_type:?}").into(),
                     ))
                 }
             },

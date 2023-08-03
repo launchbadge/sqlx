@@ -15,7 +15,7 @@ enum Command {
     Done { id: i64 },
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let args = Args::from_args_safe()?;
@@ -39,14 +39,14 @@ async fn handle_command(
                 &description
             )?;
             let todo_id = todo_repo.add_todo(description).await?;
-            writeln!(writer, "Added new todo with id {}", todo_id)?;
+            writeln!(writer, "Added new todo with id {todo_id}")?;
         }
         Some(Command::Done { id }) => {
-            writeln!(writer, "Marking todo {} as done", id)?;
+            writeln!(writer, "Marking todo {id} as done")?;
             if todo_repo.complete_todo(id).await? {
-                writeln!(writer, "Todo {} is marked as done", id)?;
+                writeln!(writer, "Todo {id} is marked as done")?;
             } else {
-                writeln!(writer, "Invalid id {}", id)?;
+                writeln!(writer, "Invalid id {id}")?;
             }
         }
         None => {

@@ -48,7 +48,7 @@ impl FromStr for PgSslMode {
 
             _ => {
                 return Err(Error::Configuration(
-                    format!("unknown value {:?} for `ssl_mode`", s).into(),
+                    format!("unknown value {s:?} for `ssl_mode`").into(),
                 ));
             }
         })

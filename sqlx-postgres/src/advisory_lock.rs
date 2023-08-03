@@ -302,9 +302,9 @@ impl PgAdvisoryLock {
 
     fn get_release_query(&self) -> &str {
         self.release_query.get_or_init(|| match &self.key {
-            PgAdvisoryLockKey::BigInt(key) => format!("SELECT pg_advisory_unlock({})", key),
+            PgAdvisoryLockKey::BigInt(key) => format!("SELECT pg_advisory_unlock({key})"),
             PgAdvisoryLockKey::IntPair(key1, key2) => {
-                format!("SELECT pg_advisory_unlock({}, {})", key1, key2)
+                format!("SELECT pg_advisory_unlock({key1}, {key2})")
             }
         })
     }

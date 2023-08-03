@@ -12,6 +12,8 @@ mod database;
 mod metadata;
 // mod migration;
 // mod migrator;
+#[cfg(feature = "completions")]
+mod completions;
 mod migrate;
 mod opt;
 mod prepare;
@@ -25,19 +27,41 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 description,
                 reversible,
-            } => migrate::add(&source, &description, reversible).await?,
+                sequential,
+                timestamp,
+            } => migrate::add(&source, &description, reversible, sequential, timestamp).await?,
             MigrateCommand::Run {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::run(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::run(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Revert {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::revert(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::revert(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Info {
                 source,
                 connect_opts,
@@ -68,6 +92,9 @@ pub async fn run(opt: Opt) -> Result<()> {
             connect_opts,
             args,
         } => prepare::run(check, workspace, connect_opts, args).await?,
+
+        #[cfg(feature = "completions")]
+        Command::Completions { shell } => completions::run(shell),
     };
 
     Ok(())

@@ -196,7 +196,7 @@ mod time_tz;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
-#[cfg(any(feature = "bigdecimal", feature = "decimal"))]
+#[cfg(any(feature = "bigdecimal", feature = "rust_decimal"))]
 mod numeric;
 
 #[cfg(feature = "rust_decimal")]

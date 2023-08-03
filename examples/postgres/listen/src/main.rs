@@ -2,8 +2,15 @@ use futures::StreamExt;
 use futures::TryStreamExt;
 use sqlx::postgres::PgListener;
 use sqlx::{Executor, PgPool};
+use std::pin;
+use std::pin::pin;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
+
+/// How long to sit in the listen loop before exiting.
+///
+/// This ensures the example eventually exits, which is required for automated testing.
+const LISTEN_DURATION: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,13 +19,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
     let pool = sqlx::PgPool::connect(&conn_str).await?;
 
-    let mut listener = PgListener::connect(&conn_str).await?;
+    let mut listener = PgListener::connect_with(&pool).await?;
 
-    // let notify_pool = pool.clone();
-    let _t = async_std::task::spawn(async move {
-        stream::interval(Duration::from_secs(2))
-            .for_each(|_| notify(&pool))
-            .await
+    let notify_pool = pool.clone();
+    let _t = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(2));
+
+        while !notify_pool.is_closed() {
+            interval.tick().await;
+            notify(&notify_pool).await;
+        }
     });
 
     println!("Starting LISTEN loop.");
@@ -28,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut counter = 0usize;
     loop {
         let notification = listener.recv().await?;
-        println!("[from recv]: {:?}", notification);
+        println!("[from recv]: {notification:?}");
 
         counter += 1;
         if counter >= 3 {
@@ -40,9 +50,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     listener.execute("SELECT pg_sleep(6)").await?;
 
     let mut stream = listener.into_stream();
-    while let Some(notification) = stream.try_next().await? {
-        println!("[from stream]: {:?}", notification);
+
+    // `Sleep` must be pinned
+    let mut timeout = pin!(tokio::time::sleep(LISTEN_DURATION));
+
+    loop {
+        tokio::select! {
+            res = stream.try_next() => {
+                if let Some(notification) = res? {
+                    println!("[from stream]: {notification:?}");
+                } else {
+                    break;
+                }
+            },
+            _ = timeout.as_mut() => {
+                // Don't run forever
+                break;
+            }
+        }
     }
+
+    pool.close().await;
 
     Ok(())
 }
@@ -78,5 +106,5 @@ from (
     .execute(pool)
     .await;
 
-    println!("[from notify]: {:?}", res);
+    println!("[from notify]: {res:?}");
 }

@@ -50,7 +50,7 @@ pub async fn reset(
 
 pub async fn setup(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     create(connect_opts).await?;
-    migrate::run(migration_source, connect_opts, false, false).await
+    migrate::run(migration_source, connect_opts, false, false, None).await
 }
 
 fn ask_to_continue(connect_opts: &ConnectOpts) -> bool {
@@ -73,7 +73,7 @@ fn ask_to_continue(connect_opts: &ConnectOpts) -> bool {
                 }
             }
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
                 return false;
             }
         }

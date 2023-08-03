@@ -327,5 +327,5 @@ fn parse_ident(name: &str) -> crate::Result<Ident> {
         }
     }
 
-    Err(format!("{:?} is not a valid Rust identifier", name).into())
+    Err(format!("{name:?} is not a valid Rust identifier").into())
 }

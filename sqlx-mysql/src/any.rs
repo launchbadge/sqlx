@@ -155,7 +155,7 @@ impl<'a> TryFrom<&'a MySqlTypeInfo> for AnyTypeInfo {
                 }
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(
-                        format!("Any driver does not support MySql type {:?}", type_info).into(),
+                        format!("Any driver does not support MySql type {type_info:?}").into(),
                     ))
                 }
             },

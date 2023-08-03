@@ -26,7 +26,7 @@ impl Display for PostWithAuthorQuery {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&dotenvy::var("DATABASE_URL")?).await?;
 
@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     for post_with_author in posts_with_authors {
-        println!("{}", post_with_author);
+        println!("{post_with_author}");
     }
 
     Ok(())

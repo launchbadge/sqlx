@@ -202,7 +202,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
 }
 
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
-//       involved to write `conn.execute(format!("SELECT {}", val))`
+//       involved to write `conn.execute(format!("SELECT {val}"))`
 impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     #[inline]
     fn sql(&self) -> &'q str {

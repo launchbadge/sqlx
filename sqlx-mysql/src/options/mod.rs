@@ -18,6 +18,9 @@ pub use ssl_mode::MySqlSslMode;
 /// mysql://[host][/database][?properties]
 /// ```
 ///
+/// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
+/// containing a connection URL and then further adjust options if necessary (see example below).
+///
 /// ## Properties
 ///
 /// |Parameter|Default|Description|
@@ -30,13 +33,10 @@ pub use ssl_mode::MySqlSslMode;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
-/// #
-/// # fn main() {
-/// # #[cfg(feature = "_rt")]
-/// # sqlx::__rt::test_block_on(async move {
+/// # async fn example() -> sqlx::Result<()> {
+/// use sqlx::{Connection, ConnectOptions};
+/// use sqlx::mysql::{MySqlConnectOptions, MySqlConnection, MySqlPool, MySqlSslMode};
+///
 /// // URL connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
@@ -47,8 +47,16 @@ pub use ssl_mode::MySqlSslMode;
 ///     .password("password")
 ///     .database("db")
 ///     .connect().await?;
-/// # Result::<(), Error>::Ok(())
-/// # }).unwrap();
+///
+/// // Modifying options parsed from a string
+/// let mut opts: MySqlConnectOptions = "mysql://root:password@localhost/db".parse()?;
+///
+/// // Change the log verbosity level for queries.
+/// // Information about SQL queries is logged at `DEBUG` level by default.
+/// opts.log_statements(log::LevelFilter::Trace);
+///
+/// let pool = MySqlPool::connect_with(&opts).await?;
+/// # Ok(())
 /// # }
 /// ```
 #[derive(Debug, Clone)]
@@ -68,6 +76,7 @@ pub struct MySqlConnectOptions {
     pub(crate) collation: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
+    pub(crate) enable_cleartext_plugin: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -95,6 +104,7 @@ impl MySqlConnectOptions {
             statement_cache_capacity: 100,
             log_settings: Default::default(),
             pipes_as_concat: true,
+            enable_cleartext_plugin: false,
         }
     }
 
@@ -256,6 +266,21 @@ impl MySqlConnectOptions {
     /// cases.
     pub fn pipes_as_concat(mut self, flag_val: bool) -> Self {
         self.pipes_as_concat = flag_val;
+        self
+    }
+
+    /// Enables mysql_clear_password plugin support.
+    ///
+    /// Security Note:
+    /// Sending passwords as cleartext may be a security problem in some
+    /// configurations. Without additional defensive configuration like
+    /// ssl-mode=VERIFY_IDENTITY, an attacker can compromise a router
+    /// and trick the application into divulging its credentials.
+    ///
+    /// It is strongly recommended to set `.ssl_mode` to `Required`,
+    /// `VerifyCa`, or `VerifyIdentity` when enabling cleartext plugin.
+    pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
+        self.enable_cleartext_plugin = flag_val;
         self
     }
 }

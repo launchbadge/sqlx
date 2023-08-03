@@ -139,6 +139,6 @@ pub(crate) fn from_url(url: &Url) -> crate::Result<&'static AnyDriver> {
         .iter()
         .find(|driver| driver.url_schemes.contains(&url.scheme()))
         .ok_or_else(|| {
-            Error::Configuration(format!("no driver found for URL scheme {:?}", scheme).into())
+            Error::Configuration(format!("no driver found for URL scheme {scheme:?}").into())
         })
 }

@@ -47,7 +47,7 @@ impl FromStr for SqliteJournalMode {
 
             _ => {
                 return Err(Error::Configuration(
-                    format!("unknown value {:?} for `journal_mode`", s).into(),
+                    format!("unknown value {s:?} for `journal_mode`").into(),
                 ));
             }
         })

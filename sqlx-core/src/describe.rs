@@ -80,8 +80,7 @@ impl<DB: Database> Describe<DB> {
                         AnyTypeInfo::try_from(type_info).map_err(|_| {
                             crate::Error::AnyDriverError(
                                 format!(
-                                    "Any driver does not support type {} of parameter {}",
-                                    type_info, i
+                                    "Any driver does not support type {type_info} of parameter {i}"
                                 )
                                 .into(),
                             )

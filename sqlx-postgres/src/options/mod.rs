@@ -23,6 +23,9 @@ mod ssl_mode;
 /// postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]
 /// ```
 ///
+/// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
+/// containing a connection URL and then further adjust options if necessary (see example below).
+///
 /// ## Parameters
 ///
 /// |Parameter|Default|Description|
@@ -55,13 +58,10 @@ mod ssl_mode;
 /// # Example
 ///
 /// ```rust,no_run
-/// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
-/// #
-/// # fn main() {
-/// # #[cfg(feature = "_rt")]
-/// # sqlx::__rt::test_block_on(async move {
+/// use sqlx::{Connection, ConnectOptions};
+/// use sqlx::postgres::{PgConnectOptions, PgConnection, PgPool, PgSslMode};
+///
+/// # async fn example() -> sqlx::Result<()> {
 /// // URL connection string
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
 ///
@@ -72,9 +72,17 @@ mod ssl_mode;
 ///     .username("secret-user")
 ///     .password("secret-password")
 ///     .ssl_mode(PgSslMode::Require)
-///     .connect().await?;
-/// # Result::<(), Error>::Ok(())
-/// # }).unwrap();
+///     .connect()
+///     .await?;
+///
+/// // Modifying options parsed from a string
+/// let mut opts: PgConnectOptions = "postgres://localhost/mydb".parse()?;
+///
+/// // Change the log verbosity level for queries.
+/// // Information about SQL queries is logged at `DEBUG` level by default.
+/// opts.log_statements(log::LevelFilter::Trace);
+///
+/// let pool = PgPool::connect_with(&opts).await?;
 /// # }
 /// ```
 #[derive(Debug, Clone)]
@@ -468,7 +476,7 @@ impl PgConnectOptions {
                 options_str.push(' ');
             }
 
-            write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
+            write!(options_str, "-c {k}={v}").expect("failed to write an option to the string");
         }
         self
     }
@@ -492,7 +500,7 @@ impl PgConnectOptions {
 
 fn default_host(port: u16) -> String {
     // try to check for the existence of a unix socket and uses that
-    let socket = format!(".s.PGSQL.{}", port);
+    let socket = format!(".s.PGSQL.{port}");
     let candidates = [
         "/var/run/postgresql", // Debian
         "/private/tmp",        // OSX (homebrew)

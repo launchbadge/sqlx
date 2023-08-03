@@ -114,9 +114,9 @@ impl Display for PgLQuery {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut iter = self.levels.iter();
         if let Some(label) = iter.next() {
-            write!(f, "{}", label)?;
+            write!(f, "{label}")?;
             for label in iter {
-                write!(f, ".{}", label)?;
+                write!(f, ".{label}")?;
             }
         }
         Ok(())
@@ -141,7 +141,7 @@ impl Type<Postgres> for PgLQuery {
 impl Encode<'_, Postgres> for PgLQuery {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend(1i8.to_le_bytes());
-        write!(buf, "{}", self)
+        write!(buf, "{self}")
             .expect("Display implementation panicked while writing to PgArgumentBuffer");
 
         IsNull::No
@@ -166,6 +166,7 @@ impl<'r> Decode<'r, Postgres> for PgLQuery {
 
 bitflags! {
     /// Modifiers that can be set to non-star labels
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct PgLQueryVariantFlag: u16 {
         /// * - Match any label with this prefix, for example foo* matches foobar
         const ANY_END = 0x01;
@@ -263,7 +264,7 @@ impl FromStr for PgLQueryVariant {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut label_length = s.len();
         let mut rev_iter = s.bytes().rev();
-        let mut modifiers = PgLQueryVariantFlag { bits: 0 };
+        let mut modifiers = PgLQueryVariantFlag::empty();
 
         while let Some(b) = rev_iter.next() {
             match b {
@@ -287,7 +288,7 @@ fn write_variants(f: &mut Formatter<'_>, variants: &[PgLQueryVariant], not: bool
     if let Some(variant) = iter.next() {
         write!(f, "{}{}", if not { "!" } else { "" }, variant)?;
         for variant in iter {
-            write!(f, ".{}", variant)?;
+            write!(f, ".{variant}")?;
         }
     }
     Ok(())
@@ -298,13 +299,13 @@ impl Display for PgLQueryLevel {
         match self {
             PgLQueryLevel::Star(Some(at_least), Some(at_most)) => {
                 if at_least == at_most {
-                    write!(f, "*{{{}}}", at_least)
+                    write!(f, "*{{{at_least}}}")
                 } else {
-                    write!(f, "*{{{},{}}}", at_least, at_most)
+                    write!(f, "*{{{at_least},{at_most}}}")
                 }
             }
-            PgLQueryLevel::Star(Some(at_least), _) => write!(f, "*{{{},}}", at_least),
-            PgLQueryLevel::Star(_, Some(at_most)) => write!(f, "*{{,{}}}", at_most),
+            PgLQueryLevel::Star(Some(at_least), _) => write!(f, "*{{{at_least},}}"),
+            PgLQueryLevel::Star(_, Some(at_most)) => write!(f, "*{{,{at_most}}}"),
             PgLQueryLevel::Star(_, _) => write!(f, "*"),
             PgLQueryLevel::NonStar(variants) => write_variants(f, &variants, false),
             PgLQueryLevel::NotNonStar(variants) => write_variants(f, &variants, true),

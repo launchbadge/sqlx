@@ -229,7 +229,7 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             let buf = conn.stream.write_buffer_mut();
 
             // CopyData format code and reserved space for length
-            buf.put_slice(b"d\0\0\0\0");
+            buf.put_slice(b"d\0\0\0\x04");
 
             let read = match () {
                 // Tokio lets us read into the buffer without zeroing first

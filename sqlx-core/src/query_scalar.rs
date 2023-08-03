@@ -17,7 +17,7 @@ use crate::types::Type;
 /// Returned from [`query_scalar`].
 #[must_use = "query must be executed to affect database"]
 pub struct QueryScalar<'q, DB: Database, O, A> {
-    inner: QueryAs<'q, DB, (O,), A>,
+    pub(crate) inner: QueryAs<'q, DB, (O,), A>,
 }
 
 impl<'q, DB: Database, O: Send, A: Send> Execute<'q, DB> for QueryScalar<'q, DB, O, A>

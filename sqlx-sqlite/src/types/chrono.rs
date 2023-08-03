@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::value::ValueRef;
 use crate::{
     decode::Decode,
@@ -7,7 +9,6 @@ use crate::{
     types::Type,
     Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
 };
-use bitflags::_core::fmt::Display;
 use chrono::FixedOffset;
 use chrono::{
     DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
@@ -200,6 +201,6 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
             }
         }
 
-        Err(format!("invalid time: {}", value).into())
+        Err(format!("invalid time: {value}").into())
     }
 }

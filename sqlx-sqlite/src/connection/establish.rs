@@ -96,7 +96,7 @@ impl EstablishParams {
         }
 
         if let Some(vfs) = &options.vfs {
-            query_params.push(format!("vfs={}", vfs))
+            query_params.push(format!("vfs={vfs}"))
         }
 
         if !query_params.is_empty() {

@@ -121,14 +121,14 @@ pub trait Row: Unpin + Send + Sync + 'static {
 
             if !ty.is_null() && !T::compatible(&ty) {
                 return Err(Error::ColumnDecode {
-                    index: format!("{:?}", index),
+                    index: format!("{index:?}"),
                     source: mismatched_types::<Self::Database, T>(&ty),
                 });
             }
         }
 
         T::decode(value).map_err(|source| Error::ColumnDecode {
-            index: format!("{:?}", index),
+            index: format!("{index:?}"),
             source,
         })
     }
@@ -158,7 +158,7 @@ pub trait Row: Unpin + Send + Sync + 'static {
         let value = self.try_get_raw(&index)?;
 
         T::decode(value).map_err(|source| Error::ColumnDecode {
-            index: format!("{:?}", index),
+            index: format!("{index:?}"),
             source,
         })
     }

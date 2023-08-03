@@ -30,7 +30,7 @@ pub fn add_file(name: &str) -> anyhow::Result<()> {
     file.write_all(b"-- Add migration script here")
         .context("Could not write to file")?;
 
-    println!("Created migration: '{}'", file_name);
+    println!("Created migration: '{file_name}'");
     Ok(())
 }
 
@@ -143,7 +143,7 @@ fn load_migrations() -> anyhow::Result<Vec<Migration>> {
 
                 if let Some(ext) = e.path().extension() {
                     if ext != "sql" {
-                        println!("Wrong ext: {:?}", ext);
+                        println!("Wrong ext: {ext:?}");
                         continue;
                     }
                 } else {

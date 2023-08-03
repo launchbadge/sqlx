@@ -27,7 +27,7 @@ async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    println!("{:?}", account);
+    println!("{account:?}");
     println!("{}: {}", account.id, account.name);
 
     Ok(())
@@ -53,7 +53,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     assert_eq!(account.name, None);
     assert_eq!(account.r#type, 1);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -464,6 +464,68 @@ async fn test_try_from_attr_with_complex_type() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, id.0 as u64);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_from_row_json_attr() -> anyhow::Result<()> {
+    #[derive(serde::Deserialize)]
+    struct J {
+        a: u32,
+        b: u32,
+    }
+
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(json)]
+        j: J,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query_as::<_, Record>("select json_object('a', 1, 'b', 2) as j")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.j.a, 1);
+    assert_eq!(record.j.b, 2);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_from_row_json_try_from_attr() -> anyhow::Result<()> {
+    #[derive(serde::Deserialize)]
+    struct J {
+        a: u32,
+        b: u32,
+    }
+
+    // Non-deserializable
+    struct J2 {
+        sum: u32,
+    }
+
+    impl std::convert::From<J> for J2 {
+        fn from(j: J) -> Self {
+            Self { sum: j.a + j.b }
+        }
+    }
+
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(json, try_from = "J")]
+        j: J2,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query_as::<_, Record>("select json_object('a', 1, 'b', 2) as j")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.j.sum, 3);
 
     Ok(())
 }

@@ -3,6 +3,7 @@ use anyhow::{bail, Context};
 use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
+use sqlx::Connection;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -36,10 +37,75 @@ fn create_file(
     Ok(())
 }
 
+enum MigrationOrdering {
+    Timestamp(String),
+    Sequential(String),
+}
+
+impl MigrationOrdering {
+    fn timestamp() -> MigrationOrdering {
+        Self::Timestamp(Utc::now().format("%Y%m%d%H%M%S").to_string())
+    }
+
+    fn sequential(version: i64) -> MigrationOrdering {
+        Self::Sequential(format!("{version:04}"))
+    }
+
+    fn file_prefix(&self) -> &str {
+        match self {
+            MigrationOrdering::Timestamp(prefix) => prefix,
+            MigrationOrdering::Sequential(prefix) => prefix,
+        }
+    }
+
+    fn infer(sequential: bool, timestamp: bool, migrator: &Migrator) -> Self {
+        match (timestamp, sequential) {
+            (true, true) => panic!("Impossible to specify both timestamp and sequential mode"),
+            (true, false) => MigrationOrdering::timestamp(),
+            (false, true) => MigrationOrdering::sequential(
+                migrator
+                    .iter()
+                    .last()
+                    .map_or(1, |last_migration| last_migration.version + 1),
+            ),
+            (false, false) => {
+                // inferring the naming scheme
+                let migrations = migrator
+                    .iter()
+                    .filter(|migration| migration.migration_type.is_up_migration())
+                    .rev()
+                    .take(2)
+                    .collect::<Vec<_>>();
+                if let [last, pre_last] = &migrations[..] {
+                    // there are at least two migrations, compare the last twothere's only one existing migration
+                    if last.version - pre_last.version == 1 {
+                        // their version numbers differ by 1, infer sequential
+                        MigrationOrdering::sequential(last.version + 1)
+                    } else {
+                        MigrationOrdering::timestamp()
+                    }
+                } else if let [last] = &migrations[..] {
+                    // there is only one existing migration
+                    if last.version == 0 || last.version == 1 {
+                        // infer sequential if the version number is 0 or 1
+                        MigrationOrdering::sequential(last.version + 1)
+                    } else {
+                        MigrationOrdering::timestamp()
+                    }
+                } else {
+                    MigrationOrdering::timestamp()
+                }
+            }
+        }
+    }
+}
+
 pub async fn add(
     migration_source: &str,
     description: &str,
     reversible: bool,
+    sequential: bool,
+    timestamp: bool,
 ) -> anyhow::Result<()> {
     fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
 
@@ -49,16 +115,14 @@ pub async fn add(
         .unwrap_or(false);
 
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // This checks if all existing migrations are of the same type as the reverisble flag passed
-    for migration in migrator.iter() {
-        if migration.migration_type.is_reversible() != reversible {
-            bail!(MigrateError::InvalidMixReversibleAndSimple);
-        }
-    }
+    // Type of newly created migration will be the same as the first one
+    // or reversible flag if this is the first migration
+    let migration_type = MigrationType::infer(&migrator, reversible);
 
-    let dt = Utc::now();
-    let file_prefix = dt.format("%Y%m%d%H%M%S").to_string();
-    if reversible {
+    let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
+    let file_prefix = ordering.file_prefix();
+
+    if migration_type.is_reversible() {
         create_file(
             migration_source,
             &file_prefix,
@@ -82,7 +146,7 @@ pub async fn add(
 
     if !has_existing_migrations {
         let quoted_source = if migration_source != "migrations" {
-            format!("{:?}", migration_source)
+            format!("{migration_source:?}")
         } else {
             "".to_string()
         };
@@ -111,7 +175,7 @@ See: https://docs.rs/sqlx/0.5/sqlx/macro.migrate.html
 fn short_checksum(checksum: &[u8]) -> String {
     let mut s = String::with_capacity(checksum.len() * 2);
     for b in checksum {
-        write!(&mut s, "{:02x?}", b).expect("should not fail to write to str");
+        write!(&mut s, "{b:02x?}").expect("should not fail to write to str");
     }
     s
 }
@@ -170,6 +234,8 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
         }
     }
 
+    let _ = conn.close().await;
+
     Ok(())
 }
 
@@ -198,8 +264,15 @@ pub async fn run(
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
+    target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
+    if let Some(target_version) = target_version {
+        if !migrator.iter().any(|m| target_version == m.version) {
+            bail!(MigrateError::VersionNotPresent(target_version));
+        }
+    }
+
     let mut conn = crate::connect(connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
@@ -211,6 +284,17 @@ pub async fn run(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version < latest_version {
+            bail!(MigrateError::VersionTooOld(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -230,12 +314,23 @@ pub async fn run(
                 }
             }
             None => {
-                let elapsed = if dry_run {
+                let skip = match target_version {
+                    Some(target_version) if migration.version > target_version => true,
+                    _ => false,
+                };
+
+                let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
                     conn.apply(migration).await?
                 };
-                let text = if dry_run { "Can apply" } else { "Applied" };
+                let text = if skip {
+                    "Skipped"
+                } else if dry_run {
+                    "Can apply"
+                } else {
+                    "Applied"
+                };
 
                 println!(
                     "{} {}/{} {} {}",
@@ -243,11 +338,18 @@ pub async fn run(
                     style(migration.version).cyan(),
                     style(migration.migration_type.label()).green(),
                     migration.description,
-                    style(format!("({:?})", elapsed)).dim()
+                    style(format!("({elapsed:?})")).dim()
                 );
             }
         }
     }
+
+    // Close the connection before exiting:
+    // * For MySQL and Postgres this should ensure timely cleanup on the server side,
+    //   including decrementing the open connection count.
+    // * For SQLite this should checkpoint and delete the WAL file to ensure the migrations
+    //   were actually applied to the database file and aren't just sitting in the WAL file.
+    let _ = conn.close().await;
 
     Ok(())
 }
@@ -257,8 +359,15 @@ pub async fn revert(
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
+    target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
+    if let Some(target_version) = target_version {
+        if target_version != 0 && !migrator.iter().any(|m| target_version == m.version) {
+            bail!(MigrateError::VersionNotPresent(target_version));
+        }
+    }
+
     let mut conn = crate::connect(&connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
@@ -270,6 +379,17 @@ pub async fn revert(
 
     let applied_migrations = conn.list_applied_migrations().await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+
+    let latest_version = applied_migrations
+        .iter()
+        .max_by(|x, y| x.version.cmp(&y.version))
+        .and_then(|migration| Some(migration.version))
+        .unwrap_or(0);
+    if let Some(target_version) = target_version {
+        if target_version > latest_version {
+            bail!(MigrateError::VersionTooNew(target_version, latest_version));
+        }
+    }
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -285,12 +405,22 @@ pub async fn revert(
         }
 
         if applied_migrations.contains_key(&migration.version) {
-            let elapsed = if dry_run {
+            let skip = match target_version {
+                Some(target_version) if migration.version <= target_version => true,
+                _ => false,
+            };
+            let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
                 conn.revert(migration).await?
             };
-            let text = if dry_run { "Can apply" } else { "Applied" };
+            let text = if skip {
+                "Skipped"
+            } else if dry_run {
+                "Can apply"
+            } else {
+                "Applied"
+            };
 
             println!(
                 "{} {}/{} {} {}",
@@ -298,17 +428,23 @@ pub async fn revert(
                 style(migration.version).cyan(),
                 style(migration.migration_type.label()).green(),
                 migration.description,
-                style(format!("({:?})", elapsed)).dim()
+                style(format!("({elapsed:?})")).dim()
             );
 
             is_applied = true;
-            // Only a single migration will be reverted at a time, so we break
-            break;
+
+            // Only a single migration will be reverted at a time if no target
+            // version is supplied, so we break.
+            if let None = target_version {
+                break;
+            }
         }
     }
     if !is_applied {
         println!("No migrations available to revert");
     }
+
+    let _ = conn.close().await;
 
     Ok(())
 }
@@ -328,9 +464,8 @@ pub fn build_script(migration_source: &str, force: bool) -> anyhow::Result<()> {
         r#"// generated by `sqlx migrate build-script`
 fn main() {{
     // trigger recompilation when a new migration is added
-    println!("cargo:rerun-if-changed={}");
+    println!("cargo:rerun-if-changed={migration_source}");
 }}"#,
-        migration_source
     );
 
     fs::write("build.rs", contents)?;

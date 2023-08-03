@@ -212,6 +212,14 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
         None
     }
 
+    /// Returns the name of the table that was affected by the error, if applicable.
+    ///
+    /// ### Note
+    /// Currently only populated by the Postgres driver.
+    fn table(&self) -> Option<&str> {
+        None
+    }
+
     /// Returns the kind of the error, if supported.
     ///
     /// ### Note
@@ -245,10 +253,7 @@ impl dyn DatabaseError {
     /// specific error type. In other cases, use `try_downcast_ref`.
     pub fn downcast_ref<E: DatabaseError>(&self) -> &E {
         self.try_downcast_ref().unwrap_or_else(|| {
-            panic!(
-                "downcast to wrong DatabaseError type; original error: {}",
-                self
-            )
+            panic!("downcast to wrong DatabaseError type; original error: {self}")
         })
     }
 
@@ -260,12 +265,8 @@ impl dyn DatabaseError {
     /// `Error::downcast` which returns `Option<E>`. In normal usage, you should know the
     /// specific error type. In other cases, use `try_downcast`.
     pub fn downcast<E: DatabaseError>(self: Box<Self>) -> Box<E> {
-        self.try_downcast().unwrap_or_else(|e| {
-            panic!(
-                "downcast to wrong DatabaseError type; original error: {}",
-                e
-            )
-        })
+        self.try_downcast()
+            .unwrap_or_else(|e| panic!("downcast to wrong DatabaseError type; original error: {e}"))
     }
 
     /// Downcast a reference to this generic database error to a specific
