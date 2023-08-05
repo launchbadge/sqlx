@@ -262,7 +262,10 @@ impl PgListener {
 
                 // The connection is dead, ensure that it is dropped,
                 // update self state, and loop to try again.
-                Err(Error::Io(err)) if err.kind() == io::ErrorKind::ConnectionAborted => {
+                Err(Error::Io(err))
+                    if (err.kind() == io::ErrorKind::ConnectionAborted
+                        || err.kind() == io::ErrorKind::UnexpectedEof) =>
+                {
                     self.buffer_tx = self.connection().await?.stream.notifications.take();
                     self.connection = None;
 
