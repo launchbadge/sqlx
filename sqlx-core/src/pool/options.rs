@@ -470,7 +470,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// This ensures the configuration is correct.
     ///
-    /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
+    /// The total number of connections opened is <code>max(1, [min_connections][Self::min_connections])</code>.
     ///
     /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
     ///
@@ -486,7 +486,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// This ensures the configuration is correct.
     ///
-    /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
+    /// The total number of connections opened is <code>max(1, [min_connections][Self::min_connections])</code>.
     pub async fn connect_with(
         self,
         options: <DB::Connection as Connection>::Options,
