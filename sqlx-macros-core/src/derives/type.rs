@@ -187,6 +187,10 @@ fn expand_derive_has_sql_type_strong_enum(
                 fn type_info() -> ::sqlx::postgres::PgTypeInfo {
                     ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
+
+                fn compatible(ty: &::sqlx::postgres::PgTypeInfo) -> ::std::primitive::bool {
+                    matches!(*ty.kind(), ::sqlx::postgres::PgTypeKind::Enum(_))
+                }
             }
         ));
     }
