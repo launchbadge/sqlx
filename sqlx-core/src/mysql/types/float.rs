@@ -1,5 +1,3 @@
-use byteorder::{ByteOrder, LittleEndian};
-
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -8,7 +6,10 @@ use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
 fn real_compatible(ty: &MySqlTypeInfo) -> bool {
-    matches!(ty.r#type, ColumnType::Float | ColumnType::Double)
+    matches!(
+        ty.r#type,
+        ColumnType::Float | ColumnType::Double | ColumnType::NewDecimal
+    )
 }
 
 impl Type<MySql> for f32 {
@@ -49,29 +50,31 @@ impl Encode<'_, MySql> for f64 {
 
 impl Decode<'_, MySql> for f32 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => {
-                let buf = value.as_bytes()?;
-
-                if buf.len() == 8 {
-                    // MySQL can return 8-byte DOUBLE values for a FLOAT
-                    // We take and truncate to f32 as that's the same behavior as *in* MySQL
-                    LittleEndian::read_f64(buf) as f32
-                } else {
-                    LittleEndian::read_f32(buf)
-                }
-            }
-
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        let as_f64 = <f64 as Decode<'_, MySql>>::decode(value)?;
+        Ok(as_f64 as f32)
     }
 }
 
 impl Decode<'_, MySql> for f64 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => LittleEndian::read_f64(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
+        Ok(match (value.format(), value.type_info.r#type) {
+            (MySqlValueFormat::Binary, ColumnType::Float | ColumnType::Double) => {
+                let buf = value.as_bytes()?;
+                match buf.len() {
+                    4 => f32::from_le_bytes(buf.try_into()?) as f64,
+                    8 => f64::from_le_bytes(buf.try_into()?),
+                    _ => {
+                        return Err(
+                            format!("float value buffer of unexpected size: {:02X?}", buf).into(),
+                        )
+                    }
+                }
+            }
+            _ => {
+                let str_val = value.as_str()?;
+                let parsed = str_val.parse()?;
+                parsed
+            }
         })
     }
 }

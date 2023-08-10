@@ -22,7 +22,7 @@ pub struct MySqlValue {
 }
 
 /// Implementation of [`ValueRef`] for MySQL.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MySqlValueRef<'r> {
     pub(crate) value: Option<&'r [u8]>,
     pub(crate) row: Option<&'r Bytes>,
