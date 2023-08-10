@@ -146,3 +146,14 @@ mod chrono {
         "CAST('00:00' AS TIME)" == NaiveTime::default(),
     ));
 }
+
+#[cfg(feature = "json")]
+mod json {
+    use super::*;
+    use serde_json::Value;
+    use sqlx_core::types::Json;
+
+    test_type!(json_value<Json<Value>>(Mssql,
+        r#"'123'"# == Json(Value::Number(123.into()))
+    ));
+}
