@@ -8,6 +8,7 @@
 > - Improved support for Microsoft SQL Server, including:
 >     -   Support for reading and writing `binary` and `varbinary` data
 >     -   Support for reading and writing `date`, `dateime`, and `datetimeoffset` data using the `chrono` feature.
+>     -   Support for reading and writing `numeric` and `decimal`.
 >     -   Multiple bug fixes around string handling, including better support for long strings
 >     -   Support for packet chunking, which fixes a bug where large bound parameters or large queries would fail
 
