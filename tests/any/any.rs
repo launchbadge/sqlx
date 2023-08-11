@@ -39,7 +39,47 @@ async fn it_has_chrono() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "bigdecimal")]
+#[sqlx_macros::test]
+async fn it_has_bigdecimal() -> anyhow::Result<()> {
+    use sqlx_oldapi::types::BigDecimal;
+    use std::str::FromStr;
+    assert_eq!(
+        BigDecimal::from_str("1234567.89")?,
+        get_val::<BigDecimal>("CAST(1234567.89 AS DECIMAL(9,2))").await?
+    );
+    Ok(())
+}
 
+#[cfg(feature = "decimal")]
+#[sqlx_macros::test]
+async fn it_has_decimal() -> anyhow::Result<()> {
+    use sqlx_oldapi::types::Decimal;
+    use std::str::FromStr;
+    assert_eq!(
+        Decimal::from_str("1234567.89")?,
+        get_val::<Decimal>("CAST(1234567.89 AS DECIMAL(9,2))").await?
+    );
+    Ok(())
+}
+
+#[cfg(feature = "json")]
+#[sqlx_macros::test]
+async fn it_has_json() -> anyhow::Result<()> {
+    use serde_json::json;
+    assert_eq!(
+        json!({"foo": "bar"}),
+        get_val::<serde_json::Value>(
+            // SQLite and Mssql do not have a native JSON type, strings are parsed as JSON
+            if cfg!(any(feature = "sqlite", feature = "mssql")) {
+                "'{\"foo\": \"bar\"}'"
+            } else {
+                "CAST('{\"foo\": \"bar\"}' AS JSON)"
+            }
+        ).await?
+    );
+    Ok(())
+}
 
 
 #[sqlx_macros::test]

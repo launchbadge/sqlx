@@ -109,3 +109,27 @@ impl_any_decode!(chrono::NaiveDateTime);
 impl_any_decode!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(feature = "chrono")]
 impl_any_decode!(chrono::DateTime<chrono::offset::Local>);
+
+#[cfg(feature = "json")]
+mod json_types {
+    use serde_json::Value;
+    impl_any_type!(Value);
+    impl_any_encode!(Value);
+    impl_any_decode!(Value);
+}
+
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal_types {
+    use bigdecimal::BigDecimal;
+    impl_any_type!(BigDecimal);
+    impl_any_encode!(BigDecimal);
+    impl_any_decode!(BigDecimal);
+}
+
+#[cfg(feature = "decimal")]
+mod decimal_types {
+    use rust_decimal::Decimal;
+    impl_any_type!(Decimal);
+    impl_any_encode!(Decimal);
+    impl_any_decode!(Decimal);
+}
