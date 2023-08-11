@@ -244,7 +244,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mysql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features mysql,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}
       - run: sleep 30
@@ -254,7 +254,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
