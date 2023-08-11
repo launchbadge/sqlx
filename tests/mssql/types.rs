@@ -147,6 +147,45 @@ mod chrono {
     ));
 }
 
+#[cfg(feature = "decimal")]
+mod decimal {
+    use super::*;
+    use sqlx_oldapi::types::Decimal;
+
+    test_type!(Decimal(
+        Mssql,
+        "CAST('123456789.987654321' AS DECIMAL(18,9))"
+            == Decimal::from_str_exact("123456789.987654321").unwrap(),
+        "CAST('0' AS DECIMAL(1,0))" == Decimal::from_str_exact("0").unwrap(),
+        "CAST('1' AS DECIMAL(1,0))" == Decimal::from_str_exact("1").unwrap(),
+        "CAST('-1' AS DECIMAL(1,0))" == Decimal::from_str_exact("-1").unwrap(),
+        "CAST('0.01234567890123456789' AS DECIMAL(38,20))"
+            == Decimal::from_str_exact("0.01234567890123456789").unwrap(),
+        "CAST('-12345678901234' AS DECIMAL(28,5))"
+            == Decimal::from_str_exact("-12345678901234").unwrap(),
+    ));
+}
+
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal {
+    use super::*;
+    use sqlx_oldapi::types::BigDecimal;
+    use std::str::FromStr;
+
+    test_type!(BigDecimal(
+        Mssql,
+        "CAST('0' AS DECIMAL(1,0))" == BigDecimal::from_str("0").unwrap(),
+        "CAST('1' AS DECIMAL(1,0))" == BigDecimal::from_str("1").unwrap(),
+        "CAST('-1' AS DECIMAL(1,0))" == BigDecimal::from_str("-1").unwrap(),
+        "CAST('-12345678901234' AS DECIMAL(28,5))"
+            == BigDecimal::from_str("-12345678901234").unwrap(),
+        "CAST('-12345678901234567890' AS DECIMAL(38,5))"
+            == BigDecimal::from_str("-12345678901234567890").unwrap(),
+        "CAST('-12345678901234567890.012345678901234' AS DECIMAL(38,15))"
+            == BigDecimal::from_str("-12345678901234567890.012345678901234").unwrap(),
+    ));
+}
+
 #[cfg(feature = "json")]
 mod json {
     use super::*;

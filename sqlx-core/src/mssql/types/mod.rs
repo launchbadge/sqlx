@@ -15,6 +15,12 @@ mod chrono;
 #[cfg(feature = "json")]
 mod json;
 
+#[cfg(feature = "decimal")]
+mod decimal;
+
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal;
+
 impl<'q, T: 'q + Encode<'q, Mssql>> Encode<'q, Mssql> for Option<T> {
     fn encode(self, buf: &mut Vec<u8>) -> IsNull {
         if let Some(v) = self {
