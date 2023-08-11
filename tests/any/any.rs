@@ -18,7 +18,7 @@ where
 #[sqlx_macros::test]
 async fn it_has_all_the_types() -> anyhow::Result<()> {
     assert_eq!(6, get_val::<i32>("5 + 1").await?);
-    assert_eq!(6, get_val::<i64>("CAST(6 AS BIGINT)").await?);
+    assert_eq!(1234567890123, get_val::<i64>("1234567890123").await?);
     assert_eq!(
         "hello world".to_owned(),
         get_val::<String>("'hello world'").await?
