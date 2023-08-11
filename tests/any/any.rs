@@ -76,11 +76,11 @@ async fn it_has_json() -> anyhow::Result<()> {
             } else {
                 "CAST('{\"foo\": \"bar\"}' AS JSON)"
             }
-        ).await?
+        )
+        .await?
     );
     Ok(())
 }
-
 
 #[sqlx_macros::test]
 async fn it_pings() -> anyhow::Result<()> {
