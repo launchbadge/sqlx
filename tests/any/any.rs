@@ -24,6 +24,7 @@ async fn it_has_all_the_types() -> anyhow::Result<()> {
         get_val::<String>("'hello world'").await?
     );
     assert_eq!(None, get_val::<Option<i32>>("NULL").await?);
+    assert_eq!(6.5, get_val::<f64>("CAST(6.5 AS DOUBLE PRECISION)").await?);
     Ok(())
 }
 
@@ -37,6 +38,9 @@ async fn it_has_chrono() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+
+
 
 #[sqlx_macros::test]
 async fn it_pings() -> anyhow::Result<()> {
