@@ -95,9 +95,7 @@ mod json_tests {
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx_oldapi::types::chrono::{
-        DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc,
-    };
+    use sqlx_oldapi::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()

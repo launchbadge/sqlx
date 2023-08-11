@@ -31,10 +31,10 @@ async fn it_has_all_the_types() -> anyhow::Result<()> {
 #[cfg(feature = "chrono")]
 #[sqlx_macros::test]
 async fn it_has_chrono() -> anyhow::Result<()> {
-    use sqlx_oldapi::types::chrono::{DateTime, Utc};
+    use sqlx_oldapi::types::chrono::NaiveDate;
     assert_eq!(
-        DateTime::parse_from_rfc3339("2020-01-02T03:04:05Z")?,
-        get_val::<DateTime<Utc>>("CAST('2020-01-02 03:04:05' AS DATETIME)").await?
+        NaiveDate::from_ymd_opt(2020, 1, 2).unwrap(),
+        get_val::<NaiveDate>("CAST('20200102' AS DATE)").await?
     );
     Ok(())
 }

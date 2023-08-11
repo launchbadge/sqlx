@@ -1,5 +1,4 @@
 use crate::types::chrono::FixedOffset;
-use crate::value::ValueRef;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -174,7 +173,13 @@ impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
 
 impl<'r> Decode<'r, Sqlite> for NaiveDate {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(NaiveDate::parse_from_str(value.text()?, "%F")?)
+        let txt = value.text()?;
+        for fmt in ["%F", "%x", "%Y%m%d"] {
+            if let Ok(dt) = NaiveDate::parse_from_str(txt, fmt) {
+                return Ok(dt);
+            }
+        }
+        Err(format!("invalid date: {}", txt).into())
     }
 }
 

@@ -79,10 +79,14 @@
 //! a potentially `NULL` value from SQLite.
 //!
 
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal;
 mod bool;
 mod bytes;
 #[cfg(feature = "chrono")]
 mod chrono;
+#[cfg(feature = "decimal")]
+mod decimal;
 mod float;
 mod int;
 #[cfg(feature = "json")]
