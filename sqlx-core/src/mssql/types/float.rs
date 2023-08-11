@@ -79,13 +79,18 @@ impl Decode<'_, Mssql> for f64 {
         }
     }
 }
-fn decode_numeric(bytes: &[u8], _precision: u8, scale: u8) -> Result<f64, BoxDynError> {
-    let negative = bytes[0] == 0;
+fn decode_numeric(bytes: &[u8], _precision: u8, mut scale: u8) -> Result<f64, BoxDynError> {
+    let sign = if bytes[0] == 0 { -1. } else { 1. };
     let rest = &bytes[1..];
     let mut fixed_bytes = [0u8; 16];
     fixed_bytes[0..rest.len()].copy_from_slice(rest);
-    let numerator = u128::from_le_bytes(fixed_bytes);
-    let denominator = 10_u64.pow(u32::from(scale));
-    // TODO: fix for large numbers and large precisions that overflow f64
-    Ok((numerator as f64) / (denominator as f64) * if negative { -1.0 } else { 1.0 })
+    let mut numerator = u128::from_le_bytes(fixed_bytes);
+    let mut decimal_part = 0f64;
+    while scale > 0 {
+        scale -= 1;
+        decimal_part += (numerator % 10) as f64;
+        decimal_part /= 10.;
+        numerator /= 10;
+    }
+    Ok(sign * ((numerator as f64) + decimal_part))
 }
