@@ -85,7 +85,18 @@ impl Type<Mssql> for i64 {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::BigInt | DataType::IntN) && ty.0.size == 8
+        matches!(
+            ty.0.ty,
+            DataType::SmallInt
+                | DataType::Int
+                | DataType::TinyInt
+                | DataType::BigInt
+                | DataType::IntN
+                | DataType::Numeric
+                | DataType::NumericN
+                | DataType::Decimal
+                | DataType::DecimalN
+        )
     }
 }
 
@@ -99,6 +110,43 @@ impl Encode<'_, Mssql> for i64 {
 
 impl Decode<'_, Mssql> for i64 {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(LittleEndian::read_i64(value.as_bytes()?))
+        let ty = value.type_info.0.ty;
+        let precision = value.type_info.0.precision;
+        let scale = value.type_info.0.scale;
+        match ty {
+            DataType::SmallInt
+            | DataType::Int
+            | DataType::TinyInt
+            | DataType::BigInt
+            | DataType::IntN => {
+                let mut buf = [0u8; 8];
+                let bytes_val = value.as_bytes()?;
+                buf[..bytes_val.len()].copy_from_slice(bytes_val);
+                Ok(i64::from_le_bytes(buf))
+            }
+            DataType::Numeric | DataType::NumericN | DataType::Decimal | DataType::DecimalN => {
+                decode_numeric(value.as_bytes()?, precision, scale)
+            }
+            _ => Err(err_protocol!(
+                "Decoding {:?} as a float failed because type {:?} is not implemented",
+                value,
+                ty
+            )
+            .into()),
+        }
     }
+}
+
+fn decode_numeric(bytes: &[u8], _precision: u8, mut scale: u8) -> Result<i64, BoxDynError> {
+    let negative = bytes[0] == 0;
+    let rest = &bytes[1..];
+    let mut fixed_bytes = [0u8; 16];
+    fixed_bytes[0..rest.len()].copy_from_slice(rest);
+    let mut numerator = u128::from_le_bytes(fixed_bytes);
+    while scale > 0 {
+        scale -= 1;
+        numerator /= 10;
+    }
+    let n = i64::try_from(numerator)?;
+    Ok(n * if negative { -1 } else { 1 })
 }
