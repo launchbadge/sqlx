@@ -1,20 +1,40 @@
 use sqlx_oldapi::any::AnyRow;
-use sqlx_oldapi::{Any, Connection, Executor, Row};
+use sqlx_oldapi::{Any, Connection, Decode, Executor, Row, Type};
 use sqlx_test::new;
 
-#[sqlx_macros::test]
-async fn it_connects() -> anyhow::Result<()> {
+async fn get_val<T>(expr: &str) -> anyhow::Result<T>
+where
+    for<'r> T: Decode<'r, Any> + Type<Any> + std::marker::Unpin + std::marker::Send + 'static,
+{
     let mut conn = new::<Any>().await?;
-
-    let value = sqlx_oldapi::query("select 1 + 5")
-        .try_map(|row: AnyRow| row.try_get::<i32, _>(0))
+    let val = sqlx_oldapi::query(&format!("select {}", expr))
+        .try_map(|row: AnyRow| row.try_get::<T, _>(0))
         .fetch_one(&mut conn)
         .await?;
-
-    assert_eq!(6i32, value);
-
     conn.close().await?;
+    Ok(val)
+}
 
+#[sqlx_macros::test]
+async fn it_has_all_the_types() -> anyhow::Result<()> {
+    assert_eq!(6, get_val::<i32>("5 + 1").await?);
+    assert_eq!(6, get_val::<i64>("CAST(6 AS BIGINT)").await?);
+    assert_eq!(
+        "hello world".to_owned(),
+        get_val::<String>("'hello world'").await?
+    );
+    assert_eq!(None, get_val::<Option<i32>>("NULL").await?);
+    Ok(())
+}
+
+#[cfg(feature = "chrono")]
+#[sqlx_macros::test]
+async fn it_has_chrono() -> anyhow::Result<()> {
+    use sqlx_oldapi::types::chrono::{DateTime, Utc};
+    assert_eq!(
+        DateTime::parse_from_rfc3339("2020-01-02T03:04:05Z")?,
+        get_val::<DateTime<Utc>>("CAST('2020-01-02 03:04:05' AS DATETIME)").await?
+    );
     Ok(())
 }
 
