@@ -55,12 +55,6 @@ impl<'r> SqliteValueRef<'r> {
             SqliteValueData::Value(v) => v.text(),
         }
     }
-
-    pub(super) fn type_info(&self) -> SqliteTypeInfo {
-        match self.0 {
-            SqliteValueData::Value(v) => v.type_info.clone(),
-        }
-    }
 }
 
 impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
@@ -181,7 +175,7 @@ impl<'r> From<SqliteValueRef<'r>> for crate::any::AnyValueRef<'r> {
     #[inline]
     fn from(value: SqliteValueRef<'r>) -> Self {
         crate::any::AnyValueRef {
-            type_info: value.type_info().into(),
+            type_info: value.type_info().into_owned().into(),
             kind: crate::any::value::AnyValueRefKind::Sqlite(value),
         }
     }

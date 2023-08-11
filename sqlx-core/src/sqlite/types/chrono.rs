@@ -1,4 +1,5 @@
 use crate::types::chrono::FixedOffset;
+use crate::value::ValueRef;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -39,7 +40,10 @@ impl Type<Sqlite> for NaiveDate {
     }
 
     fn compatible(ty: &SqliteTypeInfo) -> bool {
-        matches!(ty.0, DataType::Date | DataType::Text)
+        matches!(
+            ty.0,
+            DataType::Date | DataType::Text | DataType::Int64 | DataType::Int
+        )
     }
 }
 
@@ -173,13 +177,27 @@ impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
 
 impl<'r> Decode<'r, Sqlite> for NaiveDate {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        let txt = value.text()?;
-        for fmt in ["%F", "%x", "%Y%m%d"] {
-            if let Ok(dt) = NaiveDate::parse_from_str(txt, fmt) {
-                return Ok(dt);
+        match value.type_info().0 {
+            DataType::Text => {
+                let txt = value.text()?;
+                for fmt in ["%F", "%x", "%Y%m%d"] {
+                    if let Ok(dt) = NaiveDate::parse_from_str(txt, fmt) {
+                        return Ok(dt);
+                    }
+                }
+                Err(format!("invalid date: {}", txt).into())
             }
+            DataType::Int | DataType::Int64 => {
+                // parse format 19940416
+                let int = value.int64();
+                let year = (int / 10_000) as i32;
+                let month = ((int % 10_000) / 100) as u32;
+                let day = (int % 100) as u32;
+                NaiveDate::from_ymd_opt(year, month, day)
+                    .ok_or(format!("invalid date: {}", int).into())
+            }
+            other => Err(format!("invalid date type: {:?}", other).into()),
         }
-        Err(format!("invalid date: {}", txt).into())
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::value::ValueRef;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},

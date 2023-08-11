@@ -45,8 +45,8 @@ async fn it_has_bigdecimal() -> anyhow::Result<()> {
     use sqlx_oldapi::types::BigDecimal;
     use std::str::FromStr;
     assert_eq!(
-        BigDecimal::from_str("1234567.89")?,
-        get_val::<BigDecimal>("CAST(1234567.89 AS DECIMAL(9,2))").await?
+        BigDecimal::from_str("1234567.25")?,
+        get_val::<BigDecimal>("CAST('1234567.25' AS DECIMAL(9,2))").await?
     );
     Ok(())
 }
@@ -57,8 +57,8 @@ async fn it_has_decimal() -> anyhow::Result<()> {
     use sqlx_oldapi::types::Decimal;
     use std::str::FromStr;
     assert_eq!(
-        Decimal::from_str("1234567.89")?,
-        get_val::<Decimal>("CAST(1234567.89 AS DECIMAL(9,2))").await?
+        Decimal::from_str("1234567.25")?,
+        get_val::<Decimal>("CAST('1234567.25' AS DECIMAL(9,2))").await?
     );
     Ok(())
 }
