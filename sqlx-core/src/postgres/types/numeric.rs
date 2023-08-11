@@ -134,3 +134,35 @@ impl PgNumeric {
         }
     }
 }
+
+impl TryFrom<PgNumeric> for f64 {
+    type Error = BoxDynError;
+
+    fn try_from(numeric: PgNumeric) -> Result<Self, BoxDynError> {
+        let (digits, sign, weight) = match numeric {
+            PgNumeric::Number {
+                digits,
+                sign,
+                weight,
+                ..
+            } => (digits, sign, weight),
+
+            PgNumeric::NotANumber => {
+                return Ok(f64::NAN);
+            }
+        };
+
+        let sign = match sign {
+            PgNumericSign::Positive => 1.,
+            PgNumericSign::Negative => -1.,
+        };
+
+        let mut res = 0.0;
+        let mut weight = 10_000f64.powi(i32::try_from(weight)?);
+        for &digit in digits.iter() {
+            res += f64::from(digit) * weight;
+            weight /= 10_000.;
+        }
+        Ok(sign * res)
+    }
+}
