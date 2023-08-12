@@ -30,6 +30,10 @@ async fn it_has_all_the_types() -> anyhow::Result<()> {
         125125.125f64,
         get_val::<f64>("CAST(125125.125 AS NUMERIC)").await?
     );
+    assert_eq!(
+        -1234567890.125,
+        get_val::<f64>("CAST(-1234567890.125 AS NUMERIC)").await?
+    );
     Ok(())
 }
 
