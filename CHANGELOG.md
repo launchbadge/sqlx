@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.11 
  - more encode and decode implementations for sqlite (decimal, bigdecimal, date)
+ - implemented decoding of postgres numeric data type as f64 (with precision loss)
+ - improved the precision of f64 decimal decoding in mssql
+ - implemented Encode and Decode on Any for decimal, bigdecimal, and json types
 
 ## 0.6.10
  - add support for Json in mssql
