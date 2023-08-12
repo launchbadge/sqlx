@@ -25,6 +25,11 @@ async fn it_has_all_the_types() -> anyhow::Result<()> {
     );
     assert_eq!(None, get_val::<Option<i32>>("NULL").await?);
     assert_eq!(1e-40, get_val::<f64>("1e-40").await?);
+    assert_eq!(12.5f64, get_val::<f64>("CAST(12.5 AS DECIMAL(9,2))").await?);
+    assert_eq!(
+        125125.125f64,
+        get_val::<f64>("CAST(125125.125 AS NUMERIC)").await?
+    );
     Ok(())
 }
 
