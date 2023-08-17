@@ -12,13 +12,13 @@ impl_database_ext! {
         String,
         Vec<u8>,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveDate,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveDateTime,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
 
         #[cfg(feature = "time")]
