@@ -11,7 +11,7 @@ use url::Url;
 
 /// Represents a single database connection.
 pub trait Connection: Send {
-    type Database: Database;
+    type Database: Database<Connection = Self>;
 
     type Options: ConnectOptions<Connection = Self>;
 
@@ -184,7 +184,7 @@ impl LogSettings {
 }
 
 pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug + Clone {
-    type Connection: Connection + ?Sized;
+    type Connection: Connection<Options = Self> + ?Sized;
 
     /// Parse the `ConnectOptions` from a URL.
     fn from_url(url: &Url) -> Result<Self, Error>;
