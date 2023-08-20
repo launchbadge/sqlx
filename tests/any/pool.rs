@@ -1,5 +1,5 @@
 use sqlx_oldapi::any::{AnyConnectOptions, AnyPoolOptions};
-use sqlx_oldapi::Executor;
+use sqlx_oldapi::{Executor, Row};
 use std::sync::atomic::AtomicI32;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -64,6 +64,31 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
     assert!(res.is_err());
     drop(tx);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn big_pool() -> anyhow::Result<()> {
+    let pool = Arc::new(AnyPoolOptions::new()
+        .max_connections(2)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(&dotenvy::var("DATABASE_URL")?)
+        .await?);
+
+    // Run 1000 queries concurrently and ensure that we don't deadlock
+    let mut handles = Vec::new();
+    for _ in 0..1000 {
+        let p = pool.clone();
+        handles.push(tokio::spawn(async move {
+            let row = sqlx_oldapi::query("SELECT 1").fetch_one(&*p).await?;
+            let val: i32 = row.get(0);
+            assert_eq!(val, 1);
+            Ok::<_, sqlx_oldapi::Error>(())
+        }));
+    }
+    for h in handles {
+        h.await??;
+    }
     Ok(())
 }
 
