@@ -67,6 +67,7 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "runtime-tokio-rustls")]
 #[sqlx_macros::test]
 async fn big_pool() -> anyhow::Result<()> {
     let pool = Arc::new(
