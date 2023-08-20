@@ -69,11 +69,13 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn big_pool() -> anyhow::Result<()> {
-    let pool = Arc::new(AnyPoolOptions::new()
-        .max_connections(2)
-        .acquire_timeout(Duration::from_secs(3))
-        .connect(&dotenvy::var("DATABASE_URL")?)
-        .await?);
+    let pool = Arc::new(
+        AnyPoolOptions::new()
+            .max_connections(2)
+            .acquire_timeout(Duration::from_secs(3))
+            .connect(&dotenvy::var("DATABASE_URL")?)
+            .await?,
+    );
 
     // Run 1000 queries concurrently and ensure that we don't deadlock
     let mut handles = Vec::new();
