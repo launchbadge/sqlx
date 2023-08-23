@@ -85,6 +85,8 @@ impl PgConnectOptions {
 
                 "application_name" => options = options.application_name(&*value),
 
+                "extra_float_digits" => options = options.extra_float_digits(Some(value.parse().map_err(Error::config)?)),
+
                 "options" => {
                     if let Some(options) = options.options.as_mut() {
                         options.push(' ');
@@ -188,6 +190,14 @@ fn it_parses_application_name_correctly_from_parameter() {
     let opts = PgConnectOptions::from_str(url).unwrap();
 
     assert_eq!(Some("some_name"), opts.application_name.as_deref());
+}
+
+#[test]
+fn it_parses_extra_float_digits_correctly_from_parameter() {
+    let url = "postgres:///?extra_float_digits=2";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(Some("2"), opts.extra_float_digits.as_deref());
 }
 
 #[test]
