@@ -5,9 +5,9 @@ use crate::{
     database::HasArguments, error::BoxDynError, PgHasArrayType, PgTypeInfo, PgValueFormat,
     PgValueRef, Postgres,
 };
-use byteorder::{BigEndian, ReadBytesExt};
-use std::fmt::{Display, Formatter, Write};
-use std::io::{BufRead, Cursor};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use std::fmt::{Display, Formatter};
+use std::io::{BufRead, Cursor, Write};
 use std::num::ParseIntError;
 use std::str;
 use std::str::FromStr;
@@ -15,7 +15,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct Lexeme {
     word: String,
-    positions: Vec<i32>,
+    positions: Vec<u16>,
 }
 
 #[derive(Debug)]
@@ -25,6 +25,8 @@ pub struct TsVector {
 
 impl Display for TsVector {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
         let mut words = self.words.iter().peekable();
 
         while let Some(word) = words.next() {
@@ -63,12 +65,12 @@ impl TryFrom<&[u8]> for TsVector {
             reader.read_until(b'\0', &mut lexeme)?;
 
             let num_positions = reader.read_u16::<BigEndian>()?;
-            let mut positions = Vec::<i32>::with_capacity(num_positions as usize);
+            let mut positions = Vec::<u16>::with_capacity(num_positions as usize);
 
             if num_positions > 0 {
                 for _ in 0..num_positions {
                     let position = reader.read_u16::<BigEndian>()?;
-                    positions.push(position as i32);
+                    positions.push(position);
                 }
             }
 
@@ -82,13 +84,38 @@ impl TryFrom<&[u8]> for TsVector {
     }
 }
 
+impl<'bytes> TryInto<&'bytes [u8]> for &TsVector {
+    type Error = BoxDynError;
+
+    fn try_into(self) -> Result<&'bytes [u8], Self::Error> {
+        let buf: &mut Vec<u8> = &mut vec![];
+
+        buf.write_u32::<BigEndian>(u32::try_from(self.words.len())?)?;
+
+        for lexeme in &self.words {
+            buf.write(lexeme.word.as_bytes())?;
+            buf.write(&[b'\0'])?;
+
+            buf.write_u16::<BigEndian>(u16::try_from(lexeme.positions.len())?)?;
+
+            if !lexeme.positions.is_empty() {
+                for position in lexeme.positions {
+                    buf.write_u16::<BigEndian>(position)?;
+                }
+            }
+        }
+
+        buf.flush()?;
+
+        Ok(&buf)
+    }
+}
+
 impl FromStr for TsVector {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut words: Vec<Lexeme> = vec![];
-
-        println!("{s}");
 
         for word in s.split(' ') {
             if let Some((word, positions)) = word.rsplit_once(':') {
@@ -123,9 +150,13 @@ impl PgHasArrayType for TsVector {
 
 impl Encode<'_, Postgres> for TsVector {
     fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'_>>::ArgumentBuffer) -> IsNull {
-        buf.extend_from_slice(self.to_string().as_bytes());
+        if let Ok(encoded_ts_vector) = self.try_into() {
+            buf.extend_from_slice(encoded_ts_vector);
 
-        IsNull::No
+            IsNull::No
+        } else {
+            IsNull::Yes
+        }
     }
 }
 
