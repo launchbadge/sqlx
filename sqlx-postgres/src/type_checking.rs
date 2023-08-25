@@ -207,6 +207,14 @@ impl_type_checking!(
         #[cfg(feature = "time")]
         Vec<sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>> |
             &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
+
+        // Full text search
+        #[cfg(feature = "full_text_search")]
+        sqlx::postgres::types::TsVector,
+
+        #[cfg(feature = "full_text_search")]
+        Vec<sqlx::postgres::types::TsVector> | &[sqlx::postgres::types::TsVector],
+
     },
     ParamChecking::Strong,
     feature-types: info => info.__type_feature_gate(),
