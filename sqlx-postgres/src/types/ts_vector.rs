@@ -49,6 +49,8 @@ impl Display for TsVector {
 impl TryFrom<&[u8]> for TsVector {
     type Error = BoxDynError;
 
+    /// Decode binary data into [`TsVector`] based on the binary data format defined in
+    /// https://github.com/postgres/postgres/blob/252dcb32397f64a5e1ceac05b29a271ab19aa960/src/backend/utils/adt/tsvector.c#L399
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let mut reader = Cursor::new(bytes);
         let mut words = vec![];
