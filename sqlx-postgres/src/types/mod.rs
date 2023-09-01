@@ -235,6 +235,8 @@ mod mac_address;
 mod bit_vec;
 
 #[cfg(feature = "full_text_search")]
+mod ts_query;
+#[cfg(feature = "full_text_search")]
 mod ts_vector;
 
 pub use array::PgHasArrayType;
