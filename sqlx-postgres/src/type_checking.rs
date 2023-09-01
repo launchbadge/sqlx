@@ -215,6 +215,11 @@ impl_type_checking!(
         #[cfg(feature = "full_text_search")]
         Vec<sqlx::postgres::types::TsVector> | &[sqlx::postgres::types::TsVector],
 
+        #[cfg(feature = "full_text_search")]
+        sqlx::postgres::types::TsQuery,
+
+        #[cfg(feature = "full_text_search")]
+        Vec<sqlx::postgres::types::TsQuery> | &[sqlx::postgres::types::TsQuery],
     },
     ParamChecking::Strong,
     feature-types: info => info.__type_feature_gate(),

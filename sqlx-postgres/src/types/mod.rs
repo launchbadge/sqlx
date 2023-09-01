@@ -259,6 +259,9 @@ pub use time_tz::PgTimeTz;
 #[cfg(feature = "full_text_search")]
 pub use ts_vector::TsVector;
 
+#[cfg(feature = "full_text_search")]
+pub use ts_query::TsQuery;
+
 // used in derive(Type) for `struct`
 // but the interface is not considered part of the public API
 #[doc(hidden)]
