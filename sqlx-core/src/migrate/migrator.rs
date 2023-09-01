@@ -5,12 +5,15 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::slice;
 
+use super::DEFAULT_MIGRATION_TABLE;
+
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
     pub locking: bool,
+    pub migration_table: Option<String>,
 }
 
 fn validate_applied_migrations(
@@ -59,6 +62,7 @@ impl Migrator {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ignore_missing: false,
             locking: true,
+            migration_table: Some(String::from(crate::migrate::DEFAULT_MIGRATION_TABLE)),
         })
     }
 
@@ -79,6 +83,19 @@ impl Migrator {
     pub fn set_locking(&mut self, locking: bool) -> &Self {
         self.locking = locking;
         self
+    }
+
+    /// Specify the migration table to use to support multi-tenancy.
+    pub fn set_migration_table<S: AsRef<str>>(&mut self, migration_table: S) -> &Self {
+        self.migration_table = Some(migration_table.as_ref().to_string());
+        self
+    }    
+
+    fn migration_table(&self) -> String {
+        match self.migration_table.as_ref() {
+            Some(s) => s.to_owned(),
+            None => DEFAULT_MIGRATION_TABLE.to_string(),
+        }
     }
 
     /// Get an iterator over all known migrations.
@@ -126,14 +143,14 @@ impl Migrator {
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table(self.migration_table()).await?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn.dirty_version(self.migration_table()).await?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn.list_applied_migrations(self.migration_table()).await?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -153,7 +170,7 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    conn.apply(migration, self.migration_table()).await?;
                 }
             }
         }
@@ -198,14 +215,14 @@ impl Migrator {
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table(self.migration_table()).await?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn.dirty_version(self.migration_table()).await?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn.list_applied_migrations(self.migration_table()).await?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -220,7 +237,7 @@ impl Migrator {
             .filter(|m| applied_migrations.contains_key(&m.version))
             .filter(|m| m.version > target)
         {
-            conn.revert(migration).await?;
+            conn.revert(migration, self.migration_table()).await?;
         }
 
         // unlock the migrator to allow other migrators to run

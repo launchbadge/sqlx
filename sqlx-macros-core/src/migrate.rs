@@ -150,6 +150,7 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
             ]),
             ignore_missing: false,
             locking: true,
+            migration_table: None,
         }
     })
 }
