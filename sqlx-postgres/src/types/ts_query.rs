@@ -46,13 +46,13 @@ impl TryFrom<u8> for Operators {
 }
 
 #[derive(Clone, Debug)]
-struct Operator {
+pub struct Operator {
     operator: Operators,
     distance: Option<u16>,
 }
 
 #[derive(Clone, Debug)]
-struct Value {
+pub struct Value {
     weight: u8,
     text: String,
     prefix: u8,
@@ -139,15 +139,15 @@ impl TryFrom<&[u8]> for TsQuery {
     }
 }
 
-impl<'bytes> TryInto<&'bytes [u8]> for &TsQuery {
+impl TryInto<Vec<u8>> for &TsQuery {
     type Error = BoxDynError;
 
-    fn try_into(self) -> Result<&'bytes [u8], Self::Error> {
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         let buf: &mut Vec<u8> = &mut vec![];
 
         buf.write_u32::<BigEndian>(u32::try_from(self.entries.len())?)?;
 
-        for entry in self.entries {
+        for entry in &self.entries {
             match entry {
                 Entry::Operator(operator) => {
                     buf.write_u8(EntryType::Operator.into())?;
@@ -171,7 +171,7 @@ impl<'bytes> TryInto<&'bytes [u8]> for &TsQuery {
 
         buf.flush()?;
 
-        Ok(&buf)
+        Ok(buf.to_vec())
     }
 }
 
@@ -189,8 +189,8 @@ impl PgHasArrayType for TsQuery {
 
 impl Encode<'_, Postgres> for TsQuery {
     fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'_>>::ArgumentBuffer) -> IsNull {
-        if let Ok(encoded_ts_vector) = self.try_into() {
-            buf.extend_from_slice(encoded_ts_vector);
+        if let Ok(encoded_ts_query) = <&TsQuery as TryInto<Vec<u8>>>::try_into(self) {
+            buf.extend_from_slice(encoded_ts_query.as_slice());
 
             IsNull::No
         } else {

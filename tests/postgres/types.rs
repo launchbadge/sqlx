@@ -442,6 +442,39 @@ mod json {
     }
 }
 
+#[cfg(feature = "full_text_search")]
+mod full_text_search {
+    use super::*;
+    use sqlx::postgres::types::TsVector;
+    use sqlx::postgres::PgRow;
+    use sqlx::{Executor, Row};
+    use sqlx_test::new;
+
+    #[sqlx_macros::test]
+    async fn test_ts_vector() -> anyhow::Result<()> {
+        let mut conn = new::<Postgres>().await?;
+
+        // unprepared, text API
+        let row: PgRow = conn
+            .fetch_one("SELECT to_tsvector('english', 'A quick brown fox')")
+            .await?;
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'brown':3 'fox':4 'quick':2");
+
+        // prepared, binary API
+        let row: PgRow = conn
+            .fetch_one(sqlx::query("SELECT to_tsvector('A quick brown fox')"))
+            .await?;
+
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'brown':3 'fox':4 'quick':2");
+
+        Ok(())
+    }
+}
+
 #[cfg(feature = "bigdecimal")]
 test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
 

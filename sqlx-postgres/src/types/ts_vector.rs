@@ -84,10 +84,10 @@ impl TryFrom<&[u8]> for TsVector {
     }
 }
 
-impl<'bytes> TryInto<&'bytes [u8]> for &TsVector {
+impl TryInto<Vec<u8>> for &TsVector {
     type Error = BoxDynError;
 
-    fn try_into(self) -> Result<&'bytes [u8], Self::Error> {
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         let buf: &mut Vec<u8> = &mut vec![];
 
         buf.write_u32::<BigEndian>(u32::try_from(self.words.len())?)?;
@@ -99,15 +99,15 @@ impl<'bytes> TryInto<&'bytes [u8]> for &TsVector {
             buf.write_u16::<BigEndian>(u16::try_from(lexeme.positions.len())?)?;
 
             if !lexeme.positions.is_empty() {
-                for position in lexeme.positions {
-                    buf.write_u16::<BigEndian>(position)?;
+                for position in &lexeme.positions {
+                    buf.write_u16::<BigEndian>(*position)?;
                 }
             }
         }
 
         buf.flush()?;
 
-        Ok(&buf)
+        Ok(buf.to_vec())
     }
 }
 
@@ -150,8 +150,8 @@ impl PgHasArrayType for TsVector {
 
 impl Encode<'_, Postgres> for TsVector {
     fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'_>>::ArgumentBuffer) -> IsNull {
-        if let Ok(encoded_ts_vector) = self.try_into() {
-            buf.extend_from_slice(encoded_ts_vector);
+        if let Ok(encoded_ts_vector) = <&TsVector as TryInto<Vec<u8>>>::try_into(self) {
+            buf.extend_from_slice(encoded_ts_vector.as_slice());
 
             IsNull::No
         } else {
