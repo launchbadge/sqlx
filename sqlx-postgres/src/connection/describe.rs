@@ -447,17 +447,17 @@ WHERE rngtypid = $1
             explain += ")";
         }
 
-        let (Json([explain]),): (Json<[Explain; 1]>,) = query_as(&explain).fetch_one(self).await?;
+        let (Json(explains),): (Json<Vec<Explain>>,) = query_as(&explain).fetch_one(self).await?;
 
         let mut nullables = Vec::new();
 
-        if let Explain::Plan {
+        if let Some(Explain::Plan {
             plan:
                 plan @ Plan {
                     output: Some(ref outputs),
                     ..
                 },
-        } = &explain
+        }) = explains.first()
         {
             nullables.resize(outputs.len(), None);
             visit_plan(plan, outputs, &mut nullables);
