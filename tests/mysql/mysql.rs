@@ -1,5 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
+use sqlx::mysql::infile::{MySqlExecutorInfileExt, LocalInfileHandler};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -474,6 +475,41 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(ret, 12345678i64);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_upload_local_infile() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let _ = conn
+    .execute(
+        r#"
+CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
+        "#,
+    )
+    .await?;
+
+    let _ = conn.execute("SET GLOBAL local_infile = 1").await?;
+
+    let ret = conn.local_infile_statement("LOAD DATA LOCAL INFILE 'dummy' INTO TABLE users", LocalInfileHandler::new(|filename, stream| {
+        assert_eq!(filename, b"dummy");
+        Box::pin(async move {
+            stream.write(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10").await?;
+            Ok(())
+        })
+    })).await?;
+
+    assert_eq!(ret.rows_affected(), 10);
+
+    let sum: i32 = sqlx::query("SELECT id FROM users")
+        .try_map(|row: MySqlRow| row.try_get::<i32, _>(0))
+        .fetch(&mut conn)
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
+        .await?;
+
+    assert_eq!(sum, 55);
 
     Ok(())
 }
