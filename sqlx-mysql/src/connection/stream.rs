@@ -5,6 +5,7 @@ use bytes::{Buf, Bytes};
 
 use crate::collation::{CharSet, Collation};
 use crate::error::Error;
+use crate::infile::InfileDataStream;
 use crate::io::MySqlBufExt;
 use crate::io::{Decode, Encode};
 use crate::net::{BufferedSocket, Socket};
@@ -41,6 +42,7 @@ impl<S: Socket> MySqlStream<S> {
         socket: S,
     ) -> Self {
         let mut capabilities = Capabilities::PROTOCOL_41
+            | Capabilities::LOCAL_FILES
             | Capabilities::IGNORE_SPACE
             | Capabilities::DEPRECATE_EOF
             | Capabilities::FOUND_ROWS
@@ -126,6 +128,15 @@ impl<S: Socket> MySqlStream<S> {
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
     }
 
+    /// Send an empty packet to the database server, keeping in mind the sequence ID
+    ///
+    /// This is used to indicate that we are done sending data for a LOCAL INFILE query
+    pub(crate) async fn send_empty_response(&mut self) -> Result<(), Error> {
+        self.write_packet(&[][..]);
+        self.flush().await?;
+        Ok(())
+    }
+
     // receive the next packet from the database server
     // may block (async) on more data from the server
     pub(crate) async fn recv_packet(&mut self) -> Result<Packet<Bytes>, Error> {
@@ -203,6 +214,12 @@ impl<S: Socket> MySqlStream<S> {
             collation: self.collation,
             is_tls: self.is_tls,
         }
+    }
+}
+
+impl MySqlStream<Box<dyn Socket>> {
+    pub(crate) fn get_data_stream(&mut self) -> InfileDataStream {
+        InfileDataStream::new(self)
     }
 }
 

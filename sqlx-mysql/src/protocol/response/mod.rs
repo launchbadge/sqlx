@@ -5,6 +5,7 @@
 
 mod eof;
 mod err;
+mod localinfile;
 mod ok;
 mod status;
 

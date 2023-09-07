@@ -80,7 +80,7 @@ impl AnyConnectionBackend for MySqlConnection {
         let args = arguments.as_ref().map(AnyArguments::convert_to);
 
         Box::pin(
-            self.run(query, args, persistent)
+            self.run(query, args, persistent, None)
                 .try_flatten_stream()
                 .map(|res| {
                     Ok(match res? {
@@ -100,7 +100,7 @@ impl AnyConnectionBackend for MySqlConnection {
         let args = arguments.as_ref().map(AnyArguments::convert_to);
 
         Box::pin(async move {
-            let stream = self.run(query, args, persistent).await?;
+            let stream = self.run(query, args, persistent, None).await?;
             futures_util::pin_mut!(stream);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
