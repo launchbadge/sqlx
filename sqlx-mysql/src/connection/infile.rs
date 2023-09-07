@@ -1,3 +1,35 @@
+//! Support for `LOAD DATA LOCAL INFILE` statements
+//!
+//! This MySQL feature allows the client to send a local file to the server, which is then
+//! loaded into a table. This should be faster than sending the data row-by-row.
+//!
+//! # Example
+//! ```rust,no_run
+//! use sqlx::mysql::infile::{MySqlExecutorInfileExt, LocalInfileHandler};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), sqlx::Error> {
+//!     let pool = sqlx::mysql::MySqlPool::connect("mysql://root:password@localhost:3306/sqlx")
+//!         .await?;
+//!
+//!     let res = pool
+//!         .local_infile_statement(
+//!             "LOAD DATA LOCAL INFILE 'dummy' INTO TABLE testje",
+//!             LocalInfileHandler::new(|filename, stream| {
+//!                 assert_eq!(filename, b"dummy");
+//!                 Box::pin(async move {
+//!                     stream.write(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10").await?;
+//!                     Ok(())
+//!                 })
+//!             }),
+//!         )
+//!         .await?;
+//!     println!("{}", res.rows_affected()); // 10
+//!
+//!     Ok(())
+//! }
+//! ```
+
 use std::ops::DerefMut;
 
 use crate::executor::Execute;
@@ -12,7 +44,13 @@ use crate::{MySql, MySqlConnection};
 
 use super::MySqlStream;
 
+/// Extension of the [`Executor`][`crate::executor::Executor`] trait with support for `LOAD DATA LOCAL INFILE` statements.
 pub trait MySqlExecutorInfileExt<'c> {
+    /// Execute the query using the given handler.
+    ///
+    /// This is basically an alias for [`execute`][`crate::executor::Executor::execute`] but allows you to supply the handler that writes the infile to the [`InfileDataStream`].
+    ///
+    /// See the module documentation for an example.
     fn local_infile_statement<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -79,6 +117,9 @@ impl<'c> MySqlExecutorInfileExt<'c> for &'_ MySqlPool {
     }
 }
 
+/// Handler for `LOAD DATA LOCAL INFILE` statements.
+///
+/// See the module documentation for an example.
 pub struct LocalInfileHandler(
     Box<
         dyn for<'a> FnOnce(&'a [u8], &'a mut InfileDataStream) -> BoxFuture<'a, Result<(), Error>>
@@ -111,6 +152,9 @@ impl LocalInfileHandler {
 
 const MAX_MYSQL_PACKET_SIZE: usize = (1 << 24) - 2;
 
+/// A stream that can be used to write data to the server.
+///
+/// Data that is send to this stream is buffered and send to the server in packets of at most 16MB.
 pub struct InfileDataStream<'s> {
     stream: &'s mut MySqlStream,
     buf: Vec<u8>,
@@ -123,6 +167,9 @@ impl<'s> InfileDataStream<'s> {
         Self { stream, buf }
     }
 
+    /// Write data to the stream.
+    ///
+    /// The data is buffered and send to the server in packets of at most 16MB. The data is automatically flushed when the buffer is full.
     pub async fn write(&mut self, buf: &[u8]) -> Result<(), Error> {
         let mut right = buf;
         while !right.is_empty() {
@@ -139,6 +186,7 @@ impl<'s> InfileDataStream<'s> {
         Ok(())
     }
 
+    /// Flush the stream.
     pub async fn flush(&mut self) -> Result<(), Error> {
         if self.buf.len() > 4 {
             // Cannot have multiple packets in buffer, as they would have been drained by write() already
