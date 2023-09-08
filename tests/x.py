@@ -222,7 +222,7 @@ for runtime in ["async-std", "tokio"]:
         # mariadb
         #
 
-        for version in ["10_6", "10_5", "10_4", "10_3"]:
+        for version in ["verylatest", "10_11", "10_6", "10_5", "10_4"]:
             run(
                 f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                 comment=f"test mariadb {version}",
