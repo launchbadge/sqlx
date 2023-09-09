@@ -28,8 +28,6 @@ pub trait Column: 'static + Send + Sync + Debug {
 /// This trait is implemented for strings which are used to look up a column by name, and for
 /// `usize` which is used as a positional index into the row.
 ///
-/// This trait is sealed and cannot be implemented for types outside of SQLx.
-///
 /// [`Row`]: crate::row::Row
 /// [`Statement`]: crate::statement::Statement
 /// [`get`]: crate::row::Row::get
