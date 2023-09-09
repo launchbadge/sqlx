@@ -9,8 +9,6 @@ use crate::value::ValueRef;
 
 /// Represents a single row from the database.
 ///
-/// This trait is sealed and cannot be implemented for types outside of SQLx.
-///
 /// [`FromRow`]: crate::row::FromRow
 /// [`Query::fetch`]: crate::query::Query::fetch
 pub trait Row: Unpin + Send + Sync + 'static {
