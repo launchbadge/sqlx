@@ -173,6 +173,10 @@ impl<S: Socket + ?Sized> Socket for Box<S> {
         (**self).poll_write_ready(cx)
     }
 
+    fn poll_flush(&mut self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        (**self).poll_flush(cx)
+    }
+
     fn poll_shutdown(&mut self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         (**self).poll_shutdown(cx)
     }
