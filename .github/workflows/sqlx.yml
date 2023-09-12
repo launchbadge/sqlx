@@ -467,7 +467,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [10_6, 10_3]
+        mariadb: [verylatest, 10_11, 10_4]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
     needs: check
