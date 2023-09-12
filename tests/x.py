@@ -79,6 +79,12 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None, data
                 environ["RUSTFLAGS"] += " --cfg sqlite_ipaddr"
             else:
                 environ["RUSTFLAGS"] = "--cfg sqlite_ipaddr"
+            if platform.system() == "Linux":
+                if os.environ.get("LD_LIBRARY_PATH"):
+                    environ["LD_LIBRARY_PATH"]= os.environ.get("LD_LIBRARY_PATH") + ":"+ os.getcwd()
+                else:
+                    environ["LD_LIBRARY_PATH"]=os.getcwd()
+
 
     if service is not None:
         database_url = start_database(service, database="sqlite/sqlite.db" if service == "sqlite" else "sqlx", cwd=dir_tests)
@@ -110,7 +116,7 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None, data
             *command.split(" "),
             *command_args
         ],
-        env=dict(**os.environ, **environ),
+        env=dict(list(os.environ.items()) + list(environ.items())),
         cwd=cwd,
     )
 
