@@ -5,26 +5,20 @@
 //!
 //! # Example
 //! ```rust,no_run
-//! use sqlx::mysql::infile::{MySqlExecutorInfileExt, LocalInfileHandler};
+//! use sqlx::mysql::infile::MySqlPoolInfileExt;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), sqlx::Error> {
-//!     let pool = sqlx::mysql::MySqlPool::connect("mysql://root:password@localhost:3306/sqlx")
-//!         .await?;
+//!     let pool = sqlx::mysql::MySqlPool::connect("mysql://root:password@localhost:3306/sqlx").await?;
 //!
-//!     let res = pool
-//!         .local_infile_statement(
-//!             "LOAD DATA LOCAL INFILE 'dummy' INTO TABLE testje",
-//!             LocalInfileHandler::new(|filename, stream| {
-//!                 assert_eq!(filename, b"dummy");
-//!                 Box::pin(async move {
-//!                     stream.write(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10").await?;
-//!                     Ok(())
-//!                 })
-//!             }),
-//!         )
-//!         .await?;
-//!     println!("{}", res.rows_affected()); // 10
+//!     let res = {
+//!         let mut stream = pool
+//!             .load_local_infile("LOAD DATA LOCAL INFILE 'dummy' INTO TABLE testje")
+//!             .await?;
+//!         stream.send(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10").await?;
+//!         stream.finish().await?
+//!     };
+//!     println!("{}", res); // 10
 //!
 //!     Ok(())
 //! }
@@ -32,139 +26,73 @@
 
 use std::ops::DerefMut;
 
-use crate::executor::Execute;
-use crate::{error::Error, MySqlPool};
-use either::Either;
+use crate::error::Error;
+use crate::protocol::response::LocalInfilePacket;
+use crate::protocol::text::Query;
+use crate::sqlx_core::net::Socket;
 use futures_core::future::BoxFuture;
-use futures_util::{pin_mut, FutureExt, StreamExt, TryStreamExt};
-use sqlx_core::database::Database;
-use sqlx_core::net::Socket;
+use sqlx_core::pool::{Pool, PoolConnection};
 
 use crate::{MySql, MySqlConnection};
 
-use super::MySqlStream;
-
 /// Extension of the [`Executor`][`crate::executor::Executor`] trait with support for `LOAD DATA LOCAL INFILE` statements.
-pub trait MySqlExecutorInfileExt<'c> {
+pub trait MySqlPoolInfileExt {
     /// Execute the query using the given handler.
     ///
-    /// This is basically an alias for [`execute`][`crate::executor::Executor::execute`] but allows you to supply the handler that writes the infile to the [`InfileDataStream`].
-    ///
     /// See the module documentation for an example.
-    fn local_infile_statement<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-        infile_handler: LocalInfileHandler,
-    ) -> BoxFuture<'e, Result<<MySql as Database>::QueryResult, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, MySql>;
+    fn load_data_infile<'a>(
+        &'a self,
+        statement: &'a str,
+    ) -> BoxFuture<'a, Result<MySqlLocalInfile<PoolConnection<MySql>>, Error>>;
 }
 
-impl<'c> MySqlExecutorInfileExt<'c> for &'c mut MySqlConnection {
-    fn local_infile_statement<'e, 'q: 'e, E: 'q>(
-        self,
-        mut query: E,
-        infile_handler: LocalInfileHandler,
-    ) -> BoxFuture<'e, Result<<MySql as Database>::QueryResult, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, MySql>,
-    {
-        let sql = query.sql();
-        let arguments = query.take_arguments();
-        let persistent = query.persistent();
-
-        Box::pin(try_stream! {
-            let s = self.run(sql, arguments, persistent, Some(infile_handler)).await?;
-            pin_mut!(s);
-
-            while let Some(v) = s.try_next().await? {
-                r#yield!(v);
-            }
-
-            Ok(())
-        })
-        .try_filter_map(|step| async move {
-            Ok(match step {
-                Either::Left(rows) => Some(rows),
-                Either::Right(_) => None,
-            })
-        })
-        .boxed()
-        .try_collect()
-        .boxed()
-    }
-}
-
-impl<'c> MySqlExecutorInfileExt<'c> for &'_ MySqlPool {
-    fn local_infile_statement<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-        infile_handler: LocalInfileHandler,
-    ) -> BoxFuture<'e, Result<<MySql as Database>::QueryResult, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, MySql>,
-    {
-        let pool = self.clone();
-        Box::pin(async move {
-            let mut conn = pool.acquire().await?;
-            conn.deref_mut()
-                .local_infile_statement(query, infile_handler)
-                .await
-        })
-    }
-}
-
-/// Handler for `LOAD DATA LOCAL INFILE` statements.
-///
-/// See the module documentation for an example.
-pub struct LocalInfileHandler(
-    Box<
-        dyn for<'a> FnOnce(&'a [u8], &'a mut InfileDataStream) -> BoxFuture<'a, Result<(), Error>>
-            + Send
-            + 'static,
-    >,
-);
-
-impl LocalInfileHandler {
-    pub fn new<F>(f: F) -> Self
-    where
-        F: for<'a> FnOnce(&'a [u8], &'a mut InfileDataStream) -> BoxFuture<'a, Result<(), Error>>
-            + Send
-            + 'static,
-    {
-        Self(Box::new(f))
-    }
-
-    pub(crate) async fn handle(
-        self,
-        stream: &mut MySqlStream,
-        filename: &[u8],
-    ) -> Result<(), Error> {
-        let mut infiledata = stream.get_data_stream();
-        self.0(filename, &mut infiledata).await?;
-        infiledata.flush().await?;
-        Ok(())
+impl MySqlPoolInfileExt for Pool<MySql> {
+    fn load_local_infile<'a>(
+        &'a self,
+        statement: &'a str,
+    ) -> BoxFuture<'a, Result<MySqlLocalInfile<PoolConnection<MySql>>, Error>> {
+        Box::pin(async { MySqlLocalInfile::begin(self.acquire().await?, statement).await })
     }
 }
 
 const MAX_MYSQL_PACKET_SIZE: usize = (1 << 24) - 2;
 
-/// A stream that can be used to write data to the server.
-///
-/// Data that is send to this stream is buffered and send to the server in packets of at most 16MB.
-pub struct InfileDataStream<'s> {
-    stream: &'s mut MySqlStream,
+impl MySqlConnection {
+    pub async fn load_local_infile(
+        &mut self,
+        statement: &str,
+    ) -> Result<MySqlLocalInfile<&mut Self>, Error> {
+        MySqlLocalInfile::begin(self, statement).await
+    }
+}
+
+pub struct MySqlLocalInfile<C: DerefMut<Target = MySqlConnection>> {
+    conn: C,
+    filename: Vec<u8>,
     buf: Vec<u8>,
 }
 
-impl<'s> InfileDataStream<'s> {
-    pub(crate) fn new(stream: &'s mut MySqlStream) -> Self {
+impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
+    async fn begin(mut conn: C, statement: &str) -> Result<Self, Error> {
+        conn.stream.wait_until_ready().await?;
+        conn.stream.send_packet(Query(statement)).await?;
+
+        let packet = conn.stream.recv_packet().await?;
+        let packet: LocalInfilePacket = packet.decode()?;
+        let filename = packet.filename;
+
         let mut buf = Vec::with_capacity(MAX_MYSQL_PACKET_SIZE);
         buf.extend_from_slice(&[0; 4]);
-        Self { stream, buf }
+
+        Ok(Self {
+            conn,
+            filename,
+            buf,
+        })
+    }
+
+    pub fn get_filename(&self) -> &[u8] {
+        &self.filename
     }
 
     /// Write data to the stream.
@@ -198,14 +126,26 @@ impl<'s> InfileDataStream<'s> {
 
     async fn drain_packet(&mut self, len: usize) -> Result<(), Error> {
         self.buf[0..3].copy_from_slice(&(len as u32).to_le_bytes()[..3]);
-        self.buf[3] = self.stream.sequence_id;
-        self.stream
+        self.buf[3] = self.conn.stream.sequence_id;
+        self.conn
+            .stream
             .socket
             .socket_mut()
             .write(&self.buf[..len + 4])
             .await?;
         self.buf.drain(..len + 4);
-        self.stream.sequence_id = self.stream.sequence_id.wrapping_add(1);
+        self.conn.stream.sequence_id = self.conn.stream.sequence_id.wrapping_add(1);
         Ok(())
+    }
+
+    /// Finish sending the LOCAL INFILE data to the server.
+    ///
+    /// This must always be called after you're done writing the data.
+    pub async fn finish(mut self) -> Result<u64, Error> {
+        self.flush().await?;
+        self.conn.stream.send_empty_response().await?;
+        let packet = self.conn.stream.recv_packet().await?;
+        let packet = packet.ok()?;
+        Ok(packet.affected_rows)
     }
 }

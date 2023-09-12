@@ -5,7 +5,6 @@ use bytes::{Buf, Bytes};
 
 use crate::collation::{CharSet, Collation};
 use crate::error::Error;
-use crate::infile::InfileDataStream;
 use crate::io::MySqlBufExt;
 use crate::io::{Decode, Encode};
 use crate::net::{BufferedSocket, Socket};
@@ -214,12 +213,6 @@ impl<S: Socket> MySqlStream<S> {
             collation: self.collation,
             is_tls: self.is_tls,
         }
-    }
-}
-
-impl MySqlStream<Box<dyn Socket>> {
-    pub(crate) fn get_data_stream(&mut self) -> InfileDataStream {
-        InfileDataStream::new(self)
     }
 }
 

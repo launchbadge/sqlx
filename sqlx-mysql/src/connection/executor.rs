@@ -4,10 +4,9 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
-use crate::infile::LocalInfileHandler;
 use crate::io::MySqlBufExt;
 use crate::logger::QueryLogger;
-use crate::protocol::response::{LocalInfilePacket, Status};
+use crate::protocol::response::Status;
 use crate::protocol::statement::{
     BinaryRow, Execute as StatementExecute, Prepare, PrepareOk, StmtClose,
 };
@@ -89,7 +88,6 @@ impl MySqlConnection {
         sql: &'q str,
         arguments: Option<MySqlArguments>,
         persistent: bool,
-        mut infile_handler: Option<LocalInfileHandler>,
     ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error>
     {
         let mut logger = QueryLogger::new(sql, self.log_settings.clone());
@@ -152,24 +150,6 @@ impl MySqlConnection {
 
                     self.stream.waiting.pop_front();
                     return Ok(());
-                }
-
-                if packet[0] == 0xfb {
-                    // LocalInfileRequest
-                    // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_local_infile_request.html
-                    let packet = packet.decode::<LocalInfilePacket>()?;
-
-                    if let Some(handler) = infile_handler.take() {
-                        handler.handle(&mut self.stream, &packet.filename).await?;
-                        self.stream.send_empty_response().await?;
-                        // LocalInfileHandler::call(handler, &mut self.stream, &packet.filename).await?;
-                    } else {
-                        return Err(err_protocol!(
-                            "received LocalInfileRequest but no handler was provided"
-                        ));
-                    }
-                    // Handle the OK packet that follows sending the infile
-                    continue;
                 }
 
                 // otherwise, this first packet is the start of the result-set metadata,
@@ -246,7 +226,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
-            let s = self.run(sql, arguments, persistent, None).await?;
+            let s = self.run(sql, arguments, persistent).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
