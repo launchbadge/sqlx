@@ -20,7 +20,6 @@ use std::fmt::Debug;
 /// Implemented for the following:
 ///
 ///  * [`&Pool`](super::pool::Pool)
-///  * [`&mut PoolConnection`](super::pool::PoolConnection)
 ///  * [`&mut Connection`](super::connection::Connection)
 ///
 pub trait Executor<'c>: Send + Debug + Sized {
