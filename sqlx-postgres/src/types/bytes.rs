@@ -22,6 +22,12 @@ impl<const N: usize> PgHasArrayType for &'_ [u8; N] {
     }
 }
 
+impl PgHasArrayType for Box<[u8]> {
+    fn array_type_info() -> PgTypeInfo {
+        <[&[u8]] as Type<Postgres>>::type_info()
+    }
+}
+
 impl PgHasArrayType for Vec<u8> {
     fn array_type_info() -> PgTypeInfo {
         <[&[u8]] as Type<Postgres>>::type_info()
@@ -39,6 +45,12 @@ impl Encode<'_, Postgres> for &'_ [u8] {
         buf.extend_from_slice(self);
 
         IsNull::No
+    }
+}
+
+impl Encode<'_, Postgres> for Box<[u8]> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
     }
 }
 
@@ -72,6 +84,15 @@ fn text_hex_decode_input(value: PgValueRef<'_>) -> Result<&[u8], BoxDynError> {
         .strip_prefix(b"\\x")
         .ok_or("text does not start with \\x")
         .map_err(Into::into)
+}
+
+impl Decode<'_, Postgres> for Box<[u8]> {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(match value.format() {
+            PgValueFormat::Binary => Box::from(value.as_bytes()?),
+            PgValueFormat::Text => Box::from(hex::decode(text_hex_decode_input(value)?)?),
+        })
+    }
 }
 
 impl Decode<'_, Postgres> for Vec<u8> {

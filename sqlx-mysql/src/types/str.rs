@@ -62,6 +62,28 @@ impl<'r> Decode<'r, MySql> for &'r str {
     }
 }
 
+impl Type<MySql> for Box<str> {
+    fn type_info() -> MySqlTypeInfo {
+        <&str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&str as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, MySql> for Box<str> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        <&str as Encode<MySql>>::encode(&**self, buf)
+    }
+}
+
+impl<'r> Decode<'r, MySql> for Box<str> {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        <&str as Decode<MySql>>::decode(value).map(Box::from)
+    }
+}
+
 impl Type<MySql> for String {
     fn type_info() -> MySqlTypeInfo {
         <str as Type<MySql>>::type_info()
