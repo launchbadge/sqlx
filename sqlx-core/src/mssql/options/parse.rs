@@ -54,9 +54,9 @@ impl FromStr for MssqlConnectOptions {
                 }
                 "packet_size" => {
                     let size = value.parse().map_err(Error::config)?;
-                    options = options
-                        .requested_packet_size(size)
-                        .map_err(|_| Error::config(MssqlInvalidOption(format!("packet_size={}", size))))?;
+                    options = options.requested_packet_size(size).map_err(|_| {
+                        Error::config(MssqlInvalidOption(format!("packet_size={}", size)))
+                    })?;
                 }
                 "client_program_version" => {
                     options = options.client_program_version(value.parse().map_err(Error::config)?)

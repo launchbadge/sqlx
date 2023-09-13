@@ -4,7 +4,7 @@ mod connect;
 mod parse;
 
 /// Options and flags which can be used to configure a Microsoft SQL Server connection.
-/// 
+///
 /// Connection strings should be in the form:
 /// ```text
 /// mssql://[username[:password]@]host/database[?instance=instance_name&packet_size=packet_size&client_program_version=client_program_version&client_pid=client_pid&hostname=hostname&app_name=app_name&server_name=server_name&client_interface_name=client_interface_name&language=language]
