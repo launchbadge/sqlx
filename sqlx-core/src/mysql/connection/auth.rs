@@ -67,10 +67,7 @@ impl AuthPlugin {
     }
 }
 
-fn scramble_sha1(
-    password: &str,
-    nonce: &Chain<Bytes, Bytes>,
-) -> Vec<u8> {
+fn scramble_sha1(password: &str, nonce: &Chain<Bytes, Bytes>) -> Vec<u8> {
     // SHA1( password ) ^ SHA1( seed + SHA1( SHA1( password ) ) )
     // https://mariadb.com/kb/en/connection/#mysql_native_password-plugin
 
@@ -95,10 +92,7 @@ fn scramble_sha1(
     pw_hash.to_vec()
 }
 
-fn scramble_sha256(
-    password: &str,
-    nonce: &Chain<Bytes, Bytes>,
-) -> Vec<u8> {
+fn scramble_sha256(password: &str, nonce: &Chain<Bytes, Bytes>) -> Vec<u8> {
     // XOR(SHA256(password), SHA256(seed, SHA256(SHA256(password))))
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/#sha-2-encrypted-password
     let mut ctx = Sha256::new();
