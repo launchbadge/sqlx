@@ -23,6 +23,7 @@ impl MssqlConnection {
             PreLogin {
                 version: Version::default(),
                 encryption: Encrypt::NOT_SUPPORTED,
+                instance: options.instance.as_deref(),
 
                 ..Default::default()
             },
@@ -40,16 +41,16 @@ impl MssqlConnection {
             Login7 {
                 // FIXME: use a version constant
                 version: 0x74000004, // SQL Server 2012 - SQL Server 2019
-                client_program_version: 0,
-                client_pid: 0,
+                client_program_version: options.client_program_version,
+                client_pid: options.client_pid,
                 packet_size: options.requested_packet_size, // max allowed size of TDS packet
-                hostname: "",
+                hostname: &options.hostname,
                 username: &options.username,
                 password: options.password.as_deref().unwrap_or_default(),
-                app_name: "",
-                server_name: "",
-                client_interface_name: "",
-                language: "",
+                app_name: &options.app_name,
+                server_name: &options.server_name,
+                client_interface_name: &options.client_interface_name,
+                language: &options.language,
                 database: &*options.database,
                 client_id: [0; 6],
             },
