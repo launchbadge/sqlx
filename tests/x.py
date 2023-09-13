@@ -207,12 +207,15 @@ for runtime in ["async-std", "tokio"]:
         #
 
         for version in ["8", "5_7"]:
-            run(
-                f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
-                comment=f"test mysql {version}",
-                service=f"mysql_{version}",
-                tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
-            )
+            # Since docker mysql 5.7 using yaSSL(It only supports TLSv1.1), avoid running when using rustls.
+            # https://github.com/docker-library/mysql/issues/567
+            if not(version == "5_7" and tls == "rustls"):
+                run(
+                    f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
+                    comment=f"test mysql {version}",
+                    service=f"mysql_{version}",
+                    tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
+                )
 
             ## +client-ssl
             if tls != "none" and not(version == "5_7" and tls == "rustls"):
