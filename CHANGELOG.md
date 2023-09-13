@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.6.12
  - More mssql connection string options:
     - `mssql://[username[:password]@]host/database[?instance=instance_name&packet_size=packet_size&client_program_version=client_program_version&client_pid=client_pid&hostname=hostname&app_name=app_name&server_name=server_name&client_interface_name=client_interface_name&language=language]`
+ - remove superfluous dependency to generic-array
 
 ## 0.6.11 
  - more encode and decode implementations for sqlite (decimal, bigdecimal, date)

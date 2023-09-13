@@ -3180,7 +3180,6 @@ dependencies = [
  "futures-executor",
  "futures-intrusive",
  "futures-util",
- "generic-array",
  "git2",
  "hashlink",
  "hex",
