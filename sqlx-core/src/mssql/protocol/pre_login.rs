@@ -25,11 +25,9 @@ impl<'de> Decode<'de> for PreLogin {
         let mut version = None;
         let mut encryption = None;
         let mut instance = None;
-
-        // TODO: Decode the remainder of the structure
-        // let mut thread_id = None;
-        // let mut trace_id = None;
-        // let mut multiple_active_result_sets = None;
+        let mut thread_id = None;
+        let mut trace_id = None;
+        let mut multiple_active_result_sets = None;
 
         let mut offsets = buf.clone();
 
@@ -63,10 +61,25 @@ impl<'de> Decode<'de> for PreLogin {
 
                         PreLoginOptionToken::Instance => {
                             // data is null-terminated
-                            instance = Some(String::from_utf8_lossy(&data[..size-1]).to_string());
+                            instance = Some(String::from_utf8_lossy(&data[..size - 1]).to_string());
                         }
+                        PreLoginOptionToken::ThreadId => {
+                            thread_id = Some(data.get_u32_le());
+                        }
+                        PreLoginOptionToken::MultipleActiveResultSets => {
+                            multiple_active_result_sets = Some(data.get_u8() != 0);
+                        }
+                        PreLoginOptionToken::TraceId => {
+                            let connection_id = Uuid::from_u128(data.get_u128());
+                            let activity_id = Uuid::from_u128(data.get_u128());
+                            let activity_seq = data.get_u32();
 
-                        tok => todo!("{:?}", tok),
+                            trace_id = Some(TraceId {
+                                connection_id,
+                                activity_id,
+                                activity_seq,
+                            });
+                        }
                     }
                 }
 
@@ -95,8 +108,9 @@ impl<'de> Decode<'de> for PreLogin {
             version,
             encryption,
             instance,
-
-            ..Default::default()
+            thread_id,
+            trace_id,
+            multiple_active_result_sets,
         })
     }
 }
