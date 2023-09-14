@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.13
+ - mssql: Support server pre-login messages with `INSTANCE`, `THREAD_ID`, `TRACE_ID` and `MARS` tokens.
+    Mars itself is still not supported.
+
 ## 0.6.12
  - More mssql connection string options:
     - `mssql://[username[:password]@]host/database[?instance=instance_name&packet_size=packet_size&client_program_version=client_program_version&client_pid=client_pid&hostname=hostname&app_name=app_name&server_name=server_name&client_interface_name=client_interface_name&language=language]`
