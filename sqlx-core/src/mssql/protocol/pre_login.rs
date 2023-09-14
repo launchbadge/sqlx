@@ -11,22 +11,22 @@ use crate::io::{Decode, Encode};
 /// `PRELOGIN` message with a message of packet header type `0x04` and the packet data
 /// containing a `PRELOGIN` structure.
 #[derive(Debug, Default)]
-pub(crate) struct PreLogin<'a> {
+pub(crate) struct PreLogin {
     pub(crate) version: Version,
     pub(crate) encryption: Encrypt,
-    pub(crate) instance: Option<&'a str>,
+    pub(crate) instance: Option<String>,
     pub(crate) thread_id: Option<u32>,
     pub(crate) trace_id: Option<TraceId>,
     pub(crate) multiple_active_result_sets: Option<bool>,
 }
 
-impl<'de> Decode<'de> for PreLogin<'de> {
+impl<'de> Decode<'de> for PreLogin {
     fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
         let mut version = None;
         let mut encryption = None;
+        let mut instance = None;
 
         // TODO: Decode the remainder of the structure
-        // let mut instance = None;
         // let mut thread_id = None;
         // let mut trace_id = None;
         // let mut multiple_active_result_sets = None;
@@ -61,6 +61,11 @@ impl<'de> Decode<'de> for PreLogin<'de> {
                             encryption = Some(Encrypt::from_bits_truncate(data.get_u8()));
                         }
 
+                        PreLoginOptionToken::Instance => {
+                            // data is null-terminated
+                            instance = Some(String::from_utf8_lossy(&data[..size-1]).to_string());
+                        }
+
                         tok => todo!("{:?}", tok),
                     }
                 }
@@ -89,13 +94,14 @@ impl<'de> Decode<'de> for PreLogin<'de> {
         Ok(Self {
             version,
             encryption,
+            instance,
 
             ..Default::default()
         })
     }
 }
 
-impl Encode<'_> for PreLogin<'_> {
+impl Encode<'_> for PreLogin {
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
         use PreLoginOptionToken::*;
 
@@ -107,7 +113,7 @@ impl Encode<'_> for PreLogin<'_> {
 
         // Count the number of set options
         let num_options = 2
-            + self.instance.map_or(0, |_| 1)
+            + self.instance.as_ref().map_or(0, |_| 1)
             + self.thread_id.map_or(0, |_| 1)
             + self.trace_id.as_ref().map_or(0, |_| 1)
             + self.multiple_active_result_sets.map_or(0, |_| 1);
@@ -130,7 +136,7 @@ impl Encode<'_> for PreLogin<'_> {
         Encryption.put(buf, &mut offsets, &mut offset, 1);
         buf.push(self.encryption.bits());
 
-        if let Some(name) = self.instance {
+        if let Some(name) = &self.instance {
             Instance.put(buf, &mut offsets, &mut offset, name.len() as u16 + 1);
             buf.extend_from_slice(name.as_bytes());
             buf.push(b'\0');
@@ -270,7 +276,7 @@ fn test_encode_pre_login() {
             sub_build: 0,
         },
         encryption: Encrypt::ON,
-        instance: Some(""),
+        instance: Some("".to_string()),
         thread_id: Some(0x00000DB8),
         multiple_active_result_sets: Some(true),
 

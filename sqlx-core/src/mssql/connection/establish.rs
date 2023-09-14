@@ -23,7 +23,7 @@ impl MssqlConnection {
             PreLogin {
                 version: Version::default(),
                 encryption: Encrypt::NOT_SUPPORTED,
-                instance: options.instance.as_deref(),
+                instance: options.instance.clone(),
 
                 ..Default::default()
             },
