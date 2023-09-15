@@ -45,8 +45,6 @@ serde_json = "1.0.73"
 serde = { version = "1.0.132", features = ["derive"] }
 glob = "0.3.0"
 openssl = { version = "0.10.38", optional = true }
-# workaround for https://github.com/rust-lang/rust/issues/29497
-remove_dir_all = "0.7.0"
 cargo_metadata = "0.14"
 filetime = "0.2"
 
