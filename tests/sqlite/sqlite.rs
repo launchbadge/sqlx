@@ -96,6 +96,26 @@ async fn it_maths() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn serialize_and_deserialize() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+    conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT NOT NULL);").await.unwrap();
+    conn.execute("INSERT INTO test (name) VALUES ('test1'), ('test2');").await.unwrap();
+
+    let serialized_db = conn.serialize_to_buffer().await?;
+
+    let mut conn2 = SqliteConnection::connect("sqlite::memory:").await?;
+    conn2.deserialize_to_readonly_db(serialized_db.as_slice()).await?;
+
+    let rows: Vec<(i64, String)> = sqlx::query_as("SELECT * FROM test")
+        .fetch_all(&mut conn2)
+        .await?;
+
+    assert_eq!(rows, vec![(1, "test1".to_string()), (2, "test2".to_string())]);
+    
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

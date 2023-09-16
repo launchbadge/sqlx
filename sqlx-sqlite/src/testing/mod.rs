@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::pool::PoolOptions;
 use crate::testing::{FixtureSnapshot, TestArgs, TestContext, TestSupport};
-use crate::{Sqlite, SqliteConnectOptions};
+use crate::{Sqlite, SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
 use std::path::{Path, PathBuf};
 

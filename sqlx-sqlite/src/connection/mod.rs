@@ -1,7 +1,7 @@
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
-use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
+use libsqlite3_sys::{sqlite3, sqlite3_progress_handler, sqlite3_int64, sqlite3_serialize, SQLITE_DESERIALIZE_READONLY, sqlite3_deserialize, SQLITE_OK};
 use sqlx_core::common::StatementCache;
 use sqlx_core::error::Error;
 use sqlx_core::transaction::Transaction;
@@ -15,13 +15,15 @@ use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
 use crate::statement::VirtualStatement;
-use crate::{Sqlite, SqliteConnectOptions};
+use crate::{Sqlite, SqliteConnectOptions, SqliteError};
 use sqlx_core::executor::Executor;
 use std::fmt::Write;
 
 pub(crate) use sqlx_core::connection::*;
 
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
+
+use self::serialized_database::SerializedDatabase;
 
 pub(crate) mod collation;
 pub(crate) mod describe;
@@ -31,6 +33,7 @@ mod executor;
 mod explain;
 mod handle;
 mod intmap;
+mod serialized_database;
 
 mod worker;
 
@@ -111,6 +114,50 @@ impl SqliteConnection {
         let guard = self.worker.unlock_db().await?;
 
         Ok(LockedSqliteHandle { guard })
+    }
+
+    /// Serializes the SQLite database to an in-memory buffer.
+    ///
+    /// This function allows you to serialize an SQLite database to an in-memory buffer.
+    /// The output is the same bytes as if the database were to be written to disk.
+    pub async fn serialize_to_buffer(&mut self) -> Result<SerializedDatabase, Error> {
+        let locked = self.lock_handle().await?;
+
+        unsafe {
+            let mut size: sqlite3_int64 = 0;
+            let data_ptr = sqlite3_serialize(
+                locked.guard.handle.as_ptr(),
+                std::ptr::null(),
+                &mut size as *mut _,
+                0,
+            );
+
+            Ok(SerializedDatabase::new(data_ptr, size as usize))
+        }
+    }
+    
+    /// Deserializes a byte slice into a read-only SQLite database.
+    ///
+    /// This function allows you to take a byte slice representing a serialized database,
+    /// and load it as a read-only SQLite database.
+    pub async fn deserialize_to_readonly_db(&mut self, data: &[u8]) -> Result<(), Error> {
+        let locked = self.lock_handle().await?;
+
+        unsafe {
+            let status = sqlite3_deserialize(
+                locked.guard.handle.as_ptr(),
+                std::ptr::null(),
+                data.as_ptr() as *mut u8,
+                data.len() as i64,
+                data.len() as i64,
+                SQLITE_DESERIALIZE_READONLY as u32,
+            );
+
+            match status {
+                SQLITE_OK => Ok(()),
+                _ => Err(SqliteError::new(locked.guard.handle.as_ptr()).into()),
+            }
+        }
     }
 }
 
