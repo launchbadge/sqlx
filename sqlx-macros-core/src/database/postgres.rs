@@ -202,16 +202,10 @@ impl_database_ext! {
             &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
 
         // Full text search
-        #[cfg(feature = "full_text_search")]
         sqlx::postgres::types::TsVector,
-
-        #[cfg(feature = "full_text_search")]
         Vec<sqlx::postgres::types::TsVector> | &[sqlx::postgres::types::TsVector],
 
-        #[cfg(feature = "full_text_search")]
         sqlx::postgres::types::TsQuery,
-
-        #[cfg(feature = "full_text_search")]
         Vec<sqlx::postgres::types::TsQuery> | &[sqlx::postgres::types::TsQuery],
     },
     ParamChecking::Strong,

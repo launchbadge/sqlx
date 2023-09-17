@@ -230,9 +230,7 @@ mod mac_address;
 #[cfg(feature = "bit-vec")]
 mod bit_vec;
 
-#[cfg(feature = "full_text_search")]
 mod ts_query;
-#[cfg(feature = "full_text_search")]
 mod ts_vector;
 
 pub use array::PgHasArrayType;
@@ -252,11 +250,8 @@ pub use range::PgRange;
 #[cfg(any(feature = "chrono", feature = "time"))]
 pub use time_tz::PgTimeTz;
 
-#[cfg(feature = "full_text_search")]
-pub use ts_vector::TsVector;
-
-#[cfg(feature = "full_text_search")]
 pub use ts_query::TsQuery;
+pub use ts_vector::TsVector;
 
 // used in derive(Type) for `struct`
 // but the interface is not considered part of the public API
