@@ -149,7 +149,8 @@ fn run_prepare_step(ctx: &PrepareCtx, cache_dir: &Path) -> anyhow::Result<()> {
     ))?;
 
     // Create directory to hold temporary query files before they get persisted to SQLX_OFFLINE_DIR
-    let tmp_dir = ctx.metadata.target_directory().join("sqlx-tmp");
+    let tmp_dir = env::var_os("SQLX_TMP")
+        .unwrap_or_else(|| ctx.metadata.target_directory().join("sqlx-tmp").into());
     fs::create_dir_all(&tmp_dir).context(format!(
         "Failed to create temporary query cache directory: {:?}",
         cache_dir
