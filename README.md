@@ -254,6 +254,9 @@ async fn main() -> Result<(), sqlx::Error> {
     Ok(())
 }
 ```
+☝️ Requires [`cargo add async-std --features attributes`]
+
+[`cargo add async-std --features attributes`]: https://docs.rs/async-std/latest/async_std/#features
 
 ### Connecting
 
