@@ -34,7 +34,7 @@ uuid = { workspace = true, optional = true }
 url = { version = "2.2.2", default-features = false }
 percent-encoding = "2.1.0"
 
-flume = { version = "0.10.9", default-features = false, features = ["async"] }
+flume = { version = "0.11.0", default-features = false, features = ["async"] }
 
 atoi = "2.0"
 
