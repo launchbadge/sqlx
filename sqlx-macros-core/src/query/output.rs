@@ -227,7 +227,7 @@ fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStrea
             let message =
                 if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_info) {
                     format!(
-                        "optional feature `{feat}` required for type {ty} of {col}",
+                        "optional sqlx feature `{feat}` required for type {ty} of {col}",
                         ty = &type_info,
                         feat = feature_gate,
                         col = DisplayColumn {
