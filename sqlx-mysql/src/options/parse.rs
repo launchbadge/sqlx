@@ -72,6 +72,10 @@ impl MySqlConnectOptions {
                     options = options.socket(&*value);
                 }
 
+                "pipes_as_concat" => {
+                    options = options.pipes_as_concat(value.parse().map_err(Error::config)?);
+                }
+
                 _ => {}
             }
         }
