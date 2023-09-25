@@ -24,7 +24,7 @@
 //! }
 //! ```
 
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use crate::error::Error;
 use crate::protocol::response::LocalInfilePacket;
@@ -35,12 +35,12 @@ use sqlx_core::pool::{Pool, PoolConnection};
 
 use crate::{MySql, MySqlConnection};
 
-/// Extension of the [`Executor`][`crate::executor::Executor`] trait with support for `LOAD DATA LOCAL INFILE` statements.
+/// Extension of the MySql Pool with support for `LOAD DATA LOCAL INFILE` statements.
 pub trait MySqlPoolInfileExt {
     /// Execute the query using the given handler.
     ///
-    /// See the module documentation for an example.
-    fn load_data_infile<'a>(
+    /// See the [infile](`crate::infile`) module documentation for an example.
+    fn load_local_infile<'a>(
         &'a self,
         statement: &'a str,
     ) -> BoxFuture<'a, Result<MySqlLocalInfile<PoolConnection<MySql>>, Error>>;
@@ -58,6 +58,9 @@ impl MySqlPoolInfileExt for Pool<MySql> {
 const MAX_MYSQL_PACKET_SIZE: usize = (1 << 24) - 2;
 
 impl MySqlConnection {
+    /// Execute the query, returning a stream that allows you to send data to the server using `LOAD DATA LOCAL INFILE`.
+    ///
+    /// See the [infile](`crate::infile`) module documentation for an example, and the [`MySqlLocalInfile`] documentation for implemented methods.
     pub async fn load_local_infile(
         &mut self,
         statement: &str,
@@ -66,6 +69,9 @@ impl MySqlConnection {
     }
 }
 
+/// A stream that allows you to send data to the server using `LOAD DATA LOCAL INFILE`.
+///
+/// Use this via the [`MySqlPoolInfileExt::load_data_infile`] or [`MySqlConnection::load_local_infile`] methods.
 pub struct MySqlLocalInfile<C: DerefMut<Target = MySqlConnection>> {
     conn: C,
     filename: Vec<u8>,
@@ -91,15 +97,19 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
         })
     }
 
+    /// Get the filename that MySql requested from the LOCAL INFILE
     pub fn get_filename(&self) -> &[u8] {
         &self.filename
     }
 
-    /// Write data to the stream.
+    /// Send data to the database.
     ///
     /// The data is buffered and send to the server in packets of at most 16MB. The data is automatically flushed when the buffer is full.
-    pub async fn write(&mut self, buf: &[u8]) -> Result<(), Error> {
-        let mut right = buf;
+    ///
+    /// ### Note: Completion Step Required
+    /// You must still call [finish()](Self::finish) to complete the process.
+    pub async fn send(&mut self, source: impl Deref<Target = [u8]>) -> Result<(), Error> {
+        let mut right = source.deref();
         while !right.is_empty() {
             let (left, right_) = right.split_at(std::cmp::min(MAX_MYSQL_PACKET_SIZE, right.len()));
             self.buf.extend_from_slice(left);
@@ -141,6 +151,7 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
     /// Finish sending the LOCAL INFILE data to the server.
     ///
     /// This must always be called after you're done writing the data.
+    /// Returns the number of rows that were inserted.
     pub async fn finish(mut self) -> Result<u64, Error> {
         self.flush().await?;
         self.conn.stream.send_empty_response().await?;
