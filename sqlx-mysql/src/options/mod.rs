@@ -213,15 +213,25 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Sets the SSL client certificate from a byte slice.
+    /// Sets the SSL client certificate as a PEM-encoded byte slice.
+    ///
+    /// This should be an ASCII-encoded blob that starts with `-----BEGIN CERTIFICATE-----`.
     ///
     /// # Example
+    /// Note: embedding SSL certificates and keys in the binary is not advised.
+    /// This is for illustration purposes only. 
     ///
     /// ```rust
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    ///
+    /// const CERT: &[u8] = b"\ 
+    /// -----BEGIN CERTIFICATE-----
+    /// <Certificate data here.>
+    /// -----END CERTIFICATE-----";
+    ///
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
-    ///     .ssl_client_cert_from_pem(vec![]);
+    ///     .ssl_client_cert_from_pem(CERT);
     /// ```
     pub fn ssl_client_cert_from_pem(mut self, cert: impl AsRef<[u8]>) -> Self {
         self.ssl_client_cert = Some(CertificateInput::Inline(cert.as_ref().to_vec()));
@@ -243,15 +253,25 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Sets the SSL client key from a byte slice.
+    /// Sets the SSL client key as a PEM-encoded byte slice.
+    ///
+    /// This should be an ASCII-encoded blob that starts with `-----BEGIN PRIVATE KEY-----`.
     ///
     /// # Example
+    /// Note: embedding SSL certificates and keys in the binary is not advised.
+    /// This is for illustration purposes only. 
     ///
     /// ```rust
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    ///
+    /// const KEY: &[u8] = b"\ 
+    /// -----BEGIN PRIVATE KEY-----
+    /// <Private key data here.>
+    /// -----END PRIVATE KEY-----";
+    ///
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
-    ///     .ssl_client_key_from_pem(vec![]);
+    ///     .ssl_client_key_from_pem(KEY);
     /// ```
     pub fn ssl_client_key_from_pem(mut self, key: impl AsRef<[u8]>) -> Self {
         self.ssl_client_key = Some(CertificateInput::Inline(key.as_ref().to_vec()));
