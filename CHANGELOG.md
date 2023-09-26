@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.2 - 2023-09-25
+
+23 pull requests were merged this release cycle.
+
+### Added
+
+* [[#2121]]: Add JSON support to `FromRow` derive [[@95ulisse]]
+* [[#2533]]: Implement mysql_clear_password [[@ldanilek]]
+* [[#2538]]: cli: add --target-version CLI flags for migrate run/revert [[@inahga]]
+* [[#2577]]: supplement Postgres listen example with a small chat example [[@JockeM]]
+* [[#2602]]: Support naming migrations sequentially [[@vmax]]
+* [[#2634]]: Adding PgHasArrayType for &[u8;N] [[@snf]]
+* [[#2646]]: Support for setting client certificate and key from bytes [[@wyhaya]]
+* [[#2664]]: Automatically infer migration type [[@vmax]]
+* [[#2712]]: Add impl for `Type`, `Decode`, and `Encode` for `Box<str>` and `Box<[u8]>` [[@grant0417]]
+
+### Changed
+* [[#2650]]: Cleanup format arguments [[@nyurik]]
+* [[#2695]]: remove &mut PoolConnection from Executor docs [[@olback]]
+    * This impl was removed in 0.7.0 because of coherence issues.
+* [[#2706]]: Clarify where optional features should be enabled [[@kryptan]]
+* [[#2717]]: Update README.md [[@fermanjj]]
+* [[#2739]]: Bump mariadb CI images + mysql unpin [[@grooverdan]]
+* [[#2742]]: Implemented poll_flush for Box<S:Socket> [[@bobozaur]]
+* [[#2740]]: Remove sealed trait comments from documentation [[@bobozaur]]
+* [[#2750]]: Fix #2384, bump flume to v0.11.0 [[@madadam]]
+* [[#2757]]: Remove unused `remove_dir_all` crate from `sqlx-cli`, fixes RUSTSEC-2023-0018 [[@aldur]]
+
+### Fixed
+
+* [[#2624]]: Documentation typo: BYTE -> BINARY [[@sebastianv89]]
+* [[#2628]]: docs: 0.7 is stable in the entire README [[@marcusirgens]]
+* [[#2630]]: fix(postgres): fix buffer management in PgCopyIn::read_from [[@tsing]]
+* [[#2651]]: Chore: Fix few build warnings, and make CI fail on warn [[@nyurik]]
+* [[#2670]]: fix: ignore extra fields in Postgres describe parsing [[@abonander]]
+* [[#2687]]: docs: Fix description of `min_connections` [[@hakoerber]]
+
+[#2121]: https://github.com/launchbadge/sqlx/pull/2121
+[#2533]: https://github.com/launchbadge/sqlx/pull/2533
+[#2538]: https://github.com/launchbadge/sqlx/pull/2538
+[#2577]: https://github.com/launchbadge/sqlx/pull/2577
+[#2602]: https://github.com/launchbadge/sqlx/pull/2602
+[#2624]: https://github.com/launchbadge/sqlx/pull/2624
+[#2628]: https://github.com/launchbadge/sqlx/pull/2628
+[#2630]: https://github.com/launchbadge/sqlx/pull/2630
+[#2634]: https://github.com/launchbadge/sqlx/pull/2634
+[#2646]: https://github.com/launchbadge/sqlx/pull/2646
+[#2650]: https://github.com/launchbadge/sqlx/pull/2650
+[#2651]: https://github.com/launchbadge/sqlx/pull/2651
+[#2664]: https://github.com/launchbadge/sqlx/pull/2664
+[#2670]: https://github.com/launchbadge/sqlx/pull/2670
+[#2687]: https://github.com/launchbadge/sqlx/pull/2687
+[#2695]: https://github.com/launchbadge/sqlx/pull/2695
+[#2706]: https://github.com/launchbadge/sqlx/pull/2706
+[#2712]: https://github.com/launchbadge/sqlx/pull/2712
+[#2717]: https://github.com/launchbadge/sqlx/pull/2717
+[#2739]: https://github.com/launchbadge/sqlx/pull/2739
+[#2740]: https://github.com/launchbadge/sqlx/pull/2740
+[#2742]: https://github.com/launchbadge/sqlx/pull/2742
+[#2750]: https://github.com/launchbadge/sqlx/pull/2750
+[#2757]: https://github.com/launchbadge/sqlx/pull/2757
+
 ## 0.7.1 - 2023-07-14
 
 This release mainly addresses issues reported with the 0.7.0 release.
@@ -1939,3 +2001,20 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@mrl5]: https://github.com/mrl5
 [@Xydez]: https://github.com/Xydez
 [@vabka]: https://github.com/vabka
+[@ldanilek]: https://github.com/ldanilek
+[@inahga]: https://github.com/inahga
+[@JockeM]: https://github.com/JockeM
+[@vmax]: https://github.com/vmax
+[@sebastianv89]: https://github.com/sebastianv89
+[@marcusirgens]: https://github.com/marcusirgens
+[@tsing]: https://github.com/tsing
+[@snf]: https://github.com/snf
+[@wyhaya]: https://github.com/wyhaya
+[@hakoerber]: https://github.com/hakoerber
+[@olback]: https://github.com/olback
+[@kryptan]: https://github.com/kryptan
+[@grant0417]: https://github.com/grant0417
+[@fermanjj]: https://github.com/fermanjj
+[@grooverdan]: https://github.com/grooverdan
+[@bobozaur]: https://github.com/bobozaur
+[@aldur]: https://github.com/aldur
