@@ -24,13 +24,18 @@
 //! }
 //! ```
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    pin::Pin,
+    task::Poll,
+};
 
 use crate::error::Error;
 use crate::protocol::response::LocalInfilePacket;
 use crate::protocol::text::Query;
 use crate::sqlx_core::net::Socket;
-use futures_core::future::BoxFuture;
+use futures_core::{future::BoxFuture, ready};
+use futures_io::AsyncWrite;
 use sqlx_core::pool::{Pool, PoolConnection};
 
 use crate::{MySql, MySqlConnection};
@@ -97,6 +102,14 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
         })
     }
 
+    pub fn get_writer<'a>(&'a mut self) -> InfileWriter<'a> {
+        let sequence_id = self.conn.stream.sequence_id;
+        InfileWriter::new(
+            self.conn.stream.socket_mut(),
+            sequence_id,
+        )
+    }
+
     /// Get the filename that MySql requested from the LOCAL INFILE
     pub fn get_filename(&self) -> &[u8] {
         &self.filename
@@ -158,5 +171,93 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
         let packet = self.conn.stream.recv_packet().await?;
         let packet = packet.ok()?;
         Ok(packet.affected_rows)
+    }
+}
+
+pub struct InfileWriter<'a> {
+    socket: &'a mut Box<dyn Socket>,
+    send: Option<SendPacket>,
+    sequence_id: u8,
+}
+
+impl<'a> InfileWriter<'a> {
+    fn new(socket: &'a mut Box<dyn Socket>,sequence_id: u8) -> Self {
+        Self {
+            socket,
+            send: None,
+            sequence_id: sequence_id,
+        }
+    }
+}
+
+impl<'a> AsyncWrite for InfileWriter<'a> {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<futures_io::Result<usize>> {
+        let send = self.send.take();
+
+        let mut send = match send {
+            Some(send) => send,
+            None => {
+                let send = SendPacket::new(buf, self.sequence_id);
+                self.sequence_id = self.sequence_id.wrapping_add(1);
+                send
+            }
+        };
+        Pin::new(&mut send).poll_send(cx, self.socket)
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<futures_io::Result<()>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<futures_io::Result<()>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+
+struct SendPacket {
+    buf: Vec<u8>,
+}
+
+impl SendPacket {
+    fn new(data: &[u8], sequence_id: u8) -> Self {
+        let mut buf = Vec::with_capacity(data.len() + 4);
+        buf.extend_from_slice(&(data.len() as u32).to_le_bytes()[..3]);
+        buf.push(sequence_id);
+        buf.extend_from_slice(data);
+        Self { buf }
+    }
+
+    fn poll_send(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        socket: &mut impl Socket,
+    ) -> std::task::Poll<futures_io::Result<usize>> {
+        let this = &mut *self;
+
+        while !this.buf.is_empty() {
+            match socket.try_write(&mut this.buf) {
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    ready!(socket.poll_write_ready(cx))?;
+                }
+                ready => {
+                    if let Ok(written) = ready {
+                        this.buf.drain(..written);
+                    }
+                    return Poll::Ready(ready);
+                }
+            }
+        }
+
+        Poll::Ready(Ok(0))
     }
 }
