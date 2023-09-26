@@ -232,7 +232,7 @@ use sqlx::postgres::PgPoolOptions;
 // use sqlx::mysql::MySqlPoolOptions;
 // etc.
 
-#[async_std::main]
+#[async_std::main] // Requires the attributes feature
 // or #[tokio::main]
 // or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -254,9 +254,7 @@ async fn main() -> Result<(), sqlx::Error> {
     Ok(())
 }
 ```
-☝️ Requires [`cargo add async-std --features attributes`]
 
-[`cargo add async-std --features attributes`]: https://docs.rs/async-std/latest/async_std/#features
 
 ### Connecting
 
