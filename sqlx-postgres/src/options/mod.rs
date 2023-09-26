@@ -350,12 +350,12 @@ impl PgConnectOptions {
     ///
     /// # Example
     /// Note: embedding SSL certificates and keys in the binary is not advised.
-    /// This is for illustration purposes only. 
+    /// This is for illustration purposes only.
     ///
     /// ```rust
     /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
     ///
-    /// const CERT: &[u8] = b"\ 
+    /// const CERT: &[u8] = b"\
     /// -----BEGIN CERTIFICATE-----
     /// <Certificate data here.>
     /// -----END CERTIFICATE-----";
@@ -392,12 +392,12 @@ impl PgConnectOptions {
     ///
     /// # Example
     /// Note: embedding SSL certificates and keys in the binary is not advised.
-    /// This is for illustration purposes only. 
+    /// This is for illustration purposes only.
     ///
     /// ```rust
     /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
     ///
-    /// const KEY: &[u8] = b"\ 
+    /// const KEY: &[u8] = b"\
     /// -----BEGIN PRIVATE KEY-----
     /// <Private key data here.>
     /// -----END PRIVATE KEY-----";

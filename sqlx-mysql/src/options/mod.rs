@@ -219,12 +219,12 @@ impl MySqlConnectOptions {
     ///
     /// # Example
     /// Note: embedding SSL certificates and keys in the binary is not advised.
-    /// This is for illustration purposes only. 
+    /// This is for illustration purposes only.
     ///
     /// ```rust
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
-    /// const CERT: &[u8] = b"\ 
+    /// const CERT: &[u8] = b"\
     /// -----BEGIN CERTIFICATE-----
     /// <Certificate data here.>
     /// -----END CERTIFICATE-----";
@@ -259,12 +259,12 @@ impl MySqlConnectOptions {
     ///
     /// # Example
     /// Note: embedding SSL certificates and keys in the binary is not advised.
-    /// This is for illustration purposes only. 
+    /// This is for illustration purposes only.
     ///
     /// ```rust
     /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
-    /// const KEY: &[u8] = b"\ 
+    /// const KEY: &[u8] = b"\
     /// -----BEGIN PRIVATE KEY-----
     /// <Private key data here.>
     /// -----END PRIVATE KEY-----";
