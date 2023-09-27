@@ -40,6 +40,8 @@ use sqlx_core::pool::{Pool, PoolConnection};
 
 use crate::{MySql, MySqlConnection};
 
+use super::MySqlStream;
+
 /// Extension of the MySql Pool with support for `LOAD DATA LOCAL INFILE` statements.
 pub trait MySqlPoolInfileExt {
     /// Execute the query using the given handler.
@@ -112,7 +114,7 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
     /// Closing the writer is not enough.
     pub fn get_writer<'a>(&'a mut self) -> InfileWriter<'a> {
         let sequence_id = self.conn.stream.sequence_id;
-        InfileWriter::new(self.conn.stream.socket_mut(), sequence_id)
+        InfileWriter::new(&mut self.conn.stream)
     }
 
     /// Get the filename that MySql requested from the LOCAL INFILE
@@ -181,18 +183,13 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
 
 /// A writer that writes to a [`MySqlLocalInfile`] stream.
 pub struct InfileWriter<'a> {
-    socket: &'a mut Box<dyn Socket>,
+    stream: &'a mut MySqlStream,
     send: Option<SendPacket>,
-    sequence_id: u8,
 }
 
 impl<'a> InfileWriter<'a> {
-    fn new(socket: &'a mut Box<dyn Socket>, sequence_id: u8) -> Self {
-        Self {
-            socket,
-            send: None,
-            sequence_id: sequence_id,
-        }
+    fn new(stream: &'a mut MySqlStream) -> Self {
+        Self { stream, send: None }
     }
 }
 
@@ -207,12 +204,14 @@ impl<'a> AsyncWrite for InfileWriter<'a> {
         let mut send = match send {
             Some(send) => send,
             None => {
-                let send = SendPacket::new(buf, self.sequence_id);
-                self.sequence_id = self.sequence_id.wrapping_add(1);
+                let send = SendPacket::new(buf, self.stream.sequence_id);
+                self.stream.sequence_id = self.stream.sequence_id.wrapping_add(1);
                 send
             }
         };
-        Pin::new(&mut send).poll_send(cx, self.socket)
+        Pin::new(&mut send)
+            .poll_send(cx, self.stream.socket_mut())
+            .map(|x| x.map(|written| written - 4))
     }
 
     fn poll_flush(
