@@ -3,6 +3,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use std::borrow::Cow;
 use std::mem;
 use time::macros::format_description;
 use time::{Duration, Time};
@@ -40,10 +41,21 @@ impl<'r> Decode<'r, Postgres> for Time {
                 Time::MIDNIGHT + Duration::microseconds(us)
             }
 
-            PgValueFormat::Text => Time::parse(
-                value.as_str()?,
-                &format_description!("[hour]:[minute]:[second].[subsecond]"),
-            )?,
+            PgValueFormat::Text => {
+                let s = value.as_str()?;
+
+                // If there is no decimal point we need to add one.
+                let s = if s.contains('.') {
+                    Cow::Borrowed(s)
+                } else {
+                    Cow::Owned(format!("{s}.0"))
+                };
+
+                Time::parse(
+                    &s,
+                    &format_description!("[hour]:[minute]:[second].[subsecond]"),
+                )?
+            }
         })
     }
 }
