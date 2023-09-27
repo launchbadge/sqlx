@@ -102,12 +102,17 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
         })
     }
 
+    /// Get a writer that implements the [`AsyncWrite`] trait from futures::io
+    ///
+    /// You probably want to buffer writes to this writer, as any write results in a send
+    /// of a packet to MySql.
+    ///
+    /// ### Note: Completion Step Required
+    /// You must still call [finish()](Self::finish) to complete the process.
+    /// Closing the writer is not enough.
     pub fn get_writer<'a>(&'a mut self) -> InfileWriter<'a> {
         let sequence_id = self.conn.stream.sequence_id;
-        InfileWriter::new(
-            self.conn.stream.socket_mut(),
-            sequence_id,
-        )
+        InfileWriter::new(self.conn.stream.socket_mut(), sequence_id)
     }
 
     /// Get the filename that MySql requested from the LOCAL INFILE
@@ -174,6 +179,7 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
     }
 }
 
+/// A writer that writes to a [`MySqlLocalInfile`] stream.
 pub struct InfileWriter<'a> {
     socket: &'a mut Box<dyn Socket>,
     send: Option<SendPacket>,
@@ -181,7 +187,7 @@ pub struct InfileWriter<'a> {
 }
 
 impl<'a> InfileWriter<'a> {
-    fn new(socket: &'a mut Box<dyn Socket>,sequence_id: u8) -> Self {
+    fn new(socket: &'a mut Box<dyn Socket>, sequence_id: u8) -> Self {
         Self {
             socket,
             send: None,
