@@ -151,39 +151,23 @@ where
     }
 
     pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
-        fn inner<DB>(data: &QueryData<DB>, file: &mut std::fs::File) -> crate::Result<()>
-        where
-            DB: DatabaseExt,
-            Describe<DB>: serde::Serialize + serde::de::DeserializeOwned,
-        {
-            serde_json::to_writer_pretty(&mut *file, data)
-                .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
-
-            // Ensure there is a newline at the end of the JSON file to avoid accidental modification by IDE
-            // and make github diff tool happier.
-            file.write_all(b"\n")
-                .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
-
-            Ok(())
-        }
-
         let path = dir.as_ref().join(format!("query-{}.json", self.hash));
-        let mut file = match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-        {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
-            Err(error) => return Err(format!("failed to create query file: {error:?}").into()),
-        };
-        let res = inner(self, &mut file);
+        let mut file = atomic_write_file::AtomicWriteFile::open(&path)
+            .map_err(|err| format!("failed to open the temporary file: {err:?}"))?;
 
-        if res.is_err() {
-            _ = std::fs::remove_file(&path);
-        }
+        serde_json::to_writer_pretty(file.as_file_mut(), self)
+            .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
 
-        res
+        // Ensure there is a newline at the end of the JSON file to avoid
+        // accidental modification by IDE and make github diff tool happier.
+        file.as_file_mut()
+            .write_all(b"\n")
+            .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
+
+        file.commit()
+            .map_err(|err| format!("failed to commit the query data to {path:?}: {err:?}"))?;
+
+        Ok(())
     }
 }
 
