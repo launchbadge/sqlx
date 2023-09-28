@@ -199,26 +199,55 @@ impl<'a> AsyncWrite for InfileWriter<'a> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<futures_io::Result<usize>> {
-        let send = self.send.take();
-
-        let mut send = match send {
-            Some(send) => send,
-            None => {
-                let send = SendPacket::new(buf, self.stream.sequence_id);
-                self.stream.sequence_id = self.stream.sequence_id.wrapping_add(1);
-                send
+        if self.send.is_some() {
+            match self.as_mut().poll_flush(cx) {
+                Poll::Ready(Ok(())) => {
+                    self.send = None;
+                }
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Pending => return Poll::Pending,
             }
-        };
-        Pin::new(&mut send)
-            .poll_send(cx, self.stream.socket_mut())
-            .map(|x| x.map(|written| written - 4))
+        }
+        // If the code reaches here the flush was succesful
+        assert!(self.send.is_none());
+        let mut send = SendPacket::new(buf, self.stream.sequence_id);
+        self.stream.sequence_id = self.stream.sequence_id.wrapping_add(1);
+        // Try to poll the send future right now
+        match Pin::new(&mut send).poll_send(cx, self.stream.socket_mut()) {
+            Poll::Ready(Ok(())) => {
+                self.send = None;
+                Poll::Ready(Ok(buf.len()))
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+            Poll::Pending => {
+                // The send cannot happen right now but we did take the buffer to be sent
+                // On the next write, the scheduled send will be polled again
+                self.send = Some(send);
+                Poll::Ready(Ok(buf.len()))
+            }
+        }
     }
 
     fn poll_flush(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<futures_io::Result<()>> {
-        std::task::Poll::Ready(Ok(()))
+        let send = self.send.take();
+        if let Some(mut send) = send {
+            match Pin::new(&mut send).poll_send(cx, self.stream.socket_mut()) {
+                Poll::Ready(Ok(())) => {
+                    self.send = None;
+                    Poll::Ready(Ok(()))
+                }
+                Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                Poll::Pending => {
+                    self.send = Some(send);
+                    Poll::Pending
+                }
+            }
+        } else {
+            Poll::Ready(Ok(()))
+        }
     }
 
     fn poll_close(
@@ -239,6 +268,9 @@ impl SendPacket {
         buf.extend_from_slice(&(data.len() as u32).to_le_bytes()[..3]);
         buf.push(sequence_id);
         buf.extend_from_slice(data);
+        assert!(buf.len() <= MAX_MYSQL_PACKET_SIZE + 4);
+        assert!(buf.len() >= 4);
+        assert!(buf.len() == data.len() + 4);
         Self { buf }
     }
 
@@ -246,7 +278,7 @@ impl SendPacket {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         socket: &mut impl Socket,
-    ) -> std::task::Poll<futures_io::Result<usize>> {
+    ) -> std::task::Poll<futures_io::Result<()>> {
         let this = &mut *self;
 
         while !this.buf.is_empty() {
@@ -254,15 +286,14 @@ impl SendPacket {
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     ready!(socket.poll_write_ready(cx))?;
                 }
-                ready => {
-                    if let Ok(written) = ready {
-                        this.buf.drain(..written);
-                    }
-                    return Poll::Ready(ready);
+                Ok(written) => {
+                    this.buf.drain(..written);
+                    // loop again until pending, completion or error
                 }
+                Err(e) => return Poll::Ready(Err(e)),
             }
         }
 
-        Poll::Ready(Ok(0))
+        Poll::Ready(Ok(()))
     }
 }
