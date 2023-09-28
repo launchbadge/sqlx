@@ -113,7 +113,6 @@ impl<C: DerefMut<Target = MySqlConnection>> MySqlLocalInfile<C> {
     /// You must still call [finish()](Self::finish) to complete the process.
     /// Closing the writer is not enough.
     pub fn get_writer<'a>(&'a mut self) -> InfileWriter<'a> {
-        let sequence_id = self.conn.stream.sequence_id;
         InfileWriter::new(&mut self.conn.stream)
     }
 
@@ -252,7 +251,7 @@ impl<'a> AsyncWrite for InfileWriter<'a> {
 
     fn poll_close(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<futures_io::Result<()>> {
         std::task::Poll::Ready(Ok(()))
     }
