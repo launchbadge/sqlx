@@ -150,33 +150,37 @@ where
         }
     }
 
-    pub(super) fn save_in(
-        &self,
-        dir: impl AsRef<Path>,
-        tmp_dir: impl AsRef<Path>,
-    ) -> crate::Result<()> {
-        // Output to a temporary file first, then move it atomically to avoid clobbering
-        // other invocations trying to write to the same path.
+    pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+        fn inner<DB>(data: &QueryData<DB>, file: &mut std::fs::File) -> crate::Result<()>
+        where
+            DB: DatabaseExt,
+            Describe<DB>: serde::Serialize + serde::de::DeserializeOwned,
+        {
+            serde_json::to_writer_pretty(&mut *file, data)
+                .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
 
-        // Use a temp directory inside the workspace to avoid potential issues
-        // with persisting the file across filesystems.
-        let mut tmp_file = tempfile::NamedTempFile::new_in(tmp_dir)
+            // Ensure there is a newline at the end of the JSON file to avoid accidental modification by IDE
+            // and make github diff tool happier.
+            file.write_all(b"\n")
+                .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
+
+            Ok(())
+        }
+
+        let path = dir.as_ref().join(format!("query-{}.json", self.hash));
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
             .map_err(|err| format!("failed to create query file: {err:?}"))?;
 
-        serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
-            .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
-        // Ensure there is a newline at the end of the JSON file to avoid accidental modification by IDE
-        // and make github diff tool happier
-        tmp_file
-            .as_file_mut()
-            .write_all(b"\n")
-            .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
+        let res = inner(self, &mut file);
 
-        tmp_file
-            .persist(dir.as_ref().join(format!("query-{}.json", self.hash)))
-            .map_err(|err| format!("failed to move query file: {err:?}"))?;
+        if res.is_err() {
+            _ = std::fs::remove_file(&path);
+        }
 
-        Ok(())
+        res
     }
 }
 
