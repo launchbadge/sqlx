@@ -168,12 +168,15 @@ where
         }
 
         let path = dir.as_ref().join(format!("query-{}.json", self.hash));
-        let mut file = std::fs::OpenOptions::new()
+        let mut file = match std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&path)
-            .map_err(|err| format!("failed to create query file: {err:?}"))?;
-
+        {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
+            Err(error) => return Err(format!("failed to create query file: {error:?}").into()),
+        };
         let res = inner(self, &mut file);
 
         if res.is_err() {
