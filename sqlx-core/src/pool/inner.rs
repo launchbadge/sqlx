@@ -371,13 +371,13 @@ impl<DB: Database> PoolInner<DB> {
             // If no extra permits are available then we shouldn't be trying to spin up
             // connections anyway.
             let Some(permit) = self.semaphore.try_acquire(1) else {
-				return Ok(());
-			};
+                return Ok(());
+            };
 
             // We must always obey `max_connections`.
             let Some(guard) = self.try_increment_size(permit).ok() else {
-				return Ok(());
-			};
+                return Ok(());
+            };
 
             // We skip `after_release` since the connection was never provided to user code
             // besides `after_connect`, if they set it.

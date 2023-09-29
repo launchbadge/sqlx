@@ -1154,10 +1154,7 @@ impl PartialEq<PgType> for PgType {
             // Otherwise, perform a match on the name
             // If either name has no schema qualification, match only on the name part.
             // If both names have a schema qualification, match both the schema and name parts.
-            std::iter::zip(
-                self.name().rsplitn(2, '.'),
-                other.name().rsplitn(2, '.'),
-            )
+            std::iter::zip(self.name().rsplitn(2, '.'), other.name().rsplitn(2, '.'))
                 .all(|(part, other_part)| part.eq_ignore_ascii_case(other_part))
         }
     }
