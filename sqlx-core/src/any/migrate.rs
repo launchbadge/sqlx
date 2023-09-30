@@ -1,14 +1,14 @@
 use crate::any::connection::AnyConnectionKind;
 use crate::any::kind::AnyKind;
 use crate::any::{Any, AnyConnection};
-use crate::error::Error;
+use crate::error::{Error, Result};
 use crate::migrate::{AppliedMigration, Migrate, MigrateDatabase, MigrateError, Migration};
 use futures_core::future::BoxFuture;
 use std::str::FromStr;
 use std::time::Duration;
 
 impl MigrateDatabase for Any {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
@@ -26,7 +26,7 @@ impl MigrateDatabase for Any {
         })
     }
 
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool>> {
         Box::pin(async move {
             match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
@@ -44,7 +44,7 @@ impl MigrateDatabase for Any {
         })
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
@@ -64,7 +64,7 @@ impl MigrateDatabase for Any {
 }
 
 impl Migrate for AnyConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<()>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.ensure_migrations_table(),
@@ -81,7 +81,7 @@ impl Migrate for AnyConnection {
     }
 
     #[allow(deprecated)]
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
+    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.version(),
@@ -97,7 +97,7 @@ impl Migrate for AnyConnection {
         }
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.dirty_version(),
@@ -114,10 +114,7 @@ impl Migrate for AnyConnection {
     }
 
     #[allow(deprecated)]
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>> {
+    fn validate<'e: 'm, 'm>(&'e mut self, migration: &'m Migration) -> BoxFuture<'m, Result<()>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.validate(migration),
@@ -136,9 +133,7 @@ impl Migrate for AnyConnection {
         }
     }
 
-    fn list_applied_migrations(
-        &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+    fn list_applied_migrations(&mut self) -> BoxFuture<'_, Result<Vec<AppliedMigration>>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.list_applied_migrations(),
@@ -154,7 +149,7 @@ impl Migrate for AnyConnection {
         }
     }
 
-    fn lock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn lock(&mut self) -> BoxFuture<'_, Result<()>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.lock(),
@@ -170,7 +165,7 @@ impl Migrate for AnyConnection {
         }
     }
 
-    fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn unlock(&mut self) -> BoxFuture<'_, Result<()>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.unlock(),
@@ -189,7 +184,7 @@ impl Migrate for AnyConnection {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+    ) -> BoxFuture<'m, Result<Duration>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.apply(migration),
@@ -211,7 +206,7 @@ impl Migrate for AnyConnection {
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+    ) -> BoxFuture<'m, Result<Duration>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.revert(migration),

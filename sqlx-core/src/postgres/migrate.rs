@@ -132,9 +132,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn list_applied_migrations(
-        &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>>> {
+    fn list_applied_migrations(&mut self) -> BoxFuture<'_, Result<Vec<AppliedMigration>>> {
         Box::pin(async move {
             // language=SQL
             let rows: Vec<(i64, Vec<u8>)> =
@@ -190,10 +188,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<()>> {
+    fn validate<'e: 'm, 'm>(&'e mut self, migration: &'m Migration) -> BoxFuture<'m, Result<()>> {
         Box::pin(async move {
             // language=SQL
             let checksum: Option<Vec<u8>> =
