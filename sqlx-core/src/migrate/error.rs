@@ -1,5 +1,4 @@
 use crate::error::{BoxDynError, Error};
-use crate::migrate::Migration;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -31,3 +30,5 @@ pub enum MigrateError {
     #[error("an operation on the migration metadata table (_sqlx_migrations) failed")]
     AccessMigrationMetadata(#[source] Error),
 }
+
+pub type MigrateResult<T> = std::result::Result<T, MigrateError>;

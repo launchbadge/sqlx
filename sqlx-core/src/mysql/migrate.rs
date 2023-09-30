@@ -1,9 +1,9 @@
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::{Error, Result};
 use crate::executor::Executor;
-use crate::migrate::MigrateError;
 use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
+use crate::migrate::{MigrateError, MigrateResult};
 use crate::mysql::{MySql, MySqlConnectOptions, MySqlConnection};
 use crate::query::query;
 use crate::query_as::query_as;
@@ -178,14 +178,18 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn validate<'e: 'm, 'm>(&'e mut self, migration: &'m Migration) -> BoxFuture<'m, Result<()>> {
+    fn validate<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, MigrateResult<()>> {
         Box::pin(async move {
             // language=SQL
             let checksum: Option<Vec<u8>> =
                 query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?")
                     .bind(migration.version)
                     .fetch_optional(self)
-                    .await?;
+                    .await
+                    .map_err(MigrateError::AccessMigrationMetadata)?;
 
             if let Some(checksum) = checksum {
                 return if checksum == &*migration.checksum {

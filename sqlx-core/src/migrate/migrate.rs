@@ -1,5 +1,5 @@
-use crate::error::{Error, Result};
-use crate::migrate::{AppliedMigration, MigrateError, Migration};
+use crate::error::Result;
+use crate::migrate::{AppliedMigration, MigrateResult, Migration};
 use futures_core::future::BoxFuture;
 use std::time::Duration;
 
@@ -35,7 +35,10 @@ pub trait Migrate {
     // validate the migration
     // checks that it does exist on the database and that the checksum matches
     #[deprecated]
-    fn validate<'e: 'm, 'm>(&'e mut self, migration: &'m Migration) -> BoxFuture<'m, Result<()>>;
+    fn validate<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, MigrateResult<()>>;
 
     // Return the ordered list of applied migrations
     fn list_applied_migrations(&mut self) -> BoxFuture<'_, Result<Vec<AppliedMigration>>>;

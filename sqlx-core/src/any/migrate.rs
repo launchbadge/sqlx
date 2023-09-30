@@ -1,8 +1,8 @@
 use crate::any::connection::AnyConnectionKind;
 use crate::any::kind::AnyKind;
 use crate::any::{Any, AnyConnection};
-use crate::error::{Error, Result};
-use crate::migrate::{AppliedMigration, Migrate, MigrateDatabase, MigrateError, Migration};
+use crate::error::Result;
+use crate::migrate::{AppliedMigration, Migrate, MigrateDatabase, MigrateResult, Migration};
 use futures_core::future::BoxFuture;
 use std::str::FromStr;
 use std::time::Duration;
@@ -114,7 +114,10 @@ impl Migrate for AnyConnection {
     }
 
     #[allow(deprecated)]
-    fn validate<'e: 'm, 'm>(&'e mut self, migration: &'m Migration) -> BoxFuture<'m, Result<()>> {
+    fn validate<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, MigrateResult<()>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn.validate(migration),

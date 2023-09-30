@@ -6,7 +6,7 @@ mod migration_type;
 mod migrator;
 mod source;
 
-pub use error::MigrateError;
+pub use error::{MigrateError, MigrateResult};
 pub use migrate::{Migrate, MigrateDatabase};
 pub use migration::{AppliedMigration, Migration};
 pub use migration_type::MigrationType;
