@@ -33,8 +33,7 @@ impl Encode<'_, MySql> for DateTime<Utc> {
 impl<'r> Decode<'r, MySql> for DateTime<Utc> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
-
-        Ok(DateTime::from_utc(naive, Utc))
+        Ok(Utc.from_utc_datetime(&naive))
     }
 }
 

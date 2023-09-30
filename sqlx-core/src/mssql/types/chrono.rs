@@ -287,5 +287,5 @@ fn decode_datetimeoffset(scale: u8, bytes: &[u8]) -> Result<DateTime<FixedOffset
             offset_secs
         )) as BoxDynError
     })?;
-    Ok(DateTime::from_utc(naive, offset_parsed))
+    Ok(DateTime::from_naive_utc_and_offset(naive, offset_parsed))
 }
