@@ -1,7 +1,6 @@
 use bytes::Buf;
 
 use crate::error::BoxDynError;
-use crate::postgres::PgArgumentBuffer;
 
 /// Represents a `NUMERIC` value in the **Postgres** wire protocol.
 #[derive(Debug, PartialEq, Eq)]
@@ -100,7 +99,8 @@ impl PgNumeric {
     ///
     /// * If `digits.len()` overflows `i16`
     /// * If any element in `digits` is greater than or equal to 10000
-    pub(crate) fn encode(&self, buf: &mut PgArgumentBuffer) {
+    #[cfg(any(feature = "bigdecimal", feature = "decimal"))]
+    pub(crate) fn encode(&self, buf: &mut crate::postgres::PgArgumentBuffer) {
         match *self {
             PgNumeric::Number {
                 ref digits,
