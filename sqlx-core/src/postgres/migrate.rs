@@ -1,5 +1,5 @@
 use crate::connection::{ConnectOptions, Connection};
-use crate::error::Error;
+use crate::error::{Error, Result};
 use crate::executor::Executor;
 use crate::migrate::MigrateError;
 use crate::migrate::{AppliedMigration, Migration};
@@ -13,7 +13,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
-fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error> {
+fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String)> {
     let mut options = PgConnectOptions::from_str(url)?;
 
     // pull out the name of the database to create
@@ -36,7 +36,7 @@ fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error>
 }
 
 impl MigrateDatabase for Postgres {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
@@ -52,7 +52,7 @@ impl MigrateDatabase for Postgres {
         })
     }
 
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool>> {
         Box::pin(async move {
             let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
@@ -67,7 +67,7 @@ impl MigrateDatabase for Postgres {
         })
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
@@ -85,7 +85,7 @@ impl MigrateDatabase for Postgres {
 }
 
 impl Migrate for PgConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             // language=SQL
             self.execute(
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
+    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>>> {
         Box::pin(async move {
             // language=SQL
             let row = query_as(
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>>> {
         Box::pin(async move {
             // language=SQL
             let row: Option<(i64,)> = query_as(
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
     fn list_applied_migrations(
         &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>>> {
         Box::pin(async move {
             // language=SQL
             let rows: Vec<(i64, Vec<u8>)> =
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn lock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn lock(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             let database_name = current_database(self).await?;
             let lock_id = generate_lock_id(&database_name);
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn unlock(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             let database_name = current_database(self).await?;
             let lock_id = generate_lock_id(&database_name);
@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn validate<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>> {
+    ) -> BoxFuture<'m, Result<()>> {
         Box::pin(async move {
             // language=SQL
             let checksum: Option<Vec<u8>> =
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+    ) -> BoxFuture<'m, Result<Duration>> {
         Box::pin(async move {
             let mut tx = self.begin().await?;
             let start = Instant::now();
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+    ) -> BoxFuture<'m, Result<Duration>> {
         Box::pin(async move {
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
             // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     }
 }
 
-async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateError> {
+async fn current_database(conn: &mut PgConnection) -> Result<String> {
     // language=SQL
     Ok(query_scalar("SELECT current_database()")
         .fetch_one(conn)
