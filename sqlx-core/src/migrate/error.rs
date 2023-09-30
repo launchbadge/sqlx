@@ -1,10 +1,11 @@
 use crate::error::{BoxDynError, Error};
+use crate::migrate::Migration;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum MigrateError {
-    #[error("while executing migrations: {0}")]
-    Execute(#[from] Error),
+    #[error("could not run migration {0}")]
+    Execute(i64, #[source] Error),
 
     #[error("while resolving migrations: {0}")]
     Source(#[source] BoxDynError),
@@ -23,4 +24,10 @@ pub enum MigrateError {
         "migration {0} is partially applied; fix and remove row from `_sqlx_migrations` table"
     )]
     Dirty(i64),
+
+    #[error("unable to acquire a connection to the database")]
+    AcquireConnection(#[source] Error),
+
+    #[error("an operation on the migration metadata table (_sqlx_migrations) failed")]
+    AccessMigrationMetadata(#[source] Error),
 }

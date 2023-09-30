@@ -107,7 +107,10 @@ impl Migrator {
         A: Acquire<'a>,
         <A::Connection as Deref>::Target: Migrate,
     {
-        let mut conn = migrator.acquire().await?;
+        let mut conn = migrator
+            .acquire()
+            .await
+            .map_err(MigrateError::AcquireConnection)?;
         self.run_direct(&mut *conn).await
     }
 
@@ -119,19 +122,27 @@ impl Migrator {
     {
         // lock the database for exclusive access by the migrator
         if self.locking {
-            conn.lock().await?;
+            conn.lock().await.map_err(MigrateError::AcquireConnection)?;
         }
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn
+            .dirty_version()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn
+            .list_applied_migrations()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -151,7 +162,9 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    conn.apply(migration)
+                        .await
+                        .map_err(|e| MigrateError::Execute(migration.version, e))?;
                 }
             }
         }
@@ -159,7 +172,9 @@ impl Migrator {
         // unlock the migrator to allow other migrators to run
         // but do nothing as we already migrated
         if self.locking {
-            conn.unlock().await?;
+            conn.unlock()
+                .await
+                .map_err(MigrateError::AcquireConnection)?;
         }
 
         Ok(())
@@ -186,23 +201,34 @@ impl Migrator {
         A: Acquire<'a>,
         <A::Connection as Deref>::Target: Migrate,
     {
-        let mut conn = migrator.acquire().await?;
+        let mut conn = migrator
+            .acquire()
+            .await
+            .map_err(MigrateError::AcquireConnection)?;
 
         // lock the database for exclusive access by the migrator
         if self.locking {
-            conn.lock().await?;
+            conn.lock().await.map_err(MigrateError::AcquireConnection)?;
         }
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn
+            .dirty_version()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn
+            .list_applied_migrations()
+            .await
+            .map_err(MigrateError::AccessMigrationMetadata)?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -217,13 +243,17 @@ impl Migrator {
             .filter(|m| applied_migrations.contains_key(&m.version))
             .filter(|m| m.version > target)
         {
-            conn.revert(migration).await?;
+            conn.revert(migration)
+                .await
+                .map_err(|e| MigrateError::Execute(migration.version, e))?;
         }
 
         // unlock the migrator to allow other migrators to run
         // but do nothing as we already migrated
         if self.locking {
-            conn.unlock().await?;
+            conn.unlock()
+                .await
+                .map_err(MigrateError::AcquireConnection)?;
         }
 
         Ok(())

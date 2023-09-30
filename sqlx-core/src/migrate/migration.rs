@@ -13,6 +13,12 @@ pub struct Migration {
     pub checksum: Cow<'static, [u8]>,
 }
 
+impl std::fmt::Display for Migration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Migration {} ({})", self.version, self.description)
+    }
+}
+
 impl Migration {
     pub fn new(
         version: i64,
