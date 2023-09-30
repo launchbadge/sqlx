@@ -3,7 +3,7 @@ use bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::io::{BufExt, Decode};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Notification {
     pub(crate) process_id: u32,
     pub(crate) channel: Bytes,

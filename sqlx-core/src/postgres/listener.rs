@@ -32,6 +32,7 @@ pub struct PgListener {
 }
 
 /// An asynchronous notification from Postgres.
+#[derive(Clone, PartialEq)]
 pub struct PgNotification(Notification);
 
 impl PgListener {

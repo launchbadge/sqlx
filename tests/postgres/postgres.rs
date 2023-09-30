@@ -1,4 +1,5 @@
 use futures::{StreamExt, TryStreamExt};
+use sqlx_core::postgres::PgNotification;
 use sqlx_oldapi::postgres::types::Oid;
 use sqlx_oldapi::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
@@ -9,6 +10,7 @@ use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::error::Elapsed;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -975,30 +977,28 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
     let mut listener = PgListener::connect_with(&pool).await?;
     listener.listen("test_channel").await?;
 
-    // Checks for a notification on the test channel
-    async fn try_recv(listener: &mut PgListener) -> anyhow::Result<bool> {
-        match timeout(Duration::from_millis(100), listener.recv()).await {
-            Ok(res) => {
-                res?;
-                Ok(true)
-            }
-            Err(_) => Ok(false),
-        }
-    }
+    let ms = Duration::from_millis(100);
 
     // Check no notification is received before one is sent
-    assert!(!try_recv(&mut listener).await?, "Notification not sent");
+    timeout(ms, listener.recv())
+        .await
+        .expect_err("Notification not sent");
 
     // Check notification is sent and received
-    notify_conn.execute("NOTIFY test_channel").await?;
-    assert!(
-        try_recv(&mut listener).await?,
+    notify_conn.execute("NOTIFY test_channel, 'x'").await?;
+    assert_eq!(
+        timeout(ms, listener.recv())
+            .await
+            .unwrap()
+            .unwrap()
+            .payload(),
+        "x",
         "Notification sent and received"
     );
-    assert!(
-        !try_recv(&mut listener).await?,
-        "Notification is not duplicated"
-    );
+
+    timeout(ms, listener.recv())
+        .await
+        .expect_err("Notification is not duplicated");
 
     // Test that cleanup stops listening on the channel
     drop(listener);
@@ -1006,10 +1006,9 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 
     // Check notification is sent but not received
     notify_conn.execute("NOTIFY test_channel").await?;
-    assert!(
-        !try_recv(&mut listener).await?,
-        "Notification is not received on fresh listener"
-    );
+    timeout(ms, listener.recv())
+        .await
+        .expect_err("Notification is not received on fresh listener");
 
     Ok(())
 }
