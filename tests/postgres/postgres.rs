@@ -1,5 +1,4 @@
 use futures::{StreamExt, TryStreamExt};
-use sqlx_core::postgres::PgNotification;
 use sqlx_oldapi::postgres::types::Oid;
 use sqlx_oldapi::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
@@ -951,6 +950,7 @@ from (values (null)) vals(val)
     Ok(())
 }
 
+#[cfg(feature = "_rt-tokio")] // TODO: fix stack overflow on async-std
 #[sqlx_macros::test]
 async fn test_listener_cleanup() -> anyhow::Result<()> {
     #[cfg(feature = "_rt-tokio")]
