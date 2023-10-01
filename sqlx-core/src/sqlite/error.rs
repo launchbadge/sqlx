@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::{borrow::Cow, str::from_utf8_unchecked};
 
-use libsqlite3_sys::{sqlite3, sqlite3_errmsg, sqlite3_extended_errcode};
+use libsqlite3_sys::{sqlite3, sqlite3_errmsg, sqlite3_error_offset, sqlite3_extended_errcode};
 
 use crate::error::DatabaseError;
 
@@ -14,6 +14,7 @@ use crate::error::DatabaseError;
 #[derive(Debug)]
 pub struct SqliteError {
     code: c_int,
+    offset: Option<usize>,
     message: String,
 }
 
@@ -21,6 +22,9 @@ impl SqliteError {
     pub(crate) fn new(handle: *mut sqlite3) -> Self {
         // returns the extended result code even when extended result codes are disabled
         let code: c_int = unsafe { sqlite3_extended_errcode(handle) };
+
+        // sqlite3_error_offset: byte offset of the start of the token that caused the error, or -1 if unknown
+        let offset = usize::try_from(unsafe { sqlite3_error_offset(handle) }).ok();
 
         // return English-language text that describes the error
         let message = unsafe {
@@ -32,6 +36,7 @@ impl SqliteError {
 
         Self {
             code,
+            offset,
             message: message.to_owned(),
         }
     }
@@ -50,7 +55,11 @@ impl Display for SqliteError {
         // SQLITE_BUSY: "database is locked"
         // SQLITE_LOCKED: "database table is locked"
         // Sadly there's no function to get the string label back from an error code.
-        write!(f, "(code: {}) {}", self.code, self.message)
+        write!(f, "(code: {}) {}", self.code, self.message)?;
+        if let Some(offset) = self.offset {
+            write!(f, " (at statement byte offset {})", offset)?;
+        };
+        Ok(())
     }
 }
 
@@ -66,6 +75,11 @@ impl DatabaseError for SqliteError {
     #[inline]
     fn message(&self) -> &str {
         &self.message
+    }
+
+    #[inline]
+    fn offset(&self) -> Option<usize> {
+        self.offset
     }
 
     #[doc(hidden)]

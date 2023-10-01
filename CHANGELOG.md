@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.6.14
 
  - Better migration error handling
+ - Add the ability to retrieve the position of the error in the statement when an error occurs
 
 ## 0.6.13
  - mssql: Support server pre-login messages with `INSTANCE`, `THREAD_ID`, `TRACE_ID` and `MARS` tokens.

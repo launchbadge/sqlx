@@ -156,6 +156,11 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
         None
     }
 
+    /// The byte offset in the query string where the error occurred, if applicable
+    fn offset(&self) -> Option<usize> {
+        None
+    }
+
     #[doc(hidden)]
     fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static);
 

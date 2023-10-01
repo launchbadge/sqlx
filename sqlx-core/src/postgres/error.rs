@@ -170,6 +170,10 @@ impl DatabaseError for PgDatabaseError {
         Some(Cow::Borrowed(self.code()))
     }
 
+    fn offset(&self) -> Option<usize> {
+        self.0.get_raw(b'P').and_then(atoi)
+    }
+
     #[doc(hidden)]
     fn as_error(&self) -> &(dyn Error + Send + Sync + 'static) {
         self
