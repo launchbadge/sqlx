@@ -98,26 +98,19 @@ impl<'q> QueryLogger<'q> {
             let log_is_enabled = log::log_enabled!(target: "sqlx::query", log_level)
                 || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level);
             if log_is_enabled {
-                let mut summary = parse_query_summary(&self.sql);
-
-                let sql = if summary != self.sql {
-                    summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        sqlformat::format(
-                            &self.sql,
-                            &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
-                        )
+                let sql = format!(
+                    "{}\n",
+                    sqlformat::format(
+                        &self.sql,
+                        &sqlformat::QueryParams::None,
+                        sqlformat::FormatOptions::default()
                     )
-                } else {
-                    String::new()
-                };
+                );
 
                 private_tracing_dynamic_event!(
                     target: "sqlx::query",
                     tracing_level,
-                    summary,
+                    summary = format!("query went over configured duration of {}ms", self.settings.slow_statements_duration.as_millis()),
                     db.statement = sql,
                     rows_affected = self.rows_affected,
                     rows_returned= self.rows_returned,
@@ -132,12 +125,4 @@ impl<'q> Drop for QueryLogger<'q> {
     fn drop(&mut self) {
         self.finish();
     }
-}
-
-pub fn parse_query_summary(sql: &str) -> String {
-    // For now, just take the first 4 words
-    sql.split_whitespace()
-        .take(4)
-        .collect::<Vec<&str>>()
-        .join(" ")
 }
