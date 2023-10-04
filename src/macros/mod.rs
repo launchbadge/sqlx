@@ -28,7 +28,17 @@
 /// # fn main() {}
 /// ```
 ///
-/// **The method you want to call depends on how many rows you're expecting.**
+/// The output columns will be mapped to their corresponding Rust types.
+/// See the documentation for your database for details:
+///
+/// * Postgres: [crate::postgres::types]
+/// * MySQL: [crate::mysql::types]
+///     * Note: due to wire protocol limitations, the query macros do not know when
+///       a column should be decoded as `bool`. It will be inferred to be `i8` instead.
+///       See the link above for details.
+/// * SQLite: [crate::sqlite::types]
+///
+/// **The method you want to call on the result depends on how many rows you're expecting.**
 ///
 /// | Number of Rows | Method to Call*             | Returns                                             | Notes |
 /// |----------------| ----------------------------|-----------------------------------------------------|-------|
@@ -38,7 +48,7 @@
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
 /// | Multiple   | `.fetch_all(...)`               | `sqlx::Result<Vec<{adhoc struct}>>`  | |
 ///
-/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
+/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.  
 /// † Only callable if the query returns no columns; otherwise it's assumed the query *may* return at least one row.
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
@@ -60,7 +70,7 @@
 ///       determine the database type.
 ///
 /// <sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
-/// so we now use the [`dotenvy`] crate instead. The file format is the same.
+/// so we now use the [dotenvy] crate instead. The file format is the same.
 ///
 /// [dotenv]: https://crates.io/crates/dotenv
 /// [dotenvy]: https://crates.io/crates/dotenvy
@@ -421,8 +431,10 @@ macro_rules! query_file_unchecked (
 /// module for your database for mappings:
 ///     * Postgres: [crate::postgres::types]
 ///     * MySQL: [crate::mysql::types]
+///         * Note: due to wire protocol limitations, the query macros do not know when
+///           a column should be decoded as `bool`. It will be inferred to be `i8` instead.
+///           See the link above for details.
 ///     * SQLite: [crate::sqlite::types]
-///     * MSSQL: [crate::mssql::types]
 /// * If a column may be `NULL`, the corresponding field's type must be wrapped in `Option<_>`.
 /// * Neither the query nor the struct may have unused fields.
 ///
