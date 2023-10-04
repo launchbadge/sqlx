@@ -321,7 +321,8 @@ mod time_tests {
 
     test_type!(time_time<Time>(
         Postgres,
-        "TIME '05:10:20.115100'" == time!(5:10:20.115100)
+        "TIME '05:10:20.115100'" == time!(5:10:20.115100),
+        "TIME '05:10:20'" == time!(5:10:20)
     ));
 
     test_type!(time_date_time<PrimitiveDateTime>(
