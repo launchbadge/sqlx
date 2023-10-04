@@ -70,7 +70,8 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Compile-time checked queries** (if you want). See [SQLx is not an ORM](#sqlx-is-not-an-orm).
 
--   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
+-   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite].
+    -   [MSSQL] was supported prior to version 0.7, but has been removed pending a full rewrite of the driver as part of our [SQLx Pro initiative].
 
 -   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
@@ -90,6 +91,7 @@ with C, those interactions are `unsafe`.
 [sqlite]: https://sqlite.org/
 [mysql]: https://www.mysql.com/
 [mssql]: https://www.microsoft.com/en-us/sql-server
+[SQLx Pro initiative]: https://github.com/launchbadge/sqlx/discussions/1616
 
 ---
 
