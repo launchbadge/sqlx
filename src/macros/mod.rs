@@ -289,7 +289,7 @@
 /// | `foo!: T` | Forced not-null | Overridden |
 /// | `foo?: T` | Forced nullable | Overridden |
 ///
-/// ## Offline Mode (requires the `offline` feature)
+/// ## Offline Mode
 /// The macros can be configured to not require a live database connection for compilation,
 /// but it requires a couple extra steps:
 ///
