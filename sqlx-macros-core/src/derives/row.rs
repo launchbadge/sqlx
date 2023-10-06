@@ -141,7 +141,7 @@ fn expand_derive_from_row_struct(
                 },
             };
 
-            if attributes.default {
+            if attributes.default || container_attributes.default {
                 Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
                 ::sqlx::Error::ColumnNotFound(_) => {
                     ::std::result::Result::Ok(Default::default())
