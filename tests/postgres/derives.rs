@@ -627,7 +627,7 @@ async fn test_struct_default() -> anyhow::Result<()> {
     #[derive(Debug, sqlx::FromRow)]
     #[sqlx(default)]
     struct HasDefault {
-        value: Option<i32>,
+        not_default: Option<i32>,
         default_a: Option<String>,
         default_b: Option<i32>,
     }
@@ -639,7 +639,7 @@ async fn test_struct_default() -> anyhow::Result<()> {
         .await?;
     println!("{has_default:?}");
 
-    assert_eq!(has_default.value, Some(1));
+    assert_eq!(has_default.not_default, Some(1));
     assert_eq!(has_default.default_a, None);
     assert_eq!(has_default.default_b, None);
 
