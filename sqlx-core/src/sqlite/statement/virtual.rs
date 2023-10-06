@@ -29,6 +29,9 @@ pub struct VirtualStatement {
     /// there are no more statements to execute and `reset()` must be called
     index: Option<usize>,
 
+    /// the original query string
+    original_query: Bytes,
+
     /// tail of the most recently prepared SQL statement within this container
     tail: Bytes,
 
@@ -51,8 +54,23 @@ pub struct PreparedStatement<'a> {
 }
 
 impl VirtualStatement {
-    pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
-        query = query.trim();
+    pub(crate) fn new(query: &str, persistent: bool) -> Result<Self, Error> {
+        let original_query = Bytes::from(String::from(query));
+        let mut tail = Bytes::clone(&original_query); // cheap reference to original query
+        while let Some(x) = tail.first() {
+            if x.is_ascii_whitespace() {
+                tail.advance(1);
+            } else {
+                break;
+            }
+        }
+        while let Some(x) = tail.last() {
+            if x.is_ascii_whitespace() {
+                tail.truncate(tail.len() - 1);
+            } else {
+                break;
+            }
+        }
 
         if query.len() > i32::max_value() as usize {
             return Err(err_protocol!(
@@ -63,7 +81,8 @@ impl VirtualStatement {
 
         Ok(Self {
             persistent,
-            tail: Bytes::from(String::from(query)),
+            tail,
+            original_query,
             handles: SmallVec::with_capacity(1),
             index: None,
             columns: SmallVec::with_capacity(1),
@@ -86,7 +105,12 @@ impl VirtualStatement {
                 return Ok(None);
             }
 
-            if let Some(statement) = prepare(conn.as_ptr(), &mut self.tail, self.persistent)? {
+            if let Some(statement) = prepare(
+                conn.as_ptr(),
+                &self.original_query,
+                &mut self.tail,
+                self.persistent,
+            )? {
                 let num = statement.column_count();
 
                 let mut columns = Vec::with_capacity(num);
@@ -140,6 +164,7 @@ impl VirtualStatement {
 
 fn prepare(
     conn: *mut sqlite3,
+    original_query: &Bytes,
     query: &mut Bytes,
     persistent: bool,
 ) -> Result<Option<StatementHandle>, Error> {
@@ -173,7 +198,12 @@ fn prepare(
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteError::new(conn).into());
+            // SAFETY: query is derived from original_query by successive calls to `advance()`
+            let index_in_original_query =
+                unsafe { query.as_ptr().offset_from(original_query.as_ptr()) } as usize;
+            return Err(SqliteError::new(conn)
+                .with_statement_start_index(index_in_original_query)
+                .into());
         }
 
         // tail should point to the first byte past the end of the first SQL

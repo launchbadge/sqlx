@@ -41,6 +41,14 @@ impl SqliteError {
         }
     }
 
+    /// Indicates the byte offset of the start of the statement that failed withing the SQL string that was being executed.
+    pub(crate) fn with_statement_start_index(self, index: usize) -> Self {
+        Self {
+            offset: self.offset.map(|offset| offset + index),
+            ..self
+        }
+    }
+
     /// For errors during extension load, the error message is supplied via a separate pointer
     pub(crate) fn extension(handle: *mut sqlite3, error_msg: &CStr) -> Self {
         let mut err = Self::new(handle);

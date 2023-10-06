@@ -32,14 +32,14 @@ mod rt_async_std;
 #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
 mod rt_tokio;
 
-#[cfg(all(feature = "_tls-native-tls"))]
+#[cfg(feature = "_tls-native-tls")]
 pub use native_tls;
 
 //
 // Actix *OR* Tokio
 //
 
-#[cfg(all(any(feature = "_rt-tokio", feature = "_rt-actix"),))]
+#[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
 pub use rt_tokio::*;
 
 #[cfg(all(

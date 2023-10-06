@@ -260,6 +260,24 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_reports_correct_offset_on_multiple_queries() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    //                      0123456789012345678901
+    let res = conn.execute(" SELECT 1; SELECT /1 ").await;
+
+    assert!(res.is_err());
+
+    let err = res.unwrap_err().to_string();
+
+    assert_eq!(
+        "error returned from database: (code: 1) near \"/\": syntax error (at statement byte offset 18)",
+        err
+    );
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_handles_empty_queries() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     let done = conn.execute("").await?;
