@@ -657,7 +657,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // Random seed:
     let seed: [u8; 32] = rand::random();
-    println!("RNG seed: {}", hex::encode(&seed));
+    println!("RNG seed: {}", hex::encode(seed));
 
     // Pre-determined seed:
     // let mut seed: [u8; 32] = [0u8; 32];

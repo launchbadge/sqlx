@@ -128,7 +128,7 @@ pub fn dupe_value<T>(_t: &T) -> T {
 
 #[test]
 fn test_dupe_value() {
-    let ref val = (String::new(),);
+    let val = &(String::new(),);
 
     if false {
         let _: i32 = dupe_value(&0i32);

@@ -86,7 +86,7 @@ mod json_tests {
                 .fetch_one(&mut conn)
                 .await?;
 
-        assert_eq!(true, value);
+        assert!(value);
 
         Ok(())
     }

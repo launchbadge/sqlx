@@ -20,7 +20,7 @@ pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
         }) if unnamed.len() == 1 => {
-            expand_derive_encode_transparent(&input, unnamed.first().unwrap())
+            expand_derive_encode_transparent(input, unnamed.first().unwrap())
         }
         Data::Enum(DataEnum { variants, .. }) => match args.repr {
             Some(_) => expand_derive_encode_weak_enum(input, variants),
@@ -104,7 +104,7 @@ fn expand_derive_encode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let attr = check_weak_enum_attributes(input, &variants)?;
+    let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
     let ident = &input.ident;
 
@@ -143,7 +143,7 @@ fn expand_derive_encode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let cattr = check_strong_enum_attributes(input, &variants)?;
+    let cattr = check_strong_enum_attributes(input, variants)?;
 
     let ident = &input.ident;
 
@@ -156,7 +156,7 @@ fn expand_derive_encode_strong_enum(
         if let Some(rename) = attributes.rename {
             value_arms.push(quote!(#ident :: #id => #rename,));
         } else if let Some(pattern) = cattr.rename_all {
-            let name = rename_all(&*id.to_string(), pattern);
+            let name = rename_all(&id.to_string(), pattern);
 
             value_arms.push(quote!(#ident :: #id => #name,));
         } else {
@@ -197,7 +197,7 @@ fn expand_derive_encode_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
 ) -> syn::Result<TokenStream> {
-    check_struct_attributes(input, &fields)?;
+    check_struct_attributes(input, fields)?;
 
     let mut tts = TokenStream::new();
 

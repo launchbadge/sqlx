@@ -75,7 +75,7 @@ pub(crate) fn expand_migrator_from_dir(
 pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     let mut migrations = Vec::new();
 
-    for entry in fs::read_dir(&path)? {
+    for entry in fs::read_dir(path)? {
         let entry = entry?;
         if !fs::metadata(entry.path())?.is_file() {
             // not a file; ignore

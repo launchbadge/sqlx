@@ -750,6 +750,7 @@ macro_rules! query_file_scalar_unchecked (
 ///
 /// `build.rs`
 /// ```
+/// # #[allow(clippy::needless_doctest_main)]
 /// fn main() {
 ///     println!("cargo:rerun-if-changed=migrations");
 /// }

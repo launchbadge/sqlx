@@ -94,7 +94,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
         })
         .await?;
 
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 
     Ok(())
 }
@@ -163,7 +163,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
         })
         .await?;
 
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 
     Ok(())
 }
@@ -196,7 +196,7 @@ async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
         })
         .await?;
 
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 
     Ok(())
 }

@@ -54,9 +54,9 @@ pub fn quote_args<DB: DatabaseExt>(
                         // and we strip casts to wildcard
                         Some(_) => return Ok(quote!()),
                         None => {
-                            DB::param_type_for_id(&param_ty)
+                            DB::param_type_for_id(param_ty)
                                 .ok_or_else(|| {
-                                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
+                                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(param_ty) {
                                         format!(
                                             "optional feature `{}` required for type {} of param #{}",
                                             feature_gate,
