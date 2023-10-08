@@ -632,6 +632,16 @@ async fn test_struct_default() -> anyhow::Result<()> {
         default_b: Option<i32>,
     }
 
+    impl Default for HasDefault {
+        fn default() -> HasDefault {
+            HasDefault {
+                not_default: None,
+                default_a: None,
+                default_b: Some(0),
+            }
+        }
+    }
+
     let mut conn = new::<Postgres>().await?;
 
     let has_default: HasDefault = sqlx::query_as(r#"SELECT 1 AS not_default"#)
@@ -641,7 +651,7 @@ async fn test_struct_default() -> anyhow::Result<()> {
 
     assert_eq!(has_default.not_default, Some(1));
     assert_eq!(has_default.default_a, None);
-    assert_eq!(has_default.default_b, None);
+    assert_eq!(has_default.default_b, Some(0));
 
     Ok(())
 }

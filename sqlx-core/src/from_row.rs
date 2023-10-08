@@ -91,12 +91,13 @@ use crate::{error::Error, row::Row};
 /// will set the value of the field `location` to the default value of `Option<String>`,
 /// which is `None`.
 ///
-/// Moreover, if all field types have an implementation for [`Default`], you can use the `default``
-/// attribute at the struct level rather than each single field.
+/// Moreover, if the struct has an implementation for [`Default`], you can use the `default``
+/// attribute at the struct level rather than for each single field. This way the default
+/// value of each attribute is optained from the particular `Default` implementation.
 /// For example:
 ///
 /// ```rust, ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(Default, sqlx::FromRow)]
 /// #[sqlx(default)]
 /// struct Options {
 ///     option_a: Option<i32>,
