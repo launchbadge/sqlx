@@ -496,7 +496,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         let mut stream = conn
             .load_local_infile("LOAD DATA LOCAL INFILE 'dummy' INTO TABLE users")
             .await?;
-        stream.send(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10").await?;
+        stream.send(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10"[..]).await?;
         stream.finish().await?
     };
 
