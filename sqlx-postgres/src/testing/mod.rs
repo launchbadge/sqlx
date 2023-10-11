@@ -183,7 +183,8 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 }
 
 async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result<usize, Error> {
-    let created_before = i64::try_from(created_before.as_secs()).unwrap();
+    // since SystemTime is not monotonic we added a little margin here to avoid race conditions with other threads
+    let created_before = i64::try_from(created_before.as_secs()).unwrap() - 2;
 
     let delete_db_names: Vec<String> = query_scalar(
         "select db_name from _sqlx_test.databases \
