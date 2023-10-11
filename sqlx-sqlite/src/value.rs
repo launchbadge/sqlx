@@ -23,35 +23,35 @@ enum SqliteValueData<'r> {
 pub struct SqliteValueRef<'r>(SqliteValueData<'r>);
 
 impl<'r> SqliteValueRef<'r> {
-    pub(crate) fn value(value: &'r SqliteValue) -> Self {
+    pub fn value(value: &'r SqliteValue) -> Self {
         Self(SqliteValueData::Value(value))
     }
 
-    pub(super) fn int(&self) -> i32 {
+    pub fn int(&self) -> i32 {
         match self.0 {
             SqliteValueData::Value(v) => v.int(),
         }
     }
 
-    pub(super) fn int64(&self) -> i64 {
+    pub fn int64(&self) -> i64 {
         match self.0 {
             SqliteValueData::Value(v) => v.int64(),
         }
     }
 
-    pub(super) fn double(&self) -> f64 {
+    pub fn double(&self) -> f64 {
         match self.0 {
             SqliteValueData::Value(v) => v.double(),
         }
     }
 
-    pub(super) fn blob(&self) -> &'r [u8] {
+    pub fn blob(&self) -> &'r [u8] {
         match self.0 {
             SqliteValueData::Value(v) => v.blob(),
         }
     }
 
-    pub(super) fn text(&self) -> Result<&'r str, BoxDynError> {
+    pub fn text(&self) -> Result<&'r str, BoxDynError> {
         match self.0 {
             SqliteValueData::Value(v) => v.text(),
         }
