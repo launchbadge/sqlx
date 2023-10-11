@@ -10,7 +10,7 @@ pub(crate) use sqlx_core::type_info::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum DataType {
+pub enum DataType {
     Null,
     Int,
     Float,
@@ -32,7 +32,7 @@ pub(crate) enum DataType {
 /// Type information for a SQLite type.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub struct SqliteTypeInfo(pub(crate) DataType);
+pub struct SqliteTypeInfo(pub DataType);
 
 impl Display for SqliteTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
