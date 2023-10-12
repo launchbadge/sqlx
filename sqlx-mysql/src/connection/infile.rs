@@ -76,9 +76,20 @@ impl MySqlPoolInfileExt for Pool<MySql> {
 const MAX_MYSQL_PACKET_SIZE: usize = (1 << 24) - 2;
 
 impl MySqlConnection {
-    /// Execute the query, returning a stream that allows you to send data to the server using `LOAD DATA LOCAL INFILE`.
+    /// Execute a `LOAD DATA LOCAL INFILE` query and begin streaming data to the server.
     ///
-    /// See the [infile](`crate::infile`) module documentation for an example, and the [`MySqlLocalInfile`] documentation for implemented methods.
+    /// This will return an error if `statement` is not a `LOAD DATA LOCAL INFILE` query.
+    ///
+    /// Refer to the [MySQL documentation] or [MariaDB documentation] for details
+    /// on the syntax of this query.
+    ///
+    /// The filename given in the query is not important, as this API does not touch the filesystem,
+    /// but is available for reference as [`MySqlLocalInfile::filename()`] if it is relevant to your application.
+    ///
+    /// See the [infile](`crate::infile`) module documentation for an example.
+    ///
+    /// [MySQL documentation]: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
+    /// [MariaDB documentation]: https://mariadb.com/kb/en/load-data-infile/
     pub async fn load_local_infile(
         &mut self,
         statement: &str,
