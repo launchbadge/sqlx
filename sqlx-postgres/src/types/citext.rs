@@ -9,15 +9,15 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 use std::str::FromStr;
 
-/// Case-insensitive text (`CITEXT`) support for Postgres.
+/// Case-insensitive text (`citext`) support for Postgres.
 ///
-/// Note that SQLx considers the `CITEXT` type to be compatible with `String`
+/// Note that SQLx considers the `citext` type to be compatible with `String`
 /// and its various derivatives, so direct usage of this type is generally unnecessary.
 ///
-/// However, it may be needed, for example, when binding a `CITEXT[]` array,
-/// as Postgres will generally not accept a `TEXT[]` array (mapped from `Vec<String>`) in its place.
+/// However, it may be needed, for example, when binding a `citext[]` array,
+/// as Postgres will generally not accept a `text[]` array (mapped from `Vec<String>`) in its place.
 ///
-/// See [the Postgres manual, Appendix F, Section 10][PG.F.10] for details on using `CITEXT`.
+/// See [the Postgres manual, Appendix F, Section 10][PG.F.10] for details on using `citext`.
 ///
 /// [PG.F.10]: https://www.postgresql.org/docs/current/citext.html
 ///
@@ -32,7 +32,7 @@ use std::str::FromStr;
 /// This type derives `PartialEq` which forwards to the implementation on `String`, which
 /// is case-sensitive. This impl exists mainly for testing.
 ///
-/// To properly emulate the case-insensitivity of `CITEXT` would require use of locale-aware
+/// To properly emulate the case-insensitivity of `citext` would require use of locale-aware
 /// functions in `libc`, and even then would require querying the locale of the database server
 /// and setting it locally, which is unsafe.
 #[derive(Clone, Debug, Default, PartialEq)]
