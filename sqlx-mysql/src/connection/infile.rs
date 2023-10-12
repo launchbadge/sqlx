@@ -44,9 +44,20 @@ use super::MySqlStream;
 
 /// Extension of the MySql Pool with support for `LOAD DATA LOCAL INFILE` statements.
 pub trait MySqlPoolInfileExt {
-    /// Execute the query using the given handler.
+    /// Check out a connection and execute a `LOAD DATA LOCAL INFILE` query.
+    ///
+    /// This will return an error if `statement` is not a `LOAD DATA LOCAL INFILE` query.
+    ///
+    /// Refer to the [MySQL documentation] or [MariaDB documentation] for details
+    /// on the syntax of this query.
+    ///
+    /// The filename given in the query is not important, as this API does not touch the filesystem,
+    /// but is available for reference as [`MySqlLocalInfile::filename()`] if it is relevant to your application.
     ///
     /// See the [infile](`crate::infile`) module documentation for an example.
+    ///
+    /// [MySQL documentation]: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
+    /// [MariaDB documentation]: https://mariadb.com/kb/en/load-data-infile/
     fn load_local_infile<'a>(
         &'a self,
         statement: &'a str,
