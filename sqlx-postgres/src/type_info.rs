@@ -457,6 +457,7 @@ impl PgType {
             PgType::Int8RangeArray => Oid(3927),
             PgType::Jsonpath => Oid(4072),
             PgType::JsonpathArray => Oid(4073),
+
             PgType::Custom(ty) => ty.oid,
 
             PgType::DeclareWithOid(oid) => *oid,
@@ -874,6 +875,7 @@ impl PgType {
             PgType::Unknown => None,
             // There is no `VoidArray`
             PgType::Void => None,
+
             PgType::Custom(ty) => match &ty.kind {
                 PgTypeKind::Simple => None,
                 PgTypeKind::Pseudo => None,
