@@ -35,7 +35,6 @@ use crate::protocol::response::LocalInfilePacket;
 use crate::protocol::text::Query;
 use crate::sqlx_core::net::Socket;
 use futures_core::{future::BoxFuture, ready};
-use futures_io::AsyncWrite;
 use sqlx_core::pool::{Pool, PoolConnection};
 
 use crate::{MySql, MySqlConnection};
@@ -214,7 +213,7 @@ impl<'a> InfileWriter<'a> {
     }
 }
 
-impl<'a> AsyncWrite for InfileWriter<'a> {
+impl<'a> futures_io::AsyncWrite for InfileWriter<'a> {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -275,6 +274,72 @@ impl<'a> AsyncWrite for InfileWriter<'a> {
         self: std::pin::Pin<&mut Self>,
         _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<futures_io::Result<()>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+
+#[cfg(feature = "_rt-tokio")]
+impl<'a> tokio::io::AsyncWrite for InfileWriter<'a> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        if self.send.is_some() {
+            match self.as_mut().poll_flush(cx) {
+                Poll::Ready(Ok(())) => {
+                    self.send = None;
+                }
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+        // If the code reaches here the flush was succesful
+        assert!(self.send.is_none());
+        let mut send = SendPacket::new(buf, self.stream.sequence_id);
+        self.stream.sequence_id = self.stream.sequence_id.wrapping_add(1);
+        // Try to poll the send future right now
+        match Pin::new(&mut send).poll_send(cx, self.stream.socket_mut()) {
+            Poll::Ready(Ok(())) => {
+                self.send = None;
+                Poll::Ready(Ok(buf.len()))
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+            Poll::Pending => {
+                // The send cannot happen right now but we did take the buffer to be sent
+                // On the next write, the scheduled send will be polled again
+                self.send = Some(send);
+                Poll::Ready(Ok(buf.len()))
+            }
+        }
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        let send = self.send.take();
+        if let Some(mut send) = send {
+            match Pin::new(&mut send).poll_send(cx, self.stream.socket_mut()) {
+                Poll::Ready(Ok(())) => {
+                    self.send = None;
+                    Poll::Ready(Ok(()))
+                }
+                Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+                Poll::Pending => {
+                    self.send = Some(send);
+                    Poll::Pending
+                }
+            }
+        } else {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
         std::task::Poll::Ready(Ok(()))
     }
 }
