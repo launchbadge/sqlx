@@ -47,3 +47,7 @@ CREATE TABLE products (
 
 CREATE OR REPLACE PROCEDURE forty_two(INOUT forty_two INT = NULL)
     LANGUAGE plpgsql AS 'begin forty_two := 42; end;';
+
+CREATE TABLE test_citext (
+    foo CITEXT NOT NULL
+);

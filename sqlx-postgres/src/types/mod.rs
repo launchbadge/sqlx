@@ -225,7 +225,7 @@ mod mac_address;
 mod bit_vec;
 
 pub use array::PgHasArrayType;
-pub use citext::PgCitext;
+pub use citext::PgCiText;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;
