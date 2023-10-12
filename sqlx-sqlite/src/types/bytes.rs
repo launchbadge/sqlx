@@ -49,7 +49,9 @@ impl Encode<'_, Sqlite> for Box<[u8]> {
     }
 
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.clone().into_vec())));
+        args.push(SqliteArgumentValue::Blob(Cow::Owned(
+            self.clone().into_vec(),
+        )));
 
         IsNull::No
     }
