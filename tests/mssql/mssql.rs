@@ -60,8 +60,13 @@ async fn it_can_inspect_errors() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
     let res: Result<_, sqlx_oldapi::Error> =
-        sqlx_oldapi::query("select f").execute(&mut conn).await;
+        sqlx_oldapi::query("select\nf").execute(&mut conn).await;
     let err = res.unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "error returned from database: On line 2: Invalid column name 'f'."
+    );
 
     // can also do [as_database_error] or use `match ..`
     let err = err.into_database_error().unwrap();

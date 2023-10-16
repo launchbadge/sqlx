@@ -23,7 +23,10 @@ impl Debug for MssqlDatabaseError {
 
 impl Display for MssqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.pad(self.message())
+        if self.0.line > 1 {
+            write!(f, "On line {}: ", self.0.line)?;
+        }
+        write!(f, "{}", self.message())
     }
 }
 
