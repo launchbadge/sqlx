@@ -6,7 +6,6 @@ use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 
-#[cfg(any(postgres_14, postgres_15))]
 use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
@@ -475,7 +474,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
     "1::numeric" == sqlx::types::Decimal::from_str("1").unwrap(),
@@ -484,9 +483,12 @@ test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
     "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
     "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+    // https://github.com/launchbadge/sqlx/issues/666#issuecomment-683872154
+    "17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("17.905625985174584660842500258").unwrap(),
+    "-17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("-17.905625985174584660842500258").unwrap(),
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(numrange_decimal<PgRange<sqlx::types::Decimal>>(Postgres,
     "'(1.3,2.4)'::numrange" == PgRange::from(
         (Bound::Excluded(sqlx::types::Decimal::from_str("1.3").unwrap()),

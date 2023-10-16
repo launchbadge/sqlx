@@ -3075,7 +3075,6 @@ dependencies = [
  "env_logger",
  "futures",
  "hex",
- "libsqlite3-sys",
  "paste",
  "rand 0.8.5",
  "rand_xoshiro",
