@@ -247,7 +247,7 @@ pub struct Pool<DB: Database>(pub(crate) Arc<PoolInner<DB>>);
 ///
 /// See [`Pool::close_event()`] for details.
 pub struct CloseEvent {
-    listener: Option<EventListener>,
+    listener: Option<Pin<Box<EventListener>>>,
 }
 
 impl<DB: Database> Pool<DB> {

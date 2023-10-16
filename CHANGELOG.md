@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.16
+
+ - Report line numbers in mssql errors
+ - update dependencies
+
 ## 0.6.15
 
  - Handle precise syntax error position reporting in sqlite even when executing multiple statements from a single sql string

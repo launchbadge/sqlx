@@ -3143,7 +3143,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.6.15"
+version = "0.6.16"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core-oldapi"
-version = "0.6.15"
+version = "0.6.16"
 dependencies = [
  "ahash 0.8.3",
  "atoi",
@@ -3187,7 +3187,7 @@ dependencies = [
  "dotenvy",
  "either",
  "encoding_rs",
- "event-listener 2.5.3",
+ "event-listener 3.0.0",
  "flume",
  "futures-channel",
  "futures-core",
@@ -3329,7 +3329,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros-oldapi"
-version = "0.6.15"
+version = "0.6.16"
 dependencies = [
  "dotenvy",
  "either",
@@ -3349,7 +3349,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-oldapi"
-version = "0.6.15"
+version = "0.6.16"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3376,7 +3376,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt-oldapi"
-version = "0.6.15"
+version = "0.6.16"
 dependencies = [
  "async-native-tls",
  "async-std",
