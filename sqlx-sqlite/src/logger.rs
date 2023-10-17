@@ -86,3 +86,11 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> Drop for QueryPlanLogger<'q, 
         self.finish();
     }
 }
+
+fn parse_query_summary(sql: &str) -> String {
+    // For now, just take the first 4 words
+    sql.split_whitespace()
+        .take(4)
+        .collect::<Vec<&str>>()
+        .join(" ")
+}
