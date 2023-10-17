@@ -160,33 +160,28 @@ pub fn expand_input<'a>(
             ..
         } => QueryDataSource::live(db_url)?,
 
-        _ => {
+        Metadata { offline, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
-            let data_file_path = if let Some(sqlx_offline_dir_path) = env("SQLX_OFFLINE_DIR")
-                .ok()
-                .map(PathBuf::from)
+            let dirs = [
+                env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
+                Some(METADATA.manifest_dir.join(".sqlx")),
+                Some(METADATA.workspace_root().join(".sqlx")),
+            ];
+            let Some(data_file_path) = dirs
+                .iter()
+                .filter_map(|path| path.as_ref())
                 .map(|path| path.join(&filename))
-                .filter(|path| path.exists())
-            {
-                sqlx_offline_dir_path
-            } else if let Some(local_path) =
-                Some(METADATA.manifest_dir.join(".sqlx").join(&filename))
-                    .filter(|path| path.exists())
-            {
-                local_path
-            } else if let Some(workspace_path) =
-                Some(METADATA.workspace_root().join(".sqlx").join(&filename))
-                    .filter(|path| path.exists())
-            {
-                workspace_path
-            } else {
+                .find(|path| path.exists())
+            else {
                 return Err(
-                    "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
-                     and .sqlx must exist, to use query macros"
-                        .into(),
+                    if *offline {
+                        "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` to update the query cache or unset `SQLX_OFFLINE`"
+                    } else {
+                        "set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache"
+                    }.into()
                 );
             };
 
