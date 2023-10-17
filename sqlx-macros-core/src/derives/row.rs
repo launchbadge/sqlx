@@ -65,6 +65,17 @@ fn expand_derive_from_row_struct(
 
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
+    let default_instance: Option<Stmt>;
+
+    if container_attributes.default {
+        predicates.push(parse_quote!(#ident: ::std::default::Default));
+        default_instance = Some(parse_quote!(
+            let __default = #ident::default();
+        ));
+    } else {
+        default_instance = None;
+    }
+
     let reads: Vec<Stmt> = fields
         .iter()
         .filter_map(|field| -> Option<Stmt> {
@@ -148,6 +159,13 @@ fn expand_derive_from_row_struct(
                 },
                 e => ::std::result::Result::Err(e)
             })?;))
+            } else if container_attributes.default {
+                Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
+                    ::sqlx::Error::ColumnNotFound(_) => {
+                        ::std::result::Result::Ok(__default.#id)
+                    },
+                    e => ::std::result::Result::Err(e)
+                })?;))
             } else {
                 Some(parse_quote!(
                     let #id: #ty = #expr?;
@@ -164,6 +182,8 @@ fn expand_derive_from_row_struct(
         #[automatically_derived]
         impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
             fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
+                #default_instance
+
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {

@@ -57,6 +57,7 @@ pub struct SqlxContainerAttributes {
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
     pub no_pg_array: bool,
+    pub default: bool,
 }
 
 pub struct SqlxChildAttributes {
@@ -74,6 +75,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     let mut type_name = None;
     let mut rename_all = None;
     let mut no_pg_array = None;
+    let mut default = None;
 
     for attr in input
         .iter()
@@ -129,6 +131,10 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 )
                             }
 
+                            Meta::Path(p) if p.is_ident("default") => {
+                                try_set!(default, true, value)
+                            }
+
                             u => fail!(u, "unexpected attribute"),
                         },
                         u => fail!(u, "unexpected attribute"),
@@ -156,6 +162,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
         type_name,
         rename_all,
         no_pg_array: no_pg_array.unwrap_or(false),
+        default: default.unwrap_or(false),
     })
 }
 
