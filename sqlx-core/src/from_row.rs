@@ -92,8 +92,8 @@ use crate::{error::Error, row::Row};
 /// which is `None`.
 ///
 /// Moreover, if the struct has an implementation for [`Default`], you can use the `default``
-/// attribute at the struct level rather than for each single field. This way the default
-/// value of each attribute is optained from the particular `Default` implementation.
+/// attribute at the struct level rather than for each single field. If a field does not appear in the result,
+/// its value is taken from the `Default` implementation for the struct.
 /// For example:
 ///
 /// ```rust, ignore
