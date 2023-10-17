@@ -10,8 +10,11 @@ use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
+use sqlx_core::type_info::get_type_name;
 use std::fmt::Write;
 use std::sync::Arc;
+
+const DEFAULT_SCHEMA: &str = "public";
 
 /// Describes the type of the `pg_type.typtype` column
 ///
@@ -185,13 +188,42 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
-                "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
+            let (name, typ_type, category, relation_id, element, base_type, namespace, type_count): (
+                String,
+                i8,
+                i8,
+                Oid,
+                Oid,
+                Oid,
+                String,
+                i64
+            ) = query_as(
+                "
+SELECT
+    typname, typtype, typcategory, typrelid, typelem, typbasetype, pg_namespace.nspname,
+    (
+        SELECT COUNT(inner_pg_type.oid)
+        FROM pg_catalog.pg_type inner_pg_type
+        JOIN pg_catalog.pg_namespace inner_pg_namespace ON inner_pg_type.typnamespace = inner_pg_namespace.oid
+        WHERE inner_pg_type.typname = pg_type.typname
+    ) as type_count
+FROM pg_catalog.pg_type pg_type
+JOIN pg_catalog.pg_namespace pg_namespace ON pg_type.typnamespace = pg_namespace.oid
+WHERE pg_type.oid = $1
+",
             )
             .bind(oid)
             .fetch_one(&mut *self)
             .await?;
 
+            let name = get_type_name(
+                &name,
+                if type_count > 1 && namespace != DEFAULT_SCHEMA {
+                    Some(&namespace)
+                } else {
+                    None
+                },
+            );
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);
 

@@ -1,5 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use sqlx_core::type_info::get_type_name;
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, DeriveInput, Field, Lit,
     Meta, MetaNameValue, NestedMeta, Type, Variant,
@@ -34,10 +35,15 @@ pub struct TypeName {
 }
 
 impl TypeName {
-    pub fn get(&self) -> TokenStream {
-        let val = &self.val;
+    pub fn get(&self, schema_name: Option<&str>) -> TokenStream {
+        let val = get_type_name(&self.val, schema_name);
         quote! { #val }
     }
+}
+
+pub struct SchemaName {
+    pub val: String,
+    pub span: Span,
 }
 
 #[derive(Copy, Clone)]
@@ -54,6 +60,7 @@ pub enum RenameAll {
 pub struct SqlxContainerAttributes {
     pub transparent: bool,
     pub type_name: Option<TypeName>,
+    pub schema_name: Option<SchemaName>,
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
     pub no_pg_array: bool,
@@ -72,6 +79,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     let mut transparent = None;
     let mut repr = None;
     let mut type_name = None;
+    let mut schema_name = None;
     let mut rename_all = None;
     let mut no_pg_array = None;
 
@@ -129,6 +137,21 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 )
                             }
 
+                            Meta::NameValue(MetaNameValue {
+                                path,
+                                lit: Lit::Str(val),
+                                ..
+                            }) if path.is_ident("schema") => {
+                                try_set!(
+                                    schema_name,
+                                    SchemaName {
+                                        val: val.value(),
+                                        span: value.span(),
+                                    },
+                                    value
+                                )
+                            }
+
                             u => fail!(u, "unexpected attribute"),
                         },
                         u => fail!(u, "unexpected attribute"),
@@ -154,6 +177,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
         transparent: transparent.unwrap_or(false),
         repr,
         type_name,
+        schema_name,
         rename_all,
         no_pg_array: no_pg_array.unwrap_or(false),
     })
