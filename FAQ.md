@@ -201,19 +201,6 @@ as an ergonomic choice it does _not_ block committing if `cargo sqlx prepare` fa
 We're working on a way for the macros to save their data to the filesystem automatically which should be part of SQLx 0.7,
 so your pre-commit hook would then just need to stage the changed files. This can be enabled by creating a directory 
 and setting the `SQLX_OFFLINE_DIR` environment variable to it before compiling. 
-Additionally, if you're not using Cargo or have a nonstandard setup, you may want to set the `SQLX_TMP`
-variable in order to store temporary query files somewhere that isn't picked up by git.
-These files should get cleaned up automatically, but they may not if there's a failure. For example:
-
-```shell
-$ mkdir .sqlx
-$ export SQLX_OFFLINE_DIR="./.sqlx"`
-$ # Optional and only useful if using a nonstandard setup, ensures temp files won't get picked up by git on failure
-$ mkdir ./my-custom-target/sqlx
-$ export SQLX_TMP="./my-custom-target/sqlx-tmp"
-$ cargo check
-```
-
 However, this behaviour is not considered stable and it is still recommended to use `cargo sqlx prepare`.
 
 ----
