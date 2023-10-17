@@ -106,11 +106,11 @@ use crate::{error::Error, row::Row};
 /// }
 /// ```
 ///
-/// For a derived `Default` implementation this effectively populates each missing field 
+/// For a derived `Default` implementation this effectively populates each missing field
 /// with `Default::default()`, but a manual `Default` implementation can provide
 /// different placeholder values, if applicable.
 ///
-/// This is similar to how `#[serde(default)]` behaves. 
+/// This is similar to how `#[serde(default)]` behaves.
 /// ### `flatten`
 ///
 /// If you want to handle a field that implements [`FromRow`],
