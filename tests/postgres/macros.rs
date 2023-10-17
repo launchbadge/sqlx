@@ -611,3 +611,28 @@ async fn test_bind_arg_override_wildcard() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_to_from_citext() -> anyhow::Result<()> {
+    // Ensure that the macros consider `CITEXT` to be compatible with `String` and friends
+
+    let mut conn = new::<Postgres>().await?;
+
+    let mut tx = conn.begin().await?;
+
+    let foo_in = "Hello, world!";
+
+    sqlx::query!("insert into test_citext(foo) values ($1)", foo_in)
+        .execute(&mut *tx)
+        .await?;
+
+    let foo_out: String = sqlx::query_scalar!("select foo from test_citext")
+        .fetch_one(&mut *tx)
+        .await?;
+
+    assert_eq!(foo_in, foo_out);
+
+    tx.rollback().await?;
+
+    Ok(())
+}

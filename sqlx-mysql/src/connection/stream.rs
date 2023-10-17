@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
 
-use bytes::{Buf, Bytes};
+use bytes::{Buf, Bytes, BytesMut};
 
 use crate::collation::{CharSet, Collation};
 use crate::error::Error;
@@ -126,9 +126,7 @@ impl<S: Socket> MySqlStream<S> {
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
     }
 
-    // receive the next packet from the database server
-    // may block (async) on more data from the server
-    pub(crate) async fn recv_packet(&mut self) -> Result<Packet<Bytes>, Error> {
+    async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
 
@@ -142,10 +140,33 @@ impl<S: Socket> MySqlStream<S> {
         let payload: Bytes = self.socket.read(packet_size).await?;
 
         // TODO: packet compression
-        // TODO: packet joining
+
+        Ok(payload)
+    }
+
+    // receive the next packet from the database server
+    // may block (async) on more data from the server
+    pub(crate) async fn recv_packet(&mut self) -> Result<Packet<Bytes>, Error> {
+        let payload = self.recv_packet_part().await?;
+        let payload = if payload.len() < 0xFF_FF_FF {
+            payload
+        } else {
+            let mut final_payload = BytesMut::with_capacity(0xFF_FF_FF * 2);
+            final_payload.extend_from_slice(&payload);
+
+            drop(payload); // we don't need the allocation anymore
+
+            let mut last_read = 0xFF_FF_FF;
+            while last_read == 0xFF_FF_FF {
+                let part = self.recv_packet_part().await?;
+                last_read = part.len();
+                final_payload.extend_from_slice(&part);
+            }
+            final_payload.into()
+        };
 
         if payload
-            .get(0)
+            .first()
             .ok_or(err_protocol!("Packet empty"))?
             .eq(&0xff)
         {

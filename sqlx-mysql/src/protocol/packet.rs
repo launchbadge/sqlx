@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
@@ -19,6 +20,14 @@ where
         buf: &mut Vec<u8>,
         (capabilities, sequence_id): (Capabilities, &'stream mut u8),
     ) {
+        let mut next_header = |len: u32| {
+            let mut buf = len.to_le_bytes();
+            buf[3] = *sequence_id;
+            *sequence_id = sequence_id.wrapping_add(1);
+
+            buf
+        };
+
         // reserve space to write the prefixed length
         let offset = buf.len();
         buf.extend(&[0_u8; 4]);
@@ -31,13 +40,25 @@ where
         let len = buf.len() - offset - 4;
         let header = &mut buf[offset..];
 
-        // FIXME: Support larger packets
-        assert!(len < 0xFF_FF_FF);
+        header[..4].copy_from_slice(&next_header(min(len, 0xFF_FF_FF) as u32));
 
-        header[..4].copy_from_slice(&(len as u32).to_le_bytes());
-        header[3] = *sequence_id;
+        // add more packets if we need to split the data
+        if len >= 0xFF_FF_FF {
+            let rest = buf.split_off(offset + 4 + 0xFF_FF_FF);
+            let mut chunks = rest.chunks_exact(0xFF_FF_FF);
 
-        *sequence_id = sequence_id.wrapping_add(1);
+            for chunk in chunks.by_ref() {
+                buf.reserve(chunk.len() + 4);
+                buf.extend(&next_header(chunk.len() as u32));
+                buf.extend(chunk);
+            }
+
+            // this will also handle adding a zero sized packet if the data size is a multiple of 0xFF_FF_FF
+            let remainder = chunks.remainder();
+            buf.reserve(remainder.len() + 4);
+            buf.extend(&next_header(remainder.len() as u32));
+            buf.extend(remainder);
+        }
     }
 }
 

@@ -2,11 +2,10 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 
-#[cfg(any(postgres_14, postgres_15))]
 use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
@@ -65,6 +64,7 @@ test_type!(str<&str>(Postgres,
     "'identifier'::name" == "identifier",
     "'five'::char(4)" == "five",
     "'more text'::varchar" == "more text",
+    "'case insensitive searching'::citext" == "case insensitive searching",
 ));
 
 test_type!(string<String>(Postgres,
@@ -79,7 +79,7 @@ test_type!(string_vec<Vec<String>>(Postgres,
         == vec!["", "\""],
 
     "array['Hello, World', '', 'Goodbye']::text[]"
-        == vec!["Hello, World", "", "Goodbye"]
+        == vec!["Hello, World", "", "Goodbye"],
 ));
 
 test_type!(string_array<[String; 3]>(Postgres,
@@ -321,7 +321,8 @@ mod time_tests {
 
     test_type!(time_time<Time>(
         Postgres,
-        "TIME '05:10:20.115100'" == time!(5:10:20.115100)
+        "TIME '05:10:20.115100'" == time!(5:10:20.115100),
+        "TIME '05:10:20'" == time!(5:10:20)
     ));
 
     test_type!(time_date_time<PrimitiveDateTime>(
@@ -473,7 +474,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
     "1::numeric" == sqlx::types::Decimal::from_str("1").unwrap(),
@@ -482,9 +483,12 @@ test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
     "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
     "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+    // https://github.com/launchbadge/sqlx/issues/666#issuecomment-683872154
+    "17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("17.905625985174584660842500258").unwrap(),
+    "-17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("-17.905625985174584660842500258").unwrap(),
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(numrange_decimal<PgRange<sqlx::types::Decimal>>(Postgres,
     "'(1.3,2.4)'::numrange" == PgRange::from(
         (Bound::Excluded(sqlx::types::Decimal::from_str("1.3").unwrap()),
@@ -547,6 +551,14 @@ test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)))
 
 test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
+));
+
+test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
+    "array['one','two','three']::citext[]" == vec![
+        PgCiText("one".to_string()),
+        PgCiText("two".to_string()),
+        PgCiText("three".to_string()),
+    ],
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it

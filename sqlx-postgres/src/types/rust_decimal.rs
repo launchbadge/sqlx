@@ -1,8 +1,4 @@
-use num_bigint::{BigInt, Sign};
-use rust_decimal::{
-    prelude::{ToPrimitive, Zero},
-    Decimal,
-};
+use rust_decimal::{prelude::Zero, Decimal};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -10,6 +6,8 @@ use crate::error::BoxDynError;
 use crate::types::numeric::{PgNumeric, PgNumericSign};
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+
+use rust_decimal::MathematicalOps;
 
 impl Type<Postgres> for Decimal {
     fn type_info() -> PgTypeInfo {
@@ -27,7 +25,7 @@ impl TryFrom<PgNumeric> for Decimal {
     type Error = BoxDynError;
 
     fn try_from(numeric: PgNumeric) -> Result<Self, BoxDynError> {
-        let (digits, sign, weight) = match numeric {
+        let (digits, sign, mut weight) = match numeric {
             PgNumeric::Number {
                 digits,
                 sign,
@@ -41,39 +39,33 @@ impl TryFrom<PgNumeric> for Decimal {
         };
 
         if digits.is_empty() {
-            // Postgres returns an empty digit array for 0 but BigInt expects at least one zero
+            // Postgres returns an empty digit array for 0
             return Ok(0u64.into());
         }
 
-        let sign = match sign {
-            PgNumericSign::Positive => Sign::Plus,
-            PgNumericSign::Negative => Sign::Minus,
-        };
+        let mut value = Decimal::ZERO;
 
-        // weight is 0 if the decimal point falls after the first base-10000 digit
-        let scale = (digits.len() as i64 - weight as i64 - 1) * 4;
+        // Sum over `digits`, multiply each by its weight and add it to `value`.
+        for digit in digits {
+            let mul = Decimal::from(10_000i16)
+                .checked_powi(weight as i64)
+                .ok_or("value not representable as rust_decimal::Decimal")?;
 
-        // no optimized algorithm for base-10 so use base-100 for faster processing
-        let mut cents = Vec::with_capacity(digits.len() * 2);
-        for digit in &digits {
-            cents.push((digit / 100) as u8);
-            cents.push((digit % 100) as u8);
+            let part = Decimal::from(digit) * mul;
+
+            value = value
+                .checked_add(part)
+                .ok_or("value not representable as rust_decimal::Decimal")?;
+
+            weight = weight.checked_sub(1).ok_or("weight underflowed")?;
         }
 
-        let bigint = BigInt::from_radix_be(sign, &cents, 100)
-            .ok_or("PgNumeric contained an out-of-range digit")?;
-
-        match (bigint.to_i128(), scale) {
-            // A negative scale, meaning we have nothing on the right and must
-            // add zeroes to the left.
-            (Some(num), scale) if scale < 0 => Ok(Decimal::from_i128_with_scale(
-                num * 10i128.pow(scale.abs() as u32),
-                0,
-            )),
-            // A positive scale, so we have decimals on the right.
-            (Some(num), _) => Ok(Decimal::from_i128_with_scale(num, scale as u32)),
-            (None, _) => Err("Decimal's integer part out of range.".into()),
+        match sign {
+            PgNumericSign::Positive => value.set_sign_positive(true),
+            PgNumericSign::Negative => value.set_sign_negative(true),
         }
+
+        Ok(value)
     }
 }
 
@@ -403,4 +395,7 @@ mod decimal_to_pgnumeric {
             }
         );
     }
+
+    #[test]
+    fn issue_666_trailing_zeroes_at_max_precision() {}
 }
