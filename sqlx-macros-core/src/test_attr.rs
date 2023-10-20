@@ -99,7 +99,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             FixturesType::ExplicitPath => fixtures_local
                 .into_iter()
                 .map(|fixture| {
-                    let path = format!("{}.sql", fixture.value());
+                    let path = format!("{}", fixture.value());
 
                     quote! {
                         ::sqlx::testing::TestFixture {
@@ -175,19 +175,22 @@ fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
                             return Err(syn::Error::new_spanned(other, "expected string literal"))
                         }
                     };
-                    let explicit_path_type = litstr.value().starts_with("../") || litstr.value().starts_with("./");
+                    let has_explicit_path = litstr.value().contains("/");
                     match fixtures_type {
-                        FixturesType::None => if explicit_path_type {
+                        FixturesType::None => if has_explicit_path {
                             fixtures_type = FixturesType::ExplicitPath;
                         } else {
                             fixtures_type = FixturesType::InferredPath;
                         },
-                        FixturesType::InferredPath => if explicit_path_type {
+                        FixturesType::InferredPath => if has_explicit_path {
                             return Err(syn::Error::new_spanned(litstr, "expected only inferred path fixtures"))
                         },
-                        FixturesType::ExplicitPath => if !explicit_path_type {
+                        FixturesType::ExplicitPath => if !has_explicit_path {
                             return Err(syn::Error::new_spanned(litstr, "expected only explicit path fixtures"))
                         },
+                    }
+                    if (matches!(fixtures_type, FixturesType::ExplicitPath) && !litstr.value().ends_with(".sql")) {
+                        return Err(syn::Error::new_spanned(litstr, "expected explicit path fixtures to have `.sql` extension"))
                     }
                     fixtures_local.push(litstr)
                 }

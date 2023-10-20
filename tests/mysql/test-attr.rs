@@ -72,7 +72,7 @@ async fn it_gets_posts(pool: MySqlPool) -> sqlx::Result<()> {
 
 #[sqlx::test(
     migrations = "tests/mysql/migrations",
-    fixtures("../fixtures/mysql/users", "../fixtures/mysql/posts")
+    fixtures("../fixtures/mysql/users.sql", "../fixtures/mysql/posts.sql")
 )]
 async fn it_gets_posts_explicit_fixtures_path(pool: MySqlPool) -> sqlx::Result<()> {
     let post_contents: Vec<String> =
@@ -99,7 +99,7 @@ async fn it_gets_posts_explicit_fixtures_path(pool: MySqlPool) -> sqlx::Result<(
 
 #[sqlx::test(
     migrations = "tests/mysql/migrations",
-    fixtures("../fixtures/mysql/users"),
+    fixtures("../fixtures/mysql/users.sql"),
     fixtures("posts")
 )]
 async fn it_gets_posts_mixed_fixtures_path(pool: MySqlPool) -> sqlx::Result<()> {
