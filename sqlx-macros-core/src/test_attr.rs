@@ -9,7 +9,8 @@ struct Args {
 
 enum FixturesType {
     None,
-    InferredPath,
+    RelativePath,
+    CustomRelativePath(syn::LitStr),
     ExplicitPath,
 }
 
@@ -83,7 +84,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
     for (fixture_type, fixtures_local) in args.fixtures {
         let mut res = match fixture_type {
             FixturesType::None => vec![],
-            FixturesType::InferredPath => fixtures_local
+            FixturesType::RelativePath => fixtures_local
                 .into_iter()
                 .map(|fixture| {
                     let path = format!("fixtures/{}.sql", fixture.value());
@@ -96,10 +97,23 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
                     }
                 })
                 .collect(),
+            FixturesType::CustomRelativePath(path) => fixtures_local
+                .into_iter()
+                .map(|fixture| {
+                    let path = format!("{}/{}.sql", path.value(), fixture.value());
+
+                    quote! {
+                        ::sqlx::testing::TestFixture {
+                            path: #path,
+                            contents: include_str!(#path),
+                        }
+                    }
+                })
+                .collect(),
             FixturesType::ExplicitPath => fixtures_local
                 .into_iter()
                 .map(|fixture| {
-                    let path = format!("{}", fixture.value());
+                    let path = fixture.value();
 
                     quote! {
                         ::sqlx::testing::TestFixture {
@@ -169,30 +183,25 @@ fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
                 let mut fixtures_type = FixturesType::None;
 
                 for nested in list.nested {
-                    let litstr = match nested {
-                            syn::NestedMeta::Lit(syn::Lit::Str(litstr)) => litstr,
+                    match nested {
+                        syn::NestedMeta::Lit(syn::Lit::Str(litstr)) => {
+                            //  fixtures("<file_1>","<file_2>") or fixtures("<path/file_1.sql>","<path/file_2.sql>")
+                            parse_fixtures_args(&mut fixtures_type, litstr, &mut fixtures_local)?;
+                        },
+                        syn::NestedMeta::Meta(syn::Meta::NameValue(namevalue))
+                            if namevalue.path.is_ident("path") =>
+                        {
+                            //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `path` argument
+                            parse_fixtures_path_args(&mut fixtures_type, namevalue)?;
+                        },
+                        syn::NestedMeta::Meta(syn::Meta::List(list)) if list.path.is_ident("scripts") => {
+                            //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `scripts` argument
+                            parse_fixtures_scripts_args(&mut fixtures_type, list, &mut fixtures_local)?;
+                        }
                         other => {
                             return Err(syn::Error::new_spanned(other, "expected string literal"))
                         }
                     };
-                    let has_explicit_path = litstr.value().contains("/");
-                    match fixtures_type {
-                        FixturesType::None => if has_explicit_path {
-                            fixtures_type = FixturesType::ExplicitPath;
-                        } else {
-                            fixtures_type = FixturesType::InferredPath;
-                        },
-                        FixturesType::InferredPath => if has_explicit_path {
-                            return Err(syn::Error::new_spanned(litstr, "expected only inferred path fixtures"))
-                        },
-                        FixturesType::ExplicitPath => if !has_explicit_path {
-                            return Err(syn::Error::new_spanned(litstr, "expected only explicit path fixtures"))
-                        },
-                    }
-                    if (matches!(fixtures_type, FixturesType::ExplicitPath) && !litstr.value().ends_with(".sql")) {
-                        return Err(syn::Error::new_spanned(litstr, "expected explicit path fixtures to have `.sql` extension"))
-                    }
-                    fixtures_local.push(litstr)
                 }
                 fixtures.push((fixtures_type, fixtures_local));
             }
@@ -263,4 +272,93 @@ fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
         fixtures,
         migrations,
     })
+}
+
+fn parse_fixtures_args(
+    fixtures_type: &mut FixturesType,
+    litstr: syn::LitStr,
+    fixtures_local: &mut Vec<syn::LitStr>,
+) -> syn::Result<()> {
+    //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `path` argument
+    let is_explicit_path_style = litstr.value().ends_with(".sql");
+    match fixtures_type {
+        FixturesType::None => {
+            if is_explicit_path_style {
+                *fixtures_type = FixturesType::ExplicitPath;
+            } else {
+                *fixtures_type = FixturesType::RelativePath;
+            }
+        }
+        FixturesType::RelativePath => {
+            if is_explicit_path_style {
+                return Err(syn::Error::new_spanned(
+                    litstr,
+                    "expected only relative path fixtures",
+                ));
+            }
+        }
+        FixturesType::ExplicitPath => {
+            if !is_explicit_path_style {
+                return Err(syn::Error::new_spanned(
+                    litstr,
+                    "expected only explicit path fixtures",
+                ));
+            }
+        }
+        FixturesType::CustomRelativePath(_) => {
+            return Err(syn::Error::new_spanned(
+                litstr,
+                "custom relative path fixtures must be defined in `scripts` argument",
+            ))
+        }
+    }
+    if (matches!(fixtures_type, FixturesType::ExplicitPath) && !is_explicit_path_style) {
+        return Err(syn::Error::new_spanned(
+            litstr,
+            "expected explicit path fixtures to have `.sql` extension",
+        ));
+    }
+    fixtures_local.push(litstr);
+    Ok(())
+}
+
+fn parse_fixtures_path_args(
+    fixtures_type: &mut FixturesType,
+    namevalue: syn::MetaNameValue,
+) -> syn::Result<()> {
+    //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `path` argument
+    if !matches!(fixtures_type, FixturesType::None) {
+        return Err(syn::Error::new_spanned(
+            namevalue,
+            "`path` must be the first argument of `fixtures`",
+        ));
+    }
+    *fixtures_type = match namevalue.lit {
+        // path = "<path>"
+        syn::Lit::Str(litstr) => FixturesType::CustomRelativePath(litstr),
+        _ => return Err(syn::Error::new_spanned(namevalue, "expected string")),
+    };
+    Ok(())
+}
+
+fn parse_fixtures_scripts_args(
+    fixtures_type: &mut FixturesType,
+    list: syn::MetaList,
+    fixtures_local: &mut Vec<syn::LitStr>,
+) -> syn::Result<()> {
+    //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `scripts` argument
+    if !matches!(fixtures_type, FixturesType::CustomRelativePath(_)) {
+        return Err(syn::Error::new_spanned(
+            list,
+            "`scripts` must be the second argument of `fixtures` and used together with `path`",
+        ));
+    }
+    for nested in list.nested {
+        let litstr = match nested {
+            syn::NestedMeta::Lit(syn::Lit::Str(litstr)) => litstr,
+            other => return Err(syn::Error::new_spanned(other, "expected string literal")),
+        };
+        fixtures_local.push(litstr);
+    }
+    Ok(())
 }
