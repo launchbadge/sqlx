@@ -205,6 +205,20 @@ impl PgConnectOptions {
         self
     }
 
+    /// Get the current host.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .host("127.0.0.1");
+    /// assert_eq!(options.get_host(), "127.0.0.1");
+    /// ```
+    pub fn get_host(&self) -> &str {
+        self.host.as_str()
+    }
+
     /// Sets the port to connect to at the server host.
     ///
     /// The default port for PostgreSQL is `5432`.
