@@ -67,7 +67,6 @@ futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
 futures-intrusive = "0.5.0"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
-generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.3"
 log = { version = "0.4.14", default-features = false }
 memchr = { version = "2.4.1", default-features = false }

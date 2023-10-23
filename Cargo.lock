@@ -3242,7 +3242,6 @@ dependencies = [
  "futures-intrusive",
  "futures-io",
  "futures-util",
- "generic-array",
  "hashlink",
  "hex",
  "indexmap 2.0.2",
