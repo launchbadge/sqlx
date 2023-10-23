@@ -275,6 +275,16 @@ pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
 
+impl<'r, R> FromRow<'r, R> for ()
+where
+    R: Row,
+{
+    #[inline]
+    fn from_row(_: &'r R) -> Result<Self, Error> {
+        Ok(())
+    }
+}
+
 // implement FromRow for tuples of types that implement Decode
 // up to tuples of 9 values
 
