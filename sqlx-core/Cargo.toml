@@ -36,9 +36,9 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.21", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
+rustls = { version = "0.21.7", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
-webpki-roots = { version = "0.24", optional = true }
+webpki-roots = { version = "0.25", optional = true }
 
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
@@ -67,7 +67,6 @@ futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
 futures-intrusive = "0.5.0"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
-generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.3"
 log = { version = "0.4.14", default-features = false }
 memchr = { version = "2.4.1", default-features = false }

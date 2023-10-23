@@ -100,7 +100,7 @@ where
         if let Some(user_auth) = user_auth {
             config
                 .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))
-                .with_single_cert(user_auth.0, user_auth.1)
+                .with_client_auth_cert(user_auth.0, user_auth.1)
                 .map_err(Error::tls)?
         } else {
             config
@@ -109,7 +109,7 @@ where
         }
     } else {
         let mut cert_store = RootCertStore::empty();
-        cert_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
+        cert_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
             OwnedTrustAnchor::from_subject_spki_name_constraints(
                 ta.subject,
                 ta.spki,
@@ -136,7 +136,7 @@ where
             if let Some(user_auth) = user_auth {
                 config
                     .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
-                    .with_single_cert(user_auth.0, user_auth.1)
+                    .with_client_auth_cert(user_auth.0, user_auth.1)
                     .map_err(Error::tls)?
             } else {
                 config
@@ -146,7 +146,7 @@ where
         } else if let Some(user_auth) = user_auth {
             config
                 .with_root_certificates(cert_store)
-                .with_single_cert(user_auth.0, user_auth.1)
+                .with_client_auth_cert(user_auth.0, user_auth.1)
                 .map_err(Error::tls)?
         } else {
             config
