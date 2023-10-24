@@ -7,6 +7,7 @@ struct Args {
     migrations: MigrationsOpt,
 }
 
+#[cfg(feature = "migrate")]
 enum FixturesType {
     None,
     RelativePath,
@@ -14,6 +15,7 @@ enum FixturesType {
     ExplicitPath,
 }
 
+#[cfg(feature = "migrate")]
 enum MigrationsOpt {
     InferredPath,
     ExplicitPath(syn::LitStr),
@@ -274,6 +276,7 @@ fn parse_args(attr_args: syn::AttributeArgs) -> syn::Result<Args> {
     })
 }
 
+#[cfg(feature = "migrate")]
 fn parse_fixtures_args(
     fixtures_type: &mut FixturesType,
     litstr: syn::LitStr,
@@ -322,6 +325,7 @@ fn parse_fixtures_args(
     Ok(())
 }
 
+#[cfg(feature = "migrate")]
 fn parse_fixtures_path_args(
     fixtures_type: &mut FixturesType,
     namevalue: syn::MetaNameValue,
@@ -341,6 +345,7 @@ fn parse_fixtures_path_args(
     Ok(())
 }
 
+#[cfg(feature = "migrate")]
 fn parse_fixtures_scripts_args(
     fixtures_type: &mut FixturesType,
     list: syn::MetaList,
