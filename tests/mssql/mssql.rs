@@ -189,6 +189,19 @@ async fn it_binds_empty_string_and_null() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_binds_string_with_special_chars() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+    let s = "/\r\n\t\0\x1b!@#$/.%^\x1b&*()_+";
+    let (val,): (String,) = sqlx_oldapi::query_as("SELECT @p1")
+        .bind(s)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(val, s);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_accepts_long_query_strings() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
     // try a query that does not fit in a single TDS packet
