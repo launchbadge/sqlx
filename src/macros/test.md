@@ -185,7 +185,13 @@ similarly to migrations but are solely intended to insert test data and be arbit
 Imagine a basic social app that has users, posts and comments. To test the comment routes, you'd want
 the database to already have users and posts in it so the comments tests don't have to duplicate that work.
 
-You can either pass a list of fixture names to the attribute `fixtures` like so, or a list of fixture with paths to the attribute `fixtures_path` and they will be applied in the given order<sup>3</sup>:
+You can either pass a list of fixture to the attribute `fixtures` in three different operating modes:
+
+1) Pass a list of references files in `./fixtures` (resolved as `./fixtures/{name}.sql`);
+2) Pass a list of paths, in which case they can either be absolute, or relative to the current file (note that they must contain the `.sql` extensions to make it distinct from previous operating mode);
+3) Pass a `path = <path to folder>` parameter and a `scripts(<filename_1>, <filename_2>, ...)` parameter that are relative to the provided path (resolved as `{path}/{filename_x}.sql`).
+
+In any case they will be applied in the given order<sup>3</sup>:
 
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
@@ -195,7 +201,10 @@ You can either pass a list of fixture names to the attribute `fixtures` like so,
 use sqlx::PgPool;
 use serde_json::json;
 
-// Using `fixtures_path`: #[sqlx::test(fixtures_path("./fixtures/users", "./fixtures/posts"))]
+// Alternatives:
+// #[sqlx::test(fixtures("./fixtures/users.sql", "./fixtures/users.sql"))]
+// or
+// #[sqlx::test(fixtures(path = "./fixtures", scripts("users", "posts")))]
 #[sqlx::test(fixtures("users", "posts"))]
 async fn test_create_comment(pool: PgPool) -> sqlx::Result<()> {
     // See examples/postgres/social-axum-with-tests for a more in-depth example. 
@@ -212,7 +221,7 @@ async fn test_create_comment(pool: PgPool) -> sqlx::Result<()> {
 # }
 ```
 
-Both fixtures are resolved relative to the current file, specifically fixtures passed using `fixtures` are resolved as `./fixtures/{name}.sql`.
+Multiple `fixtures` attributes can be used to combine different operating modes.
 
 <sup>3</sup>Ordering for test fixtures is entirely up to the application, and each test may choose which fixtures to
 apply and which to omit. However, since each fixture is applied separately (sent as a single command string, so wrapped 
