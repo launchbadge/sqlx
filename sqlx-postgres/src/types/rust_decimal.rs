@@ -25,13 +25,13 @@ impl TryFrom<PgNumeric> for Decimal {
     type Error = BoxDynError;
 
     fn try_from(numeric: PgNumeric) -> Result<Self, BoxDynError> {
-        let (digits, sign, mut weight) = match numeric {
+        let (digits, sign, mut weight, scale) = match numeric {
             PgNumeric::Number {
                 digits,
                 sign,
                 weight,
-                ..
-            } => (digits, sign, weight),
+                scale,
+            } => (digits, sign, weight, scale),
 
             PgNumeric::NotANumber => {
                 return Err("Decimal does not support NaN values".into());
@@ -64,6 +64,8 @@ impl TryFrom<PgNumeric> for Decimal {
             PgNumericSign::Positive => value.set_sign_positive(true),
             PgNumericSign::Negative => value.set_sign_negative(true),
         }
+
+        value.rescale(scale as u32);
 
         Ok(value)
     }
@@ -311,29 +313,38 @@ mod decimal_to_pgnumeric {
     #[test]
     fn decimal_4() {
         let decimal: Decimal = "12345.67890".parse().unwrap();
-        assert_eq!(
-            PgNumeric::try_from(&decimal).unwrap(),
-            PgNumeric::Number {
-                sign: PgNumericSign::Positive,
-                scale: 5,
-                weight: 1,
-                digits: vec![1, 2345, 6789]
-            }
-        );
+        let expected_numeric = PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            scale: 5,
+            weight: 1,
+            digits: vec![1, 2345, 6789],
+        };
+        assert_eq!(PgNumeric::try_from(&decimal).unwrap(), expected_numeric);
+
+        let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
+        assert_eq!(actual_decimal, decimal);
+        assert_eq!(actual_decimal.mantissa(), 1234567890);
+        assert_eq!(actual_decimal.scale(), 5);
     }
 
     #[test]
     fn one_digit_decimal() {
         let one_digit_decimal: Decimal = "0.00001234".parse().unwrap();
+        let expected_numeric = PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            scale: 8,
+            weight: -2,
+            digits: vec![1234],
+        };
         assert_eq!(
             PgNumeric::try_from(&one_digit_decimal).unwrap(),
-            PgNumeric::Number {
-                sign: PgNumericSign::Positive,
-                scale: 8,
-                weight: -2,
-                digits: vec![1234]
-            }
+            expected_numeric
         );
+
+        let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
+        assert_eq!(actual_decimal, one_digit_decimal);
+        assert_eq!(actual_decimal.mantissa(), 1234);
+        assert_eq!(actual_decimal.scale(), 8);
     }
 
     #[test]
@@ -394,6 +405,24 @@ mod decimal_to_pgnumeric {
                 digits: vec![1234, 5678]
             }
         );
+    }
+
+    #[test]
+    fn issue_2247_trailing_zeros() {
+        // This is a regression test for https://github.com/launchbadge/sqlx/issues/2247
+        let one_hundred: Decimal = "100.00".parse().unwrap();
+        let expected_numeric = PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            scale: 2,
+            weight: 0,
+            digits: vec![100],
+        };
+        assert_eq!(PgNumeric::try_from(&one_hundred).unwrap(), expected_numeric);
+
+        let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
+        assert_eq!(actual_decimal, one_hundred);
+        assert_eq!(actual_decimal.mantissa(), 10000);
+        assert_eq!(actual_decimal.scale(), 2);
     }
 
     #[test]
