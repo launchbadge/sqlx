@@ -204,6 +204,8 @@ fn it_parses_password_with_non_ascii_chars_correctly() {
     let opts = PgConnectOptions::from_str(url).unwrap();
 
     assert_eq!(Some("p@ssw0rd".into()), opts.password);
+    assert_eq!("********", format!("{0}", opts.password.unwrap()));
+    assert_eq!("********", format!("{0:?}", opts.password.unwrap()));
 }
 
 #[test]

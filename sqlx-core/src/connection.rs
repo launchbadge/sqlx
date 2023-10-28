@@ -183,6 +183,44 @@ impl LogSettings {
     }
 }
 
+/// `Secret` is a wrapper around a String which ensures it is not going
+/// to be masked when printed in a regular fashion
+#[derive(Clone,PartialEq,Eq)]
+pub struct Secret(String);
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("********")
+    }
+}
+impl std::fmt::Display for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+impl From<String> for Secret {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl From<&str> for Secret {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<Secret> for String {
+    fn from(value: Secret) -> Self {
+        value.0
+    }
+}
+impl std::ops::Deref for Secret {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
 pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug + Clone {
     type Connection: Connection + ?Sized;
 

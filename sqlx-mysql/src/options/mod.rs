@@ -5,6 +5,7 @@ mod parse;
 mod ssl_mode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
+use sqlx_core::connection::Secret;
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
@@ -57,7 +58,7 @@ pub struct MySqlConnectOptions {
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
-    pub(crate) password: Option<String>,
+    pub(crate) password: Option<Secret>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: MySqlSslMode,
     pub(crate) ssl_ca: Option<CertificateInput>,
@@ -132,7 +133,7 @@ impl MySqlConnectOptions {
 
     /// Sets the password to connect with.
     pub fn password(mut self, password: &str) -> Self {
-        self.password = Some(password.to_owned());
+        self.password = Some(password.into());
         self
     }
 

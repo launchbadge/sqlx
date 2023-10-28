@@ -3,6 +3,7 @@ use std::env::var;
 use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
 
+use sqlx_core::connection::Secret;
 pub use ssl_mode::PgSslMode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
@@ -83,7 +84,7 @@ pub struct PgConnectOptions {
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
-    pub(crate) password: Option<String>,
+    pub(crate) password: Option<Secret>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
