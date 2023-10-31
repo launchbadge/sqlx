@@ -21,7 +21,7 @@ impl<'a, T> TryAsyncStream<'a, T> {
         Fut: 'a + Future<Output = Result<(), Error>> + Send,
         T: 'a + Send,
     {
-        let (mut sender, receiver) = mpsc::channel(0);
+        let (mut sender, receiver) = mpsc::channel(10);
 
         let future = f(sender.clone());
         let future = async move {
@@ -42,6 +42,12 @@ impl<'a, T> Stream for TryAsyncStream<'a, T> {
     type Item = Result<T, Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // fast path
+        let t = self.receiver.try_next();
+        match t {
+            Ok(x) => return Poll::Ready(x),
+            Err(_) => {}
+        }
         let future = &mut self.future;
         pin_mut!(future);
 
