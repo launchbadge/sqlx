@@ -140,7 +140,7 @@ pub enum MigrateCommand {
         #[clap(short, long)]
         timestamp: bool,
 
-        /// If set, use timestamp versioning for the new migration. Conflicts with `--timestamp`.
+        /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
         #[clap(short, long, conflicts_with = "timestamp")]
         sequential: bool,
     },
