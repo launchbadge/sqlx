@@ -74,6 +74,7 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
     }
 }
 
+#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
 macro_rules! impl_database_ext {
     (
         $database:path {
@@ -126,6 +127,7 @@ macro_rules! impl_database_ext {
     }
 }
 
+#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
 macro_rules! impl_describe_blocking {
     ($database:path $(,)?) => {
         fn describe_blocking(
@@ -150,6 +152,7 @@ macro_rules! impl_describe_blocking {
     };
 }
 
+#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
 macro_rules! input_ty {
     ($ty:ty, $input:ty) => {
         stringify!($input)
