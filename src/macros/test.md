@@ -187,9 +187,9 @@ the database to already have users and posts in it so the comments tests don't h
 
 You can either pass a list of fixture to the attribute `fixtures` in three different operating modes:
 
-1) Pass a list of references files in `./fixtures` (resolved as `./fixtures/{name}.sql`);
-2) Pass a list of paths, in which case they can either be absolute, or relative to the current file (note that they must contain the `.sql` extensions to make it distinct from previous operating mode);
-3) Pass a `path = <path to folder>` parameter and a `scripts(<filename_1>, <filename_2>, ...)` parameter that are relative to the provided path (resolved as `{path}/{filename_x}.sql`).
+1) Pass a list of references files in `./fixtures` (resolved as `./fixtures/{name}.sql`, `.sql` added only if extension is missing);
+2) Pass a list of file paths (including associated extension), in which case they can either be absolute, or relative to the current file;
+3) Pass a `path = <path to folder>` parameter and a `scripts(<filename_1>, <filename_2>, ...)` parameter that are relative to the provided path (resolved as `{path}/{filename_x}.sql`, `.sql` added only if extension is missing).
 
 In any case they will be applied in the given order<sup>3</sup>:
 
