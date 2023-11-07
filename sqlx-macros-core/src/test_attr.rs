@@ -89,7 +89,10 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             FixturesType::RelativePath => fixtures_local
                 .into_iter()
                 .map(|fixture| {
-                    let path = format!("fixtures/{}.sql", fixture.value());
+                    let mut fixture_str = fixture.value();
+                    add_sql_extension_if_missing(&mut fixture_str);
+
+                    let path = format!("fixtures/{}", fixture_str);
 
                     quote! {
                         ::sqlx::testing::TestFixture {
@@ -102,7 +105,10 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             FixturesType::CustomRelativePath(path) => fixtures_local
                 .into_iter()
                 .map(|fixture| {
-                    let path = format!("{}/{}.sql", path.value(), fixture.value());
+                    let mut fixture_str = fixture.value();
+                    add_sql_extension_if_missing(&mut fixture_str);
+
+                    let path = format!("{}/{}", path.value(), fixture_str);
 
                     quote! {
                         ::sqlx::testing::TestFixture {
@@ -283,17 +289,21 @@ fn parse_fixtures_args(
     fixtures_local: &mut Vec<syn::LitStr>,
 ) -> syn::Result<()> {
     //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `path` argument
-    let is_explicit_path_style = litstr.value().ends_with(".sql");
+    let path_str = litstr.value();
+    let path = std::path::Path::new(&path_str);
+    // This will be `true` if there's at least one path separator (`/` or `\`)
+    // It's also true for all absolute paths, even e.g. `/foo.sql` as the root directory is counted as a component.
+    let is_explicit_path = path.components().count() > 1;
     match fixtures_type {
         FixturesType::None => {
-            if is_explicit_path_style {
+            if is_explicit_path {
                 *fixtures_type = FixturesType::ExplicitPath;
             } else {
                 *fixtures_type = FixturesType::RelativePath;
             }
         }
         FixturesType::RelativePath => {
-            if is_explicit_path_style {
+            if is_explicit_path {
                 return Err(syn::Error::new_spanned(
                     litstr,
                     "expected only relative path fixtures",
@@ -301,7 +311,7 @@ fn parse_fixtures_args(
             }
         }
         FixturesType::ExplicitPath => {
-            if !is_explicit_path_style {
+            if !is_explicit_path {
                 return Err(syn::Error::new_spanned(
                     litstr,
                     "expected only explicit path fixtures",
@@ -315,7 +325,7 @@ fn parse_fixtures_args(
             ))
         }
     }
-    if (matches!(fixtures_type, FixturesType::ExplicitPath) && !is_explicit_path_style) {
+    if (matches!(fixtures_type, FixturesType::ExplicitPath) && !is_explicit_path) {
         return Err(syn::Error::new_spanned(
             litstr,
             "expected explicit path fixtures to have `.sql` extension",
@@ -366,4 +376,12 @@ fn parse_fixtures_scripts_args(
         fixtures_local.push(litstr);
     }
     Ok(())
+}
+
+#[cfg(feature = "migrate")]
+fn add_sql_extension_if_missing(fixture: &mut String) {
+    let has_extension = std::path::Path::new(&fixture).extension().is_some();
+    if !has_extension {
+        fixture.push_str(".sql")
+    }
 }
