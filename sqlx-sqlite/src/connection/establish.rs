@@ -14,10 +14,13 @@ use std::ffi::{c_void, CStr, CString};
 use std::io;
 use std::os::raw::c_int;
 use std::ptr::{addr_of_mut, null, null_mut};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-static THREAD_ID: AtomicU64 = AtomicU64::new(0);
+// This was originally `AtomicU64` but that's not supported on MIPS (or PowerPC):
+// https://github.com/launchbadge/sqlx/issues/2859
+// https://doc.rust-lang.org/stable/std/sync/atomic/index.html#portability
+static THREAD_ID: AtomicUsize = AtomicUsize::new(0);
 
 enum SqliteLoadExtensionMode {
     /// Enables only the C-API, leaving the SQL function disabled.
@@ -142,6 +145,8 @@ impl EstablishParams {
             })
             .collect::<Result<IndexMap<CString, Option<CString>>, io::Error>>()?;
 
+        let thread_id = THREAD_ID.fetch_add(1, Ordering::AcqRel);
+
         Ok(Self {
             filename,
             open_flags: flags,
@@ -149,7 +154,7 @@ impl EstablishParams {
             statement_cache_capacity: options.statement_cache_capacity,
             log_settings: options.log_settings.clone(),
             extensions,
-            thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
+            thread_name: (options.thread_name)(thread_id as u64),
             command_channel_size: options.command_channel_size,
             #[cfg(feature = "regexp")]
             register_regexp_function: options.register_regexp_function,
