@@ -140,15 +140,23 @@ sqlx::query!(
 let foo_texts: Vec<String> = vec![/* ... */];
 let foo_bools: Vec<bool> = vec![/* ... */];
 let foo_ints: Vec<i64> = vec![/* ... */];
+let foo_opt_texts: Vec<Option<String>> = vec![/* ... */];
+let foo_opt_naive_dts: Vec<Option<NaiveDateTime>> = vec![/* ... */]
+
 
 sqlx::query!(
     "
-        INSERT INTO foo(text_column, bool_column, int_column) 
-        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[])
+        INSERT INTO foo(text_column, bool_column, int_column, opt_text_column, opt_naive_dt_column) 
+        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[], $4::text[], $5::timestamp[])
     ",
     &foo_texts[..],
     &foo_bools[..],
-    &foo_ints[..]
+    &foo_ints[..],
+    // Due to a limitation in how SQLx typechecks query parameters, `Vec<Option<T>>` is unable to be typechecked.
+    // This demonstrates the explicit type override syntax, which tells SQLx not to typecheck these parameters.
+    // See the documentation for `query!()` for more details.
+    &foo_opt_texts as &[Option<String>],
+    &foo_opt_naive_dts as &[Option<NaiveDateTime>]
 )
     .execute(&db)
     .await?;
