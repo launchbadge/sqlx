@@ -185,12 +185,21 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
-                "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
+            let (name, typ_type, category, relation_id, element, base_type, namespace): (String, i8, i8, Oid, Oid, Oid, String) = query_as(
+                r#"
+                    SELECT
+                        t.typname, t.typtype, t.typcategory, t.typrelid, t.typelem, t.typbasetype, n.nspname
+                    FROM
+                        pg_catalog.pg_type t
+                    LEFT JOIN
+                        pg_catalog.pg_namespace n ON t.typnamespace = n.oid
+                    WHERE t.oid = $1"#,
             )
-            .bind(oid)
-            .fetch_one(&mut *self)
-            .await?;
+                .bind(oid)
+                .fetch_one(&mut *self)
+                .await?;
+
+            let namespaced_name = namespace + "." + &name;
 
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);
@@ -221,7 +230,7 @@ impl PgConnection {
                 }
 
                 (Ok(TypType::Enum), Ok(TypCategory::Enum)) => {
-                    self.fetch_enum_by_oid(oid, name).await
+                    self.fetch_enum_by_oid(oid, namespaced_name).await
                 }
 
                 (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
