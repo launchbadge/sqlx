@@ -193,11 +193,12 @@ impl PgConnection {
                         pg_catalog.pg_type t
                     LEFT JOIN
                         pg_catalog.pg_namespace n ON t.typnamespace = n.oid
-                    WHERE t.oid = $1"#,
+                    WHERE t.oid = $1
+                    "#,
             )
-                .bind(oid)
-                .fetch_one(&mut *self)
-                .await?;
+            .bind(oid)
+            .fetch_one(&mut *self)
+            .await?;
 
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);
