@@ -185,10 +185,10 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type, namespace): (String, i8, i8, Oid, Oid, Oid, String) = query_as(
+            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
                 r#"
                     SELECT
-                        t.typname, t.typtype, t.typcategory, t.typrelid, t.typelem, t.typbasetype, n.nspname
+                        n.nspname || '.' || t.typname, t.typtype, t.typcategory, t.typrelid, t.typelem, t.typbasetype
                     FROM
                         pg_catalog.pg_type t
                     LEFT JOIN
@@ -198,8 +198,6 @@ impl PgConnection {
                 .bind(oid)
                 .fetch_one(&mut *self)
                 .await?;
-
-            let namespaced_name = namespace + "." + &name;
 
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);
