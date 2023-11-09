@@ -228,7 +228,7 @@ impl PgConnection {
                 }
 
                 (Ok(TypType::Enum), Ok(TypCategory::Enum)) => {
-                    self.fetch_enum_by_oid(oid, namespaced_name).await
+                    self.fetch_enum_by_oid(oid, name).await
                 }
 
                 (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
