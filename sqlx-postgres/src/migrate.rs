@@ -70,7 +70,7 @@ impl MigrateDatabase for Postgres {
         })
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str, force: bool) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;

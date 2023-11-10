@@ -76,6 +76,10 @@ pub enum DatabaseCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// PostgreSQL only: force drops the database.
+        #[clap(long, short, default_value = "false")]
+        force: bool,
     },
 
     /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
@@ -88,6 +92,10 @@ pub enum DatabaseCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// PostgreSQL only: force drops the database.
+        #[clap(long, short, default_value = "false")]
+        force: bool,
     },
 
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.

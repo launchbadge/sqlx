@@ -74,12 +74,14 @@ pub async fn run(opt: Opt) -> Result<()> {
             DatabaseCommand::Drop {
                 confirmation,
                 connect_opts,
-            } => database::drop(&connect_opts, !confirmation.yes).await?,
+                force,
+            } => database::drop(&connect_opts, !confirmation.yes, force).await?,
             DatabaseCommand::Reset {
                 confirmation,
                 source,
                 connect_opts,
-            } => database::reset(&source, &connect_opts, !confirmation.yes).await?,
+                force,
+            } => database::reset(&source, &connect_opts, !confirmation.yes, force).await?,
             DatabaseCommand::Setup {
                 source,
                 connect_opts,
