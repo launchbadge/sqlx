@@ -86,7 +86,7 @@ impl MigrateDatabase for Postgres {
                 if version >= 130000 {
                     "WITH (FORCE)"
                 } else {
-                    let pid_type = if version > 90200 { "pid" } else { "procpid" };
+                    let pid_type = if version >= 90200 { "pid" } else { "procpid" };
 
                     conn.execute(&*format!(
                         "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
