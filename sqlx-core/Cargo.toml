@@ -67,13 +67,11 @@ json = ["serde", "serde_json"]
 runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx-rt/runtime-async-std-native-tls",
-    "sqlx/runtime-async-std-native-tls",
     "_tls-native-tls",
     "_rt-async-std",
 ]
 runtime-tokio-native-tls = [
     "sqlx-rt/runtime-tokio-native-tls",
-    "sqlx/runtime-tokio-native-tls",
     "_tls-native-tls",
     "_rt-tokio",
 ]
@@ -81,13 +79,11 @@ runtime-tokio-native-tls = [
 runtime-actix-rustls = ['runtime-tokio-rustls']
 runtime-async-std-rustls = [
     "sqlx-rt/runtime-async-std-rustls",
-    "sqlx/runtime-async-std-rustls",
     "_tls-rustls",
     "_rt-async-std",
 ]
 runtime-tokio-rustls = [
     "sqlx-rt/runtime-tokio-rustls",
-    "sqlx/runtime-tokio-rustls",
     "_tls-rustls",
     "_rt-tokio"
 ]
@@ -176,5 +172,5 @@ event-listener = "3.0.0"
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { package = "sqlx-oldapi",  version = "<0.7.0", path = "..", features = ["postgres", "sqlite", "mysql"] }
+sqlx = { package = "sqlx-oldapi", path = "..", features = ["postgres", "sqlite", "mysql", "runtime-tokio-rustls"] }
 tokio = { version = "1", features = ["rt"] }
