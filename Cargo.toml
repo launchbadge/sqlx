@@ -20,7 +20,7 @@ members = [
 
 [package]
 name = "sqlx-oldapi"
-version = "0.6.16"
+version = "0.6.17"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/lovasoa/sqlx"
@@ -125,14 +125,14 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { package = "sqlx-core-oldapi",  version = "0.6.16", path = "sqlx-core", default-features = false }
-sqlx-macros = { package = "sqlx-macros-oldapi", version = "0.6.16", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { package = "sqlx-core-oldapi",  version = "0.6.17", path = "sqlx-core", default-features = false }
+sqlx-macros = { package = "sqlx-macros-oldapi", version = "0.6.17", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
 time_ = { version = "0.3.2", package = "time" }
 futures = "0.3.19"
-env_logger = "0.10.0"
+env_logger = "0.10.1"
 async-std = { version = "1.10.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenvy = "0.15.0"
@@ -148,7 +148,7 @@ rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher-vendored-openssl"] }
+libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 #
 # Any
