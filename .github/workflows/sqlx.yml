@@ -40,8 +40,16 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        runtime: [
+          # Disabled because of https://github.com/rust-lang/cargo/issues/12964
+          # async-std,
+          # actix,
+          tokio
+        ]
+        tls: [
+          # native-tls,
+          rustls
+        ]
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
