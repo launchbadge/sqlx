@@ -101,6 +101,11 @@ where
         self.persistent = value;
         self
     }
+
+    pub fn disable_arguments(mut self) -> Self {
+        self.arguments = None;
+        self
+    }
 }
 
 impl<'q, DB, A: Send> Query<'q, DB, A>

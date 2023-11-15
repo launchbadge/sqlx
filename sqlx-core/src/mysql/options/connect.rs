@@ -42,14 +42,17 @@ impl ConnectOptions for MySqlConnectOptions {
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
             let mut options = String::new();
-            if self.pipes_as_concat {
-                options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
-            } else {
-                options.push_str(
-                    r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',NO_ENGINE_SUBSTITUTION')),"#,
-                );
-            }
-            options.push_str(r#"time_zone='+00:00',"#);
+            // Disable this since in StarRocks it will cause error: "Set statement only support constant expr",
+            // also we need neither NO_ENGINE_SUBSTITUTION nor PIPES_AS_CONCAT.
+
+            // if self.pipes_as_concat {
+            //     options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
+            // } else {
+            //     options.push_str(
+            //         r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',NO_ENGINE_SUBSTITUTION')),"#,
+            //     );
+            // }
+            options.push_str(r#"SET time_zone='+00:00',"#);
             options.push_str(&format!(
                 r#"NAMES {} COLLATE {};"#,
                 conn.stream.charset.as_str(),
