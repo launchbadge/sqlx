@@ -25,7 +25,7 @@ impl MigrateDatabase for Any {
     }
 
     fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
+        Box::pin(async {
             driver::from_url_str(url)?
                 .get_migrate_database()?
                 .drop_database(url)
