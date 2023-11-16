@@ -78,7 +78,7 @@ impl MigrateDatabase for Postgres {
             let _ = conn
                 .execute(&*format!(
                     "DROP DATABASE IF EXISTS \"{}\"",
-                    database.replace('"', "\"\""),
+                    database.replace('"', "\"\"")
                 ))
                 .await?;
 
