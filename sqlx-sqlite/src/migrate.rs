@@ -51,7 +51,7 @@ impl MigrateDatabase for Sqlite {
         })
     }
 
-    fn drop_database(url: &str, _force: bool) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let options = SqliteConnectOptions::from_str(url)?;
 

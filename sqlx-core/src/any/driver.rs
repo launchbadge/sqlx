@@ -93,7 +93,7 @@ impl Debug for AnyDriver {
 pub struct AnyMigrateDatabase {
     create_database: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<()>>>,
     database_exists: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<bool>>>,
-    drop_database: DebugFn<fn(&str, bool) -> BoxFuture<'_, crate::Result<()>>>,
+    drop_database: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<()>>>,
 }
 
 impl AnyMigrateDatabase {
@@ -105,8 +105,8 @@ impl AnyMigrateDatabase {
         (self.database_exists)(url)
     }
 
-    pub fn drop_database<'a>(&self, url: &'a str, force: bool) -> BoxFuture<'a, crate::Result<()>> {
-        (self.drop_database)(url, force)
+    pub fn drop_database<'a>(&self, url: &'a str) -> BoxFuture<'a, crate::Result<()>> {
+        (self.drop_database)(url)
     }
 }
 

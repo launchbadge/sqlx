@@ -33,7 +33,7 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> any
     let exists = crate::retry_connect_errors(connect_opts, Any::database_exists).await?;
 
     if exists {
-        Any::drop_database(&connect_opts.database_url, force).await?;
+        Any::drop_database(&connect_opts.database_url).await?;
     }
 
     Ok(())

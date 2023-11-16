@@ -14,7 +14,13 @@ pub trait MigrateDatabase {
 
     // drop database in url
     // uses a maintenance database depending on driver
-    fn drop_database(url: &str, _force: bool) -> BoxFuture<'_, Result<(), Error>>;
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
+
+    // force drop database in url
+    // uses a maintenance database depending on driver
+    fn force_drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+        unimplemented!("Database driver does not support force-dropping a database")
+    }
 }
 
 // 'e = Executor

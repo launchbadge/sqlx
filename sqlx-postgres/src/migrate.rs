@@ -70,42 +70,17 @@ impl MigrateDatabase for Postgres {
         })
     }
 
-    fn drop_database(url: &str, force: bool) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
 
-            let with_force = if force {
-                // language=SQL
-                let row: (String,) = query_as("SELECT current_setting('server_version_num')")
-                    .fetch_one(&mut conn)
-                    .await?;
-
-                let version = row.0.parse::<i32>().unwrap();
-
-                if version >= 130000 {
-                    "WITH (FORCE)"
-                } else {
-                    let pid_type = if version >= 90200 { "pid" } else { "procpid" };
-
-                    conn.execute(&*format!(
-                        "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
-                         WHERE pg_stat_activity.datname = {} AND {pid_type} <> pg_backend_pid()",
-                        database.replace('"', "\"\""),
-                    ))
-                    .await?;
-
-                    ""
-                }
-            } else {
-                ""
-            };
-
-            conn.execute(&*format!(
-                "DROP DATABASE IF EXISTS \"{}\" {with_force}",
-                database.replace('"', "\"\""),
-            ))
-            .await?;
+            let _ = conn
+                .execute(&*format!(
+                    "DROP DATABASE IF EXISTS \"{}\"",
+                    database.replace('"', "\"\""),
+                ))
+                .await?;
 
             Ok(())
         })
