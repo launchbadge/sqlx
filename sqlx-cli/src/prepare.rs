@@ -165,7 +165,6 @@ fn run_prepare_step(ctx: &PrepareCtx, cache_dir: &Path) -> anyhow::Result<()> {
         check_command
             .arg("check")
             .args(&ctx.cargo_args)
-            .env("DATABASE_URL", &ctx.connect_opts.database_url)
             .env("SQLX_TMP", tmp_dir)
             .env("SQLX_OFFLINE", "false")
             .env("SQLX_OFFLINE_DIR", cache_dir);
