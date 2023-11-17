@@ -402,7 +402,7 @@ where
 {
     Query {
         database: PhantomData,
-        arguments: None,
+        arguments: Some(Default::default()), // Even if there are no arguments, we signify that we should use a prepared statement
         statement: Either::Right(statement),
         persistent: true,
     }
