@@ -1360,8 +1360,9 @@ VALUES
         items: Vec<(i32, String, RepoMemberArray)>,
     }
     // language=PostgreSQL
-    let row: Result<Row, Error> = sqlx_oldapi::query_as_with::<_, Row, _>(
-        r"
+    let row: Result<Row, Error> = conn
+        .prepare(
+            r"
         WITH
           members_by_repo AS (
             SELECT repo_id,
@@ -1387,10 +1388,11 @@ VALUES
         FROM repo_count, repo_array
         ;
     ",
-        PgArguments::default(),
-    )
-    .fetch_one(&mut conn)
-    .await;
+        )
+        .await?
+        .query_as::<Row>()
+        .fetch_one(&mut conn)
+        .await;
 
     // This test currently tests mitigations for `#1672` (use regular errors
     // instead of panics). Once we fully support custom types, it should be
