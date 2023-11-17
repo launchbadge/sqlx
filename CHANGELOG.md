@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Avoid systematically attaching a (potentially empty) arguments list to Query objects created with sqlx::query
    - This avoids the creation of single-use prepared statements in MySQL, which should slightly improve performance
    - This allows multiple statements in a single call to sqlx::query in MySQL
+ - In MySQL, fix "zero dates" being recognized as NULL only when transmitted as binary, not as text
 
 ## 0.6.17
 

@@ -749,7 +749,8 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
     let mut conn = PgConnection::connect_with(&options).await?;
 
     for i in 0..5 {
-        let row = sqlx_oldapi::query(&*format!("SELECT {}::int4 AS val", i))
+        let row = sqlx_oldapi::query("SELECT $1::int4 AS val")
+            .bind(i)
             .fetch_one(&mut conn)
             .await?;
 
