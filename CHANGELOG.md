@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.18
+
+ - Avoid systematically attaching a (potentially empty) arguments list to Query objects created with sqlx::query
+   - This avoids the creation of single-use prepared statements in MySQL, which should slightly improve performance
+   - This allows multiple statements in a single call to sqlx::query in MySQL
+
 ## 0.6.17
 
  - Update dependencies. The embedded SQLite version is now [3.44.0](https://www.sqlite.org/releaselog/3_44_0.html)

@@ -167,6 +167,24 @@ async fn it_can_fetch_one_and_ping() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_executes_multiple_statements() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    use futures::TryStreamExt;
+    let res: Vec<_> = sqlx_oldapi::query("SELECT 41; select 42;")
+        .fetch_many(&mut conn)
+        .try_collect()
+        .await?;
+
+    assert_eq!(res[0].as_ref().right().unwrap().get::<i32, _>(0), 41);
+    assert_eq!(res[1].as_ref().left().unwrap().rows_affected(), 0);
+    assert_eq!(res[2].as_ref().right().unwrap().get::<i32, _>(0), 42);
+    assert_eq!(res[3].as_ref().left().unwrap().rows_affected(), 0);
+
+    Ok(())
+}
+
 /// Test that we can interleave reads and writes to the database in one simple query.
 #[sqlx_macros::test]
 async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
