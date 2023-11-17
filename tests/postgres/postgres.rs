@@ -1,4 +1,5 @@
 use futures::{StreamExt, TryStreamExt};
+use sqlx_core::postgres::PgArguments;
 use sqlx_oldapi::postgres::types::Oid;
 use sqlx_oldapi::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
@@ -1359,7 +1360,7 @@ VALUES
         items: Vec<(i32, String, RepoMemberArray)>,
     }
     // language=PostgreSQL
-    let row: Result<Row, Error> = sqlx_oldapi::query_as::<_, Row>(
+    let row: Result<Row, Error> = sqlx_oldapi::query_as_with::<_, Row, _>(
         r"
         WITH
           members_by_repo AS (
@@ -1386,6 +1387,7 @@ VALUES
         FROM repo_count, repo_array
         ;
     ",
+        PgArguments::default(),
     )
     .fetch_one(&mut conn)
     .await;
