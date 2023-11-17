@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - This avoids the creation of single-use prepared statements, which should slightly improve performance
    - This allows multiple statements in a single call to sqlx::query in MySQL
  - In MySQL, fix "zero dates" being recognized as NULL only when transmitted as binary, not as text
+ - In postgres, randomize the initial prepared statement name to avoid collisions when multiple network connections are initiated in parallel and end up using the same final database tcp connection. This can happen when using a connection pooler in front of the database.
 
 ## 0.6.17
 
