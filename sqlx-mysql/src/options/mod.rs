@@ -152,20 +152,6 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Get the current database name.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::mysql::MySqlConnectOptions;
-    /// let options = MySqlConnectOptions::new()
-    ///     .database("mysqldb");
-    /// assert!(options.get_database().is_some());
-    /// ```
-    pub fn get_database(&self) -> Option<&str> {
-        self.database.as_deref()
-    }
-
     /// Sets whether or with what priority a secure SSL TCP/IP connection will be negotiated
     /// with the server.
     ///
@@ -175,7 +161,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::Required);
     /// ```
@@ -189,7 +175,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca("path/to/ca.crt");
@@ -204,7 +190,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca_from_pem(vec![]);
@@ -219,7 +205,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_client_cert("path/to/client.crt");
@@ -238,7 +224,7 @@ impl MySqlConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
     /// const CERT: &[u8] = b"\
     /// -----BEGIN CERTIFICATE-----
@@ -259,7 +245,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_client_key("path/to/client.key");
@@ -278,7 +264,7 @@ impl MySqlConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
     /// const KEY: &[u8] = b"\
     /// -----BEGIN PRIVATE KEY-----
@@ -346,5 +332,117 @@ impl MySqlConnectOptions {
     pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
         self.enable_cleartext_plugin = flag_val;
         self
+    }
+}
+
+impl MySqlConnectOptions {
+    /// Get the current host.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .host("127.0.0.1");
+    /// assert_eq!(options.get_host(), "127.0.0.1");
+    /// ```
+    pub fn get_host(&self) -> &str {
+        &self.host
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .port(6543);
+    /// assert_eq!(options.get_port(), 6543);
+    /// ```
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
+    /// Get the socket path.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .socket("/tmp");
+    /// assert!(options.get_socket().is_some());
+    /// ```
+    pub fn get_socket(&self) -> Option<&PathBuf> {
+        self.socket.as_ref()
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .username("foo");
+    /// assert_eq!(options.get_username(), "foo");
+    /// ```
+    pub fn get_username(&self) -> &str {
+        &self.username
+    }
+
+    /// Get the current database name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .database("postgres");
+    /// assert!(options.get_database().is_some());
+    /// ```
+    pub fn get_database(&self) -> Option<&str> {
+        self.database.as_deref()
+    }
+
+    /// Get the SSL mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::{MySqlConnectOptions, MySqlSslMode};
+    /// let options = MySqlConnectOptions::new();
+    /// assert!(matches!(options.get_ssl_mode(), MySqlSslMode::Preferred));
+    /// ```
+    pub fn get_ssl_mode(&self) -> MySqlSslMode {
+        self.ssl_mode
+    }
+
+    /// Get the server charset.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new();
+    /// assert_eq!(options.get_charset(), "utf8mb4");
+    /// ```
+    pub fn get_charset(&self) -> &str {
+        &self.charset
+    }
+
+    /// Get the server collation.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .collation("collation");
+    /// assert!(options.get_collation().is_some());
+    /// ```
+    pub fn get_collation(&self) -> Option<&str> {
+        self.collation.as_deref()
     }
 }
