@@ -1,11 +1,14 @@
 extern crate time_ as time;
 
+use std::net::SocketAddr;
 use std::ops::Bound;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
-use sqlx_test::{test_decode_type, test_prepared_type, test_type};
+use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
+use sqlx_core::executor::Executor;
+use sqlx_core::types::Text;
 use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
@@ -579,3 +582,46 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+
+#[sqlx_macros::test]
+async fn test_text_adapter() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    struct Login {
+        user_id: i32,
+        socket_addr: Text<SocketAddr>,
+        #[cfg(feature = "time")]
+        login_at: time::OffsetDateTime,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE user_login (
+    user_id INT PRIMARY KEY,
+    socket_addr TEXT NOT NULL,
+    login_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+    "#,
+    )
+    .await?;
+
+    let user_id = 1234;
+    let socket_addr: SocketAddr = "198.51.100.47:31790".parse().unwrap();
+
+    sqlx::query("INSERT INTO user_login (user_id, socket_addr) VALUES ($1, $2)")
+        .bind(user_id)
+        .bind(Text(socket_addr))
+        .execute(&mut conn)
+        .await?;
+
+    let last_login: Login =
+        sqlx::query_as("SELECT * FROM user_login ORDER BY login_at DESC LIMIT 1")
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert_eq!(last_login.user_id, user_id);
+    assert_eq!(*last_login.socket_addr, socket_addr);
+
+    Ok(())
+}

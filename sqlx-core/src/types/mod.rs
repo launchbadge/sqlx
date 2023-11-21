@@ -28,6 +28,8 @@ pub mod bstr;
 #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
 
+mod text;
+
 #[cfg(feature = "uuid")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
 #[doc(no_inline)]
@@ -80,6 +82,8 @@ pub mod mac_address {
 
 #[cfg(feature = "json")]
 pub use json::{Json, JsonRawValue, JsonValue};
+
+pub use text::Text;
 
 /// Indicates that a SQL type is supported for a database.
 ///

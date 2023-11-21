@@ -193,6 +193,7 @@ mod oid;
 mod range;
 mod record;
 mod str;
+mod text;
 mod tuple;
 mod void;
 

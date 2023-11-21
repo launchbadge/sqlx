@@ -124,12 +124,14 @@
 //! over a floating-point type in the first place.
 //!
 //! Instead, you should only use a type affinity that SQLite will not attempt to convert implicitly,
-//! such as `TEXT` or `BLOB`, and map values to/from SQLite as strings.
+//! such as `TEXT` or `BLOB`, and map values to/from SQLite as strings. You can do this easily
+//! using [the `Text` adapter].
+//!
 //!
 //! [`decimal.c`]: https://www.sqlite.org/floatingpoint.html#the_decimal_c_extension
 //! [amalgamation]: https://www.sqlite.org/amalgamation.html
 //! [type-affinity]: https://www.sqlite.org/datatype3.html#type_affinity
-//!
+//! [the `Text` adapter]: Text
 
 pub(crate) use sqlx_core::types::*;
 
@@ -142,6 +144,7 @@ mod int;
 #[cfg(feature = "json")]
 mod json;
 mod str;
+mod text;
 #[cfg(feature = "time")]
 mod time;
 mod uint;

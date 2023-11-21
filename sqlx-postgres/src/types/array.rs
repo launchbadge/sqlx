@@ -1,4 +1,5 @@
 use sqlx_core::bytes::Buf;
+use sqlx_core::types::Text;
 use std::borrow::Cow;
 
 use crate::decode::Decode;
@@ -64,6 +65,16 @@ where
 
     fn array_compatible(ty: &PgTypeInfo) -> bool {
         T::array_compatible(ty)
+    }
+}
+
+impl<T> PgHasArrayType for Text<T> {
+    fn array_type_info() -> PgTypeInfo {
+        String::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        String::array_compatible(ty)
     }
 }
 
