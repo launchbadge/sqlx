@@ -23,7 +23,7 @@ pub async fn create(connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn drop(connect_opts: &ConnectOpts, confirm: bool) -> anyhow::Result<()> {
+pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> anyhow::Result<()> {
     if confirm && !ask_to_continue_drop(connect_opts.required_db_url()?) {
         return Ok(());
     }
@@ -33,7 +33,11 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool) -> anyhow::Result<(
     let exists = crate::retry_connect_errors(connect_opts, Any::database_exists).await?;
 
     if exists {
-        Any::drop_database(connect_opts.required_db_url()?).await?;
+        if force {
+            Any::force_drop_database(connect_opts.required_db_url()?).await?;
+        } else {
+            Any::drop_database(connect_opts.required_db_url()?).await?;
+        }
     }
 
     Ok(())
@@ -43,8 +47,9 @@ pub async fn reset(
     migration_source: &str,
     connect_opts: &ConnectOpts,
     confirm: bool,
+    force: bool,
 ) -> anyhow::Result<()> {
-    drop(connect_opts, confirm).await?;
+    drop(connect_opts, confirm, force).await?;
     setup(migration_source, connect_opts).await
 }
 
