@@ -24,7 +24,7 @@ pub async fn create(connect_opts: &ConnectOpts) -> anyhow::Result<()> {
 }
 
 pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> anyhow::Result<()> {
-    if confirm && !ask_to_continue(connect_opts.required_db_url()?) {
+    if confirm && !ask_to_continue_drop(connect_opts.required_db_url()?) {
         return Ok(());
     }
 
