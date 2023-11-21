@@ -180,14 +180,15 @@ fn short_checksum(checksum: &[u8]) -> String {
     s
 }
 
-pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
+pub async fn info(migration_source: &str, connect_opts: &ConnectOpts, migration_table: Option<String>) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     let mut conn = crate::connect(&connect_opts).await?;
+    let migration_table = migration_table.unwrap_or_else(|| sqlx::migrate::DEFAULT_MIGRATION_TABLE.to_string());
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(migration_table.to_owned()).await?;
 
     let applied_migrations: HashMap<_, _> = conn
-        .list_applied_migrations()
+        .list_applied_migrations(migration_table)
         .await?
         .into_iter()
         .map(|m| (m.version, m))
@@ -265,6 +266,7 @@ pub async fn run(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    migration_table: Option<String>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
@@ -272,17 +274,18 @@ pub async fn run(
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }
+    let migration_table = migration_table.unwrap_or_else(|| sqlx::migrate::DEFAULT_MIGRATION_TABLE.to_string());
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(migration_table.to_owned()).await?;
 
-    let version = conn.dirty_version().await?;
+    let version = conn.dirty_version(migration_table.to_owned()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn.list_applied_migrations(migration_table.to_owned()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -322,7 +325,7 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
-                    conn.apply(migration).await?
+                    conn.apply(migration, migration_table.to_owned()).await?
                 };
                 let text = if skip {
                     "Skipped"
@@ -360,6 +363,7 @@ pub async fn revert(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    migration_table: Option<String>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
@@ -367,17 +371,18 @@ pub async fn revert(
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }
+    let migration_table = migration_table.unwrap_or_else(|| sqlx::migrate::DEFAULT_MIGRATION_TABLE.to_string());
 
     let mut conn = crate::connect(&connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(migration_table.to_owned()).await?;
 
-    let version = conn.dirty_version().await?;
+    let version = conn.dirty_version(migration_table.to_owned()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn.list_applied_migrations(migration_table.to_owned()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -412,7 +417,7 @@ pub async fn revert(
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
-                conn.revert(migration).await?
+                conn.revert(migration, migration_table.to_owned()).await?
             };
             let text = if skip {
                 "Skipped"

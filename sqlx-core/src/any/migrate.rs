@@ -35,18 +35,18 @@ impl MigrateDatabase for Any {
 }
 
 impl Migrate for AnyConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
-        Box::pin(async { self.get_migrate()?.ensure_migrations_table().await })
+    fn ensure_migrations_table<'a>(&mut self, migration_table: String) -> BoxFuture<'_, Result<(), MigrateError>> {
+        Box::pin(async { self.get_migrate()?.ensure_migrations_table(migration_table).await })
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.dirty_version().await })
+    fn dirty_version(&mut self, migration_table: String) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+        Box::pin(async { self.get_migrate()?.dirty_version(migration_table).await })
     }
 
     fn list_applied_migrations(
-        &mut self,
+        &mut self, migration_table: String
     ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.list_applied_migrations().await })
+        Box::pin(async { self.get_migrate()?.list_applied_migrations(migration_table).await })
     }
 
     fn lock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
@@ -60,14 +60,16 @@ impl Migrate for AnyConnection {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.apply(migration).await })
+        Box::pin(async { self.get_migrate()?.apply(migration, migration_table).await })
     }
 
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.revert(migration).await })
+        Box::pin(async { self.get_migrate()?.revert(migration, migration_table).await })
     }
 }

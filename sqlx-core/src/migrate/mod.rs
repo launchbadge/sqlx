@@ -12,3 +12,5 @@ pub use migration::{AppliedMigration, Migration};
 pub use migration_type::MigrationType;
 pub use migrator::Migrator;
 pub use source::MigrationSource;
+
+pub const DEFAULT_MIGRATION_TABLE: &str = "_sqlx_migrations";

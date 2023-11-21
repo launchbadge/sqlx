@@ -21,15 +21,15 @@ pub trait MigrateDatabase {
 pub trait Migrate {
     // ensure migrations table exists
     // will create or migrate it if needed
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
+    fn ensure_migrations_table(&mut self, migration_table: String) -> BoxFuture<'_, Result<(), MigrateError>>;
 
     // Return the version on which the database is dirty or None otherwise.
     // "dirty" means there is a partially applied migration that failed.
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>>;
+    fn dirty_version(&mut self, migration_table: String) -> BoxFuture<'_, Result<Option<i64>, MigrateError>>;
 
     // Return the ordered list of applied migrations
     fn list_applied_migrations(
-        &mut self,
+        &mut self, migration_table: String
     ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>>;
 
     // Should acquire a database lock so that only one migration process
@@ -47,6 +47,7 @@ pub trait Migrate {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 
     // run a revert SQL from migration in a DDL transaction
@@ -55,5 +56,6 @@ pub trait Migrate {
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 }

@@ -65,12 +65,12 @@ impl MigrateDatabase for Sqlite {
 }
 
 impl Migrate for SqliteConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn ensure_migrations_table(&mut self, migration_table: String) -> BoxFuture<'_, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=SQLite
             self.execute(
-                r#"
-CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+                format!(r#"
+CREATE TABLE IF NOT EXISTS {migration_table} (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
     installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     checksum BLOB NOT NULL,
     execution_time BIGINT NOT NULL
 );
-                "#,
+                "#).as_str(),
             )
             .await?;
 
@@ -86,11 +86,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+    fn dirty_version(&mut self, migration_table: String) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
             let row: Option<(i64,)> = query_as(
-                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
+                &format!("SELECT version FROM {migration_table} WHERE success = false ORDER BY version LIMIT 1"),
             )
             .fetch_optional(self)
             .await?;
@@ -101,11 +101,12 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
     fn list_applied_migrations(
         &mut self,
+        migration_table: String,
     ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
             let rows: Vec<(i64, Vec<u8>)> =
-                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
+                query_as(&format!("SELECT version, checksum FROM {migration_table} ORDER BY version"))
                     .fetch_all(self)
                     .await?;
 
@@ -132,6 +133,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let mut tx = self.begin().await?;
@@ -146,10 +148,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             // language=SQL
             let _ = query(
-                r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+                &format!(r#"
+    INSERT INTO {migration_table} ( version, description, success, checksum, execution_time )
     VALUES ( ?1, ?2, TRUE, ?3, -1 )
-                "#,
+                "#),
             )
             .bind(migration.version)
             .bind(&*migration.description)
@@ -167,11 +169,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             // language=SQL
             let _ = query(
-                r#"
-    UPDATE _sqlx_migrations
+                &format!(r#"
+    UPDATE {migration_table}
     SET execution_time = ?1
     WHERE version = ?2
-                "#,
+                "#),
             )
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
@@ -185,6 +187,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn revert<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        migration_table: String,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
@@ -195,7 +198,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let _ = tx.execute(&*migration.sql).await?;
 
             // language=SQL
-            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?1"#)
+            let _ = query(&format!(r#"DELETE FROM {migration_table} WHERE version = ?1"#))
                 .bind(migration.version)
                 .execute(&mut *tx)
                 .await?;

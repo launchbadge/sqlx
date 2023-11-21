@@ -30,7 +30,7 @@ pub enum MigrateError {
 
     // NOTE: this will only happen with a database that does not have transactional DDL (.e.g, MySQL or Oracle)
     #[error(
-        "migration {0} is partially applied; fix and remove row from `_sqlx_migrations` table"
+        "migration {0} is partially applied; fix and remove row from the migrations table"
     )]
     Dirty(i64),
 }

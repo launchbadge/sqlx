@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 /// You can create a new empty migration script using sqlx-cli:
 /// `sqlx migrate add <DESCRIPTION>`.
 ///
-/// Note that migrations for each database are tracked using the
-/// `_sqlx_migrations` table (stored in the database). If a migration's hash
+/// Note that migrations for each database are tracked using a
+/// migrations table stored in the database. If a migration's hash
 /// changes and it has already been run, this will cause an error.
 pub trait MigrationSource<'s>: Debug {
     fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>>;
