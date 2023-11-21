@@ -101,8 +101,7 @@ impl MigrateDatabase for Postgres {
 
             conn.execute(&*format!(
                 "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
-                 WHERE pg_stat_activity.datname = {} AND {pid_type} <> pg_backend_pid()",
-                database.replace('"', "\"\""),
+                 WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
             ))
             .await?;
 
