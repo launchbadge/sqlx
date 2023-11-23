@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.7.3 - 2023-11-23
+## 0.7.3 - 2023-11-22
 
 38 pull requests were merged this release cycle.
 
@@ -427,7 +427,7 @@ rusqlite = "=0.29.0"
 [#2573]: https://github.com/launchbadge/sqlx/pull/2573
 [#2574]: https://github.com/launchbadge/sqlx/pull/2574
 
-### 0.6.3 - 2023-03-21
+## 0.6.3 - 2023-03-21
 
 This is a hotfix to address the breakage caused by transitive dependencies upgrading to `syn = "2"`.
 
