@@ -42,8 +42,94 @@ async fn it_gets_users(pool: PgPool) -> sqlx::Result<()> {
     Ok(())
 }
 
+// This should apply migrations and then fixtures `fixtures/users.sql` and `fixtures/posts.sql`
 #[sqlx::test(migrations = "tests/postgres/migrations", fixtures("users", "posts"))]
 async fn it_gets_posts(pool: PgPool) -> sqlx::Result<()> {
+    let post_contents: Vec<String> =
+        sqlx::query_scalar("SELECT content FROM post ORDER BY created_at")
+            .fetch_all(&pool)
+            .await?;
+
+    assert_eq!(
+        post_contents,
+        [
+            "This new computer is lightning-fast!",
+            "@alice is a haxxor :("
+        ]
+    );
+
+    let comment_exists: bool = sqlx::query_scalar("SELECT exists(SELECT 1 FROM comment)")
+        .fetch_one(&pool)
+        .await?;
+
+    assert!(!comment_exists);
+
+    Ok(())
+}
+
+// This should apply migrations and then `../fixtures/postgres/users.sql` and `../fixtures/postgres/posts.sql`
+#[sqlx::test(
+    migrations = "tests/postgres/migrations",
+    fixtures("../fixtures/postgres/users.sql", "../fixtures/postgres/posts.sql")
+)]
+async fn it_gets_posts_explicit_fixtures_path(pool: PgPool) -> sqlx::Result<()> {
+    let post_contents: Vec<String> =
+        sqlx::query_scalar("SELECT content FROM post ORDER BY created_at")
+            .fetch_all(&pool)
+            .await?;
+
+    assert_eq!(
+        post_contents,
+        [
+            "This new computer is lightning-fast!",
+            "@alice is a haxxor :("
+        ]
+    );
+
+    let comment_exists: bool = sqlx::query_scalar("SELECT exists(SELECT 1 FROM comment)")
+        .fetch_one(&pool)
+        .await?;
+
+    assert!(!comment_exists);
+
+    Ok(())
+}
+
+// This should apply migrations and then `../fixtures/postgres/users.sql` and `fixtures/posts.sql`
+#[sqlx::test(
+    migrations = "tests/postgres/migrations",
+    fixtures("../fixtures/postgres/users.sql"),
+    fixtures("posts")
+)]
+async fn it_gets_posts_mixed_fixtures_path(pool: PgPool) -> sqlx::Result<()> {
+    let post_contents: Vec<String> =
+        sqlx::query_scalar("SELECT content FROM post ORDER BY created_at")
+            .fetch_all(&pool)
+            .await?;
+
+    assert_eq!(
+        post_contents,
+        [
+            "This new computer is lightning-fast!",
+            "@alice is a haxxor :("
+        ]
+    );
+
+    let comment_exists: bool = sqlx::query_scalar("SELECT exists(SELECT 1 FROM comment)")
+        .fetch_one(&pool)
+        .await?;
+
+    assert!(!comment_exists);
+
+    Ok(())
+}
+
+// This should apply migrations and then `../fixtures/postgres/users.sql` and `../fixtures/postgres/posts.sql`
+#[sqlx::test(
+    migrations = "tests/postgres/migrations",
+    fixtures(path = "../fixtures/postgres", scripts("users.sql", "posts"))
+)]
+async fn it_gets_posts_custom_relative_fixtures_path(pool: PgPool) -> sqlx::Result<()> {
     let post_contents: Vec<String> =
         sqlx::query_scalar("SELECT content FROM post ORDER BY created_at")
             .fetch_all(&pool)

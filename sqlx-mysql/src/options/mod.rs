@@ -152,6 +152,20 @@ impl MySqlConnectOptions {
         self
     }
 
+    /// Get the current database name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .database("mysqldb");
+    /// assert!(options.get_database().is_some());
+    /// ```
+    pub fn get_database(&self) -> Option<&str> {
+        self.database.as_deref()
+    }
+
     /// Sets whether or with what priority a secure SSL TCP/IP connection will be negotiated
     /// with the server.
     ///
