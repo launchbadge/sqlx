@@ -1,9 +1,12 @@
 extern crate time_ as time;
 
 use sqlx::sqlite::{Sqlite, SqliteRow};
+use sqlx_core::executor::Executor;
 use sqlx_core::row::Row;
+use sqlx_core::types::Text;
 use sqlx_test::new;
 use sqlx_test::test_type;
+use std::net::SocketAddr;
 
 test_type!(null<Option<i32>>(Sqlite,
     "NULL" == None::<i32>
@@ -204,3 +207,46 @@ test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(Sqlite,
     "'00000000000000000000000000000000'"
         == sqlx::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));
+
+#[sqlx_macros::test]
+async fn test_text_adapter() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    struct Login {
+        user_id: i32,
+        socket_addr: Text<SocketAddr>,
+        #[cfg(feature = "time")]
+        login_at: time::OffsetDateTime,
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE user_login (
+    user_id INT PRIMARY KEY,
+    socket_addr TEXT NOT NULL,
+    login_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+    "#,
+    )
+    .await?;
+
+    let user_id = 1234;
+    let socket_addr: SocketAddr = "198.51.100.47:31790".parse().unwrap();
+
+    sqlx::query("INSERT INTO user_login (user_id, socket_addr) VALUES (?, ?)")
+        .bind(user_id)
+        .bind(Text(socket_addr))
+        .execute(&mut conn)
+        .await?;
+
+    let last_login: Login =
+        sqlx::query_as("SELECT * FROM user_login ORDER BY login_at DESC LIMIT 1")
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert_eq!(last_login.user_id, user_id);
+    assert_eq!(*last_login.socket_addr, socket_addr);
+
+    Ok(())
+}
