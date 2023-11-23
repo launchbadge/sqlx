@@ -5,6 +5,97 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.3 - 2023-11-22
+
+38 pull requests were merged this release cycle.
+
+### Added
+* [[#2478]]: feat(citext): support postgres citext [[@hgranthorner]]
+* [[#2545]]: Add `fixtures_path` in sqlx::test args [[@ripa1995]]
+* [[#2665]]: feat(mysql): support packet splitting [[@tk2217]]
+* [[#2752]]: Enhancement #2747 Provide `fn PgConnectOptions::get_host(&self)` [[@boris-lok]]
+* [[#2769]]: Customize the macro error message based on the metadata [[@Nemo157]]
+* [[#2793]]: derived Hash trait for PgInterval [[@yasamoka]]
+* [[#2801]]: derive FromRow: sqlx(default) for all fields [[@grgi]]
+* [[#2827]]: Add impl `FromRow` for the unit type [[@nanoqsh]]
+* [[#2871]]: Add `MySqlConnectOptions::get_database()`  [[@shiftrightonce]]
+* [[#2873]]: Sqlx Cli: Added force flag to drop database for postgres [[@Vrajs16]]
+* [[#2894]]: feat: `Text` adapter [[@abonander]]
+
+### Changed
+* [[#2701]]: Remove documentation on offline feature [[@Baptistemontan]]
+* [[#2713]]: Add additional info regarding using Transaction and PoolConnection as… [[@satwanjyu]]
+* [[#2770]]: Update README.md [[@snspinn]]
+* [[#2797]]: doc(mysql): document behavior regarding `BOOLEAN` and the query macros [[@abonander]]
+* [[#2803]]: Don't use separate temp dir for query jsons (2)  [[@mattfbacon]]
+* [[#2819]]: postgres begin cancel safe [[@conradludgate]]
+* [[#2832]]: Update extra_float_digits default to 2 instead of 3 [[@brianheineman]]
+* [[#2865]]: Update Faq - Bulk upsert with optional fields  [[@Vrajs16]]
+* [[#2880]]: feat: use specific message for slow query logs [[@abonander]]
+* [[#2882]]: Do not require db url for prepare [[@tamasfe]]
+* [[#2890]]: doc(sqlite): cover lack of `NUMERIC` support [[@abonander]]
+* [No PR]: Upgraded `libsqlite3-sys` to 0.27.0
+  * Note: linkage to `libsqlite3-sys` is considered semver-exempt; 
+    see the release notes for 0.7.0 below for details.
+
+### Fixed
+* [[#2640]]: fix: sqlx::macro db cleanup race condition by adding a margin to current timestamp [[@fhsgoncalves]]
+* [[#2655]]: [fix] Urlencode when passing filenames to sqlite3 [[@uttarayan21]]
+* [[#2684]]: Make PgListener recover from UnexpectedEof [[@hamiltop]]
+* [[#2688]]: fix: Make rust_decimal and bigdecimal decoding more lenient [[@cameronbraid]]
+* [[#2754]]: Is tests/x.py maintained? And I tried fix it. [[@qwerty2501]]
+* [[#2784]]: fix: decode postgres time without subsecond [[@granddaifuku]]
+* [[#2806]]: Depend on version of async-std with non-private spawn-blocking [[@A248]]
+* [[#2820]]: fix: correct decoding of `rust_decimal::Decimal` for high-precision values [[@abonander]]
+* [[#2822]]: issue #2821 Update error handling logic when opening a TCP connection [[@anupj]]
+* [[#2826]]: chore: bump some sqlx-core dependencies [[@djc]]
+* [[#2838]]: Fixes rust_decimal scale for Postgres [[@jkleinknox]]
+* [[#2847]]: Fix comment in `sqlx migrate add` help text [[@cryeprecision]]
+* [[#2850]]: fix(core): avoid unncessary wakeups in `try_stream!()` [[@abonander]]
+* [[#2856]]: Prevent warnings running `cargo build` [[@nyurik]]
+* [[#2864]]: fix(sqlite): use `AtomicUsize` for thread IDs [[@abonander]]
+* [[#2892]]: Fixed force dropping bug [[@Vrajs16]]
+
+[#2478]: https://github.com/launchbadge/sqlx/pull/2478
+[#2545]: https://github.com/launchbadge/sqlx/pull/2545
+[#2640]: https://github.com/launchbadge/sqlx/pull/2640
+[#2655]: https://github.com/launchbadge/sqlx/pull/2655
+[#2665]: https://github.com/launchbadge/sqlx/pull/2665
+[#2684]: https://github.com/launchbadge/sqlx/pull/2684
+[#2688]: https://github.com/launchbadge/sqlx/pull/2688
+[#2701]: https://github.com/launchbadge/sqlx/pull/2701
+[#2713]: https://github.com/launchbadge/sqlx/pull/2713
+[#2752]: https://github.com/launchbadge/sqlx/pull/2752
+[#2754]: https://github.com/launchbadge/sqlx/pull/2754
+[#2769]: https://github.com/launchbadge/sqlx/pull/2769
+[#2770]: https://github.com/launchbadge/sqlx/pull/2770
+[#2782]: https://github.com/launchbadge/sqlx/pull/2782
+[#2784]: https://github.com/launchbadge/sqlx/pull/2784
+[#2793]: https://github.com/launchbadge/sqlx/pull/2793
+[#2797]: https://github.com/launchbadge/sqlx/pull/2797
+[#2801]: https://github.com/launchbadge/sqlx/pull/2801
+[#2803]: https://github.com/launchbadge/sqlx/pull/2803
+[#2806]: https://github.com/launchbadge/sqlx/pull/2806
+[#2819]: https://github.com/launchbadge/sqlx/pull/2819
+[#2820]: https://github.com/launchbadge/sqlx/pull/2820
+[#2822]: https://github.com/launchbadge/sqlx/pull/2822
+[#2826]: https://github.com/launchbadge/sqlx/pull/2826
+[#2827]: https://github.com/launchbadge/sqlx/pull/2827
+[#2832]: https://github.com/launchbadge/sqlx/pull/2832
+[#2838]: https://github.com/launchbadge/sqlx/pull/2838
+[#2847]: https://github.com/launchbadge/sqlx/pull/2847
+[#2850]: https://github.com/launchbadge/sqlx/pull/2850
+[#2856]: https://github.com/launchbadge/sqlx/pull/2856
+[#2864]: https://github.com/launchbadge/sqlx/pull/2864
+[#2865]: https://github.com/launchbadge/sqlx/pull/2865
+[#2871]: https://github.com/launchbadge/sqlx/pull/2871
+[#2873]: https://github.com/launchbadge/sqlx/pull/2873
+[#2880]: https://github.com/launchbadge/sqlx/pull/2880
+[#2882]: https://github.com/launchbadge/sqlx/pull/2882
+[#2890]: https://github.com/launchbadge/sqlx/pull/2890
+[#2892]: https://github.com/launchbadge/sqlx/pull/2892
+[#2894]: https://github.com/launchbadge/sqlx/pull/2894
+
 ## 0.7.2 - 2023-09-25
 
 23 pull requests were merged this release cycle.
@@ -336,7 +427,7 @@ rusqlite = "=0.29.0"
 [#2573]: https://github.com/launchbadge/sqlx/pull/2573
 [#2574]: https://github.com/launchbadge/sqlx/pull/2574
 
-### 0.6.3 - 2023-03-21
+## 0.6.3 - 2023-03-21
 
 This is a hotfix to address the breakage caused by transitive dependencies upgrading to `syn = "2"`.
 
@@ -2018,3 +2109,29 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@grooverdan]: https://github.com/grooverdan
 [@bobozaur]: https://github.com/bobozaur
 [@aldur]: https://github.com/aldur
+[@hgranthorner]: https://github.com/hgranthorner
+[@ripa1995]: https://github.com/ripa1995
+[@fhsgoncalves]: https://github.com/fhsgoncalves
+[@uttarayan21]: https://github.com/uttarayan21
+[@tk2217]: https://github.com/tk2217
+[@hamiltop]: https://github.com/hamiltop
+[@cameronbraid]: https://github.com/cameronbraid
+[@Baptistemontan]: https://github.com/Baptistemontan
+[@satwanjyu]: https://github.com/satwanjyu
+[@boris-lok]: https://github.com/boris-lok
+[@qwerty2501]: https://github.com/qwerty2501
+[@Nemo157]: https://github.com/Nemo157
+[@snspinn]: https://github.com/snspinn
+[@granddaifuku]: https://github.com/granddaifuku
+[@yasamoka]: https://github.com/yasamoka
+[@mattfbacon]: https://github.com/mattfbacon
+[@A248]: https://github.com/A248
+[@conradludgate]: https://github.com/conradludgate
+[@anupj]: https://github.com/anupj
+[@nanoqsh]: https://github.com/nanoqsh
+[@brianheineman]: https://github.com/brianheineman
+[@jkleinknox]: https://github.com/jkleinknox
+[@cryeprecision]: https://github.com/cryeprecision
+[@Vrajs16]: https://github.com/Vrajs16
+[@shiftrightonce]: https://github.com/shiftrightonce
+[@tamasfe]: https://github.com/tamasfe

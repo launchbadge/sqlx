@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.2"
+version = "0.7.3"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -114,17 +114,17 @@ regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.7.2", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.7.2", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.7.2", path = "sqlx-macros" }
+sqlx-core = { version = "=0.7.3", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.7.3", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.7.3", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.7.2", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.7.2", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.7.2", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.7.3", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.7.3", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.7.3", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.7.2", path = ".", default-features = false }
+sqlx = { version = "=0.7.3", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -178,7 +178,7 @@ tempdir = "0.3.7"
 criterion = {version = "0.4", features = ["async_tokio"]}
 
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
 
 #
 # Any
