@@ -178,7 +178,7 @@ tempdir = "0.3.7"
 criterion = {version = "0.4", features = ["async_tokio"]}
 
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
 
 #
 # Any

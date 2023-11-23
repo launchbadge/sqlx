@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [[#2880]]: feat: use specific message for slow query logs [[@abonander]]
 * [[#2882]]: Do not require db url for prepare [[@tamasfe]]
 * [[#2890]]: doc(sqlite): cover lack of `NUMERIC` support [[@abonander]]
+* [No PR]: Upgraded `libsqlite3-sys` to 0.27.0
+  * Note: linkage to `libsqlite3-sys` is considered semver-exempt; 
+    see the release notes for 0.7.0 below for details.
 
 ### Fixed
 * [[#2640]]: fix: sqlx::macro db cleanup race condition by adding a margin to current timestamp [[@fhsgoncalves]]
