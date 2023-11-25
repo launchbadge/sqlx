@@ -64,11 +64,15 @@ pub fn migrate(input: TokenStream) -> TokenStream {
     use syn::LitStr;
 
     let input = syn::parse_macro_input!(input as LitStr);
+    let path = input.value();
     match migrate::expand_migrator_from_lit_dir(input) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
                 parse_err.to_compile_error().into()
+            } else if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                let msg = format!("Migrations folder not found at '{path}'. Check if the folder exists.\nError: '{io_err}'");
+                quote!(::std::compile_error!(#msg)).into()
             } else {
                 let msg = e.to_string();
                 quote!(::std::compile_error!(#msg)).into()
