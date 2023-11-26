@@ -211,6 +211,11 @@ impl SqliteConnectOptions {
         self
     }
 
+    /// Gets the current name of the database file.
+    pub fn get_filename(self) -> Cow<'static, Path> {
+        self.filename
+    }
+
     /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
     /// SQLx chooses to enable this by default so that foreign keys function as expected,

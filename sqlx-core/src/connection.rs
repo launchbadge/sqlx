@@ -189,6 +189,9 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
     /// Parse the `ConnectOptions` from a URL.
     fn from_url(url: &Url) -> Result<Self, Error>;
 
+    /// Get the URL set for the current `ConnectOptions`.
+    fn get_url(&self) -> Url;
+
     /// Establish a new database connection with the options specified by `self`.
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
     where

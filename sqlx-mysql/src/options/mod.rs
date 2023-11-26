@@ -5,6 +5,8 @@ mod parse;
 mod ssl_mode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
+use percent_encoding::utf8_percent_encode;
+use sqlx_core::Url;
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
