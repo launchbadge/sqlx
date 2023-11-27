@@ -53,7 +53,7 @@ pub use bit_vec::BitVec;
 #[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time {
     #[doc(no_inline)]
-    pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+    pub use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
 }
 
 #[cfg(feature = "bigdecimal")]
