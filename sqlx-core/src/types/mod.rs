@@ -40,7 +40,7 @@ pub use uuid::{self, Uuid};
 pub mod chrono {
     #[doc(no_inline)]
     pub use chrono::{
-        DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
+        DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc, Weekday,
     };
 }
 
