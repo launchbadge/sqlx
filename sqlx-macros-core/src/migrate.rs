@@ -93,7 +93,13 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
             continue;
         }
 
-        let version: i64 = parts[0].parse()?;
+        let version = match parts[0].parse::<i64>() {
+            Ok(v) => v,
+            Err(_) => {
+                // not of the format: <VERSION>_<DESCRIPTION>.sql; ignore
+                continue;
+            }
+        };
 
         let migration_type = MigrationType::from_filename(parts[1]);
         // remove the `.sql` and replace `_` with ` `
