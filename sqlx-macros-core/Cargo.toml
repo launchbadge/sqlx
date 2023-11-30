@@ -48,7 +48,6 @@ tokio = { workspace = true, optional = true }
 
 dotenvy = { workspace = true }
 
-atomic-write-file = { version = "0.1" }
 hex = { version = "0.4.3" }
 heck = { version = "0.4", features = ["unicode"] }
 either = "1.6.1"
