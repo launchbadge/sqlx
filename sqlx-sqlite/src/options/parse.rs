@@ -116,7 +116,8 @@ impl SqliteConnectOptions {
     pub(crate) fn build_url(&self) -> Url {
         let filename =
             utf8_percent_encode(&self.filename.to_string_lossy(), NON_ALPHANUMERIC).to_string();
-        let mut url = Url::parse(&format!("sqlite://{}", filename)).unwrap();
+        let mut url =
+            Url::parse(&format!("sqlite://{}", filename)).expect("BUG: generated un-parseable URL");
 
         let mode = match (self.in_memory, self.create_if_missing, self.read_only) {
             (true, _, _) => "memory",

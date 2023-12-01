@@ -121,7 +121,7 @@ impl PgConnectOptions {
             "postgres://{}@{}:{}",
             self.username, host, self.port
         ))
-        .unwrap();
+        .expect("BUG: generated un-parseable URL");
 
         if let Some(password) = &self.password {
             let password = utf8_percent_encode(&password, NON_ALPHANUMERIC).to_string();
