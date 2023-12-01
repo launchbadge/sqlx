@@ -43,7 +43,7 @@ impl ConnectOptions for AnyConnectOptions {
         })
     }
 
-    fn get_url(&self) -> Url {
+    fn to_url_lossy(&self) -> Url {
         self.database_url.clone()
     }
 

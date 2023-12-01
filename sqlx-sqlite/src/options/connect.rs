@@ -24,7 +24,7 @@ impl ConnectOptions for SqliteConnectOptions {
         Self::from_str(url.as_str())
     }
 
-    fn get_url(&self) -> Url {
+    fn to_url_lossy(&self) -> Url {
         self.build_url()
     }
 

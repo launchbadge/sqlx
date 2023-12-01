@@ -14,7 +14,7 @@ impl ConnectOptions for MySqlConnectOptions {
         Self::parse_from_url(url)
     }
 
-    fn get_url(&self) -> Url {
+    fn to_url_lossy(&self) -> Url {
         self.build_url()
     }
 
