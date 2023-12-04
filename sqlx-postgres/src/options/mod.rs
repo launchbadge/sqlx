@@ -101,7 +101,18 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
+    pub(crate) replication_mode: Option<PgReplicationMode>,
     pub(crate) options: Option<String>,
+}
+
+/// Replication mode configuration.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum PgReplicationMode {
+    /// Physical replication.
+    Physical,
+    /// Logical replication.
+    Logical,
 }
 
 impl Default for PgConnectOptions {
@@ -167,6 +178,7 @@ impl PgConnectOptions {
             application_name: var("PGAPPNAME").ok(),
             extra_float_digits: Some("2".into()),
             log_settings: Default::default(),
+            replication_mode: None,
             options: var("PGOPTIONS").ok(),
         }
     }
@@ -489,6 +501,28 @@ impl PgConnectOptions {
     /// ```
     pub fn extra_float_digits(mut self, extra_float_digits: impl Into<Option<i8>>) -> Self {
         self.extra_float_digits = extra_float_digits.into().map(|it| it.to_string().into());
+        self
+    }
+
+    /// Sets the replication mode.
+    ///
+    /// This option determines whether the connection should use the replication
+    /// protocol instead of the normal protocol.
+    ///
+    /// In physical or logical replication mode, only the simple query protocol
+    /// can be used.
+    ///
+    /// The default behavior is to disable the replication mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::{PgConnectOptions, PgReplicationMode};
+    /// let options = PgConnectOptions::new()
+    ///     .replication_mode(PgReplicationMode::Logical);
+    /// ```
+    pub fn replication_mode(mut self, replication_mode: PgReplicationMode) -> Self {
+        self.replication_mode = Some(replication_mode);
         self
     }
 

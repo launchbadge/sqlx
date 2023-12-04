@@ -8,7 +8,7 @@ use crate::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
 use crate::types::Oid;
-use crate::{PgConnectOptions, PgConnection};
+use crate::{PgConnectOptions, PgConnection, PgReplicationMode};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
@@ -42,6 +42,13 @@ impl PgConnection {
 
         if let Some(ref options) = options.options {
             params.push(("options", options));
+        }
+
+        if let Some(replication_mode) = options.replication_mode {
+            match replication_mode {
+                PgReplicationMode::Physical => params.push(("replication", "true")),
+                PgReplicationMode::Logical => params.push(("replication", "database")),
+            }
         }
 
         stream
