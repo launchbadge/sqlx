@@ -3,7 +3,7 @@ use crate::io::{BufExt, BufMutExt, Decode, Encode};
 use sqlx_core::bytes::{Buf, BufMut, Bytes};
 use std::ops::Deref;
 
-/// The same structure is sent for both `CopyInResponse` and `CopyOutResponse`
+/// The same structure is sent for `CopyInResponse`, `CopyOutResponse` and `CopyBothResponse`.
 pub struct CopyResponse {
     pub format: i8,
     pub num_columns: i16,
