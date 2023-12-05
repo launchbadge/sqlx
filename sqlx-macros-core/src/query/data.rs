@@ -152,12 +152,23 @@ where
 
     pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
         let path = dir.as_ref().join(format!("query-{}.json", self.hash));
-        std::fs::remove_file(&path).map_err(|err| format!("failed to delete {path:?}: {err:?}"))?;
-        let mut file = std::fs::OpenOptions::new()
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(format!("failed to delete {path:?}: {err:?}").into()),
+        }
+        let mut file = match std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&path)
-            .map_err(|err| format!("failed to exclusively create {path:?}: {err:?}"))?;
+        {
+            Ok(file) => file,
+            // We overlapped with a concurrent invocation and the other one succeeded.
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
+            Err(err) => {
+                return Err(format!("failed to exclusively create {path:?}: {err:?}").into())
+            }
+        };
 
         let data = serde_json::to_string_pretty(self)
             .map_err(|err| format!("failed to serialize query data: {err:?}"))?;
