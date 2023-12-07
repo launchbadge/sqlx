@@ -206,6 +206,9 @@ impl PgConnection {
 
         let mut metadata: Arc<PgStatementMetadata>;
 
+        // don't use arguments if they are actually empty
+        let arguments = arguments.and_then(|args| if args.is_empty() { None } else { Some(args) });
+
         let format = if let Some(mut arguments) = arguments {
             // prepare the statement if this our first time executing it
             // always return the statement ID here

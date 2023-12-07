@@ -102,6 +102,10 @@ impl PgArguments {
 
         Ok(())
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.types.is_empty()
+    }
 }
 
 impl<'q> Arguments<'q> for PgArguments {
