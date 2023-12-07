@@ -1813,3 +1813,17 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_executes_multiple() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("SELECT 1; SELECT 1;")
+        .execute_many(&pool)
+        .await
+        .inspect_err(|err| panic!("{err}"))
+        .count()
+        .await;
+
+    Ok(())
+}
