@@ -80,27 +80,34 @@ impl Metadata {
     pub fn workspace_root(&self) -> PathBuf {
         let mut root = self.workspace_root.lock().unwrap();
         if root.is_none() {
-            use serde::Deserialize;
-            use std::process::Command;
+            match env("SQLX_EXPLICIT_WORKSPACE_ROOT") {
+                Ok(path) => {
+                    *root = Some(path.into());
+                }
+                Err(_) => {
+                    use serde::Deserialize;
+                    use std::process::Command;
 
-            let cargo = env("CARGO").expect("`CARGO` must be set");
+                    let cargo = env("CARGO").expect("`CARGO` must be set");
 
-            let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1", "--no-deps"])
-                .current_dir(&self.manifest_dir)
-                .env_remove("__CARGO_FIX_PLZ")
-                .output()
-                .expect("Could not fetch metadata");
+                    let output = Command::new(&cargo)
+                        .args(&["metadata", "--format-version=1", "--no-deps"])
+                        .current_dir(&self.manifest_dir)
+                        .env_remove("__CARGO_FIX_PLZ")
+                        .output()
+                        .expect("Could not fetch metadata");
 
-            #[derive(Deserialize)]
-            struct CargoMetadata {
-                workspace_root: PathBuf,
+                    #[derive(Deserialize)]
+                    struct CargoMetadata {
+                        workspace_root: PathBuf,
+                    }
+
+                    let metadata: CargoMetadata = serde_json::from_slice(&output.stdout)
+                        .expect("Invalid `cargo metadata` output");
+
+                    *root = Some(metadata.workspace_root);
+                }
             }
-
-            let metadata: CargoMetadata =
-                serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-            *root = Some(metadata.workspace_root);
         }
         root.clone().unwrap()
     }

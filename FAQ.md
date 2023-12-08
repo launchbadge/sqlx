@@ -211,6 +211,19 @@ so your pre-commit hook would then just need to stage the changed files. This ca
 and setting the `SQLX_OFFLINE_DIR` environment variable to it before compiling. 
 However, this behaviour is not considered stable and it is still recommended to use `cargo sqlx prepare`.
 
+
+----
+### How do I compile with the macros in build systems without cargo?
+
+In 0.7 and up the default is offline mode, which will use pre-cached macro metadata stored on the filesystem.
+
+The macros seek schemas from the following locations:
+- The directory specified in the environment variable `SQLX_OFFLINE_DIR`, if set.
+- The directory `.sqlx` under the directory the environmet variable `CARGO_MANIFEST_DIR` specifies.
+- The directory `.sqlx` under the cargo workspace root, which can be specified either explicitly with the `SQLX_EXPLICIT_WORKSPACE_ROOT` environment variable, or implicitly by running cargo.
+
+To avoid `cargo` being invoked by the macros, run in offline mode and set `SQLX_EXPLICIT_WORKSPACE_ROOT` (it is resolved eagerly, so to avoid cargo invocations this must be set even when all queries are cached).
+
 ----
 
 ### How do the query macros work under the hood?
