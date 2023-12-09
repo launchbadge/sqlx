@@ -721,7 +721,7 @@ macro_rules! query_file_scalar_unchecked (
     )
 );
 
-/// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
+/// Embeds migrations into the binary.
 ///
 /// ```rust,ignore
 /// sqlx::migrate!("db/migrations")
