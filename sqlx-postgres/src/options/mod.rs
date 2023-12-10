@@ -80,7 +80,7 @@ mod ssl_mode;
 ///
 /// // Change the log verbosity level for queries.
 /// // Information about SQL queries is logged at `DEBUG` level by default.
-/// opts.log_statements(log::LevelFilter::Trace);
+/// opts = opts.log_statements(log::LevelFilter::Trace);
 ///
 /// let pool = PgPool::connect_with(&opts).await?;
 /// # }
