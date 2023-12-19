@@ -147,7 +147,7 @@ where
     /// [postgres-limit-issue]: https://github.com/launchbadge/sqlx/issues/671#issuecomment-687043510
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, DB> + Type<DB>,
     {
         self.sanity_check();
 
@@ -569,7 +569,7 @@ where
     /// See [`QueryBuilder::push_bind()`] for details.
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, DB> + Type<DB>,
     {
         if self.push_separator {
             self.query_builder.push(&self.separator);
@@ -587,7 +587,7 @@ where
     /// Simply calls [`QueryBuilder::push_bind()`] directly.
     pub fn push_bind_unseparated<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, DB> + Type<DB>,
     {
         self.query_builder.push_bind(value);
         self
