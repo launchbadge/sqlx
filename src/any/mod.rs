@@ -27,6 +27,8 @@ pub(crate) mod reexports {
 ///
 /// ### Panics
 /// If [`install_drivers`] has already been called *not* through this function.
+///
+/// [`AnyConnection`]: sqlx_core::any::AnyConnection
 pub fn install_default_drivers() {
     static ONCE: Once = Once::new();
 
