@@ -228,7 +228,7 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
                 ),
             );
             println!(
-                "local migration has checksum   {}",
+                "local migration has checksum {}",
                 short_checksum(&migration.checksum)
             )
         }
@@ -268,7 +268,7 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
-        if !migrator.iter().any(|m| target_version == m.version) {
+        if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }
@@ -363,7 +363,7 @@ pub async fn revert(
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
-        if target_version != 0 && !migrator.iter().any(|m| target_version == m.version) {
+        if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }
