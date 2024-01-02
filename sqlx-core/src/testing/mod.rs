@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::time::Duration;
 
@@ -52,6 +53,7 @@ pub struct TestArgs {
     pub test_path: &'static str,
     pub migrator: Option<&'static Migrator>,
     pub fixtures: &'static [TestFixture],
+    pub args: HashMap<String, String>,
 }
 
 pub trait TestFn {
@@ -144,6 +146,7 @@ impl TestArgs {
             test_path,
             migrator: None,
             fixtures: &[],
+            args: HashMap::new(),
         }
     }
 
@@ -153,6 +156,13 @@ impl TestArgs {
 
     pub fn fixtures(&mut self, fixtures: &'static [TestFixture]) {
         self.fixtures = fixtures;
+    }
+
+    pub fn arg(&mut self, key: String, value: String) {
+        assert!(
+            self.args.insert(key, value).is_none(),
+            "set argument multiple times"
+        );
     }
 }
 
@@ -168,7 +178,7 @@ impl<T, E> TestTermination for Result<T, E> {
     }
 }
 
-fn run_test_with_pool<DB, F, Fut>(args: TestArgs, test_fn: F) -> Fut::Output
+pub fn run_test_with_pool<DB, F, Fut>(args: TestArgs, test_fn: F) -> Fut::Output
 where
     DB: TestSupport,
     DB::Connection: Migrate,
@@ -198,7 +208,7 @@ where
     })
 }
 
-fn run_test<DB, F, Fut>(args: TestArgs, test_fn: F) -> Fut::Output
+pub fn run_test<DB, F, Fut>(args: TestArgs, test_fn: F) -> Fut::Output
 where
     DB: TestSupport,
     DB::Connection: Migrate,

@@ -161,8 +161,16 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     .fetch_one(&mut *conn)
     .await?;
 
-    conn.execute(&format!("create database {new_db_name:?}")[..])
-        .await?;
+    conn.execute(
+        &format!(
+            "create database {new_db_name:?} {}",
+            args.args
+                .get("tablespace")
+                .map(|t| format!("with tablespace = {t:?}"))
+                .unwrap_or_else(String::new)
+        )[..],
+    )
+    .await?;
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()

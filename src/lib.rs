@@ -67,6 +67,11 @@ pub use sqlx_macros::test;
 #[cfg(feature = "migrate")]
 pub use sqlx_core::testing;
 
+#[cfg(feature = "migrate")]
+pub mod test {
+    pub use sqlx_core::testing::{run_test, run_test_with_pool, TestArgs};
+}
+
 #[doc(hidden)]
 pub use sqlx_core::rt::test_block_on;
 
