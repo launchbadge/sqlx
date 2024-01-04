@@ -24,7 +24,7 @@ pub struct AsyncSemaphore {
     inner: futures_intrusive::sync::Semaphore,
 
     #[cfg(feature = "_rt-tokio")]
-    inner: tokio::sync::Semaphore,
+    inner: futures_intrusive::sync::Semaphore,
 }
 
 impl AsyncSemaphore {
@@ -38,10 +38,7 @@ impl AsyncSemaphore {
             #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
             inner: futures_intrusive::sync::Semaphore::new(fair, permits),
             #[cfg(feature = "_rt-tokio")]
-            inner: {
-                debug_assert!(fair, "Tokio only has fair permits");
-                tokio::sync::Semaphore::new(permits)
-            },
+            inner: futures_intrusive::sync::Semaphore::new(fair, permits),
         }
     }
 
@@ -50,7 +47,7 @@ impl AsyncSemaphore {
         return self.inner.permits();
 
         #[cfg(feature = "_rt-tokio")]
-        return self.inner.available_permits();
+        return self.inner.permits();
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
         crate::rt::missing_rt(())
@@ -64,13 +61,7 @@ impl AsyncSemaphore {
 
         #[cfg(feature = "_rt-tokio")]
         return AsyncSemaphoreReleaser {
-            inner: self
-                .inner
-                // Weird quirk: `tokio::sync::Semaphore` mostly uses `usize` for permit counts,
-                // but `u32` for this and `try_acquire_many()`.
-                .acquire_many(permits)
-                .await
-                .expect("BUG: we do not expose the `.close()` method"),
+            inner: self.inner.acquire(permits as usize).await,
         };
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
@@ -85,7 +76,7 @@ impl AsyncSemaphore {
 
         #[cfg(feature = "_rt-tokio")]
         return Some(AsyncSemaphoreReleaser {
-            inner: self.inner.try_acquire_many(permits).ok()?,
+            inner: self.inner.try_acquire(permits as usize)?,
         });
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
@@ -97,7 +88,7 @@ impl AsyncSemaphore {
         return self.inner.release(permits);
 
         #[cfg(feature = "_rt-tokio")]
-        return self.inner.add_permits(permits);
+        return self.inner.release(permits);
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
         crate::rt::missing_rt(permits)
@@ -118,7 +109,7 @@ pub struct AsyncSemaphoreReleaser<'a> {
     inner: futures_intrusive::sync::SemaphoreReleaser<'a>,
 
     #[cfg(feature = "_rt-tokio")]
-    inner: tokio::sync::SemaphorePermit<'a>,
+    inner: futures_intrusive::sync::SemaphoreReleaser<'a>,
 
     #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
     _phantom: std::marker::PhantomData<&'a ()>,
@@ -135,7 +126,8 @@ impl AsyncSemaphoreReleaser<'_> {
 
         #[cfg(feature = "_rt-tokio")]
         {
-            self.inner.forget();
+            let mut this = self;
+            this.inner.disarm();
             return;
         }
 
