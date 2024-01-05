@@ -369,6 +369,7 @@ enum PgCopyBothCommand {
     CopyDone { from_client: bool },
 }
 
+#[derive(Clone)]
 pub struct PgCopyBoth {
     recv_stream: flume::r#async::RecvStream<'static, Result<Bytes>>,
     send_tx: flume::Sender<PgCopyBothCommand>,
@@ -437,7 +438,7 @@ impl PgCopyBoth {
     }
 
     /// Send a chunk of `COPY` data.
-    pub async fn send(&mut self, data: impl Into<Vec<u8>>) -> Result<()> {
+    pub async fn send(&self, data: impl Into<Vec<u8>>) -> Result<()> {
         self.send_tx
             .send_async(PgCopyBothCommand::CopyData(data.into()))
             .await
