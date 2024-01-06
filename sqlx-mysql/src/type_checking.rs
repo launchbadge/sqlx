@@ -1,7 +1,12 @@
-use super::fake_sqlx as sqlx;
+// Type mappings used by the macros and `Debug` impls.
 
-impl_database_ext! {
-    sqlx::mysql::MySql {
+#[allow(unused_imports)]
+use sqlx_core as sqlx;
+
+use crate::MySql;
+
+impl_type_checking!(
+    MySql {
         u8,
         u16,
         u32,
@@ -20,6 +25,8 @@ impl_database_ext! {
         // BINARY, VAR_BINARY, BLOB
         Vec<u8>,
 
+        // Types from third-party crates need to be referenced at a known path
+        // for the macros to work, but we don't want to require the user to add extra dependencies.
         #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveTime,
 
@@ -55,5 +62,4 @@ impl_database_ext! {
     },
     ParamChecking::Weak,
     feature-types: info => info.__type_feature_gate(),
-    row: sqlx::mysql::MySqlRow,
-}
+);

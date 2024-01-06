@@ -58,7 +58,7 @@ pub fn quote_args<DB: DatabaseExt>(
                     let param_ty =
                         DB::param_type_for_id(&param_ty)
                             .ok_or_else(|| {
-                                if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
+                                if let Some(feature_gate) = DB::get_feature_gate(&param_ty) {
                                     format!(
                                         "optional sqlx feature `{}` required for type {} of param #{}",
                                         feature_gate,
