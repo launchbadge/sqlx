@@ -10,27 +10,20 @@
 <div align="center">
   <!-- Github Actions -->
   <a href="https://github.com/launchbadge/sqlx/actions/workflows/sqlx.yml?query=branch%3Amain">
-    <img src="https://img.shields.io/github/actions/workflow/status/launchbadge/sqlx/sqlx.yml?branch=main&style=flat-square"
-      alt="actions status" />
-  </a>
+    <img src="https://img.shields.io/github/actions/workflow/status/launchbadge/sqlx/sqlx.yml?branch=main&style=flat-square" alt="actions status" /></a>
   <!-- Version -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
-    alt="Crates.io version" />
-  </a>
+    alt="Crates.io version" /></a>
   <!-- Discord -->
   <a href="https://discord.gg/uuruzJ7">
-    <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
-  </a>
+  <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" /></a>
   <!-- Docs -->
   <a href="https://docs.rs/sqlx">
-    <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
-      alt="docs.rs docs" />
-  </a>
+  <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square" alt="docs.rs docs" /></a>
   <!-- Downloads -->
   <a href="https://crates.io/crates/sqlx">
-    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
-      alt="Download" />
+    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square" alt="Download" />
   </a>
 </div>
 
@@ -82,8 +75,8 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 † The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
 
-†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
-with C, those interactions are `unsafe`.
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. 
+The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which requires `unsafe`.
 
 </small></small>
 

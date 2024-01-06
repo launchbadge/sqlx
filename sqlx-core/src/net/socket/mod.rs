@@ -244,6 +244,8 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 ) -> crate::Result<Ws::Output> {
     #[cfg(not(unix))]
     {
+        drop((path, with_socket));
+
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "Unix domain sockets are not supported on this platform",
@@ -270,7 +272,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
         return Ok(with_socket.with_socket(stream));
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(all(unix, not(feature = "_rt-async-std")))]
     {
         crate::rt::missing_rt((path, with_socket))
     }
