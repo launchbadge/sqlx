@@ -75,8 +75,8 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 † The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
 
-†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
-with C, those interactions are `unsafe`.
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. 
+The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which requires `unsafe`.
 
 </small></small>
 
