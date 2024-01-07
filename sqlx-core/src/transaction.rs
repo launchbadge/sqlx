@@ -140,7 +140,7 @@ where
 //     ) -> futures_core::future::BoxFuture<
 //         'e,
 //         Result<
-//             <Self::Database as crate::database::HasStatement<'q>>::Statement,
+//             <Self::Database as crate::database::Database>::Statement<'q>,
 //             crate::error::Error,
 //         >,
 //     >

@@ -76,7 +76,7 @@ fn expand_derive_decode_transparent(
         #[automatically_derived]
         impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
             fn decode(
-                value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as ::sqlx::database::Database>::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
@@ -118,7 +118,7 @@ fn expand_derive_decode_weak_enum(
             #repr: ::sqlx::decode::Decode<'r, DB>,
         {
             fn decode(
-                value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as ::sqlx::database::Database>::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<

@@ -1,4 +1,4 @@
-use crate::database::{Database, HasArguments, HasStatement};
+use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
 
@@ -149,7 +149,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn prepare<'e, 'q: 'e>(
         self,
         query: &'q str,
-    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
     where
         'c: 'e,
     {
@@ -165,7 +165,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         self,
         sql: &'q str,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
     where
         'c: 'e;
 
@@ -195,14 +195,14 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     fn sql(&self) -> &'q str;
 
     /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement>;
+    fn statement(&self) -> Option<&DB::Statement<'q>>;
 
     /// Returns the arguments to be bound against the query string.
     ///
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments>;
+    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>>;
 
     /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
@@ -217,12 +217,12 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&DB::Statement<'q>> {
         None
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
         None
     }
 
@@ -232,19 +232,19 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 }
 
-impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
+impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as Database>::Arguments<'q>>) {
     #[inline]
     fn sql(&self) -> &'q str {
         self.0
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&DB::Statement<'q>> {
         None
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
         self.1.take()
     }
 

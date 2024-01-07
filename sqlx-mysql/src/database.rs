@@ -3,9 +3,7 @@ use crate::{
     MySqlArguments, MySqlColumn, MySqlConnection, MySqlQueryResult, MySqlRow, MySqlStatement,
     MySqlTransactionManager, MySqlTypeInfo,
 };
-pub(crate) use sqlx_core::database::{
-    Database, HasArguments, HasStatement, HasStatementCache, HasValueRef,
-};
+pub(crate) use sqlx_core::database::{Database, HasStatementCache};
 
 /// MySQL database driver.
 #[derive(Debug)]
@@ -25,30 +23,16 @@ impl Database for MySql {
     type TypeInfo = MySqlTypeInfo;
 
     type Value = MySqlValue;
+    type ValueRef<'r> = MySqlValueRef<'r>;
+
+    type Arguments<'q> = MySqlArguments;
+    type ArgumentBuffer<'q> = Vec<u8>;
+
+    type Statement<'q> = MySqlStatement<'q>;
 
     const NAME: &'static str = "MySQL";
 
     const URL_SCHEMES: &'static [&'static str] = &["mysql", "mariadb"];
-}
-
-impl<'r> HasValueRef<'r> for MySql {
-    type Database = MySql;
-
-    type ValueRef = MySqlValueRef<'r>;
-}
-
-impl HasArguments<'_> for MySql {
-    type Database = MySql;
-
-    type Arguments = MySqlArguments;
-
-    type ArgumentBuffer = Vec<u8>;
-}
-
-impl<'q> HasStatement<'q> for MySql {
-    type Database = MySql;
-
-    type Statement = MySqlStatement<'q>;
 }
 
 impl HasStatementCache for MySql {}

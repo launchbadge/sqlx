@@ -1,7 +1,7 @@
 use crate::any::error::mismatched_types;
 use crate::any::{Any, AnyColumn, AnyTypeInfo, AnyTypeInfoKind, AnyValue, AnyValueKind};
 use crate::column::{Column, ColumnIndex};
-use crate::database::{Database, HasValueRef};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
@@ -28,10 +28,7 @@ impl Row for AnyRow {
         &self.columns
     }
 
-    fn try_get_raw<I>(
-        &self,
-        index: I,
-    ) -> Result<<Self::Database as HasValueRef<'_>>::ValueRef, Error>
+    fn try_get_raw<I>(&self, index: I) -> Result<<Self::Database as Database>::ValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
     {
@@ -141,7 +138,7 @@ impl AnyRow {
 }
 
 fn decode<'r, DB: Database, T: Decode<'r, DB>>(
-    valueref: <DB as HasValueRef<'r>>::ValueRef,
+    valueref: <DB as Database>::ValueRef<'r>,
 ) -> crate::Result<T> {
     Decode::decode(valueref).map_err(Error::decode)
 }
