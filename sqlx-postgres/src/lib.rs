@@ -39,7 +39,7 @@ pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;
 pub use connection::PgConnection;
-pub use copy::{PgCopyBoth, PgCopyIn};
+pub use copy::{pg_copy_both, PgCopyBothReceiver, PgCopyBothSender, PgCopyIn};
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
