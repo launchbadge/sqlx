@@ -77,20 +77,20 @@ struct Metadata {
 }
 
 impl Metadata {
-    pub fn workspace_root(&self) -> PathBuf {
+    pub fn workspace_root(&self) -> Option<PathBuf> {
         let mut root = self.workspace_root.lock().unwrap();
         if root.is_none() {
             use serde::Deserialize;
             use std::process::Command;
 
-            let cargo = env("CARGO").expect("`CARGO` must be set");
+            let cargo = env("CARGO").ok()?;
 
-            let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1", "--no-deps"])
+            let output = Command::new(cargo)
+                .args(["metadata", "--format-version=1", "--no-deps"])
                 .current_dir(&self.manifest_dir)
                 .env_remove("__CARGO_FIX_PLZ")
                 .output()
-                .expect("Could not fetch metadata");
+                .ok()?;
 
             #[derive(Deserialize)]
             struct CargoMetadata {
@@ -102,7 +102,7 @@ impl Metadata {
 
             *root = Some(metadata.workspace_root);
         }
-        root.clone().unwrap()
+        root.clone()
     }
 }
 
@@ -168,7 +168,7 @@ pub fn expand_input<'a>(
             let dirs = [
                 env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
                 Some(METADATA.manifest_dir.join(".sqlx")),
-                Some(METADATA.workspace_root().join(".sqlx")),
+                METADATA.workspace_root().map(|root| root.join(".sqlx")),
             ];
             let Some(data_file_path) = dirs
                 .iter()
@@ -200,7 +200,7 @@ pub fn expand_input<'a>(
             database_url_parsed,
             ..
         } => Err(format!(
-            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled", 
+            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled",
             database_url_parsed.scheme()
         ).into()),
         QueryDataSource::Cached(data) => {
