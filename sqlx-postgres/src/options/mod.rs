@@ -165,7 +165,7 @@ impl PgConnectOptions {
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
-            extra_float_digits: Some("3".into()),
+            extra_float_digits: Some("2".into()),
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
         }
@@ -203,6 +203,20 @@ impl PgConnectOptions {
     pub fn host(mut self, host: &str) -> Self {
         self.host = host.to_owned();
         self
+    }
+
+    /// Get the current host.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .host("127.0.0.1");
+    /// assert_eq!(options.get_host(), "127.0.0.1");
+    /// ```
+    pub fn get_host(&self) -> &str {
+        self.host.as_str()
     }
 
     /// Sets the port to connect to at the server host.

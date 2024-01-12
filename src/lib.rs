@@ -31,14 +31,17 @@ pub use sqlx_core::migrate;
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
+#[doc(inline)]
 pub use sqlx_mysql::{self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
+#[doc(inline)]
 pub use sqlx_postgres::{self as postgres, PgConnection, PgExecutor, PgPool, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+#[doc(inline)]
 pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
 
 #[cfg(feature = "any")]

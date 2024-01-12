@@ -1,10 +1,14 @@
 extern crate time_ as time;
 
-#[cfg(feature = "decimal")]
+use std::net::SocketAddr;
+#[cfg(feature = "rust_decimal")]
 use std::str::FromStr;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
+
+use sqlx::types::Text;
+
 use sqlx_test::{new, test_type};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
@@ -68,8 +72,9 @@ test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(MySql,
 
 #[cfg(feature = "chrono")]
 mod chrono {
-    use super::*;
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
+    use super::*;
 
     test_type!(chrono_date<NaiveDate>(MySql,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
@@ -137,9 +142,11 @@ mod chrono {
 
 #[cfg(feature = "time")]
 mod time_tests {
-    use super::*;
-    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, time};
+
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+
+    use super::*;
 
     test_type!(time_date<Date>(
         MySql,
@@ -223,7 +230,7 @@ test_type!(bigdecimal<sqlx::types::BigDecimal>(
     "CAST(12345.6789 AS DECIMAL(9, 4))" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(MySql,
     "CAST(0 as DECIMAL(0, 0))" == sqlx::types::Decimal::from_str("0").unwrap(),
     "CAST(1 AS DECIMAL(1, 0))" == sqlx::types::Decimal::from_str("1").unwrap(),
@@ -236,10 +243,12 @@ test_type!(decimal<sqlx::types::Decimal>(MySql,
 
 #[cfg(feature = "json")]
 mod json_tests {
-    use super::*;
     use serde_json::{json, Value as JsonValue};
+
     use sqlx::types::Json;
     use sqlx_test::test_type;
+
+    use super::*;
 
     test_type!(json<JsonValue>(
         MySql,
@@ -316,6 +325,49 @@ CREATE TEMPORARY TABLE with_bits (
 
     assert_eq!(v1, 1);
     assert_eq!(vn, 510202);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_text_adapter() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    struct Login {
+        user_id: i32,
+        socket_addr: Text<SocketAddr>,
+        #[cfg(feature = "time")]
+        login_at: time::OffsetDateTime,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE user_login (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    socket_addr TEXT NOT NULL,
+    login_at TIMESTAMP NOT NULL
+);
+    "#,
+    )
+    .await?;
+
+    let user_id = 1234;
+    let socket_addr: SocketAddr = "198.51.100.47:31790".parse().unwrap();
+
+    sqlx::query("INSERT INTO user_login (user_id, socket_addr, login_at) VALUES (?, ?, NOW())")
+        .bind(user_id)
+        .bind(Text(socket_addr))
+        .execute(&mut conn)
+        .await?;
+
+    let last_login: Login =
+        sqlx::query_as("SELECT * FROM user_login ORDER BY login_at DESC LIMIT 1")
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert_eq!(last_login.user_id, user_id);
+    assert_eq!(*last_login.socket_addr, socket_addr);
 
     Ok(())
 }

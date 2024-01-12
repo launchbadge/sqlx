@@ -51,7 +51,7 @@ pub trait Statement<'q>: Send + Sync {
         self.try_column(index).unwrap()
     }
 
-    /// Gets the column information at `index` or `None` if out of bounds.
+    /// Gets the column information at `index` or a `ColumnIndexOutOfBounds` error if out of bounds.
     fn try_column<I>(&self, index: I) -> Result<&<Self::Database as Database>::Column, Error>
     where
         I: ColumnIndex<Self>,

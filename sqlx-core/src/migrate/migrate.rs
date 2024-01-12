@@ -15,6 +15,12 @@ pub trait MigrateDatabase {
     // drop database in url
     // uses a maintenance database depending on driver
     fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
+
+    // force drop database in url
+    // uses a maintenance database depending on driver
+    fn force_drop_database(_url: &str) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async { Err(MigrateError::ForceNotSupported)? })
+    }
 }
 
 // 'e = Executor

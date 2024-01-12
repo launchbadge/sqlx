@@ -623,6 +623,41 @@ async fn test_default() -> anyhow::Result<()> {
 
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
+async fn test_struct_default() -> anyhow::Result<()> {
+    #[derive(Debug, sqlx::FromRow)]
+    #[sqlx(default)]
+    struct HasDefault {
+        not_default: Option<i32>,
+        default_a: Option<String>,
+        default_b: Option<i32>,
+    }
+
+    impl Default for HasDefault {
+        fn default() -> HasDefault {
+            HasDefault {
+                not_default: None,
+                default_a: None,
+                default_b: Some(0),
+            }
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let has_default: HasDefault = sqlx::query_as(r#"SELECT 1 AS not_default"#)
+        .fetch_one(&mut conn)
+        .await?;
+    println!("{has_default:?}");
+
+    assert_eq!(has_default.not_default, Some(1));
+    assert_eq!(has_default.default_a, None);
+    assert_eq!(has_default.default_b, Some(0));
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
 async fn test_flatten() -> anyhow::Result<()> {
     #[derive(Debug, Default, sqlx::FromRow)]
     struct AccountDefault {

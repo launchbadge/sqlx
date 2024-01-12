@@ -205,15 +205,28 @@ pub async fn connect_tcp<Ws: WithSocket>(
         use async_std::net::ToSocketAddrs;
         use std::net::TcpStream;
 
-        let socket_addr = (host, port)
-            .to_socket_addrs()
-            .await?
-            .next()
-            .expect("BUG: to_socket_addrs() should have returned at least one result");
+        let mut last_err = None;
 
-        let stream = Async::<TcpStream>::connect(socket_addr).await?;
+        // Loop through all the Socket Addresses that the hostname resolves to
+        for socket_addr in (host, port).to_socket_addrs().await? {
+            match Async::<TcpStream>::connect(socket_addr).await {
+                Ok(stream) => return Ok(with_socket.with_socket(stream)),
+                Err(e) => last_err = Some(e),
+            }
+        }
 
-        return Ok(with_socket.with_socket(stream));
+        // If we reach this point, it means we failed to connect to any of the addresses.
+        // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
+        match last_err {
+            Some(err) => return Err(err.into()),
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::AddrNotAvailable,
+                    "Hostname did not resolve to any addresses",
+                )
+                .into())
+            }
+        }
     }
 
     #[cfg(not(feature = "_rt-async-std"))]
@@ -231,6 +244,8 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 ) -> crate::Result<Ws::Output> {
     #[cfg(not(unix))]
     {
+        drop((path, with_socket));
+
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "Unix domain sockets are not supported on this platform",
@@ -257,7 +272,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
         return Ok(with_socket.with_socket(stream));
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(all(unix, not(feature = "_rt-async-std")))]
     {
         crate::rt::missing_rt((path, with_socket))
     }

@@ -91,6 +91,26 @@ use crate::{error::Error, row::Row};
 /// will set the value of the field `location` to the default value of `Option<String>`,
 /// which is `None`.
 ///
+/// Moreover, if the struct has an implementation for [`Default`], you can use the `default`
+/// attribute at the struct level rather than for each single field. If a field does not appear in the result,
+/// its value is taken from the `Default` implementation for the struct.
+/// For example:
+///
+/// ```rust, ignore
+/// #[derive(Default, sqlx::FromRow)]
+/// #[sqlx(default)]
+/// struct Options {
+///     option_a: Option<i32>,
+///     option_b: Option<String>,
+///     option_c: Option<bool>,
+/// }
+/// ```
+///
+/// For a derived `Default` implementation this effectively populates each missing field
+/// with `Default::default()`, but a manual `Default` implementation can provide
+/// different placeholder values, if applicable.
+///
+/// This is similar to how `#[serde(default)]` behaves.
 /// ### `flatten`
 ///
 /// If you want to handle a field that implements [`FromRow`],
@@ -253,6 +273,16 @@ use crate::{error::Error, row::Row};
 /// ```
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
+}
+
+impl<'r, R> FromRow<'r, R> for ()
+where
+    R: Row,
+{
+    #[inline]
+    fn from_row(_: &'r R) -> Result<Self, Error> {
+        Ok(())
+    }
 }
 
 // implement FromRow for tuples of types that implement Decode

@@ -86,7 +86,9 @@ impl<'q> QueryLogger<'q> {
     pub fn finish(&self) {
         let elapsed = self.start.elapsed();
 
-        let lvl = if elapsed >= self.settings.slow_statements_duration {
+        let was_slow = elapsed >= self.settings.slow_statements_duration;
+
+        let lvl = if was_slow {
             self.settings.slow_statements_level
         } else {
             self.settings.statements_level
@@ -114,15 +116,32 @@ impl<'q> QueryLogger<'q> {
                     String::new()
                 };
 
-                private_tracing_dynamic_event!(
-                    target: "sqlx::query",
-                    tracing_level,
-                    summary,
-                    db.statement = sql,
-                    rows_affected = self.rows_affected,
-                    rows_returned= self.rows_returned,
-                    ?elapsed,
-                );
+                if was_slow {
+                    private_tracing_dynamic_event!(
+                        target: "sqlx::query",
+                        tracing_level,
+                        summary,
+                        db.statement = sql,
+                        rows_affected = self.rows_affected,
+                        rows_returned = self.rows_returned,
+                        ?elapsed,
+                        // When logging to JSON, one can trigger alerts from the presence of this field.
+                        slow_threshold=?self.settings.slow_statements_duration,
+                        // Make sure to use "slow" in the message as that's likely
+                        // what people will grep for.
+                        "slow statement: execution time exceeded alert threshold"
+                    );
+                } else {
+                    private_tracing_dynamic_event!(
+                        target: "sqlx::query",
+                        tracing_level,
+                        summary,
+                        db.statement = sql,
+                        rows_affected = self.rows_affected,
+                        rows_returned = self.rows_returned,
+                        ?elapsed,
+                    );
+                }
             }
         }
     }
