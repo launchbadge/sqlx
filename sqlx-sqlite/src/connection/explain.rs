@@ -2,6 +2,7 @@ use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
+use crate::logger::BranchResult;
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
 use sqlx_core::HashMap;
@@ -476,7 +477,7 @@ impl BranchList {
             self.visited_branch_state.insert(state.mem.clone());
             self.states.push(state);
         } else {
-            logger.add_result((state.history, None));
+            logger.add_result(state.history, BranchResult::Dedup);
         }
     }
     pub fn pop(&mut self) -> Option<QueryState> {
@@ -528,14 +529,16 @@ pub(super) fn explain(
             if gas > 0 {
                 gas -= 1;
             } else {
+                if logger.log_enabled() {
+                    logger.add_result(state.history, BranchResult::GasLimit);
+                }
                 break;
             }
 
             if state.visited[state.mem.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {
-                    logger.add_result((state.history, None));
+                    logger.add_result(state.history, BranchResult::LoopLimit);
                 }
-
                 //avoid (infinite) loops by breaking if we ever hit the same instruction twice
                 break;
             }
@@ -624,6 +627,9 @@ pub(super) fn explain(
                             .insert(p1, RegDataType::Single(ColumnType::default()));
                         continue;
                     } else {
+                        if logger.log_enabled() {
+                            logger.add_result(state.history, BranchResult::Branched);
+                        }
                         break;
                     }
                 }
@@ -673,6 +679,9 @@ pub(super) fn explain(
                         }
                         continue;
                     } else {
+                        if logger.log_enabled() {
+                            logger.add_result(state.history, BranchResult::Branched);
+                        }
                         break;
                     }
                 }
@@ -719,6 +728,9 @@ pub(super) fn explain(
                         }
                         continue;
                     } else {
+                        if logger.log_enabled() {
+                            logger.add_result(state.history, BranchResult::Branched);
+                        }
                         break;
                     }
                 }
@@ -751,14 +763,16 @@ pub(super) fn explain(
                             state.mem.program_i += 1;
                             continue;
                         } else {
+                            if logger.log_enabled() {
+                                logger.add_result(state.history, BranchResult::Branched);
+                            }
                             break;
                         }
                     }
 
                     if logger.log_enabled() {
-                        logger.add_result((state.history, None));
+                        logger.add_result(state.history, BranchResult::Branched);
                     }
-
                     break;
                 }
 
@@ -788,19 +802,19 @@ pub(super) fn explain(
                                 continue;
                             } else {
                                 if logger.log_enabled() {
-                                    logger.add_result((state.history, None));
+                                    logger.add_result(state.history, BranchResult::Error);
                                 }
                                 break;
                             }
                         } else {
                             if logger.log_enabled() {
-                                logger.add_result((state.history, None));
+                                logger.add_result(state.history, BranchResult::Error);
                             }
                             break;
                         }
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result((state.history, None));
+                            logger.add_result(state.history, BranchResult::Error);
                         }
                         break;
                     }
@@ -815,7 +829,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result((state.history, None));
+                            logger.add_result(state.history, BranchResult::Error);
                         }
                         break;
                     }
@@ -843,7 +857,7 @@ pub(super) fn explain(
                         }
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result((state.history, None));
+                            logger.add_result(state.history, BranchResult::Error);
                         }
                         break;
                     }
@@ -1354,8 +1368,10 @@ pub(super) fn explain(
                     states.push(branch_state, &mut logger);
 
                     if logger.log_enabled() {
-                        logger
-                            .add_result((state.history, Some(IntMap::from_dense_record(&result))));
+                        logger.add_result(
+                            state.history,
+                            BranchResult::Result(IntMap::from_dense_record(&result)),
+                        );
                     }
 
                     result_states.push(result);
@@ -1364,7 +1380,7 @@ pub(super) fn explain(
 
                 OP_HALT => {
                     if logger.log_enabled() {
-                        logger.add_result((state.history, None));
+                        logger.add_result(state.history, BranchResult::Halt);
                     }
                     break;
                 }
