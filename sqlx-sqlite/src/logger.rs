@@ -1,5 +1,5 @@
 use sqlx_core::{connection::LogSettings, logger};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
 
 pub(crate) use sqlx_core::logger::*;
@@ -17,10 +17,19 @@ pub(crate) struct BranchHistory {
     pub program_i: Vec<usize>,
 }
 
+impl BranchHistory {
+    pub fn get_reference(&self) -> Option<BranchParent> {
+        self.program_i.last().map(|program_i| BranchParent {
+            id: self.id,
+            program_i: *program_i,
+        })
+    }
+}
+
 pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<usize>,
-    table_info: Vec<Option<T>>,
+    table_info: Vec<(BranchParent, T)>,
     results: Vec<(BranchHistory, Option<R>)>,
     program: &'q [P],
     settings: LogSettings,
@@ -29,35 +38,63 @@ pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug>
 impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T, R, P> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         //writes query plan history in dot format
-        f.write_str("digraph {")?;
+        f.write_str("digraph {\n")?;
+
+        f.write_str("subgraph operations {\n")?;
+        f.write_str("style=\"rounded\";\nnode [shape=\"point\"];\n")?;
+
+        //using BTreeMap for predictable ordering
+        let mut instruction_uses: std::collections::BTreeMap<usize, BTreeSet<usize>> =
+            Default::default();
+
+        for (program_i, id) in self.results.iter().flat_map(|(history, _)| {
+            history
+                .program_i
+                .iter()
+                .map(|program_i| (*program_i, history.id))
+        }) {
+            instruction_uses.entry(program_i).or_default().insert(id);
+        }
+
         for (idx, instruction) in self.program.iter().enumerate() {
             let escaped_instruction = format!("{:?}", instruction)
                 .replace("\\", "\\\\")
                 .replace("\"", "'");
-            write!(f, "{} [label=\"{}\"", idx, escaped_instruction)?;
+            write!(
+                f,
+                "subgraph cluster_{} {{ label=\"{}\"",
+                idx, escaped_instruction
+            )?;
 
             if self.unknown_operations.contains(&idx) {
                 f.write_str(" style=dashed")?;
             }
 
-            f.write_str("];\n")?;
+            f.write_str(";\n")?;
+
+            for id in instruction_uses.entry(idx).or_default().iter() {
+                write!(f, "\"b{}p{}\";", id, idx)?;
+            }
+
+            f.write_str("}\n")?;
         }
+        f.write_str("};\n")?; //subgraph operations
 
         f.write_str("subgraph table_info {\n")?;
         f.write_str("node [shape=box];\n")?;
-        for (idx, table_info_option) in self.table_info.iter().enumerate() {
-            if let Some(table_info) = table_info_option {
-                let escaped_data = format!("{:?}", table_info)
-                    .replace("\\", "\\\\")
-                    .replace("\"", "'");
-                write!(
-                    f,
-                    "{} -> table{}; table{} [label=\"{}\"];\n",
-                    idx, idx, idx, escaped_data
-                )?;
-            }
+        for (idx, (parent, table_info)) in self.table_info.iter().enumerate() {
+            let escaped_data = format!("{:?}", table_info)
+                .replace("\\", "\\\\")
+                .replace("\"", "'");
+            write!(
+                f,
+                "\"b{}p{}\" -> table{}; table{} [label=\"{}\"];\n",
+                parent.id, parent.program_i, idx, idx, escaped_data
+            )?;
         }
-        f.write_str("};\n")?;
+        f.write_str("};\n")?; //subgraph table_info
+
+        f.write_str("subgraph branches {\n")?;
 
         for (idx, (history, result)) in self.results.iter().enumerate() {
             f.write_str("subgraph {")?;
@@ -92,12 +129,12 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
 
             let mut history_iter = history.program_i.iter();
             if let Some(item) = history_iter.next() {
-                if let Some(BranchParent { program_i, .. }) = history.parent {
-                    write!(f, "{} -> ", program_i)?;
+                if let Some(BranchParent { program_i, id }) = history.parent {
+                    write!(f, "\"b{}p{}\"->", id, program_i)?;
                 }
-                write!(f, "{}", item)?;
+                write!(f, "\"b{}p{}\"", history.id, item)?;
                 while let Some(item) = history_iter.next() {
-                    write!(f, " -> {}", item)?;
+                    write!(f, "->\"b{}p{}\"", history.id, item)?;
                 }
 
                 let escaped_result = format!("{:?}", result)
@@ -111,6 +148,7 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             }
             f.write_str("};\n")?;
         }
+        f.write_str("};\n")?; //branches
 
         f.write_str("}\n")?;
         Ok(())
@@ -119,13 +157,10 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
 
 impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
     pub fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
-        let mut table_info = Vec::new();
-        table_info.resize_with(program.len(), || None);
-
         Self {
             sql,
             unknown_operations: HashSet::new(),
-            table_info,
+            table_info: Vec::new(),
             results: Vec::new(),
             program,
             settings,
@@ -143,11 +178,8 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
         }
     }
 
-    pub fn add_table_info(&mut self, operation: usize, detail: Option<T>) {
-        while self.table_info.len() < operation {
-            self.table_info.push(None);
-        }
-        self.table_info.insert(operation, detail);
+    pub fn add_table_info(&mut self, parent: BranchParent, detail: T) {
+        self.table_info.push((parent, detail));
     }
 
     pub fn add_result(&mut self, result: (BranchHistory, Option<R>)) {

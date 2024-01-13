@@ -433,10 +433,7 @@ impl QueryState {
             visited: self.visited.clone(),
             history: crate::logger::BranchHistory {
                 id: branch_seq.next(),
-                parent: Some(crate::logger::BranchParent {
-                    id: self.history.id,
-                    program_i: self.mem.program_i,
-                }),
+                parent: self.history.get_reference(),
                 program_i: Vec::new(),
             },
             mem: self.mem.clone(),
@@ -993,7 +990,13 @@ pub(super) fn explain(
                     };
 
                     if logger.log_enabled() {
-                        logger.add_table_info(state.mem.program_i, Some(table_info.clone()));
+                        logger.add_table_info(
+                            state
+                                .history
+                                .get_reference()
+                                .expect("can't have table info without branch history"),
+                            table_info.clone(),
+                        );
                     }
 
                     state.mem.t.insert(state.mem.program_i as i64, table_info);
