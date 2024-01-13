@@ -402,16 +402,47 @@ fn root_block_columns(
     return Ok(row_info);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+struct Sequence(usize);
+
+impl Sequence {
+    pub fn new() -> Self {
+        Self(0)
+    }
+    pub fn next(&mut self) -> usize {
+        let curr = self.0;
+        self.0 += 1;
+        curr
+    }
+}
+
+#[derive(Debug, PartialEq)]
 struct QueryState {
     // The number of times each instruction has been visited
     pub visited: Vec<u8>,
     // A log of the order of execution of each instruction
-    pub history: Vec<usize>,
+    pub history: crate::logger::BranchHistory,
     // State of the virtual machine
     pub mem: MemoryState,
     // Results published by the execution
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
+}
+
+impl QueryState {
+    fn new_branch(&self, branch_seq: &mut Sequence) -> Self {
+        Self {
+            visited: self.visited.clone(),
+            history: crate::logger::BranchHistory {
+                id: branch_seq.next(),
+                parent: Some(crate::logger::BranchParent {
+                    id: self.history.id,
+                    program_i: self.mem.program_i,
+                }),
+                program_i: Vec::new(),
+            },
+            mem: self.mem.clone(),
+            result: self.result.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -464,10 +495,14 @@ pub(super) fn explain(
 
     let mut logger =
         crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
-
+    let mut branch_seq = Sequence::new();
     let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],
-        history: Vec::new(),
+        history: crate::logger::BranchHistory {
+            id: branch_seq.next(),
+            parent: None,
+            program_i: Vec::new(),
+        },
         result: None,
         mem: MemoryState {
             program_i: 0,
@@ -483,7 +518,7 @@ pub(super) fn explain(
     while let Some(mut state) = states.pop() {
         while state.mem.program_i < program_size {
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.mem.program_i];
-            state.history.push(state.mem.program_i);
+            state.history.program_i.push(state.mem.program_i);
 
             //limit the number of 'instructions' that can be evaluated
             if gas > 0 {
@@ -544,7 +579,7 @@ pub(super) fn explain(
                 | OP_SORTER_NEXT | OP_V_FILTER | OP_V_NEXT => {
                     // goto <p2> or next instruction (depending on actual values)
 
-                    let mut branch_state = state.clone();
+                    let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p2 as usize;
                     states.push(branch_state);
 
@@ -566,7 +601,7 @@ pub(super) fn explain(
                     };
 
                     if might_branch {
-                        let mut branch_state = state.clone();
+                        let mut branch_state = state.new_branch(&mut branch_seq);
                         branch_state.mem.program_i = p2 as usize;
                         if let Some(RegDataType::Single(ColumnType::Single { nullable, .. })) =
                             branch_state.mem.r.get_mut(&p1)
@@ -595,7 +630,7 @@ pub(super) fn explain(
 
                     //don't bother checking actual types, just don't branch to instruction 0
                     if p2 != 0 {
-                        let mut branch_state = state.clone();
+                        let mut branch_state = state.new_branch(&mut branch_seq);
                         branch_state.mem.program_i = p2 as usize;
                         states.push(branch_state);
                     }
@@ -618,7 +653,7 @@ pub(super) fn explain(
                     };
 
                     if might_branch {
-                        let mut branch_state = state.clone();
+                        let mut branch_state = state.new_branch(&mut branch_seq);
                         branch_state.mem.program_i = p2 as usize;
                         if p3 == 0 {
                             branch_state.mem.r.insert(p1, RegDataType::Int(1));
@@ -655,7 +690,7 @@ pub(super) fn explain(
 
                     let loop_detected = state.visited[state.mem.program_i] > 1;
                     if might_branch || loop_detected {
-                        let mut branch_state = state.clone();
+                        let mut branch_state = state.new_branch(&mut branch_seq);
                         branch_state.mem.program_i = p2 as usize;
                         if let Some(RegDataType::Int(r_p1)) = branch_state.mem.r.get_mut(&p1) {
                             *r_p1 -= 1;
@@ -696,7 +731,7 @@ pub(super) fn explain(
                         if matches!(cursor.is_empty(&state.mem.t), None | Some(true)) {
                             //only take this branch if the cursor is empty
 
-                            let mut branch_state = state.clone();
+                            let mut branch_state = state.new_branch(&mut branch_seq);
                             branch_state.mem.program_i = p2 as usize;
 
                             if let Some(cur) = branch_state.mem.p.get(&p1) {
@@ -813,15 +848,15 @@ pub(super) fn explain(
                 OP_JUMP => {
                     // goto one of <p1>, <p2>, or <p3> based on the result of a prior compare
 
-                    let mut branch_state = state.clone();
+                    let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p1 as usize;
                     states.push(branch_state);
 
-                    let mut branch_state = state.clone();
+                    let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p2 as usize;
                     states.push(branch_state);
 
-                    let mut branch_state = state.clone();
+                    let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p3 as usize;
                     states.push(branch_state);
                 }
@@ -1304,14 +1339,17 @@ pub(super) fn explain(
                         })
                         .collect();
 
+                    let mut branch_state = state.new_branch(&mut branch_seq);
+                    branch_state.mem.program_i += 1;
+                    states.push(branch_state);
+
                     if logger.log_enabled() {
-                        logger.add_result((
-                            state.history.clone(),
-                            Some(IntMap::from_dense_record(&result)),
-                        ));
+                        logger
+                            .add_result((state.history, Some(IntMap::from_dense_record(&result))));
                     }
 
                     result_states.push(result);
+                    break;
                 }
 
                 OP_HALT => {

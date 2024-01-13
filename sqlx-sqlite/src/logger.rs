@@ -4,11 +4,24 @@ use std::fmt::Debug;
 
 pub(crate) use sqlx_core::logger::*;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct BranchParent {
+    pub id: usize,
+    pub program_i: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct BranchHistory {
+    pub id: usize,
+    pub parent: Option<BranchParent>,
+    pub program_i: Vec<usize>,
+}
+
 pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<usize>,
     table_info: Vec<Option<T>>,
-    results: Vec<(Vec<usize>, Option<R>)>,
+    results: Vec<(BranchHistory, Option<R>)>,
     program: &'q [P],
     settings: LogSettings,
 }
@@ -74,11 +87,14 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             write!(
                 f,
                 "edge [colorscheme=x11 color={}{} label={}];",
-                color_name_root, color_name_suffix, idx
+                color_name_root, color_name_suffix, history.id
             )?;
 
-            let mut history_iter = history.iter();
+            let mut history_iter = history.program_i.iter();
             if let Some(item) = history_iter.next() {
+                if let Some(BranchParent { program_i, .. }) = history.parent {
+                    write!(f, "{} -> ", program_i)?;
+                }
                 write!(f, "{}", item)?;
                 while let Some(item) = history_iter.next() {
                     write!(f, " -> {}", item)?;
@@ -134,7 +150,7 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
         self.table_info.insert(operation, detail);
     }
 
-    pub fn add_result(&mut self, result: (Vec<usize>, Option<R>)) {
+    pub fn add_result(&mut self, result: (BranchHistory, Option<R>)) {
         self.results.push(result);
     }
 
