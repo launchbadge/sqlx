@@ -4,6 +4,17 @@ use std::fmt::Debug;
 
 pub(crate) use sqlx_core::logger::*;
 
+#[derive(Debug)]
+pub(crate) enum BranchResult<R: Debug + 'static> {
+    Result(R),
+    Dedup,
+    Halt,
+    Error,
+    GasLimit,
+    LoopLimit,
+    Branched,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BranchParent {
     pub id: usize,
@@ -30,7 +41,7 @@ pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug>
     sql: &'q str,
     unknown_operations: HashSet<usize>,
     table_info: Vec<(BranchParent, T)>,
-    results: Vec<(BranchHistory, Option<R>)>,
+    results: Vec<(BranchHistory, BranchResult<R>)>,
     program: &'q [P],
     settings: LogSettings,
 }
@@ -182,10 +193,10 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
         self.table_info.push((parent, detail));
     }
 
-    pub fn add_result(&mut self, result: (BranchHistory, Option<R>)) {
-        //don't record any branches that didn't execute any instructions
-        if result.0.program_i.len() > 1 {
-            self.results.push(result);
+    pub fn add_result(&mut self, history: BranchHistory, result: BranchResult<R>) {
+        //don't record any deduplicated branches that didn't execute any instructions
+        if history.program_i.len() > 1 || !matches!(result, BranchResult::Dedup) {
+            self.results.push((history, result));
         }
     }
 
