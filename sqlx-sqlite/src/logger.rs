@@ -183,7 +183,10 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
     }
 
     pub fn add_result(&mut self, result: (BranchHistory, Option<R>)) {
-        self.results.push(result);
+        //don't record any branches that didn't execute any instructions
+        if result.0.program_i.len() > 1 {
+            self.results.push(result);
+        }
     }
 
     pub fn add_unknown_operation(&mut self, operation: usize) {

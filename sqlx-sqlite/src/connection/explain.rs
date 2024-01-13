@@ -6,6 +6,7 @@ use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
 use sqlx_core::HashMap;
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::str::from_utf8;
 
 // affinity
@@ -466,10 +467,16 @@ impl BranchList {
             visited_branch_state: HashSet::new(),
         }
     }
-    pub fn push(&mut self, state: QueryState) {
+    pub fn push<T: Debug, R: Debug, P: Debug>(
+        &mut self,
+        state: QueryState,
+        logger: &mut crate::logger::QueryPlanLogger<'_, T, R, P>,
+    ) {
         if !self.visited_branch_state.contains(&state.mem) {
             self.visited_branch_state.insert(state.mem.clone());
             self.states.push(state);
+        } else {
+            logger.add_result((state.history, None));
         }
     }
     pub fn pop(&mut self) -> Option<QueryState> {
@@ -578,7 +585,7 @@ pub(super) fn explain(
 
                     let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p2 as usize;
-                    states.push(branch_state);
+                    states.push(branch_state, &mut logger);
 
                     state.mem.program_i += 1;
                     continue;
@@ -606,7 +613,7 @@ pub(super) fn explain(
                             *nullable = Some(false);
                         }
 
-                        states.push(branch_state);
+                        states.push(branch_state, &mut logger);
                     }
 
                     if might_not_branch {
@@ -629,7 +636,7 @@ pub(super) fn explain(
                     if p2 != 0 {
                         let mut branch_state = state.new_branch(&mut branch_seq);
                         branch_state.mem.program_i = p2 as usize;
-                        states.push(branch_state);
+                        states.push(branch_state, &mut logger);
                     }
 
                     state.mem.program_i += 1;
@@ -656,7 +663,7 @@ pub(super) fn explain(
                             branch_state.mem.r.insert(p1, RegDataType::Int(1));
                         }
 
-                        states.push(branch_state);
+                        states.push(branch_state, &mut logger);
                     }
 
                     if might_not_branch {
@@ -692,7 +699,7 @@ pub(super) fn explain(
                         if let Some(RegDataType::Int(r_p1)) = branch_state.mem.r.get_mut(&p1) {
                             *r_p1 -= 1;
                         }
-                        states.push(branch_state);
+                        states.push(branch_state, &mut logger);
                     }
 
                     if might_not_branch {
@@ -736,7 +743,7 @@ pub(super) fn explain(
                                     tab.is_empty = Some(true);
                                 }
                             }
-                            states.push(branch_state);
+                            states.push(branch_state, &mut logger);
                         }
 
                         if matches!(cursor.is_empty(&state.mem.t), None | Some(false)) {
@@ -847,15 +854,15 @@ pub(super) fn explain(
 
                     let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p1 as usize;
-                    states.push(branch_state);
+                    states.push(branch_state, &mut logger);
 
                     let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p2 as usize;
-                    states.push(branch_state);
+                    states.push(branch_state, &mut logger);
 
                     let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i = p3 as usize;
-                    states.push(branch_state);
+                    states.push(branch_state, &mut logger);
                 }
 
                 OP_COLUMN => {
@@ -1344,7 +1351,7 @@ pub(super) fn explain(
 
                     let mut branch_state = state.new_branch(&mut branch_seq);
                     branch_state.mem.program_i += 1;
-                    states.push(branch_state);
+                    states.push(branch_state, &mut logger);
 
                     if logger.log_enabled() {
                         logger
