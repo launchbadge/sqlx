@@ -2,11 +2,10 @@ use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
-use crate::logger::BranchResult;
+use crate::logger::{BranchParent, BranchResult};
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
 use sqlx_core::HashMap;
-use std::collections::HashSet;
 use std::fmt::Debug;
 use std::str::from_utf8;
 
@@ -430,12 +429,18 @@ struct QueryState {
 }
 
 impl QueryState {
+    fn get_reference(&self) -> BranchParent {
+        BranchParent {
+            id: self.history.id,
+            program_i: self.mem.program_i,
+        }
+    }
     fn new_branch(&self, branch_seq: &mut Sequence) -> Self {
         Self {
             visited: self.visited.clone(),
             history: crate::logger::BranchHistory {
                 id: branch_seq.next(),
-                parent: self.history.get_reference(),
+                parent: Some(self.get_reference()),
                 program_i: Vec::new(),
             },
             mem: self.mem.clone(),
@@ -458,26 +463,32 @@ struct MemoryState {
 
 struct BranchList {
     states: Vec<QueryState>,
-    visited_branch_state: HashSet<MemoryState>,
+    visited_branch_state: HashMap<MemoryState, BranchParent>,
 }
 
 impl BranchList {
     pub fn new(state: QueryState) -> Self {
         Self {
             states: vec![state],
-            visited_branch_state: HashSet::new(),
+            visited_branch_state: HashMap::new(),
         }
     }
     pub fn push<T: Debug, R: Debug, P: Debug>(
         &mut self,
-        state: QueryState,
+        mut state: QueryState,
         logger: &mut crate::logger::QueryPlanLogger<'_, T, R, P>,
     ) {
-        if !self.visited_branch_state.contains(&state.mem) {
-            self.visited_branch_state.insert(state.mem.clone());
-            self.states.push(state);
-        } else {
-            logger.add_result(state.history, BranchResult::Dedup);
+        match self.visited_branch_state.entry(state.mem) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                //this state is not identical to another state, so it will need to be processed
+                state.mem = entry.key().clone(); //replace state.mem
+                entry.insert(state.get_reference());
+                self.states.push(state);
+            }
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                //already saw a state identical to this one, so no point in processing it
+                logger.add_result(state.history, BranchResult::Dedup(entry.get().clone()));
+            }
         }
     }
     pub fn pop(&mut self) -> Option<QueryState> {
@@ -1011,13 +1022,7 @@ pub(super) fn explain(
                     };
 
                     if logger.log_enabled() {
-                        logger.add_table_info(
-                            state
-                                .history
-                                .get_reference()
-                                .expect("can't have table info without branch history"),
-                            table_info.clone(),
-                        );
+                        logger.add_table_info(state.get_reference(), table_info.clone());
                     }
 
                     state.mem.t.insert(state.mem.program_i as i64, table_info);

@@ -7,7 +7,7 @@ pub(crate) use sqlx_core::logger::*;
 #[derive(Debug)]
 pub(crate) enum BranchResult<R: Debug + 'static> {
     Result(R),
-    Dedup,
+    Dedup(BranchParent),
     Halt,
     Error,
     GasLimit,
@@ -26,15 +26,6 @@ pub(crate) struct BranchHistory {
     pub id: usize,
     pub parent: Option<BranchParent>,
     pub program_i: Vec<usize>,
-}
-
-impl BranchHistory {
-    pub fn get_reference(&self) -> Option<BranchParent> {
-        self.program_i.last().map(|program_i| BranchParent {
-            id: self.id,
-            program_i: *program_i,
-        })
-    }
 }
 
 pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug> {
@@ -138,24 +129,40 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
                 color_name_root, color_name_suffix, history.id
             )?;
 
-            let mut history_iter = history.program_i.iter();
-            if let Some(item) = history_iter.next() {
-                if let Some(BranchParent { program_i, id }) = history.parent {
-                    write!(f, "\"b{}p{}\"->", id, program_i)?;
-                }
-                write!(f, "\"b{}p{}\"", history.id, item)?;
-                while let Some(item) = history_iter.next() {
-                    write!(f, "->\"b{}p{}\"", history.id, item)?;
+            if history.program_i.len() > 0 {
+                let mut program_iter = history.program_i.iter();
+                if let Some(program_i) = program_iter.next() {
+                    if let Some(BranchParent { program_i, id }) = history.parent {
+                        write!(f, "\"b{}p{}\"->", id, program_i)?;
+                    }
+                    write!(f, "\"b{}p{}\"", history.id, program_i)?;
+                    while let Some(program_i) = program_iter.next() {
+                        write!(f, "->\"b{}p{}\"", history.id, program_i)?;
+                    }
                 }
 
-                let escaped_result = format!("{:?}", result)
-                    .replace("\\", "\\\\")
-                    .replace("\"", "'");
-                write!(
-                    f,
-                    " -> \"{}\"; \"{}\" [shape=box];",
-                    escaped_result, escaped_result
-                )?;
+                if let Some(id) = history.program_i.last() {
+                    if let BranchResult::Dedup(BranchParent {
+                        program_i: dedup_program_i,
+                        id: dedup_id,
+                    }) = result
+                    {
+                        write!(
+                            f,
+                            "\"b{}p{}\"->\"b{}p{}\" [style=dotted]",
+                            history.id, id, dedup_id, dedup_program_i
+                        )?;
+                    } else {
+                        let escaped_result = format!("{:?}", result)
+                            .replace("\\", "\\\\")
+                            .replace("\"", "'");
+                        write!(
+                            f,
+                            " -> \"{}\"; \"{}\" [shape=box];",
+                            escaped_result, escaped_result
+                        )?;
+                    }
+                }
             }
             f.write_str("};\n")?;
         }
@@ -195,9 +202,7 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
 
     pub fn add_result(&mut self, history: BranchHistory, result: BranchResult<R>) {
         //don't record any deduplicated branches that didn't execute any instructions
-        if history.program_i.len() > 1 || !matches!(result, BranchResult::Dedup) {
-            self.results.push((history, result));
-        }
+        self.results.push((history, result));
     }
 
     pub fn add_unknown_operation(&mut self, operation: usize) {
