@@ -14,10 +14,12 @@ pub struct QuotedMigrationType(MigrationType);
 impl ToTokens for QuotedMigrationType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ts = match self.0 {
-            MigrationType::Simple => quote! { ::sqlx::migrate::MigrationType::Simple },
-            MigrationType::ReversibleUp => quote! { ::sqlx::migrate::MigrationType::ReversibleUp },
+            MigrationType::Simple => quote! { ::sqlx_core::migrate::MigrationType::Simple },
+            MigrationType::ReversibleUp => {
+                quote! { ::sqlx_core::migrate::MigrationType::ReversibleUp }
+            }
             MigrationType::ReversibleDown => {
-                quote! { ::sqlx::migrate::MigrationType::ReversibleDown }
+                quote! { ::sqlx_core::migrate::MigrationType::ReversibleDown }
             }
         };
         tokens.append_all(ts.into_iter());
@@ -43,7 +45,7 @@ impl ToTokens for QuotedMigration {
         } = &self;
 
         let ts = quote! {
-            ::sqlx::migrate::Migration {
+            ::sqlx_core::migrate::Migration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
@@ -144,7 +146,7 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     }
 
     Ok(quote! {
-        ::sqlx::migrate::Migrator {
+        ::sqlx_core::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(&[
                 #(#migrations),*
             ]),
