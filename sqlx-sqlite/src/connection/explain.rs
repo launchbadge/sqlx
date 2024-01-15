@@ -432,7 +432,7 @@ impl QueryState {
     fn get_reference(&self) -> BranchParent {
         BranchParent {
             id: self.history.id,
-            program_i: self.mem.program_i,
+            idx: Ord::max(self.history.program_i.len(), 1) - 1, //new branches create reference before they've processed their first instruction
         }
     }
     fn new_branch(&self, branch_seq: &mut Sequence) -> Self {

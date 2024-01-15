@@ -1,5 +1,5 @@
 use sqlx_core::{connection::LogSettings, logger};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
 pub(crate) use sqlx_core::logger::*;
@@ -18,7 +18,7 @@ pub(crate) enum BranchResult<R: Debug + 'static> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BranchParent {
     pub id: usize,
-    pub program_i: usize,
+    pub idx: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,16 +46,16 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
         f.write_str("style=\"rounded\";\nnode [shape=\"point\"];\n")?;
 
         //using BTreeMap for predictable ordering
-        let mut instruction_uses: std::collections::BTreeMap<usize, BTreeSet<usize>> =
-            Default::default();
+        let mut instruction_uses: BTreeMap<usize, Vec<BranchParent>> = Default::default();
 
-        for (program_i, id) in self.results.iter().flat_map(|(history, _)| {
-            history
-                .program_i
-                .iter()
-                .map(|program_i| (*program_i, history.id))
-        }) {
-            instruction_uses.entry(program_i).or_default().insert(id);
+        for (history, _) in self.results.iter() {
+            for (idx, program_i) in history.program_i.iter().enumerate() {
+                let references = instruction_uses.entry(*program_i).or_default();
+                references.push(BranchParent {
+                    id: history.id,
+                    idx,
+                });
+            }
         }
 
         for (idx, instruction) in self.program.iter().enumerate() {
@@ -74,12 +74,13 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
 
             f.write_str(";\n")?;
 
-            for id in instruction_uses.entry(idx).or_default().iter() {
-                write!(f, "\"b{}p{}\";", id, idx)?;
+            for reference in instruction_uses.entry(idx).or_default().iter() {
+                write!(f, "\"b{}p{}\";", reference.id, reference.idx)?;
             }
 
             f.write_str("}\n")?;
         }
+
         f.write_str("};\n")?; //subgraph operations
 
         f.write_str("subgraph table_info {\n")?;
@@ -91,14 +92,14 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             write!(
                 f,
                 "\"b{}p{}\" -> table{}; table{} [label=\"{}\"];\n",
-                parent.id, parent.program_i, idx, idx, escaped_data
+                parent.id, parent.idx, idx, idx, escaped_data
             )?;
         }
         f.write_str("};\n")?; //subgraph table_info
 
         f.write_str("subgraph branches {\n")?;
 
-        for (idx, (history, result)) in self.results.iter().enumerate() {
+        for (result_idx, (history, result)) in self.results.iter().enumerate() {
             f.write_str("subgraph {")?;
 
             let color_names = [
@@ -115,8 +116,8 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
                 "olivedrab",
                 "pink",
             ];
-            let color_name_root = color_names[idx % color_names.len()];
-            let color_name_suffix = match (idx / color_names.len()) % 4 {
+            let color_name_root = color_names[result_idx % color_names.len()];
+            let color_name_suffix = match (result_idx / color_names.len()) % 4 {
                 0 => "1",
                 1 => "4",
                 2 => "3",
@@ -130,27 +131,36 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             )?;
 
             if history.program_i.len() > 0 {
-                let mut program_iter = history.program_i.iter();
-                if let Some(program_i) = program_iter.next() {
-                    if let Some(BranchParent { program_i, id }) = history.parent {
-                        write!(f, "\"b{}p{}\"->", id, program_i)?;
+                let mut program_iter = history.program_i.iter().enumerate();
+
+                if let Some((idx, _program_i)) = program_iter.next() {
+                    //draw edge from the origin of this branch
+                    if let Some(BranchParent {
+                        idx: parent_idx,
+                        id: parent_id,
+                    }) = history.parent
+                    {
+                        write!(f, "\"b{}p{}\"->", parent_id, parent_idx)?;
                     }
-                    write!(f, "\"b{}p{}\"", history.id, program_i)?;
-                    while let Some(program_i) = program_iter.next() {
-                        write!(f, "->\"b{}p{}\"", history.id, program_i)?;
+                    //draw edges for each of the operations
+                    write!(f, "\"b{}p{}\"", history.id, idx)?;
+                    while let Some((idx, _program_i)) = program_iter.next() {
+                        write!(f, "->\"b{}p{}\"", history.id, idx)?;
                     }
                 }
 
-                if let Some(id) = history.program_i.last() {
+                //draw edge to the result of this branch
+                if history.program_i.len() > 0 {
+                    let idx = history.program_i.len() - 1;
                     if let BranchResult::Dedup(BranchParent {
-                        program_i: dedup_program_i,
                         id: dedup_id,
+                        idx: dedup_idx,
                     }) = result
                     {
                         write!(
                             f,
                             "\"b{}p{}\"->\"b{}p{}\" [style=dotted]",
-                            history.id, id, dedup_id, dedup_program_i
+                            history.id, idx, dedup_id, dedup_idx
                         )?;
                     } else {
                         let escaped_result = format!("{:?}", result)
