@@ -86,6 +86,11 @@ impl Migrator {
         self.migrations.iter()
     }
 
+    /// Check if a migration version exists.
+    pub fn version_exists(&self, version: i64) -> bool {
+        self.iter().any(|m| m.version == version)
+    }
+
     /// Run any pending migrations against the database; and, validate previously applied migrations
     /// against the current migration source to detect accidental changes in previously-applied migrations.
     ///
