@@ -89,8 +89,6 @@ hashlink = "0.8.0"
 indexmap = "2.0"
 event-listener = "2.5.2"
 
-dotenvy = "0.15"
-
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }

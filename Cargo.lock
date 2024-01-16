@@ -3277,7 +3277,6 @@ dependencies = [
  "crc",
  "crossbeam-queue",
  "digest",
- "dotenvy",
  "either",
  "encoding_rs",
  "event-listener 2.5.3",
