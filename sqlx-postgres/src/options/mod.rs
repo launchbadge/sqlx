@@ -235,6 +235,19 @@ impl PgConnectOptions {
         self
     }
 
+    /// Get the current port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new();
+    /// assert_eq!(options.get_port(), 5432);
+    /// ```
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
     /// Sets a custom path to a directory containing a unix domain socket,
     /// switching the connection method from TCP to the corresponding socket.
     ///
