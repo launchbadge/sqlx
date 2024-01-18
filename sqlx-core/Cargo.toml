@@ -51,7 +51,7 @@ uuid = { workspace = true, optional = true }
 
 async-io = { version = "1.9.0", optional = true }
 paste = "1.0.6"
-ahash = "0.8.6"
+ahash = "0.8.7"
 atoi = "2.0"
 
 bytes = "1.1.0"
