@@ -63,7 +63,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Compile-time checked queries** (if you want). See [SQLx is not an ORM](#sqlx-is-not-an-orm).
 
--   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite].
+-   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [MariaDB], [SQLite].
     -   [MSSQL] was supported prior to version 0.7, but has been removed pending a full rewrite of the driver as part of our [SQLx Pro initiative].
 
 -   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
@@ -83,6 +83,7 @@ The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which r
 [postgresql]: http://postgresql.org/
 [sqlite]: https://sqlite.org/
 [mysql]: https://www.mysql.com/
+[mariadb]: https://www.mariadb.org/
 [mssql]: https://www.microsoft.com/en-us/sql-server
 [SQLx Pro initiative]: https://github.com/launchbadge/sqlx/discussions/1616
 
@@ -100,7 +101,7 @@ The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which r
 -   Simple (unprepared) query execution including fetching results into the same `Row` types used by
     the high-level API. Supports batch execution and returns results from all statements.
 
--   Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
+-   Transport Layer Security (TLS) where supported ([MySQL], [MariaDB] and [PostgreSQL]).
 
 -   Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
 
@@ -232,14 +233,14 @@ use sqlx::postgres::PgPoolOptions;
 // or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
-    //  for MySQL, use MySqlPoolOptions::new()
+    //  for MySQL/MariaDB, use MySqlPoolOptions::new()
     //  for SQLite, use SqlitePoolOptions::new()
     //  etc.
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:password@localhost/test").await?;
 
-    // Make a simple query to return the given parameter (use a question mark `?` instead of `$1` for MySQL)
+    // Make a simple query to return the given parameter (use a question mark `?` instead of `$1` for MySQL/MariaDB)
     let row: (i64,) = sqlx::query_as("SELECT $1")
         .bind(150_i64)
         .fetch_one(&pool).await?;
