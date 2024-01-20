@@ -71,6 +71,28 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
     pub(crate) fn iter(&self) -> impl Iterator<Item = Option<&V>> {
         self.0.iter().map(Option::as_ref)
     }
+
+    /// get the additions to this intmap compared to the prev intmap
+    pub(crate) fn diff<'a, 'b, 'c>(
+        &'a self,
+        prev: &'b Self,
+    ) -> impl Iterator<Item = (usize, Option<&'c V>)>
+    where
+        'a: 'c,
+        'b: 'c,
+    {
+        let self_pad = if prev.0.len() > self.0.len() {
+            prev.0.len() - self.0.len()
+        } else {
+            0
+        };
+        self.iter()
+            .chain(std::iter::repeat(None).take(self_pad))
+            .zip(prev.iter().chain(std::iter::repeat(None)))
+            .enumerate()
+            .filter(|(_i, (n, p))| n != p)
+            .map(|(i, (n, _p))| (i, n))
+    }
 }
 
 impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> std::hash::Hash for IntMap<V> {
