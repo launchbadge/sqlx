@@ -38,24 +38,15 @@ pub(crate) trait DebugDiff {
     fn diff(&self, prev: &Self) -> String;
 }
 
-pub struct QueryPlanLogger<
-    'q,
-    T: Debug + 'static,
-    R: Debug + 'static,
-    S: Debug + DebugDiff + 'static,
-    P: Debug,
-> {
+pub struct QueryPlanLogger<'q, R: Debug + 'static, S: Debug + DebugDiff + 'static, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<usize>,
-    table_info: Vec<(BranchParent, T)>,
     results: Vec<(BranchHistory<S>, BranchResult<R>)>,
     program: &'q [P],
     settings: LogSettings,
 }
 
-impl<T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display
-    for QueryPlanLogger<'_, T, R, S, P>
-{
+impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanLogger<'_, R, S, P> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         //writes query plan history in dot format
         f.write_str("digraph {\n")?;
@@ -117,21 +108,6 @@ impl<T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display
         }
 
         f.write_str("};\n")?; //subgraph operations
-
-        f.write_str("subgraph table_info {\n")?;
-        f.write_str("node [shape=box];\n")?;
-        for (idx, (parent, table_info)) in self.table_info.iter().enumerate() {
-            let escaped_data = format!("{:?}", table_info)
-                .replace("\\", "\\\\")
-                .replace("\"", "'")
-                .replace("\n", "\\n");
-            write!(
-                f,
-                "\"b{}p{}\" -> table{}; table{} [label=\"{}\"];\n",
-                parent.id, parent.idx, idx, idx, escaped_data
-            )?;
-        }
-        f.write_str("};\n")?; //subgraph table_info
 
         f.write_str("subgraph branches {\n")?;
 
@@ -250,12 +226,11 @@ impl<T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display
     }
 }
 
-impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, T, R, S, P> {
+impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> {
     pub fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
         Self {
             sql,
             unknown_operations: HashSet::new(),
-            table_info: Vec::new(),
             results: Vec::new(),
             program,
             settings,
@@ -271,10 +246,6 @@ impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q,
         } else {
             false
         }
-    }
-
-    pub fn add_table_info(&mut self, parent: BranchParent, detail: T) {
-        self.table_info.push((parent, detail));
     }
 
     pub fn add_result(&mut self, history: BranchHistory<S>, result: BranchResult<R>) {
@@ -319,9 +290,7 @@ impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q,
     }
 }
 
-impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> Drop
-    for QueryPlanLogger<'q, T, R, S, P>
-{
+impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> Drop for QueryPlanLogger<'q, R, S, P> {
     fn drop(&mut self) {
         self.finish();
     }

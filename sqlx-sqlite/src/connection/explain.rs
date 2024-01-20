@@ -502,10 +502,10 @@ impl BranchList {
             visited_branch_state: HashMap::new(),
         }
     }
-    pub fn push<T: Debug, R: Debug, P: Debug>(
+    pub fn push<R: Debug, P: Debug>(
         &mut self,
         mut state: QueryState,
-        logger: &mut crate::logger::QueryPlanLogger<'_, T, R, MemoryState, P>,
+        logger: &mut crate::logger::QueryPlanLogger<'_, R, MemoryState, P>,
     ) {
         match self.visited_branch_state.entry(state.mem) {
             std::collections::hash_map::Entry::Vacant(entry) => {
@@ -1052,10 +1052,6 @@ pub(super) fn explain(
                             is_empty: None,
                         }
                     };
-
-                    if logger.log_enabled() {
-                        logger.add_table_info(state.get_reference(), table_info.clone());
-                    }
 
                     state.mem.t.insert(state.mem.program_i as i64, table_info);
                     state
