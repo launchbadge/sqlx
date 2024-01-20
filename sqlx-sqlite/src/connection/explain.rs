@@ -2,7 +2,7 @@ use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
-use crate::logger::{BranchParent, BranchResult};
+use crate::logger::{BranchParent, BranchResult, DebugDiff, InstructionHistory};
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
 use sqlx_core::HashMap;
@@ -416,12 +416,12 @@ impl Sequence {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct QueryState {
     // The number of times each instruction has been visited
     pub visited: Vec<u8>,
     // A log of the order of execution of each instruction
-    pub history: crate::logger::BranchHistory,
+    pub history: crate::logger::BranchHistory<MemoryState>,
     // State of the virtual machine
     pub mem: MemoryState,
     // Results published by the execution
@@ -461,6 +461,35 @@ struct MemoryState {
     pub t: IntMap<TableDataType>,
 }
 
+impl DebugDiff for MemoryState {
+    fn diff(&self, prev: &Self) -> String {
+        let r_diff = self.r.diff(&prev.r);
+        let p_diff = self.p.diff(&prev.p);
+        let t_diff = self.t.diff(&prev.t);
+
+        let mut differences = String::new();
+        for (i, v) in r_diff {
+            if !differences.is_empty() {
+                differences.push('\n');
+            }
+            differences.push_str(&format!("r[{}]={:?}", i, v))
+        }
+        for (i, v) in p_diff {
+            if !differences.is_empty() {
+                differences.push('\n');
+            }
+            differences.push_str(&format!("p[{}]={:?}", i, v))
+        }
+        for (i, v) in t_diff {
+            if !differences.is_empty() {
+                differences.push('\n');
+            }
+            differences.push_str(&format!("t[{}]={:?}", i, v))
+        }
+        differences
+    }
+}
+
 struct BranchList {
     states: Vec<QueryState>,
     visited_branch_state: HashMap<MemoryState, BranchParent>,
@@ -476,7 +505,7 @@ impl BranchList {
     pub fn push<T: Debug, R: Debug, P: Debug>(
         &mut self,
         mut state: QueryState,
-        logger: &mut crate::logger::QueryPlanLogger<'_, T, R, P>,
+        logger: &mut crate::logger::QueryPlanLogger<'_, T, R, MemoryState, P>,
     ) {
         match self.visited_branch_state.entry(state.mem) {
             std::collections::hash_map::Entry::Vacant(entry) => {
@@ -534,7 +563,10 @@ pub(super) fn explain(
     while let Some(mut state) = states.pop() {
         while state.mem.program_i < program_size {
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.mem.program_i];
-            state.history.program_i.push(state.mem.program_i);
+            state.history.program_i.push(InstructionHistory {
+                program_i: state.mem.program_i,
+                state: state.mem.clone(),
+            });
 
             //limit the number of 'instructions' that can be evaluated
             if gas > 0 {

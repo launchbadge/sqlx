@@ -15,29 +15,47 @@ pub(crate) enum BranchResult<R: Debug + 'static> {
     Branched,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub(crate) struct BranchParent {
     pub id: usize,
     pub idx: usize,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct BranchHistory {
+#[derive(Debug)]
+pub(crate) struct BranchHistory<S: Debug + DebugDiff> {
     pub id: usize,
     pub parent: Option<BranchParent>,
-    pub program_i: Vec<usize>,
+    pub program_i: Vec<InstructionHistory<S>>,
 }
 
-pub struct QueryPlanLogger<'q, T: Debug + 'static, R: Debug + 'static, P: Debug> {
+#[derive(Debug)]
+pub(crate) struct InstructionHistory<S: Debug + DebugDiff> {
+    pub program_i: usize,
+    pub state: S,
+}
+
+pub(crate) trait DebugDiff {
+    fn diff(&self, prev: &Self) -> String;
+}
+
+pub struct QueryPlanLogger<
+    'q,
+    T: Debug + 'static,
+    R: Debug + 'static,
+    S: Debug + DebugDiff + 'static,
+    P: Debug,
+> {
     sql: &'q str,
     unknown_operations: HashSet<usize>,
     table_info: Vec<(BranchParent, T)>,
-    results: Vec<(BranchHistory, BranchResult<R>)>,
+    results: Vec<(BranchHistory<S>, BranchResult<R>)>,
     program: &'q [P],
     settings: LogSettings,
 }
 
-impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T, R, P> {
+impl<T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display
+    for QueryPlanLogger<'_, T, R, S, P>
+{
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         //writes query plan history in dot format
         f.write_str("digraph {\n")?;
@@ -50,7 +68,7 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
 
         for (history, _) in self.results.iter() {
             for (idx, program_i) in history.program_i.iter().enumerate() {
-                let references = instruction_uses.entry(*program_i).or_default();
+                let references = instruction_uses.entry(program_i.program_i).or_default();
                 references.push(BranchParent {
                     id: history.id,
                     idx,
@@ -58,10 +76,27 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             }
         }
 
+        let all_states: std::collections::HashMap<BranchParent, &S> = self
+            .results
+            .iter()
+            .flat_map(|(history, _)| {
+                history.program_i.iter().enumerate().map(|(idx, i)| {
+                    (
+                        BranchParent {
+                            id: history.id,
+                            idx,
+                        },
+                        &i.state,
+                    )
+                })
+            })
+            .collect();
+
         for (idx, instruction) in self.program.iter().enumerate() {
             let escaped_instruction = format!("{:?}", instruction)
                 .replace("\\", "\\\\")
-                .replace("\"", "'");
+                .replace("\"", "'")
+                .replace("\n", "\\n");
             write!(
                 f,
                 "subgraph cluster_{} {{ label=\"{}\"",
@@ -88,7 +123,8 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
         for (idx, (parent, table_info)) in self.table_info.iter().enumerate() {
             let escaped_data = format!("{:?}", table_info)
                 .replace("\\", "\\\\")
-                .replace("\"", "'");
+                .replace("\"", "'")
+                .replace("\n", "\\n");
             write!(
                 f,
                 "\"b{}p{}\" -> table{}; table{} [label=\"{}\"];\n",
@@ -126,26 +162,56 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
             }; //colors are easily confused after color_names.len() * 2, and outright reused after color_names.len() * 4
             write!(
                 f,
-                "edge [colorscheme=x11 color={}{} label={}];",
-                color_name_root, color_name_suffix, history.id
+                "edge [colorscheme=x11 color={}{}];",
+                color_name_root, color_name_suffix
             )?;
 
             if history.program_i.len() > 0 {
                 let mut program_iter = history.program_i.iter().enumerate();
 
-                if let Some((idx, _program_i)) = program_iter.next() {
+                if let Some((idx, program_i)) = program_iter.next() {
                     //draw edge from the origin of this branch
                     if let Some(BranchParent {
                         idx: parent_idx,
                         id: parent_id,
                     }) = history.parent
                     {
-                        write!(f, "\"b{}p{}\"->", parent_id, parent_idx)?;
+                        let state_diff = match all_states.get(&BranchParent {
+                            idx: parent_idx,
+                            id: parent_id,
+                        }) {
+                            Some(prev_state) => program_i
+                                .state
+                                .diff(prev_state)
+                                .replace("\\", "\\\\")
+                                .replace("\"", "'")
+                                .replace("\n", "\\n"),
+                            None => String::new(),
+                        };
+
+                        write!(
+                            f,
+                            "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"];\n",
+                            parent_id, parent_idx, history.id, idx, state_diff
+                        )?;
                     }
                     //draw edges for each of the operations
-                    write!(f, "\"b{}p{}\"", history.id, idx)?;
-                    while let Some((idx, _program_i)) = program_iter.next() {
-                        write!(f, "->\"b{}p{}\"", history.id, idx)?;
+                    let mut prev_idx = idx;
+                    let mut prev_state = &program_i.state;
+                    while let Some((idx, program_i)) = program_iter.next() {
+                        let state_diff = program_i
+                            .state
+                            .diff(prev_state)
+                            .replace("\\", "\\\\")
+                            .replace("\"", "'")
+                            .replace("\n", "\\n");
+                        write!(
+                            f,
+                            "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"]\n",
+                            history.id, prev_idx, history.id, idx, state_diff
+                        )?;
+                        prev_idx = idx;
+                        prev_state = &program_i.state;
                     }
                 }
 
@@ -165,11 +231,12 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
                     } else {
                         let escaped_result = format!("{:?}", result)
                             .replace("\\", "\\\\")
-                            .replace("\"", "'");
+                            .replace("\"", "'")
+                            .replace("\n", "\\n");
                         write!(
                             f,
-                            " -> \"{}\"; \"{}\" [shape=box];",
-                            escaped_result, escaped_result
+                            "\"b{}p{}\" ->\"{}\"; \"{}\" [shape=box];",
+                            history.id, idx, escaped_result, escaped_result
                         )?;
                     }
                 }
@@ -183,7 +250,7 @@ impl<T: Debug, R: Debug, P: Debug> core::fmt::Display for QueryPlanLogger<'_, T,
     }
 }
 
-impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
+impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, T, R, S, P> {
     pub fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
         Self {
             sql,
@@ -210,7 +277,7 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
         self.table_info.push((parent, detail));
     }
 
-    pub fn add_result(&mut self, history: BranchHistory, result: BranchResult<R>) {
+    pub fn add_result(&mut self, history: BranchHistory<S>, result: BranchResult<R>) {
         //don't record any deduplicated branches that didn't execute any instructions
         self.results.push((history, result));
     }
@@ -252,7 +319,9 @@ impl<'q, T: Debug, R: Debug, P: Debug> QueryPlanLogger<'q, T, R, P> {
     }
 }
 
-impl<'q, T: Debug, R: Debug, P: Debug> Drop for QueryPlanLogger<'q, T, R, P> {
+impl<'q, T: Debug, R: Debug, S: Debug + DebugDiff, P: Debug> Drop
+    for QueryPlanLogger<'q, T, R, S, P>
+{
     fn drop(&mut self) {
         self.finish();
     }
