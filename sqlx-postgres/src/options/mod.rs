@@ -130,7 +130,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
@@ -196,27 +196,13 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .host("localhost");
     /// ```
     pub fn host(mut self, host: &str) -> Self {
         self.host = host.to_owned();
         self
-    }
-
-    /// Get the current host.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new()
-    ///     .host("127.0.0.1");
-    /// assert_eq!(options.get_host(), "127.0.0.1");
-    /// ```
-    pub fn get_host(&self) -> &str {
-        self.host.as_str()
     }
 
     /// Sets the port to connect to at the server host.
@@ -226,7 +212,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .port(5432);
     /// ```
@@ -252,7 +238,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("postgres");
     /// ```
@@ -266,7 +252,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("root")
     ///     .password("safe-and-secure");
@@ -281,27 +267,13 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .database("postgres");
     /// ```
     pub fn database(mut self, database: &str) -> Self {
         self.database = Some(database.to_owned());
         self
-    }
-
-    /// Get the current database name.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new()
-    ///     .database("postgres");
-    /// assert!(options.get_database().is_some());
-    /// ```
-    pub fn get_database(&self) -> Option<&str> {
-        self.database.as_deref()
     }
 
     /// Sets whether or with what priority a secure SSL TCP/IP connection will be negotiated
@@ -315,7 +287,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     .ssl_mode(PgSslMode::Require);
     /// ```
@@ -331,7 +303,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -347,7 +319,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -367,7 +339,7 @@ impl PgConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     ///
     /// const CERT: &[u8] = b"\
     /// -----BEGIN CERTIFICATE-----
@@ -389,7 +361,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -409,7 +381,7 @@ impl PgConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     ///
     /// const KEY: &[u8] = b"\
     /// -----BEGIN PRIVATE KEY-----
@@ -431,7 +403,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)
@@ -458,7 +430,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .application_name("my-app");
     /// ```
@@ -505,7 +477,7 @@ impl PgConnectOptions {
     ///
     /// ### Examples
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     ///
     /// let mut options = PgConnectOptions::new()
     ///     // for Redshift and Postgres 10
@@ -525,7 +497,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .options([("geqo", "off"), ("statement_timeout", "5min")]);
     /// ```
@@ -561,6 +533,119 @@ impl PgConnectOptions {
             }
             _ => None,
         }
+    }
+}
+
+impl PgConnectOptions {
+    /// Get the current host.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .host("127.0.0.1");
+    /// assert_eq!(options.get_host(), "127.0.0.1");
+    /// ```
+    pub fn get_host(&self) -> &str {
+        &self.host
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .port(6543);
+    /// assert_eq!(options.get_port(), 6543);
+    /// ```
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
+    /// Get the socket path.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .socket("/tmp");
+    /// assert!(options.get_socket().is_some());
+    /// ```
+    pub fn get_socket(&self) -> Option<&PathBuf> {
+        self.socket.as_ref()
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .username("foo");
+    /// assert_eq!(options.get_username(), "foo");
+    /// ```
+    pub fn get_username(&self) -> &str {
+        &self.username
+    }
+
+    /// Get the current database name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .database("postgres");
+    /// assert!(options.get_database().is_some());
+    /// ```
+    pub fn get_database(&self) -> Option<&str> {
+        self.database.as_deref()
+    }
+
+    /// Get the SSL mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::{PgConnectOptions, PgSslMode};
+    /// let options = PgConnectOptions::new();
+    /// assert!(matches!(options.get_ssl_mode(), PgSslMode::Prefer));
+    /// ```
+    pub fn get_ssl_mode(&self) -> PgSslMode {
+        self.ssl_mode
+    }
+
+    /// Get the application name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .application_name("service");
+    /// assert!(options.get_application_name().is_some());
+    /// ```
+    pub fn get_application_name(&self) -> Option<&str> {
+        self.application_name.as_deref()
+    }
+
+    /// Get the options.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .options([("foo", "bar")]);
+    /// assert!(options.get_options().is_some());
+    /// ```
+    pub fn get_options(&self) -> Option<&str> {
+        self.options.as_deref()
     }
 }
 
