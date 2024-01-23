@@ -174,7 +174,7 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
-tempdir = "0.3.7"
+tempfile = "3.9.0"
 criterion = {version = "0.4", features = ["async_tokio"]}
 
 # Needed to test SQLCipher
