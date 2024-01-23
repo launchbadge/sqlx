@@ -12,7 +12,7 @@ use crate::executor::{Execute, Executor};
 use crate::statement::Statement;
 use crate::types::Type;
 
-/// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
+/// A single SQL query as a prepared statement. Returned by [`query()`].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
     pub(crate) statement: Either<&'q str, &'q <DB as HasStatement<'q>>::Statement>,
@@ -21,7 +21,9 @@ pub struct Query<'q, DB: Database, A> {
     pub(crate) persistent: bool,
 }
 
-/// SQL query that will map its results to owned Rust types.
+/// A single SQL query that will map its results to an owned Rust type.
+///
+/// Executes as a prepared statement.
 ///
 /// Returned by [`Query::try_map`], `query!()`, etc. Has most of the same methods as [`Query`] but
 /// the return types are changed to reflect the mapping. However, there is no equivalent of
@@ -96,6 +98,8 @@ where
     /// matching the one with the flag will use the cached statement until the
     /// cache is cleared.
     ///
+    /// If `false`, the prepared statement will be closed after execution.
+    ///
     /// Default: `true`.
     pub fn persistent(mut self, value: bool) -> Self {
         self.persistent = value;
@@ -155,6 +159,7 @@ where
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
     #[inline]
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
     pub async fn execute_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -178,9 +183,13 @@ where
         executor.fetch(self)
     }
 
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
+    /// Execute multiple queries and return the generated results as a stream.
+    ///
+    /// For each query in the stream, any generated rows are returned first,
+    /// then the `QueryResult` with the number of rows affected.
     #[inline]
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
+    // TODO: we'll probably still want a way to get the `DB::QueryResult` at the end of a `fetch()` stream.
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -193,7 +202,13 @@ where
         executor.fetch_many(self)
     }
 
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    /// Execute the query and return all the resulting rows collected into a [`Vec`].
+    ///
+    /// ### Note: beware result set size.
+    /// This will attempt to collect the full result set of the query into memory.
+    ///
+    /// To avoid exhausting available memory, ensure the result set has a known upper bound,
+    /// e.g. using `LIMIT`.
     #[inline]
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
     where
@@ -204,7 +219,18 @@ where
         executor.fetch_all(self).await
     }
 
-    /// Execute the query and returns exactly one row.
+    /// Execute the query, returning the first row or [`Error::RowNotFound`] otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
     where
@@ -215,7 +241,18 @@ where
         executor.fetch_one(self).await
     }
 
-    /// Execute the query and returns at most one row.
+    /// Execute the query, returning the first row or `None` otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
     where
@@ -307,6 +344,9 @@ where
         F: 'e,
         O: 'e,
     {
+        // FIXME: this should have used `executor.fetch()` but that's a breaking change
+        // because this technically allows multiple statements in one query string.
+        #[allow(deprecated)]
         self.fetch_many(executor)
             .try_filter_map(|step| async move {
                 Ok(match step {
@@ -319,6 +359,7 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
     pub fn fetch_many<'e, 'c: 'e, E>(
         mut self,
         executor: E,
@@ -346,7 +387,13 @@ where
         })
     }
 
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    /// Execute the query and return all the resulting rows collected into a [`Vec`].
+    ///
+    /// ### Note: beware result set size.
+    /// This will attempt to collect the full result set of the query into memory.
+    ///
+    /// To avoid exhausting available memory, ensure the result set has a known upper bound,
+    /// e.g. using `LIMIT`.
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
@@ -358,7 +405,18 @@ where
         self.fetch(executor).try_collect().await
     }
 
-    /// Execute the query and returns exactly one row.
+    /// Execute the query, returning the first row or [`Error::RowNotFound`] otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
@@ -375,7 +433,18 @@ where
             .await
     }
 
-    /// Execute the query and returns at most one row.
+    /// Execute the query, returning the first row or `None` otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
     pub async fn fetch_optional<'e, 'c: 'e, E>(mut self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
@@ -394,7 +463,7 @@ where
     }
 }
 
-// Make a SQL query from a statement.
+/// Execute a single SQL query as a prepared statement (explicitly created).
 pub fn query_statement<'q, DB>(
     statement: &'q <DB as HasStatement<'q>>::Statement,
 ) -> Query<'q, DB, <DB as HasArguments<'_>>::Arguments>
@@ -409,7 +478,7 @@ where
     }
 }
 
-// Make a SQL query from a statement, with the given arguments.
+/// Execute a single SQL query as a prepared statement (explicitly created), with the given arguments.
 pub fn query_statement_with<'q, DB, A>(
     statement: &'q <DB as HasStatement<'q>>::Statement,
     arguments: A,
@@ -426,7 +495,129 @@ where
     }
 }
 
-/// Make a SQL query.
+/// Execute a single SQL query as a prepared statement (transparently cached).
+///
+/// The query string may only contain a single DML statement: `SELECT`, `INSERT`, `UPDATE`, `DELETE` and variants.
+/// The SQLite driver does not currently follow this restriction, but that behavior is deprecated.
+///
+/// The connection will transparently prepare and cache the statement, which means it only needs to be parsed once
+/// in the connection's lifetime, and any generated query plans can be retained.
+/// Thus, the overhead of executing the statement is amortized.
+///
+/// Some third-party databases that speak a supported protocol, e.g. CockroachDB or PGBouncer that speak Postgres,
+/// may have issues with the transparent caching of prepared statements. If you are having trouble,
+/// try setting [`.persistent(false)`][Query::persistent].
+///
+/// See the [`Query`] type for the methods you may call.
+///
+/// ### Dynamic Input: Use Query Parameters (Prevents SQL Injection)
+/// At some point, you'll likely want to include some form of dynamic input in your query, possibly from the user.
+///
+/// Your first instinct might be to do something like this:
+/// ```rust,no_run
+/// # async fn example() -> sqlx::Result<()> {
+/// # let mut conn: sqlx::PgConnection = unimplemented!();
+/// // Imagine this is input from the user, e.g. a search form on a website.
+/// let user_input = "possibly untrustworthy input!";
+///
+/// // DO NOT DO THIS unless you're ABSOLUTELY CERTAIN it's what you need!
+/// let query = format!("SELECT * FROM articles WHERE content LIKE '%{user_input}%'");
+/// // where `conn` is `PgConnection` or `MySqlConnection`
+/// // or some other type that implements `Executor`.
+/// let results = sqlx::query(&query).fetch_all(&mut conn).await?;
+/// # }
+/// ```
+///
+/// The example above showcases a **SQL injection vulnerability**, because it's trivial for a malicious user to craft
+/// an input that can "break out" of the string literal.
+///
+/// For example, if they send the input `foo'; DELETE FROM articles; --`
+/// then your application would send the following to the database server (line breaks added for clarity):
+///
+/// ```sql
+/// SELECT * FROM articles WHERE content LIKE '%foo';
+/// DELETE FROM articles;
+/// --%'
+/// ```
+///
+/// In this case, because this interface *always* uses prepared statements, you would likely be fine because prepared
+/// statements _generally_ (see above) are only allowed to contain a single query. This would simply return an error.
+///
+/// However, it would also break on legitimate user input.
+/// What if someone wanted to search for the string `Alice's Apples`? It would also return an error because
+/// the database would receive a query with a broken string literal (line breaks added for clarity):
+///
+/// ```sql
+/// SELECT * FROM articles WHERE content LIKE '%Alice'
+/// s Apples%'
+/// ```
+///
+/// Of course, it's possible to make this syntactically valid by escaping the apostrophe, but there's a better way.
+///
+/// ##### You should always prefer query parameters for dynamic input.
+///
+/// When using query parameters, you add placeholders to your query where a value
+/// should be substituted at execution time, then call [`.bind()`][Query::bind] with that value.
+///
+/// The syntax for placeholders is unfortunately not standardized and depends on the database:
+///
+/// * Postgres and SQLite: use `$1`, `$2`, `$3`, etc.
+///     * The number is the Nth bound value, starting from one.
+///     * The same placeholder can be used arbitrarily many times to refer to the same bound value.
+///     * SQLite technically supports MySQL's syntax as well as others, but we recommend using this syntax
+///       as SQLx's SQLite driver is written with it in mind.
+/// * MySQL and MariaDB: use `?`.
+///     * Placeholders are purely positional, similar to `println!("{}, {}", foo, bar)`.
+///     * The order of bindings must match the order of placeholders in the query.
+///     * To use a value in multiple places, you must bind it multiple times.
+///
+/// In both cases, the placeholder syntax acts as a variable expression representing the bound value:
+///
+/// ```rust,no_run
+/// # async fn example2() -> sqlx::Result<()> {
+/// # let mut conn: sqlx::PgConnection = unimplemented!();
+/// let user_input = "Alice's Apples";
+///
+/// // Postgres and SQLite
+/// let results = sqlx::query(
+///     // Notice how we only have to bind the argument once and we can use it multiple times:
+///     "SELECT * FROM articles
+///      WHERE title LIKE '%' || $1 || '%'
+///      OR content LIKE '%' || $1 || '%'"
+/// )
+///     .bind(user_input)
+///     .fetch_all(&mut conn)
+///     .await?;
+///
+/// // MySQL and MariaDB
+/// let results = sqlx::query(
+///     "SELECT * FROM articles
+///      WHERE title LIKE CONCAT('%', ?, '%')
+///      OR content LIKE CONCAT('%', ?, '%')"
+/// )
+///     // If we want to reference the same value multiple times, we have to bind it multiple times:
+///     .bind(user_input)
+///     .bind(user_input)
+///     .fetch_all(&mut conn)
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+/// ##### The value bound to a query parameter is entirely separate from the query and does not affect its syntax.
+/// Thus, SQL injection is impossible (barring shenanigans like calling a SQL function that lets you execute a string
+/// as a statement) and *all* strings are valid.
+///
+/// This also means you cannot use query parameters to add conditional SQL fragments.
+///
+/// **SQLx does not substitute placeholders on the client side**. It is done by the database server itself.
+///
+/// ##### SQLx supports many different types for parameter binding, not just strings.
+/// Any type that implements [`Encode<DB>`][Encode] and [`Type<DB>`] can be bound as a parameter.
+///
+/// See [the `types` module][crate::types] (links to `sqlx_core::types` but you should use `sqlx::types`) for details.
+///
+/// As an additional benefit, query parameters are usually sent in a compact binary encoding instead of a human-readable
+/// text encoding, which saves bandwidth.
 pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as HasArguments<'_>>::Arguments>
 where
     DB: Database,
@@ -439,7 +630,9 @@ where
     }
 }
 
-/// Make a SQL query, with the given arguments.
+/// Execute a SQL query as a prepared statement (transparently cached), with the given arguments.
+///
+/// See [`query()`][query] for details, such as supported syntax.
 pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
 where
     DB: Database,

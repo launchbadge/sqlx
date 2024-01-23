@@ -49,7 +49,8 @@ async fn it_pings() -> anyhow::Result<()> {
 async fn it_pings_after_suspended_query() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    conn.execute("create temporary table processed_row(val int4 primary key)")
+    sqlx::raw_sql("create temporary table processed_row(val int4 primary key)")
+        .execute(&mut conn)
         .await?;
 
     // This query wants to return 50 rows but we only read the first one.
