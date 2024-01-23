@@ -1,0 +1,66 @@
+[advisories]
+ignore = [
+    # No upgrade available for rsa 0.9.4, a direct dependency of sqlx-mysql
+    "RUSTSEC-2023-0071",
+]
+version = 2
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+confidence-threshold = 0.9
+version = 2
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[bans]
+allow = []
+deny = []
+multiple-versions = "deny"
+skip = [
+    # async-std 1.12 uses two versions - this older version directly, and a newer verison transitively.
+    { name = "async-channel", version = "=1.9.0" },
+    # sqlx-core uses an older version of rustls-pemfile, which uses this older version
+    { name = "base64", version = "=0.21.7" },
+    # async-global-executor transitively depends on two different versions of this crate
+    { name = "event-listener", version = "^4.0.0" },
+    # async-global-executor transitively depends on two different versions of this crate
+    { name = "event-listener-strategy", version = "=0.4.0" },
+    # native-tls 0.2.11 has this older version as a transitive dependency
+    { name = "spin", version = "=0.5.2" },
+    # async-std depends on this older version
+    { name = "syn", version = "<2" },
+]
+skip-tree = [
+    # async-std 1.12 uses two versions - this older version directly, and a newer version transitively.
+    { name = "async-io", version = "=1.13.0" },
+]
+
+wildcards = "deny"
+
+[sources]
+allow-git = []
+allow-registry = [
+    "https://github.com/rust-lang/crates.io-index"
+]
+unknown-git = "deny"
+unknown-registry = "deny"
+
+[sources.allow-org]
+bitbucket = []
+github = []
+gitlab = []

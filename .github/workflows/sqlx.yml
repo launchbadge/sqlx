@@ -8,6 +8,13 @@ on:
       - '*-dev'
 
 jobs:
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
   format:
     name: Format
     runs-on: ubuntu-22.04
