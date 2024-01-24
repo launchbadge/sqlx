@@ -17,6 +17,7 @@
 //! | `f64`                                 | DOUBLE                                               |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR, TEXT                                  |
 //! | `&[u8]`, `Vec<u8>`                    | VARBINARY, BINARY, BLOB                              |
+//! | `IpAddr`, `Ipv4Addr`, `Ipv6Addr`      | VARCHAR, TEXT                                        |
 //!
 //! ##### Note: `BOOLEAN`/`BOOL` Type
 //! MySQL and MariaDB treat `BOOLEAN` as an alias of the `TINYINT` type:
