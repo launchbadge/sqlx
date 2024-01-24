@@ -102,6 +102,7 @@ pub(crate) use sqlx_core::types::*;
 mod bool;
 mod bytes;
 mod float;
+mod inet;
 mod int;
 mod str;
 mod text;
