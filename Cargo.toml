@@ -175,7 +175,7 @@ rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempfile = "3.9.0"
-criterion = {version = "0.4", features = ["async_tokio"]}
+criterion = { version = "0.5.1", features = ["async_tokio"] }
 
 # Needed to test SQLCipher
 libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
