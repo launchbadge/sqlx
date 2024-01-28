@@ -24,6 +24,7 @@ pub(crate) mod establish;
 pub(crate) mod execute;
 mod executor;
 mod explain;
+pub(crate) mod function;
 mod handle;
 
 mod worker;
@@ -221,6 +222,12 @@ impl LockedSqliteHandle<'_> {
         compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
     ) -> Result<(), Error> {
         collation::create_collation(&mut self.guard.handle, name, compare)
+    }
+
+    /// Create a user-defined function.
+    /// See [`SqliteConnectOptions::create_function()`] for details.
+    pub fn create_function(&mut self, function: function::Function) -> Result<(), Error> {
+        function.create(&mut self.guard.handle)
     }
 }
 

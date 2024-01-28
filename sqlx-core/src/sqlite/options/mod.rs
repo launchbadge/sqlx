@@ -18,6 +18,7 @@ pub use synchronous::SqliteSynchronous;
 
 use crate::common::DebugFn;
 use crate::sqlite::connection::collation::Collation;
+use crate::sqlite::connection::function::Function;
 use indexmap::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
@@ -76,6 +77,7 @@ pub struct SqliteConnectOptions {
     pub(crate) row_channel_size: usize,
 
     pub(crate) collations: Vec<Collation>,
+    pub(crate) functions: Vec<Function>,
 
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
@@ -181,6 +183,7 @@ impl SqliteConnectOptions {
             pragmas,
             extensions: Default::default(),
             collations: Default::default(),
+            functions: Default::default(),
             serialized: false,
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
             command_channel_size: 50,
@@ -339,6 +342,39 @@ impl SqliteConnectOptions {
         F: Fn(&str, &str) -> Ordering + Send + Sync + 'static,
     {
         self.collations.push(Collation::new(name, collate));
+        self
+    }
+
+    /// Add a custom function for use in SQL statements.
+    /// If a function with the same name already exists, it will be replaced.
+    /// See [`sqlite3_create_function_v2()`](https://www.sqlite.org/c3ref/create_function.html) for details.
+    ///
+    /// ### Example
+    ///
+    /// #### Unicode handling
+    ///
+    /// By default, SQLite does not handle unicode in functions like `lower` or `upper`.
+    /// To prevent binary bloat, it advises application developers to implement their own
+    /// unicode-aware functions.
+    ///
+    /// This is how you would implement a unicode-aware `lower` function:
+    ///
+    /// ```rust
+    /// # use sqlx_core_oldapi::error::Error;
+    /// use std::str::FromStr;
+    /// use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection, SqliteFunctionCtx, Function};
+    /// # fn options() -> Result<SqliteConnectOptions, Error> {
+    /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
+    ///    .function(Function::new("lower", |ctx: &SqliteFunctionCtx| {
+    ///        let s = ctx.get_arg::<String>(0);
+    ///        let result = s.to_lowercase();
+    ///        ctx.set_result(result);
+    ///     }).deterministic());
+    /// # Ok(options)
+    /// # }
+    ///
+    pub fn function(mut self, func: Function) -> Self {
+        self.functions.push(func);
         self
     }
 

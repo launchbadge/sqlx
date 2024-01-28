@@ -7,6 +7,7 @@
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use column::SqliteColumn;
+pub use connection::function::{Function, SqliteFunctionCtx};
 pub use connection::{LockedSqliteHandle, SqliteConnection};
 pub use database::Sqlite;
 pub use error::SqliteError;
