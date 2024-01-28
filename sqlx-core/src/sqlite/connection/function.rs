@@ -5,19 +5,18 @@ use std::sync::Arc;
 use libsqlite3_sys::{
     sqlite3_context, sqlite3_create_function_v2, sqlite3_result_blob, sqlite3_result_double,
     sqlite3_result_error, sqlite3_result_int, sqlite3_result_int64, sqlite3_result_null,
-    sqlite3_result_text, sqlite3_user_data, sqlite3_value,
-    sqlite3_value_type, SQLITE_DETERMINISTIC, SQLITE_DIRECTONLY, SQLITE_OK,
-    SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_result_text, sqlite3_user_data, sqlite3_value, sqlite3_value_type,
+    SQLITE_DETERMINISTIC, SQLITE_DIRECTONLY, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::{BoxDynError, Error};
 use crate::sqlite::type_info::DataType;
+use crate::sqlite::Sqlite;
 use crate::sqlite::SqliteArgumentValue;
 use crate::sqlite::SqliteTypeInfo;
 use crate::sqlite::SqliteValue;
-use crate::sqlite::Sqlite;
 use crate::sqlite::{connection::handle::ConnectionHandle, SqliteError};
 use crate::value::Value;
 
@@ -66,7 +65,10 @@ impl SqliteFunctionCtx {
 
     /// Returns the argument at the given index, or `None` if the argument number is out of bounds or
     /// the argument cannot be decoded as the requested type.
-    pub fn try_get_arg<'q, T: Decode<'q, Sqlite>>(&'q self, index: usize) -> Result<T, BoxDynError> {
+    pub fn try_get_arg<'q, T: Decode<'q, Sqlite>>(
+        &'q self,
+        index: usize,
+    ) -> Result<T, BoxDynError> {
         if let Some(value) = self.argument_values.get(index) {
             let value_ref = value.as_ref();
             T::decode(value_ref)

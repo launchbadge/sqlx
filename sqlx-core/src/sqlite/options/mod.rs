@@ -348,17 +348,17 @@ impl SqliteConnectOptions {
     /// Add a custom function for use in SQL statements.
     /// If a function with the same name already exists, it will be replaced.
     /// See [`sqlite3_create_function_v2()`](https://www.sqlite.org/c3ref/create_function.html) for details.
-    /// 
+    ///
     /// ### Example
-    /// 
+    ///
     /// #### Unicode handling
-    /// 
+    ///
     /// By default, SQLite does not handle unicode in functions like `lower` or `upper`.
     /// To prevent binary bloat, it advises application developers to implement their own
     /// unicode-aware functions.
-    /// 
+    ///
     /// This is how you would implement a unicode-aware `lower` function:
-    /// 
+    ///
     /// ```rust
     /// # use sqlx_core_oldapi::error::Error;
     /// use std::str::FromStr;
@@ -368,7 +368,7 @@ impl SqliteConnectOptions {
     ///    .function(Function::new("lower", |s: &str| s.to_lowercase()).deterministic());
     /// # Ok(options)
     /// # }
-    /// 
+    ///
     pub fn function<F>(mut self, func: Function) -> Self {
         self.functions.push(func);
         self

@@ -19,12 +19,12 @@ use crate::sqlite::{Sqlite, SqliteConnectOptions};
 use crate::transaction::Transaction;
 
 pub(crate) mod collation;
-pub(crate) mod function;
 pub(crate) mod describe;
 pub(crate) mod establish;
 pub(crate) mod execute;
 mod executor;
 mod explain;
+pub(crate) mod function;
 mod handle;
 
 mod worker;
