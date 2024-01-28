@@ -362,10 +362,14 @@ impl SqliteConnectOptions {
     /// ```rust
     /// # use sqlx_core_oldapi::error::Error;
     /// use std::str::FromStr;
-    /// use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
+    /// use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection, SqliteFunctionCtx};
     /// # fn options() -> Result<SqliteConnectOptions, Error> {
     /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
-    ///    .function(Function::new("lower", |s: &str| s.to_lowercase()).deterministic());
+    ///    .function(Function::new("lower", |ctx: &SqliteFunctionCtx| {
+    ///        let s = ctx.get_arg::<String>(0);
+    ///        let result = s.to_lowercase();
+    ///        ctx.set_result(result);
+    ///     }).deterministic());
     /// # Ok(options)
     /// # }
     ///
