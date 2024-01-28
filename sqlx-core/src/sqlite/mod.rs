@@ -20,6 +20,7 @@ use std::sync::atomic::AtomicBool;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
+pub use connection::function::{Function, SqliteFunctionCtx};
 
 use crate::describe::Describe;
 use crate::error::Error;

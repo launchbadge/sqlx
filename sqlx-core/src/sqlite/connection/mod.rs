@@ -19,6 +19,7 @@ use crate::sqlite::{Sqlite, SqliteConnectOptions};
 use crate::transaction::Transaction;
 
 pub(crate) mod collation;
+pub(crate) mod function;
 pub(crate) mod describe;
 pub(crate) mod establish;
 pub(crate) mod execute;
@@ -221,6 +222,12 @@ impl LockedSqliteHandle<'_> {
         compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
     ) -> Result<(), Error> {
         collation::create_collation(&mut self.guard.handle, name, compare)
+    }
+
+    /// Create a user-defined function.
+    /// See [`SqliteConnectOptions::create_function()`] for details.
+    pub fn create_function(&mut self, function: function::Function) -> Result<(), Error> {
+        function.create(&mut self.guard.handle)
     }
 }
 

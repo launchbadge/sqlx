@@ -460,6 +460,46 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
 }
 
 #[sqlx_macros::test]
+async fn it_supports_my_sum_function() -> anyhow::Result<()> {
+    use sqlx_oldapi::sqlite::{Function, SqliteFunctionCtx};
+    let mut conn = new::<Sqlite>().await?;
+    {
+        let mut handle = conn.lock_handle().await?;
+        handle.create_function(Function::new("my_sum", |ctx: &SqliteFunctionCtx| {
+            ctx.set_result(ctx.get_arg::<i32>(0) + ctx.get_arg::<i32>(1))
+        }))?;
+    }
+
+    let row: SqliteRow = conn.fetch_one("SELECT my_sum(2,3)").await?;
+    let name: i32 = row.try_get(0)?;
+    assert_eq!(name, 5);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_supports_upper_function() -> anyhow::Result<()> {
+    use sqlx_oldapi::sqlite::{Function, SqliteFunctionCtx};
+    let mut conn = new::<Sqlite>().await?;
+    {
+        let mut handle = conn.lock_handle().await?;
+        handle.create_function(
+            Function::new("upper", |ctx: &SqliteFunctionCtx| {
+                let original = ctx.get_arg::<String>(0);
+                let uppercased = original.to_uppercase();
+                ctx.set_result(uppercased)
+            })
+            .deterministic()
+            .direct_only(),
+        )?;
+    }
+
+    let row: SqliteRow = conn.fetch_one("SELECT upper('héhé')").await?;
+    let name: String = row.try_get(0)?;
+    assert_eq!(name, "HÉHÉ");
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
