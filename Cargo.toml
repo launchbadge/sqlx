@@ -148,7 +148,7 @@ rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher-vendored-openssl"] }
+libsqlite3-sys = { version = "0.28", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 #
 # Any

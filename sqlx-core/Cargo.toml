@@ -129,7 +129,7 @@ itoa = "1.0.1"
 ipnetwork = { version = "0.20.0", default-features = false, optional = true }
 mac_address = { version = "1.1.2", default-features = false, optional = true }
 libc = "0.2.112"
-libsqlite3-sys = { version = "0.27.0", optional = true, default-features = false, features = [
+libsqlite3-sys = { version = "0.28.0", optional = true, default-features = false, features = [
     "pkg-config",
     "vcpkg",
     "bundled",
