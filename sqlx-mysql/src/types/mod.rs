@@ -1,8 +1,8 @@
-//! Conversions between Rust and **MySQL** types.
+//! Conversions between Rust and **MySQL/MariaDB** types.
 //!
 //! # Types
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bool`                                | TINYINT(1), BOOLEAN, BOOL (see below)                |
 //! | `i8`                                  | TINYINT                                              |
@@ -17,7 +17,9 @@
 //! | `f64`                                 | DOUBLE                                               |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR, TEXT                                  |
 //! | `&[u8]`, `Vec<u8>`                    | VARBINARY, BINARY, BLOB                              |
-//! | `IpAddr`, `Ipv4Addr`, `Ipv6Addr`      | VARCHAR, TEXT                                        |
+//! | `IpAddr`                              | VARCHAR, TEXT                                        |
+//! | `Ipv4Addr`                            | INET4 (MariaDB-only), VARCHAR, TEXT                  |
+//! | `Ipv6Addr`                            | INET6 (MariaDB-only), VARCHAR, TEXT                  |
 //!
 //! ##### Note: `BOOLEAN`/`BOOL` Type
 //! MySQL and MariaDB treat `BOOLEAN` as an alias of the `TINYINT` type:
@@ -40,7 +42,7 @@
 //!
 //! Requires the `chrono` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `chrono::DateTime<Utc>`               | TIMESTAMP                                            |
 //! | `chrono::DateTime<Local>`             | TIMESTAMP                                            |
@@ -52,7 +54,7 @@
 //!
 //! Requires the `time` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `time::PrimitiveDateTime`             | DATETIME                                             |
 //! | `time::OffsetDateTime`                | TIMESTAMP                                            |
@@ -62,14 +64,14 @@
 //! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
 //! Requires the `bigdecimal` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
 //!
 //! ### [`decimal`](https://crates.io/crates/rust_decimal)
 //! Requires the `decimal` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | DECIMAL                                              |
 //!
@@ -77,17 +79,17 @@
 //!
 //! Requires the `uuid` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BINARY(16), VARCHAR, CHAR, TEXT                      |
-//! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
+//! | `uuid::fmt::Hyphenated`               | CHAR(36), UUID (MariaDB-only)                        |
 //! | `uuid::fmt::Simple`                   | CHAR(32)                                             |
 //!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
 //! Requires the `json` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | [`Json<T>`]                           | JSON                                                 |
 //! | `serde_json::JsonValue`               | JSON                                                 |
@@ -96,7 +98,7 @@
 //! # Nullable
 //!
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
-//! a potentially `NULL` value from MySQL.
+//! a potentially `NULL` value from MySQL/MariaDB.
 
 pub(crate) use sqlx_core::types::*;
 
