@@ -1,6 +1,8 @@
+use crate::connection::intmap::IntMap;
 use sqlx_core::{connection::LogSettings, logger};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Debug;
+use std::hash::Hash;
 
 pub(crate) use sqlx_core::logger::*;
 
@@ -17,15 +19,8 @@ pub(crate) enum BranchResult<R: Debug + 'static> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub(crate) struct BranchParent {
-    pub id: usize,
-    pub idx: usize,
-}
-
-#[derive(Debug)]
-pub(crate) struct BranchHistory<S: Debug + DebugDiff> {
-    pub id: usize,
-    pub parent: Option<BranchParent>,
-    pub program_i: Vec<InstructionHistory<S>>,
+    pub id: i64,
+    pub idx: i64,
 }
 
 #[derive(Debug)]
@@ -41,7 +36,9 @@ pub(crate) trait DebugDiff {
 pub struct QueryPlanLogger<'q, R: Debug + 'static, S: Debug + DebugDiff + 'static, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<usize>,
-    results: Vec<(BranchHistory<S>, BranchResult<R>)>,
+    branch_origins: IntMap<BranchParent>,
+    branch_results: IntMap<BranchResult<R>>,
+    branch_operations: IntMap<IntMap<InstructionHistory<S>>>,
     program: &'q [P],
     settings: LogSettings,
 }
@@ -54,34 +51,26 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
         f.write_str("subgraph operations {\n")?;
         f.write_str("style=\"rounded\";\nnode [shape=\"point\"];\n")?;
 
-        //using BTreeMap for predictable ordering
-        let mut instruction_uses: BTreeMap<usize, Vec<BranchParent>> = Default::default();
-
-        for (history, _) in self.results.iter() {
-            for (idx, program_i) in history.program_i.iter().enumerate() {
-                let references = instruction_uses.entry(program_i.program_i).or_default();
-                references.push(BranchParent {
-                    id: history.id,
-                    idx,
-                });
-            }
-        }
-
-        let all_states: std::collections::HashMap<BranchParent, &S> = self
-            .results
-            .iter()
-            .flat_map(|(history, _)| {
-                history.program_i.iter().enumerate().map(|(idx, i)| {
-                    (
-                        BranchParent {
-                            id: history.id,
-                            idx,
+        let all_states: std::collections::HashMap<BranchParent, &InstructionHistory<S>> = self
+            .branch_operations
+            .iter_entries()
+            .flat_map(
+                |(branch_id, instructions): (i64, &IntMap<InstructionHistory<S>>)| {
+                    instructions.iter_entries().map(
+                        move |(idx, ih): (i64, &InstructionHistory<S>)| {
+                            (BranchParent { id: branch_id, idx }, ih)
                         },
-                        &i.state,
                     )
-                })
-            })
+                },
+            )
             .collect();
+
+        //using BTreeMap for predictable ordering
+        let mut instruction_uses: IntMap<Vec<BranchParent>> = Default::default();
+        for (k, state) in all_states.iter() {
+            let entry = instruction_uses.get_mut_or_default(&(state.program_i as i64));
+            entry.push(k.clone());
+        }
 
         for (idx, instruction) in self.program.iter().enumerate() {
             let escaped_instruction = format!("{:?}", instruction)
@@ -100,7 +89,11 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
             f.write_str(";\n")?;
 
-            for reference in instruction_uses.entry(idx).or_default().iter() {
+            for reference in instruction_uses
+                .get(&(idx as i64))
+                .unwrap_or(&Vec::new())
+                .iter()
+            {
                 write!(f, "\"b{}p{}\";", reference.id, reference.idx)?;
             }
 
@@ -109,11 +102,20 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
         f.write_str("};\n")?; //subgraph operations
 
+        let max_branch_id: i64 = [
+            self.branch_operations.last_index().unwrap_or(0),
+            self.branch_results.last_index().unwrap_or(0),
+            self.branch_results.last_index().unwrap_or(0),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(0);
+
         f.write_str("subgraph branches {\n")?;
+        for branch_id in 0..=max_branch_id {
+            write!(f, "subgraph b{}{{", branch_id)?;
 
-        for (result_idx, (history, result)) in self.results.iter().enumerate() {
-            f.write_str("subgraph {")?;
-
+            let branch_num = branch_id as usize;
             let color_names = [
                 "blue",
                 "red",
@@ -128,8 +130,8 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 "olivedrab",
                 "pink",
             ];
-            let color_name_root = color_names[result_idx % color_names.len()];
-            let color_name_suffix = match (result_idx / color_names.len()) % 4 {
+            let color_name_root = color_names[branch_num % color_names.len()];
+            let color_name_suffix = match (branch_num / color_names.len()) % 4 {
                 0 => "1",
                 1 => "4",
                 2 => "3",
@@ -142,67 +144,56 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 color_name_root, color_name_suffix
             )?;
 
-            if history.program_i.len() > 0 {
-                let mut program_iter = history.program_i.iter().enumerate();
+            let mut instruction_list: Vec<(BranchParent, &InstructionHistory<S>)> = Vec::new();
+            if let Some(parent) = self.branch_origins.get(&branch_id) {
+                if let Some(parent_state) = all_states.get(parent) {
+                    instruction_list.push((parent.clone(), parent_state));
+                } else {
+                    dbg!("no state for parent", parent);
+                }
+            }
+            if let Some(instructions) = self.branch_operations.get(&branch_id) {
+                for instruction in instructions.iter_entries() {
+                    instruction_list.push((
+                        BranchParent {
+                            id: branch_id,
+                            idx: instruction.0,
+                        },
+                        instruction.1,
+                    ))
+                }
+            }
 
-                if let Some((idx, program_i)) = program_iter.next() {
-                    //draw edge from the origin of this branch
-                    if let Some(BranchParent {
-                        idx: parent_idx,
-                        id: parent_id,
-                    }) = history.parent
-                    {
-                        let state_diff = match all_states.get(&BranchParent {
-                            idx: parent_idx,
-                            id: parent_id,
-                        }) {
-                            Some(prev_state) => program_i
-                                .state
-                                .diff(prev_state)
-                                .replace("\\", "\\\\")
-                                .replace("\"", "'")
-                                .replace("\n", "\\n"),
-                            None => String::new(),
-                        };
+            let mut instructions_iter = instruction_list.into_iter();
 
-                        write!(
-                            f,
-                            "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"];\n",
-                            parent_id, parent_idx, history.id, idx, state_diff
-                        )?;
-                    }
-                    //draw edges for each of the operations
-                    let mut prev_idx = idx;
-                    let mut prev_state = &program_i.state;
-                    while let Some((idx, program_i)) = program_iter.next() {
-                        let state_diff = program_i
-                            .state
-                            .diff(prev_state)
-                            .replace("\\", "\\\\")
-                            .replace("\"", "'")
-                            .replace("\n", "\\n");
-                        write!(
-                            f,
-                            "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"]\n",
-                            history.id, prev_idx, history.id, idx, state_diff
-                        )?;
-                        prev_idx = idx;
-                        prev_state = &program_i.state;
-                    }
+            if let Some((cur_ref, cur_instruction)) = instructions_iter.next() {
+                let mut prev_ref = cur_ref;
+                let mut prev_instruction = cur_instruction;
+
+                while let Some((cur_ref, cur_instruction)) = instructions_iter.next() {
+                    let state_diff = cur_instruction
+                        .state
+                        .diff(&prev_instruction.state)
+                        .replace("\\", "\\\\")
+                        .replace("\"", "'")
+                        .replace("\n", "\\n");
+                    write!(
+                        f,
+                        "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"]\n",
+                        prev_ref.id, prev_ref.idx, cur_ref.id, cur_ref.idx, state_diff
+                    )?;
+
+                    prev_ref = cur_ref;
+                    prev_instruction = cur_instruction;
                 }
 
                 //draw edge to the result of this branch
-                if history.program_i.len() > 0 {
-                    let idx = history.program_i.len() - 1;
-                    if let BranchResult::Dedup(BranchParent {
-                        id: dedup_id,
-                        idx: dedup_idx,
-                    }) = result
-                    {
+                if let Some(result) = self.branch_results.get(&branch_id) {
+                    if let BranchResult::Dedup(dedup_ref) = result {
                         write!(
                             f,
                             "\"b{}p{}\"->\"b{}p{}\" [style=dotted]",
-                            history.id, idx, dedup_id, dedup_idx
+                            prev_ref.id, prev_ref.idx, dedup_ref.id, dedup_ref.idx
                         )?;
                     } else {
                         let escaped_result = format!("{:?}", result)
@@ -212,7 +203,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                         write!(
                             f,
                             "\"b{}p{}\" ->\"{}\"; \"{}\" [shape=box];",
-                            history.id, idx, escaped_result, escaped_result
+                            prev_ref.id, prev_ref.idx, escaped_result, escaped_result
                         )?;
                     }
                 }
@@ -231,7 +222,9 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         Self {
             sql,
             unknown_operations: HashSet::new(),
-            results: Vec::new(),
+            branch_origins: IntMap::new(),
+            branch_results: IntMap::new(),
+            branch_operations: IntMap::new(),
             program,
             settings,
         }
@@ -248,9 +241,33 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         }
     }
 
-    pub fn add_result(&mut self, history: BranchHistory<S>, result: BranchResult<R>) {
-        //don't record any deduplicated branches that didn't execute any instructions
-        self.results.push((history, result));
+    pub fn add_branch<I: Copy>(&mut self, state: I, parent: &BranchParent)
+    where
+        BranchParent: From<I>,
+    {
+        let branch: BranchParent = BranchParent::from(state);
+        self.branch_origins.insert(branch.id, parent.clone());
+    }
+
+    pub fn add_operation<I: Copy>(&mut self, program_i: usize, state: I)
+    where
+        BranchParent: From<I>,
+        S: From<I>,
+    {
+        let branch: BranchParent = BranchParent::from(state);
+        let state: S = S::from(state);
+        self.branch_operations
+            .get_mut_or_default(&branch.id)
+            .insert(branch.idx, InstructionHistory { program_i, state });
+    }
+
+    pub fn add_result<I>(&mut self, state: I, result: BranchResult<R>)
+    where
+        BranchParent: for<'a> From<&'a I>,
+        S: From<I>,
+    {
+        let branch: BranchParent = BranchParent::from(&state);
+        self.branch_results.insert(branch.id, result);
     }
 
     pub fn add_unknown_operation(&mut self, operation: usize) {
