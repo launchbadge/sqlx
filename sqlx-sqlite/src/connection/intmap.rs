@@ -1,10 +1,16 @@
-/// Simplistic map implementation built on a Vec of Options (index = key)
-#[derive(Debug, Clone, Eq, Default)]
-pub(crate) struct IntMap<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash>(
-    Vec<Option<V>>,
-);
+use std::{fmt::Debug, hash::Hash};
 
-impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
+/// Simplistic map implementation built on a Vec of Options (index = key)
+#[derive(Debug, Clone, Eq)]
+pub(crate) struct IntMap<V>(Vec<Option<V>>);
+
+impl<V> Default for IntMap<V> {
+    fn default() -> Self {
+        IntMap(Vec::new())
+    }
+}
+
+impl<V> IntMap<V> {
     pub(crate) fn new() -> Self {
         Self(Vec::new())
     }
@@ -17,10 +23,6 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
         idx
     }
 
-    pub(crate) fn from_dense_record(record: &Vec<V>) -> Self {
-        Self(record.iter().cloned().map(Some).collect())
-    }
-
     pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.0.iter_mut().filter_map(Option::as_mut)
     }
@@ -28,7 +30,6 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
     pub(crate) fn values(&self) -> impl Iterator<Item = &V> {
         self.0.iter().filter_map(Option::as_ref)
     }
-
     pub(crate) fn get(&self, idx: &i64) -> Option<&V> {
         let idx: usize = (*idx)
             .try_into()
@@ -72,6 +73,38 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
         self.0.iter().map(Option::as_ref)
     }
 
+    pub(crate) fn iter_entries(&self) -> impl Iterator<Item = (i64, &V)> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| v.as_ref().map(|v: &V| (i as i64, v)))
+    }
+
+    pub(crate) fn last_index(&self) -> Option<i64> {
+        self.0.iter().rposition(|v| v.is_some()).map(|i| i as i64)
+    }
+}
+
+impl<V: Default> IntMap<V> {
+    pub(crate) fn get_mut_or_default<'a>(&'a mut self, idx: &i64) -> &'a mut V {
+        let idx: usize = self.expand(*idx);
+
+        let item: &mut Option<V> = &mut self.0[idx];
+        if item.is_none() {
+            *item = Some(V::default());
+        }
+
+        return self.0[idx].as_mut().unwrap();
+    }
+}
+
+impl<V: Clone> IntMap<V> {
+    pub(crate) fn from_dense_record(record: &Vec<V>) -> Self {
+        Self(record.iter().cloned().map(Some).collect())
+    }
+}
+
+impl<V: Eq> IntMap<V> {
     /// get the additions to this intmap compared to the prev intmap
     pub(crate) fn diff<'a, 'b, 'c>(
         &'a self,
@@ -95,7 +128,7 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
     }
 }
 
-impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> std::hash::Hash for IntMap<V> {
+impl<V: Hash> Hash for IntMap<V> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for value in self.values() {
             value.hash(state);
@@ -103,7 +136,7 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> std::hash::H
     }
 }
 
-impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> PartialEq for IntMap<V> {
+impl<V: PartialEq> PartialEq for IntMap<V> {
     fn eq(&self, other: &Self) -> bool {
         if !self
             .0
@@ -124,9 +157,7 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> PartialEq fo
     }
 }
 
-impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash + Default> FromIterator<(i64, V)>
-    for IntMap<V>
-{
+impl<V: Debug> FromIterator<(i64, V)> for IntMap<V> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = (i64, V)>,

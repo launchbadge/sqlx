@@ -2,7 +2,7 @@ use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
-use crate::logger::{BranchParent, BranchResult, DebugDiff, InstructionHistory};
+use crate::logger::{BranchParent, BranchResult, DebugDiff};
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
 use sqlx_core::HashMap;
@@ -403,13 +403,13 @@ fn root_block_columns(
     return Ok(row_info);
 }
 
-struct Sequence(usize);
+struct Sequence(i64);
 
 impl Sequence {
     pub fn new() -> Self {
         Self(0)
     }
-    pub fn next(&mut self) -> usize {
+    pub fn next(&mut self) -> i64 {
         let curr = self.0;
         self.0 += 1;
         curr
@@ -420,29 +420,55 @@ impl Sequence {
 struct QueryState {
     // The number of times each instruction has been visited
     pub visited: Vec<u8>,
-    // A log of the order of execution of each instruction
-    pub history: crate::logger::BranchHistory<MemoryState>,
+    // A unique identifier of the query branch
+    pub branch_id: i64,
+    // How many instructions have been executed on this branch (NOT the same as program_i, which is the currently executing instruction of the program)
+    pub instruction_counter: i64,
+    // Parent branch this branch was forked from (if any)
+    pub branch_parent: Option<BranchParent>,
     // State of the virtual machine
     pub mem: MemoryState,
     // Results published by the execution
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
 }
 
+impl From<&QueryState> for MemoryState {
+    fn from(val: &QueryState) -> Self {
+        val.mem.clone()
+    }
+}
+
+impl From<QueryState> for MemoryState {
+    fn from(val: QueryState) -> Self {
+        val.mem
+    }
+}
+
+impl From<&QueryState> for BranchParent {
+    fn from(val: &QueryState) -> Self {
+        Self {
+            id: val.branch_id,
+            idx: val.instruction_counter,
+        }
+    }
+}
+
 impl QueryState {
     fn get_reference(&self) -> BranchParent {
         BranchParent {
-            id: self.history.id,
-            idx: Ord::max(self.history.program_i.len(), 1) - 1, //new branches create reference before they've processed their first instruction
+            id: self.branch_id,
+            idx: self.instruction_counter,
         }
     }
     fn new_branch(&self, branch_seq: &mut Sequence) -> Self {
         Self {
             visited: self.visited.clone(),
-            history: crate::logger::BranchHistory {
-                id: branch_seq.next(),
-                parent: Some(self.get_reference()),
-                program_i: Vec::new(),
-            },
+            branch_id: branch_seq.next(),
+            instruction_counter: 0,
+            branch_parent: Some(BranchParent {
+                id: self.branch_id,
+                idx: self.instruction_counter - 1, //instruction counter is incremented at the start of processing an instruction, so need to subtract 1 to get the 'current' instruction
+            }),
             mem: self.mem.clone(),
             result: self.result.clone(),
         }
@@ -507,16 +533,18 @@ impl BranchList {
         mut state: QueryState,
         logger: &mut crate::logger::QueryPlanLogger<'_, R, MemoryState, P>,
     ) {
+        logger.add_branch(&state, &state.branch_parent.unwrap());
         match self.visited_branch_state.entry(state.mem) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 //this state is not identical to another state, so it will need to be processed
-                state.mem = entry.key().clone(); //replace state.mem
+                state.mem = entry.key().clone(); //replace state.mem since .entry() moved it
                 entry.insert(state.get_reference());
                 self.states.push(state);
             }
             std::collections::hash_map::Entry::Occupied(entry) => {
                 //already saw a state identical to this one, so no point in processing it
-                logger.add_result(state.history, BranchResult::Dedup(entry.get().clone()));
+                state.mem = entry.key().clone(); //replace state.mem since .entry() moved it
+                logger.add_result(state, BranchResult::Dedup(entry.get().clone()));
             }
         }
     }
@@ -543,11 +571,9 @@ pub(super) fn explain(
     let mut branch_seq = Sequence::new();
     let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],
-        history: crate::logger::BranchHistory {
-            id: branch_seq.next(),
-            parent: None,
-            program_i: Vec::new(),
-        },
+        branch_id: branch_seq.next(),
+        branch_parent: None,
+        instruction_counter: 0,
         result: None,
         mem: MemoryState {
             program_i: 0,
@@ -563,24 +589,23 @@ pub(super) fn explain(
     while let Some(mut state) = states.pop() {
         while state.mem.program_i < program_size {
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.mem.program_i];
-            state.history.program_i.push(InstructionHistory {
-                program_i: state.mem.program_i,
-                state: state.mem.clone(),
-            });
+
+            logger.add_operation(state.mem.program_i, &state);
+            state.instruction_counter += 1;
 
             //limit the number of 'instructions' that can be evaluated
             if gas > 0 {
                 gas -= 1;
             } else {
                 if logger.log_enabled() {
-                    logger.add_result(state.history, BranchResult::GasLimit);
+                    logger.add_result(state, BranchResult::GasLimit);
                 }
                 break;
             }
 
             if state.visited[state.mem.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {
-                    logger.add_result(state.history, BranchResult::LoopLimit);
+                    logger.add_result(state, BranchResult::LoopLimit);
                 }
                 //avoid (infinite) loops by breaking if we ever hit the same instruction twice
                 break;
@@ -671,7 +696,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Branched);
+                            logger.add_result(state, BranchResult::Branched);
                         }
                         break;
                     }
@@ -723,7 +748,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Branched);
+                            logger.add_result(state, BranchResult::Branched);
                         }
                         break;
                     }
@@ -772,7 +797,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Branched);
+                            logger.add_result(state, BranchResult::Branched);
                         }
                         break;
                     }
@@ -807,14 +832,14 @@ pub(super) fn explain(
                             continue;
                         } else {
                             if logger.log_enabled() {
-                                logger.add_result(state.history, BranchResult::Branched);
+                                logger.add_result(state, BranchResult::Branched);
                             }
                             break;
                         }
                     }
 
                     if logger.log_enabled() {
-                        logger.add_result(state.history, BranchResult::Branched);
+                        logger.add_result(state, BranchResult::Branched);
                     }
                     break;
                 }
@@ -845,19 +870,19 @@ pub(super) fn explain(
                                 continue;
                             } else {
                                 if logger.log_enabled() {
-                                    logger.add_result(state.history, BranchResult::Error);
+                                    logger.add_result(state, BranchResult::Error);
                                 }
                                 break;
                             }
                         } else {
                             if logger.log_enabled() {
-                                logger.add_result(state.history, BranchResult::Error);
+                                logger.add_result(state, BranchResult::Error);
                             }
                             break;
                         }
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Error);
+                            logger.add_result(state, BranchResult::Error);
                         }
                         break;
                     }
@@ -872,7 +897,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Error);
+                            logger.add_result(state, BranchResult::Error);
                         }
                         break;
                     }
@@ -900,7 +925,7 @@ pub(super) fn explain(
                         }
                     } else {
                         if logger.log_enabled() {
-                            logger.add_result(state.history, BranchResult::Error);
+                            logger.add_result(state, BranchResult::Error);
                         }
                         break;
                     }
@@ -1402,7 +1427,7 @@ pub(super) fn explain(
 
                     if logger.log_enabled() {
                         logger.add_result(
-                            state.history,
+                            state,
                             BranchResult::Result(IntMap::from_dense_record(&result)),
                         );
                     }
@@ -1413,7 +1438,7 @@ pub(super) fn explain(
 
                 OP_HALT => {
                     if logger.log_enabled() {
-                        logger.add_result(state.history, BranchResult::Halt);
+                        logger.add_result(state, BranchResult::Halt);
                     }
                     break;
                 }
