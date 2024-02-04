@@ -73,6 +73,9 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
         let mut branch_children: std::collections::HashMap<BranchParent, Vec<BranchParent>> =
             Default::default();
+
+        let mut branched_with_state: std::collections::HashSet<BranchParent> = Default::default();
+
         for (branch_id, branch_parent) in self.branch_origins.iter_entries() {
             let entry = branch_children.entry(*branch_parent).or_default();
             entry.push(BranchParent {
@@ -98,70 +101,21 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
             f.write_str(";\n")?;
 
-            for reference in instruction_uses
+            let mut state_list: std::collections::BTreeMap<
+                String,
+                Vec<(BranchParent, Option<BranchParent>)>,
+            > = Default::default();
+
+            for curr_ref in instruction_uses
                 .get(&(idx as i64))
                 .unwrap_or(&Vec::new())
                 .iter()
             {
-                let next_ref = BranchParent {
-                    id: reference.id,
-                    idx: reference.idx + 1,
-                };
-
-                if let (Some(curr_state), Some(next_state), false) = (
-                    all_states.get(reference),
-                    all_states.get(&next_ref),
-                    branch_children.contains_key(reference),
-                ) {
-                    let state_diff = next_state
-                        .state
-                        .diff(&curr_state.state)
-                        .replace("\\", "\\\\")
-                        .replace("\"", "'")
-                        .replace("\n", "\\n");
-
-                    write!(
-                        f,
-                        "\"b{}p{}\" [label=\"{}\",shape=rectangle];",
-                        reference.id, reference.idx, state_diff
-                    )?;
-                } else {
-                    write!(f, "\"b{}p{}\" [label=\"\"];", reference.id, reference.idx)?;
-                }
-
-                if let Some(children) = branch_children.get(reference) {
-                    write!(
-                        f,
-                        "subgraph \"cluster_b{}p{}\" {{\nlabel=\"\"",
-                        reference.id, reference.idx
-                    )?;
-
-                    let curr_state = all_states[reference];
-
-                    for child in children {
-                        let child_ref = if let Some(BranchResult::Dedup(dedup_child)) =
-                            self.branch_results.get(&child.id)
-                        {
-                            dedup_child
-                        } else {
-                            child
-                        };
-
-                        let next_state = all_states[child_ref];
-
-                        let state_diff = next_state
-                            .state
-                            .diff(&curr_state.state)
-                            .replace("\\", "\\\\")
-                            .replace("\"", "'")
-                            .replace("\n", "\\n");
-
-                        write!(
-                            f,
-                            "\"b{}p{}_b{}p{}\"[label=\"{}\",shape=rectangle];",
-                            reference.id, reference.idx, child.id, child.idx, state_diff
-                        )?;
-                    }
+                if let Some(curr_state) = all_states.get(curr_ref) {
+                    let next_ref = BranchParent {
+                        id: curr_ref.id,
+                        idx: curr_ref.idx + 1,
+                    };
 
                     if let Some(next_state) = all_states.get(&next_ref) {
                         let state_diff = next_state
@@ -170,13 +124,88 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                             .replace("\\", "\\\\")
                             .replace("\"", "'")
                             .replace("\n", "\\n");
-                        write!(
-                            f,
-                            "\"b{}p{}_b{}p{}\"[label=\"{}\",shape=rectangle];",
-                            reference.id, reference.idx, next_ref.id, next_ref.idx, state_diff
-                        )?;
-                    }
 
+                        state_list
+                            .entry(state_diff)
+                            .or_default()
+                            .push((curr_ref.clone(), Some(next_ref)));
+                    } else {
+                        state_list
+                            .entry(Default::default())
+                            .or_default()
+                            .push((curr_ref.clone(), None));
+                    };
+
+                    if let Some(children) = branch_children.get(curr_ref) {
+                        for next_ref in children {
+                            if let Some(next_state) = all_states.get(&next_ref) {
+                                let state_diff = next_state
+                                    .state
+                                    .diff(&curr_state.state)
+                                    .replace("\\", "\\\\")
+                                    .replace("\"", "'")
+                                    .replace("\n", "\\n");
+
+                                if !state_diff.is_empty() {
+                                    branched_with_state.insert(next_ref.clone());
+                                }
+
+                                state_list
+                                    .entry(state_diff)
+                                    .or_default()
+                                    .push((curr_ref.clone(), Some(next_ref.clone())));
+                            }
+                        }
+                    };
+                }
+            }
+
+            for curr_ref in instruction_uses.get(&(idx as i64)).unwrap_or(&Vec::new()) {
+                if branch_children.contains_key(curr_ref) {
+                    write!(f, "\"b{}p{}\";", curr_ref.id, curr_ref.idx)?;
+                }
+            }
+
+            for (state_num, (state_diff, ref_list)) in state_list.iter().enumerate() {
+                if !state_diff.is_empty() {
+                    write!(
+                        f,
+                        "subgraph \"cluster_i{}s{}\" {{\nlabel=\"{}\"\n",
+                        idx, state_num, state_diff
+                    )?;
+                }
+
+                for (curr_ref, next_ref) in ref_list {
+                    if let Some(next_ref) = next_ref {
+                        let next_program_i = all_states
+                            .get(&next_ref)
+                            .map(|s| s.program_i.to_string())
+                            .unwrap_or_default();
+
+                        if branched_with_state.contains(next_ref) {
+                            write!(
+                                f,
+                                "\"b{}p{}_b{}p{}\"[tooltip=\"next:{}\"];",
+                                curr_ref.id,
+                                curr_ref.idx,
+                                next_ref.id,
+                                next_ref.idx,
+                                next_program_i
+                            )?;
+                            continue;
+                        } else {
+                            write!(
+                                f,
+                                "\"b{}p{}\"[tooltip=\"next:{}\"];",
+                                curr_ref.id, curr_ref.idx, next_program_i
+                            )?;
+                        }
+                    } else {
+                        write!(f, "\"b{}p{}\";", curr_ref.id, curr_ref.idx)?;
+                    }
+                }
+
+                if !state_diff.is_empty() {
                     f.write_str("}\n")?;
                 }
             }
@@ -252,7 +281,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 let mut prev_ref = cur_ref;
 
                 while let Some((cur_ref, _)) = instructions_iter.next() {
-                    if branch_children.contains_key(&prev_ref) {
+                    if branched_with_state.contains(&cur_ref) {
                         write!(
                             f,
                             "\"b{}p{}\" -> \"b{}p{}_b{}p{}\" -> \"b{}p{}\"\n",
@@ -268,7 +297,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                     } else {
                         write!(
                             f,
-                            "\"b{}p{}\" -> \"b{}p{}\"\n",
+                            "\"b{}p{}\" -> \"b{}p{}\";",
                             prev_ref.id, prev_ref.idx, cur_ref.id, cur_ref.idx
                         )?;
                     }
