@@ -30,6 +30,7 @@ impl<V> IntMap<V> {
     pub(crate) fn values(&self) -> impl Iterator<Item = &V> {
         self.0.iter().filter_map(Option::as_ref)
     }
+
     pub(crate) fn get(&self, idx: &i64) -> Option<&V> {
         let idx: usize = (*idx)
             .try_into()
