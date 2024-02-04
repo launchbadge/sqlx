@@ -17,7 +17,7 @@ pub(crate) enum BranchResult<R: Debug + 'static> {
     Branched,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Ord, PartialOrd)]
 pub(crate) struct BranchParent {
     pub id: i64,
     pub idx: i64,
@@ -65,11 +65,20 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
             )
             .collect();
 
-        //using BTreeMap for predictable ordering
         let mut instruction_uses: IntMap<Vec<BranchParent>> = Default::default();
         for (k, state) in all_states.iter() {
             let entry = instruction_uses.get_mut_or_default(&(state.program_i as i64));
             entry.push(k.clone());
+        }
+
+        let mut branch_children: std::collections::HashMap<BranchParent, Vec<BranchParent>> =
+            Default::default();
+        for (branch_id, branch_parent) in self.branch_origins.iter_entries() {
+            let entry = branch_children.entry(*branch_parent).or_default();
+            entry.push(BranchParent {
+                id: branch_id,
+                idx: 0,
+            });
         }
 
         for (idx, instruction) in self.program.iter().enumerate() {
@@ -94,7 +103,82 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 .unwrap_or(&Vec::new())
                 .iter()
             {
-                write!(f, "\"b{}p{}\";", reference.id, reference.idx)?;
+                let next_ref = BranchParent {
+                    id: reference.id,
+                    idx: reference.idx + 1,
+                };
+
+                if let (Some(curr_state), Some(next_state), false) = (
+                    all_states.get(reference),
+                    all_states.get(&next_ref),
+                    branch_children.contains_key(reference),
+                ) {
+                    let state_diff = next_state
+                        .state
+                        .diff(&curr_state.state)
+                        .replace("\\", "\\\\")
+                        .replace("\"", "'")
+                        .replace("\n", "\\n");
+
+                    write!(
+                        f,
+                        "\"b{}p{}\" [label=\"{}\",shape=rectangle];",
+                        reference.id, reference.idx, state_diff
+                    )?;
+                } else {
+                    write!(f, "\"b{}p{}\" [label=\"\"];", reference.id, reference.idx)?;
+                }
+
+                if let Some(children) = branch_children.get(reference) {
+                    write!(
+                        f,
+                        "subgraph \"cluster_b{}p{}\" {{\nlabel=\"\"",
+                        reference.id, reference.idx
+                    )?;
+
+                    let curr_state = all_states[reference];
+
+                    for child in children {
+                        let child_ref = if let Some(BranchResult::Dedup(dedup_child)) =
+                            self.branch_results.get(&child.id)
+                        {
+                            dedup_child
+                        } else {
+                            child
+                        };
+
+                        let next_state = all_states[child_ref];
+
+                        let state_diff = next_state
+                            .state
+                            .diff(&curr_state.state)
+                            .replace("\\", "\\\\")
+                            .replace("\"", "'")
+                            .replace("\n", "\\n");
+
+                        write!(
+                            f,
+                            "\"b{}p{}_b{}p{}\"[label=\"{}\",shape=rectangle];",
+                            reference.id, reference.idx, child.id, child.idx, state_diff
+                        )?;
+                    }
+
+                    if let Some(next_state) = all_states.get(&next_ref) {
+                        let state_diff = next_state
+                            .state
+                            .diff(&curr_state.state)
+                            .replace("\\", "\\\\")
+                            .replace("\"", "'")
+                            .replace("\n", "\\n");
+                        write!(
+                            f,
+                            "\"b{}p{}_b{}p{}\"[label=\"{}\",shape=rectangle];",
+                            reference.id, reference.idx, next_ref.id, next_ref.idx, state_diff
+                        )?;
+                    }
+
+                    f.write_str("}\n")?;
+                }
             }
 
             f.write_str("}\n")?;
@@ -148,8 +232,6 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
             if let Some(parent) = self.branch_origins.get(&branch_id) {
                 if let Some(parent_state) = all_states.get(parent) {
                     instruction_list.push((parent.clone(), parent_state));
-                } else {
-                    dbg!("no state for parent", parent);
                 }
             }
             if let Some(instructions) = self.branch_operations.get(&branch_id) {
@@ -166,25 +248,31 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
             let mut instructions_iter = instruction_list.into_iter();
 
-            if let Some((cur_ref, cur_instruction)) = instructions_iter.next() {
+            if let Some((cur_ref, _)) = instructions_iter.next() {
                 let mut prev_ref = cur_ref;
-                let mut prev_instruction = cur_instruction;
 
-                while let Some((cur_ref, cur_instruction)) = instructions_iter.next() {
-                    let state_diff = cur_instruction
-                        .state
-                        .diff(&prev_instruction.state)
-                        .replace("\\", "\\\\")
-                        .replace("\"", "'")
-                        .replace("\n", "\\n");
-                    write!(
-                        f,
-                        "\"b{}p{}\"-> \"b{}p{}\" [label=\"{}\"]\n",
-                        prev_ref.id, prev_ref.idx, cur_ref.id, cur_ref.idx, state_diff
-                    )?;
-
+                while let Some((cur_ref, _)) = instructions_iter.next() {
+                    if branch_children.contains_key(&prev_ref) {
+                        write!(
+                            f,
+                            "\"b{}p{}\" -> \"b{}p{}_b{}p{}\" -> \"b{}p{}\"\n",
+                            prev_ref.id,
+                            prev_ref.idx,
+                            prev_ref.id,
+                            prev_ref.idx,
+                            cur_ref.id,
+                            cur_ref.idx,
+                            cur_ref.id,
+                            cur_ref.idx
+                        )?;
+                    } else {
+                        write!(
+                            f,
+                            "\"b{}p{}\" -> \"b{}p{}\"\n",
+                            prev_ref.id, prev_ref.idx, cur_ref.id, cur_ref.idx
+                        )?;
+                    }
                     prev_ref = cur_ref;
-                    prev_instruction = cur_instruction;
                 }
 
                 //draw edge to the result of this branch
