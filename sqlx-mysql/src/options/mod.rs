@@ -77,6 +77,10 @@ pub struct MySqlConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
+
+    pub(crate) no_engine_subsitution: bool,
+    pub(crate) set_timezone_utc: bool,
+    pub(crate) set_names: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -105,6 +109,9 @@ impl MySqlConnectOptions {
             log_settings: Default::default(),
             pipes_as_concat: true,
             enable_cleartext_plugin: false,
+            no_engine_subsitution: true,
+            set_timezone_utc: true,
+            set_names: true,
         }
     }
 
@@ -331,6 +338,43 @@ impl MySqlConnectOptions {
     /// `VerifyCa`, or `VerifyIdentity` when enabling cleartext plugin.
     pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
         self.enable_cleartext_plugin = flag_val;
+        self
+    }
+
+    /// Flag that enables or disables the `NO_ENGINE_SUBSTITUTION` sql_mode setting after
+    /// connection.
+    ///
+    /// If not set, if the available storage engine specified by a `CREATE TABLE` is not available,
+    /// a warning is given and the default storage engine is used instead.
+    ///
+    /// Per default this is enabled.
+    ///
+    /// https://mariadb.com/kb/en/sql-mode/
+    pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
+        self.no_engine_subsitution = flag_val;
+        self
+    }
+
+    /// If enabled, sets `time_zone='+00:00'` after connecting with the database.
+    ///
+    /// Setting the time zone allows us to assume that the output from a TIMESTAMP field is UTC.
+    ///
+    /// Per default this is enabled.
+    pub fn set_timezone_utc(mut self, flag_val: bool) -> Self {
+        self.set_timezone_utc = flag_val;
+        self
+    }
+
+    /// If enabled, `SET NAMES 'charset_name' COLLATE 'collation_name'` is set after connecting
+    /// with the database.
+    ///
+    /// This ensures the connection uses the specified charset and encoding.
+    ///
+    /// Per default this is enabled.
+    ///
+    /// https://mathiasbynens.be/notes/mysql-utf8mb4
+    pub fn set_names(mut self, flag_val: bool) -> Self {
+        self.set_names = flag_val;
         self
     }
 }
