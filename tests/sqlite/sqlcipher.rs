@@ -3,10 +3,10 @@ use std::str::FromStr;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{query, Connection, SqliteConnection};
 use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
-    let dir = TempDir::new("sqlcipher_test")?;
+    let dir = TempDir::new()?;
     let filepath = dir.path().join("database.sqlite3");
 
     Ok((format!("sqlite://{}", filepath.display()), dir))

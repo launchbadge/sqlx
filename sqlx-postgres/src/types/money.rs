@@ -48,7 +48,7 @@ use std::{
 /// https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/cash.c#L114-L123
 ///
 /// [`MONEY`]: https://www.postgresql.org/docs/current/datatype-money.html
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct PgMoney(
     /// The raw integer value sent over the wire; for locales with `frac_digits=2` (i.e. most
     /// of them), this will be the value in whole cents.
@@ -276,6 +276,13 @@ mod tests {
         money -= PgMoney(2);
 
         assert_eq!(PgMoney(-1), money);
+    }
+
+    #[test]
+    fn default_value() {
+        let money = PgMoney::default();
+
+        assert_eq!(money, PgMoney(0));
     }
 
     #[test]
