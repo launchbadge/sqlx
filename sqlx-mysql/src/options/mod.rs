@@ -77,7 +77,6 @@ pub struct MySqlConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
-
     pub(crate) no_engine_subsitution: bool,
     pub(crate) set_timezone_utc: bool,
     pub(crate) set_names: bool,

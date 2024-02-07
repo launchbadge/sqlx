@@ -73,7 +73,8 @@ impl ConnectOptions for MySqlConnectOptions {
             }
 
             if !options.is_empty() {
-                conn.execute(&*format!(r#"SET {};"#, options.join(","))).await?;
+                conn.execute(&*format!(r#"SET {};"#, options.join(",")))
+                    .await?;
             }
 
             Ok(conn)
