@@ -1015,18 +1015,35 @@ pub(super) fn explain(
                 }
 
                 OP_INSERT | OP_IDX_INSERT | OP_SORTER_INSERT => {
-                    if let Some(RegDataType::Single(ColumnType::Record(record))) =
-                        state.mem.r.get(&p2)
-                    {
-                        if let Some(TableDataType { cols, is_empty }) = state
-                            .mem
-                            .p
-                            .get(&p1)
-                            .and_then(|cur| cur.table_mut(&mut state.mem.t))
-                        {
-                            // Insert the record into wherever pointer p1 is
-                            *cols = record.clone();
-                            *is_empty = Some(false);
+                    if let Some(RegDataType::Single(columntype)) = state.mem.r.get(&p2) {
+                        match columntype {
+                            ColumnType::Record(record) => {
+                                if let Some(TableDataType { cols, is_empty }) = state
+                                    .mem
+                                    .p
+                                    .get(&p1)
+                                    .and_then(|cur| cur.table_mut(&mut state.mem.t))
+                                {
+                                    // Insert the record into wherever pointer p1 is
+                                    *cols = record.clone();
+                                    *is_empty = Some(false);
+                                }
+                            }
+                            ColumnType::Single {
+                                datatype: DataType::Null,
+                                nullable: _,
+                            } => {
+                                if let Some(TableDataType { is_empty, .. }) = state
+                                    .mem
+                                    .p
+                                    .get(&p1)
+                                    .and_then(|cur| cur.table_mut(&mut state.mem.t))
+                                {
+                                    // Insert a null record into wherever pointer p1 is
+                                    *is_empty = Some(false);
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     //Noop if the register p2 isn't a record, or if pointer p1 does not exist
