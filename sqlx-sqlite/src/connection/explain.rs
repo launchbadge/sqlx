@@ -353,7 +353,7 @@ fn opcode_to_type(op: &str) -> DataType {
         OP_REAL => DataType::Float,
         OP_BLOB => DataType::Blob,
         OP_AND | OP_OR => DataType::Bool,
-        OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Integer,
+        OP_NEWROWID | OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Integer,
         OP_STRING8 => DataType::Text,
         OP_COLUMN | _ => DataType::Null,
     }
@@ -647,8 +647,8 @@ pub(super) fn explain(
                 OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FOUND | OP_GE | OP_GT
                 | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT | OP_IF_NO_HOPE | OP_IF_NOT
                 | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO | OP_IF_NULL_ROW | OP_IF_SMALLER
-                | OP_INCR_VACUUM | OP_IS_NULL | OP_IS_NULL_OR_TYPE | OP_LE | OP_LT | OP_NE
-                | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_ONCE | OP_PREV | OP_PROGRAM
+                | OP_INCR_VACUUM | OP_IS_NULL_OR_TYPE | OP_LE | OP_LT | OP_NE | OP_NEXT
+                | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_ONCE | OP_PREV | OP_PROGRAM
                 | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE
                 | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
                 | OP_SORTER_NEXT | OP_V_FILTER | OP_V_NEXT => {
@@ -662,8 +662,50 @@ pub(super) fn explain(
                     continue;
                 }
 
+                OP_IS_NULL => {
+                    // goto <p2> if p1 is null
+
+                    //branch if maybe null
+                    let might_branch = match state.mem.r.get(&p1) {
+                        Some(r_p1) => !matches!(r_p1.map_to_nullable(), Some(false)),
+                        _ => false,
+                    };
+
+                    //nobranch if maybe not null
+                    let might_not_branch = match state.mem.r.get(&p1) {
+                        Some(r_p1) => !matches!(r_p1.map_to_datatype(), DataType::Null),
+                        _ => false,
+                    };
+
+                    if might_branch {
+                        let mut branch_state = state.new_branch(&mut branch_seq);
+                        branch_state.mem.program_i = p2 as usize;
+                        branch_state
+                            .mem
+                            .r
+                            .insert(p1, RegDataType::Single(ColumnType::default()));
+
+                        states.push(branch_state, &mut logger);
+                    }
+
+                    if might_not_branch {
+                        state.mem.program_i += 1;
+                        if let Some(RegDataType::Single(ColumnType::Single { nullable, .. })) =
+                            state.mem.r.get_mut(&p1)
+                        {
+                            *nullable = Some(false);
+                        }
+                        continue;
+                    } else {
+                        if logger.log_enabled() {
+                            logger.add_result(state, BranchResult::Branched);
+                        }
+                        break;
+                    }
+                }
+
                 OP_NOT_NULL => {
-                    // goto <p2> or next instruction (depending on actual values)
+                    // goto <p2> if p1 is not null
 
                     let might_branch = match state.mem.r.get(&p1) {
                         Some(r_p1) => !matches!(r_p1.map_to_datatype(), DataType::Null),
