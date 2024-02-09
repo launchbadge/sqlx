@@ -106,64 +106,66 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 Vec<(BranchParent, Option<BranchParent>)>,
             > = Default::default();
 
-            for curr_ref in instruction_uses
-                .get(&(idx as i64))
-                .unwrap_or(&Vec::new())
-                .iter()
-            {
-                if let Some(curr_state) = all_states.get(curr_ref) {
-                    let next_ref = BranchParent {
-                        id: curr_ref.id,
-                        idx: curr_ref.idx + 1,
-                    };
+            write!(f, "i{}[style=invis];", idx)?;
 
-                    if let Some(next_state) = all_states.get(&next_ref) {
-                        let state_diff = next_state
-                            .state
-                            .diff(&curr_state.state)
-                            .replace("\\", "\\\\")
-                            .replace("\"", "'")
-                            .replace("\n", "\\n");
+            if let Some(this_instruction_uses) = instruction_uses.get(&(idx as i64)) {
+                for curr_ref in this_instruction_uses.iter() {
+                    if let Some(curr_state) = all_states.get(curr_ref) {
+                        let next_ref = BranchParent {
+                            id: curr_ref.id,
+                            idx: curr_ref.idx + 1,
+                        };
 
-                        state_list
-                            .entry(state_diff)
-                            .or_default()
-                            .push((curr_ref.clone(), Some(next_ref)));
-                    } else {
-                        state_list
-                            .entry(Default::default())
-                            .or_default()
-                            .push((curr_ref.clone(), None));
-                    };
+                        if let Some(next_state) = all_states.get(&next_ref) {
+                            let state_diff = next_state
+                                .state
+                                .diff(&curr_state.state)
+                                .replace("\\", "\\\\")
+                                .replace("\"", "'")
+                                .replace("\n", "\\n");
 
-                    if let Some(children) = branch_children.get(curr_ref) {
-                        for next_ref in children {
-                            if let Some(next_state) = all_states.get(&next_ref) {
-                                let state_diff = next_state
-                                    .state
-                                    .diff(&curr_state.state)
-                                    .replace("\\", "\\\\")
-                                    .replace("\"", "'")
-                                    .replace("\n", "\\n");
+                            state_list
+                                .entry(state_diff)
+                                .or_default()
+                                .push((curr_ref.clone(), Some(next_ref)));
+                        } else {
+                            state_list
+                                .entry(Default::default())
+                                .or_default()
+                                .push((curr_ref.clone(), None));
+                        };
 
-                                if !state_diff.is_empty() {
-                                    branched_with_state.insert(next_ref.clone());
+                        if let Some(children) = branch_children.get(curr_ref) {
+                            for next_ref in children {
+                                if let Some(next_state) = all_states.get(&next_ref) {
+                                    let state_diff = next_state
+                                        .state
+                                        .diff(&curr_state.state)
+                                        .replace("\\", "\\\\")
+                                        .replace("\"", "'")
+                                        .replace("\n", "\\n");
+
+                                    if !state_diff.is_empty() {
+                                        branched_with_state.insert(next_ref.clone());
+                                    }
+
+                                    state_list
+                                        .entry(state_diff)
+                                        .or_default()
+                                        .push((curr_ref.clone(), Some(next_ref.clone())));
                                 }
-
-                                state_list
-                                    .entry(state_diff)
-                                    .or_default()
-                                    .push((curr_ref.clone(), Some(next_ref.clone())));
                             }
-                        }
-                    };
+                        };
+                    }
                 }
-            }
 
-            for curr_ref in instruction_uses.get(&(idx as i64)).unwrap_or(&Vec::new()) {
-                if branch_children.contains_key(curr_ref) {
-                    write!(f, "\"b{}p{}\";", curr_ref.id, curr_ref.idx)?;
+                for curr_ref in this_instruction_uses {
+                    if branch_children.contains_key(curr_ref) {
+                        write!(f, "\"b{}p{}\";", curr_ref.id, curr_ref.idx)?;
+                    }
                 }
+            } else {
+                write!(f, "i{}->i{}[style=invis];", idx - 1, idx)?;
             }
 
             for (state_num, (state_diff, ref_list)) in state_list.iter().enumerate() {
