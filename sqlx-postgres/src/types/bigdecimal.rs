@@ -138,12 +138,18 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
     }
 }
 
-/// ### Panics
-/// If this `BigDecimal` cannot be represented by `PgNumeric`.
 impl Encode<'_, Postgres> for BigDecimal {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        use std::str::FromStr;
+        // If the argument is too big, then we replace it with a less big argument.
+        // This less big argument is already outside the range of allowed PostgreSQL DECIMAL, which
+        // means that PostgreSQL will return the 22P03 error kind upon receiving it. This is the
+        // expected error, and the user should be ready to handle it anyway.
         PgNumeric::try_from(self)
-            .expect("BigDecimal magnitude too great for Postgres NUMERIC type")
+            .unwrap_or_else(|_| {
+                PgNumeric::try_from(&BigDecimal::from_str(&format!("{:030000}", 0)).unwrap())
+                    .unwrap()
+            })
             .encode(buf);
 
         IsNull::No
