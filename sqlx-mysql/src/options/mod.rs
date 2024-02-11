@@ -1,11 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
+mod attributes;
 mod connect;
 mod parse;
 mod ssl_mode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
 pub use ssl_mode::MySqlSslMode;
+
+pub(crate) use self::attributes::Attributes;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
@@ -80,6 +86,7 @@ pub struct MySqlConnectOptions {
     pub(crate) no_engine_subsitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
+    pub(crate) attributes: Attributes,
 }
 
 impl Default for MySqlConnectOptions {
@@ -111,6 +118,7 @@ impl MySqlConnectOptions {
             no_engine_subsitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
+            attributes: Default::default(),
         }
     }
 
@@ -398,6 +406,62 @@ impl MySqlConnectOptions {
         self.set_names = flag_val;
         self
     }
+
+    /// Set a connection attribute.
+    ///
+    /// If a connection attribute with the same key already exists it is replaced.
+    pub fn attribute(mut self, key: &str, value: &str) -> Self {
+        let attributes = match &mut self.attributes {
+            Attributes::None => {
+                // No attributes defined yet => create
+                self.attributes = Attributes::Custom(BTreeMap::new());
+
+                let Attributes::Custom(ref mut new_attributes) =
+                    &mut self.attributes
+                else {
+                    unreachable!()
+                };
+                new_attributes
+            }
+            Attributes::ClientDefault => {
+                // No attributes defined yet => create
+                self.attributes = Attributes::ClientDefaultAndCustom(BTreeMap::new());
+
+                let Attributes::ClientDefaultAndCustom(ref mut new_attributes) =
+                    &mut self.attributes
+                else {
+                    unreachable!()
+                };
+                new_attributes
+            }
+            Attributes::ClientDefaultAndCustom(attr) | Attributes::Custom(attr) => attr,
+        };
+
+        _ = attributes.insert(String::from(key), String::from(value));
+        self
+    }
+
+    /// Disable sending the default client connection attributes.
+    pub fn no_default_attributes(mut self) -> Self {
+        match self.attributes {
+            Attributes::None => {},
+            Attributes::ClientDefault => self.attributes = Attributes::None,
+            Attributes::ClientDefaultAndCustom(attr) => self.attributes = Attributes::Custom(attr),
+            Attributes::Custom(_) => {},
+        }
+        self
+    }
+
+    /// Clear any previous defined custom connection attributes.
+    pub fn clear_custom_attributes(mut self) -> Self {
+        match self.attributes {
+            Attributes::None => {},
+            Attributes::ClientDefault => {},
+            Attributes::ClientDefaultAndCustom(_) => self.attributes = Attributes::ClientDefault,
+            Attributes::Custom(_) => self.attributes = Attributes::None,
+        }
+        self
+    }
 }
 
 impl MySqlConnectOptions {
@@ -509,5 +573,28 @@ impl MySqlConnectOptions {
     /// ```
     pub fn get_collation(&self) -> Option<&str> {
         self.collation.as_deref()
+    }
+
+    /// Get the custom connection attributes.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .attribute("key", "value");
+    ///
+    /// let mut attributes = options.get_custom_attributes().into_iter().flatten();
+    /// assert_eq!(Some(("key", "value")), attributes.next());
+    /// ```
+    pub fn get_custom_attributes(&self) -> Option<impl Iterator<Item = (&str, &str)>> {
+        match &self.attributes {
+            Attributes::None => None,
+            Attributes::ClientDefault => None,
+            Attributes::ClientDefaultAndCustom(attr) | Attributes::Custom(attr) => Some(
+                attr.iter()
+                    .map(|(key, value)| (key.as_str(), value.as_str())),
+            ),
+        }
     }
 }
