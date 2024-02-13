@@ -48,43 +48,43 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) before_connect: Option<
         Arc<
             dyn Fn(
-                    &<DB::Connection as Connection>::Options,
-                    u32,
-                )
-                    -> BoxFuture<'_, Result<Cow<'_, <DB::Connection as Connection>::Options>, Error>>
-                + 'static
-                + Send
-                + Sync,
+                &<DB::Connection as Connection>::Options,
+                u32,
+            )
+                -> BoxFuture<'_, Result<Cow<'_, <DB::Connection as Connection>::Options>, Error>>
+            + 'static
+            + Send
+            + Sync,
         >,
     >,
     pub(crate) after_connect: Option<
         Arc<
             dyn Fn(&mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
-                + 'static
-                + Send
-                + Sync,
+            + 'static
+            + Send
+            + Sync,
         >,
     >,
     pub(crate) before_acquire: Option<
         Arc<
             dyn Fn(
-                    &mut DB::Connection,
-                    PoolConnectionMetadata,
-                ) -> BoxFuture<'_, Result<bool, Error>>
-                + 'static
-                + Send
-                + Sync,
+                &mut DB::Connection,
+                PoolConnectionMetadata,
+            ) -> BoxFuture<'_, Result<bool, Error>>
+            + 'static
+            + Send
+            + Sync,
         >,
     >,
     pub(crate) after_release: Option<
         Arc<
             dyn Fn(
-                    &mut DB::Connection,
-                    PoolConnectionMetadata,
-                ) -> BoxFuture<'_, Result<bool, Error>>
-                + 'static
-                + Send
-                + Sync,
+                &mut DB::Connection,
+                PoolConnectionMetadata,
+            ) -> BoxFuture<'_, Result<bool, Error>>
+            + 'static
+            + Send
+            + Sync,
         >,
     >,
     pub(crate) max_connections: u32,
@@ -389,14 +389,14 @@ impl<DB: Database> PoolOptions<DB> {
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn before_connect<F>(mut self, callback: F) -> Self
     where
-        for<'c> F: Fn(
-                &'c <DB::Connection as Connection>::Options,
-                u32,
-            )
-                -> BoxFuture<'c, crate::Result<Cow<'c, <DB::Connection as Connection>::Options>>>
-            + 'static
-            + Send
-            + Sync,
+            for<'c> F: Fn(
+        &'c <DB::Connection as Connection>::Options,
+        u32,
+    )
+        -> BoxFuture<'c, crate::Result<Cow<'c, <DB::Connection as Connection>::Options>>>
+    + 'static
+    + Send
+    + Sync,
     {
         self.before_connect = Some(Arc::new(callback));
         self
@@ -442,12 +442,12 @@ impl<DB: Database> PoolOptions<DB> {
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn after_connect<F>(mut self, callback: F) -> Self
     where
-        // We're passing the `PoolConnectionMetadata` here mostly for future-proofing.
-        // `age` and `idle_for` are obviously not useful for fresh connections.
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
-            + 'static
-            + Send
-            + Sync,
+    // We're passing the `PoolConnectionMetadata` here mostly for future-proofing.
+    // `age` and `idle_for` are obviously not useful for fresh connections.
+            for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
+    + 'static
+    + Send
+    + Sync,
     {
         self.after_connect = Some(Arc::new(callback));
         self
@@ -497,10 +497,10 @@ impl<DB: Database> PoolOptions<DB> {
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn before_acquire<F>(mut self, callback: F) -> Self
     where
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
-            + 'static
-            + Send
-            + Sync,
+            for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
+    + 'static
+    + Send
+    + Sync,
     {
         self.before_acquire = Some(Arc::new(callback));
         self
@@ -554,10 +554,10 @@ impl<DB: Database> PoolOptions<DB> {
     /// # }
     pub fn after_release<F>(mut self, callback: F) -> Self
     where
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
-            + 'static
-            + Send
-            + Sync,
+            for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
+    + 'static
+    + Send
+    + Sync,
     {
         self.after_release = Some(Arc::new(callback));
         self
