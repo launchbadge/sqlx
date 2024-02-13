@@ -5,6 +5,7 @@ use crate::pool::inner::PoolInner;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -44,6 +45,18 @@ use std::time::{Duration, Instant};
 /// the perspectives of both API designer and consumer.
 pub struct PoolOptions<DB: Database> {
     pub(crate) test_before_acquire: bool,
+    pub(crate) before_connect: Option<
+        Arc<
+            dyn Fn(
+                    &<DB::Connection as Connection>::Options,
+                    u32,
+                )
+                    -> BoxFuture<'_, Result<Cow<'_, <DB::Connection as Connection>::Options>, Error>>
+                + 'static
+                + Send
+                + Sync,
+        >,
+    >,
     pub(crate) after_connect: Option<
         Arc<
             dyn Fn(&mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
@@ -94,6 +107,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
     fn clone(&self) -> Self {
         PoolOptions {
             test_before_acquire: self.test_before_acquire,
+            before_connect: self.before_connect.clone(),
             after_connect: self.after_connect.clone(),
             before_acquire: self.before_acquire.clone(),
             after_release: self.after_release.clone(),
@@ -143,6 +157,7 @@ impl<DB: Database> PoolOptions<DB> {
     pub fn new() -> Self {
         Self {
             // User-specifiable routines
+            before_connect: None,
             after_connect: None,
             before_acquire: None,
             after_release: None,
@@ -336,6 +351,54 @@ impl<DB: Database> PoolOptions<DB> {
     #[doc(hidden)]
     pub fn __fair(mut self, fair: bool) -> Self {
         self.fair = fair;
+        self
+    }
+
+    /// Perform an asynchronous action before connecting to the database.
+    ///
+    /// This operation is performed on every attempt to connect, including retries. The
+    /// current `ConnectOptions` is passed, and this may be passed unchanged, or modified
+    /// after cloning. The current connection attempt is passed as the second parameter
+    /// (starting at 1).
+    ///
+    /// If the operation returns with an error, then the connection attempt fails without
+    /// attempting further retries. The operation therefore may need to implement error
+    /// handling and/or value caching to avoid failing the connection attempt.
+    ///
+    /// # Example: Per-Request Authentication
+    /// This callback may be used to modify values in the database's `ConnectOptions`, before
+    /// connecting to the database.
+    ///
+    /// This example is written for PostgreSQL but can likely be adapted to other databases.
+    ///
+    /// ```no_run
+    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
+    /// use std::borrow::Cow;
+    /// use sqlx::Executor;
+    /// use sqlx::postgres::PgPoolOptions;
+    ///
+    /// let pool = PgPoolOptions::new()
+    ///     .after_connect(move |opts, _num_attempts| Box::pin(async move {
+    ///         Ok(Cow::Owned(opts.clone().password("abc")))
+    ///     }))
+    ///     .connect("postgres:// …").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
+    pub fn before_connect<F>(mut self, callback: F) -> Self
+    where
+        for<'c> F: Fn(
+                &'c <DB::Connection as Connection>::Options,
+                u32,
+            )
+                -> BoxFuture<'c, crate::Result<Cow<'c, <DB::Connection as Connection>::Options>>>
+            + 'static
+            + Send
+            + Sync,
+    {
+        self.before_connect = Some(Arc::new(callback));
         self
     }
 
