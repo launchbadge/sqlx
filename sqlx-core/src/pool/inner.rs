@@ -8,6 +8,7 @@ use crossbeam_queue::ArrayQueue;
 
 use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
+use std::borrow::Cow;
 use std::cmp;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
@@ -170,7 +171,7 @@ impl<DB: Database> PoolInner<DB> {
                     Poll::Pending
                 }
             })
-            .await
+                .await
         } else {
             close_event.do_until(acquire_self).await
         }
@@ -324,6 +325,36 @@ impl<DB: Database> PoolInner<DB> {
         Ok(acquired)
     }
 
+    /// Attempts to get connect options, possibly modify using before_connect, then connect.
+    ///
+    /// Wrapping this code in a timeout allows the total time taken for these steps to
+    /// be bounded by the connection deadline.
+    async fn get_connect_options_and_connect(
+        self: &Arc<Self>,
+        num_attempts: u32,
+    ) -> Result<DB::Connection, Error> {
+        // clone the connect options arc so it can be used without holding the RwLockReadGuard
+        // across an async await point
+        let connect_options_arc = self
+            .connect_options
+            .read()
+            .expect("write-lock holder panicked")
+            .clone();
+
+        let connect_options = if let Some(callback) = &self.options.before_connect {
+            callback(connect_options_arc.as_ref(), num_attempts)
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "error returned from before_connect");
+                    error
+                })?
+        } else {
+            Cow::Borrowed(connect_options_arc.as_ref())
+        };
+
+        connect_options.connect().await
+    }
+
     pub(super) async fn connect(
         self: &Arc<Self>,
         deadline: Instant,
@@ -335,21 +366,17 @@ impl<DB: Database> PoolInner<DB> {
 
         let mut backoff = Duration::from_millis(10);
         let max_backoff = deadline_as_timeout(deadline)? / 5;
+        let mut num_attempts: u32 = 0;
 
         loop {
             let timeout = deadline_as_timeout(deadline)?;
-
-            // clone the connect options arc so it can be used without holding the RwLockReadGuard
-            // across an async await point
-            let connect_options = self
-                .connect_options
-                .read()
-                .expect("write-lock holder panicked")
-                .clone();
+            num_attempts += 1;
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match crate::rt::timeout(timeout, connect_options.connect()).await {
+            match crate::rt::timeout(timeout, self.get_connect_options_and_connect(num_attempts))
+                .await
+            {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
                     // See comment on `PoolOptions::after_connect`
