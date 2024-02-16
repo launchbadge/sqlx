@@ -195,6 +195,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
         use tokio::net::TcpStream;
 
         let stream = TcpStream::connect((host, port)).await?;
+        stream.set_nodelay(true)?;
 
         return Ok(with_socket.with_socket(stream));
     }
@@ -209,7 +210,13 @@ pub async fn connect_tcp<Ws: WithSocket>(
 
         // Loop through all the Socket Addresses that the hostname resolves to
         for socket_addr in (host, port).to_socket_addrs().await? {
-            match Async::<TcpStream>::connect(socket_addr).await {
+            let stream = Async::<TcpStream>::connect(socket_addr)
+                .await
+                .and_then(|s| {
+                    s.get_ref().set_nodelay(true)?;
+                    Ok(s)
+                });
+            match stream {
                 Ok(stream) => return Ok(with_socket.with_socket(stream)),
                 Err(e) => last_err = Some(e),
             }
