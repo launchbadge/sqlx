@@ -218,6 +218,10 @@ fn bench_sasl_hi(b: &mut test::Bencher) {
         .take(64)
         .collect();
     b.iter(|| {
-        let _ = hi(test::black_box("secret_password"), test::black_box(&nonce), test::black_box(4096));
+        let _ = hi(
+            test::black_box("secret_password"),
+            test::black_box(&nonce),
+            test::black_box(4096),
+        );
     });
 }
