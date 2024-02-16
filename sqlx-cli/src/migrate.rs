@@ -109,11 +109,6 @@ pub async fn add(
 ) -> anyhow::Result<()> {
     fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
 
-    // if the migrations directory is empty
-    let has_existing_migrations = fs::read_dir(migration_source)
-        .map(|mut dir| dir.next().is_some())
-        .unwrap_or(false);
-
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     // Type of newly created migration will be the same as the first one
     // or reversible flag if this is the first migration
@@ -144,6 +139,11 @@ pub async fn add(
         )?;
     }
 
+    // if the migrations directory is empty
+    let has_existing_migrations = fs::read_dir(migration_source)
+        .map(|mut dir| dir.next().is_some())
+        .unwrap_or(false);
+
     if !has_existing_migrations {
         let quoted_source = if migration_source != "migrations" {
             format!("{migration_source:?}")
@@ -163,7 +163,7 @@ sqlx::migrate!({}).run(<&your_pool OR &mut your_connection>).await?;
 Note that the compiler won't pick up new migrations if no Rust source files have changed.
 You can create a Cargo build script to work around this with `sqlx migrate build-script`.
 
-See: https://docs.rs/sqlx/0.5/sqlx/macro.migrate.html
+See: https://docs.rs/sqlx/latest/sqlx/macro.migrate.html
 "#,
             quoted_source
         );
@@ -228,7 +228,7 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
                 ),
             );
             println!(
-                "local migration has checksum   {}",
+                "local migration has checksum {}",
                 short_checksum(&migration.checksum)
             )
         }
@@ -268,7 +268,7 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
-        if !migrator.iter().any(|m| target_version == m.version) {
+        if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }
@@ -363,7 +363,7 @@ pub async fn revert(
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
-        if target_version != 0 && !migrator.iter().any(|m| target_version == m.version) {
+        if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
         }
     }

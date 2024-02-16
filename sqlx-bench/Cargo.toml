@@ -26,7 +26,7 @@ postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]
 
 [dependencies]
-criterion = "0.3.3"
+criterion = "0.5.1"
 dotenvy = "0.15.0"
 once_cell = "1.4"
 sqlx = { workspace = true, default-features = false, features = ["macros"] }
