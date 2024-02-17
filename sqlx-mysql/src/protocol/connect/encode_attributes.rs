@@ -62,3 +62,47 @@ fn add_client_attributes(attr: &mut BTreeMap<&str, &str>) {
     attr.insert("_client_name", "sqlx-mysql");
     attr.insert("_client_version", env!("CARGO_PKG_VERSION"));
 }
+
+#[test]
+fn test_attributes_not_supported() {
+    let capabilities = Capabilities::empty();
+    let client_default = Attributes::ClientDefault;
+
+    let mut buffer = vec![];
+    client_default.encode_with(&mut buffer, capabilities);
+    assert!(buffer.is_empty());
+}
+
+#[test]
+fn test_attribute_encoding() {
+    let capabilities = Capabilities::CONNECT_ATTRS;
+    let client_default = Attributes::Custom(BTreeMap::from([
+        ("attrib1".into(), "0123".into()),
+        ("attrib2_empty".into(), "".into()),
+        ("attrib3".into(), "456".into()),
+    ]));
+
+    macro_rules! u8_slice {
+        ($($data:expr),*) => {
+            vec![ $( $data as u8 ),* ]
+        };
+    }
+
+    let mut buffer = vec![];
+    client_default.encode_with(&mut buffer, capabilities);
+
+    #[rustfmt::skip]
+    let mut encoded = u8_slice!(
+        7,  'a', 't', 't', 'r', 'i', 'b', '1',
+        4,  '0', '1', '2', '3',
+        13, 'a', 't', 't', 'r', 'i', 'b', '2', '_', 'e', 'm', 'p', 't', 'y',
+        0,
+        7,  'a', 't', 't', 'r', 'i', 'b', '3',
+        3,  '4', '5', '6'
+    );
+
+    // Prefix length (<251) as 1 byte
+    encoded.insert(0, encoded.len() as u8);
+
+    assert_eq!(encoded, buffer.as_slice());
+}
