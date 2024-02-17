@@ -7,8 +7,7 @@ use crate::{io::MySqlBufMutExt, options::Attributes, protocol::Capabilities};
 impl Encode<'_, Capabilities> for Attributes {
     fn encode_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
         // Connection attributes are not enabled or not supported
-        if !capabilities.contains(Capabilities::CONNECT_ATTRS) ||
-            matches!(self, Attributes::None) {
+        if !capabilities.contains(Capabilities::CONNECT_ATTRS) || matches!(self, Attributes::None) {
             return;
         }
 
@@ -21,11 +20,19 @@ impl Encode<'_, Capabilities> for Attributes {
 
             Attributes::ClientDefaultAndCustom(custom_attributes) => {
                 add_client_attributes(&mut attributes_to_encode);
-                attributes_to_encode.extend(custom_attributes.iter().map(|(k,v)| (k.as_str(), v.as_str())));
+                attributes_to_encode.extend(
+                    custom_attributes
+                        .iter()
+                        .map(|(k, v)| (k.as_str(), v.as_str())),
+                );
             }
 
             Attributes::Custom(custom_attributes) => {
-                attributes_to_encode.extend(custom_attributes.iter().map(|(k,v)| (k.as_str(), v.as_str())));
+                attributes_to_encode.extend(
+                    custom_attributes
+                        .iter()
+                        .map(|(k, v)| (k.as_str(), v.as_str())),
+                );
             }
         }
 
