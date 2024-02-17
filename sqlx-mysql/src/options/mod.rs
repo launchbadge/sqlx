@@ -416,9 +416,7 @@ impl MySqlConnectOptions {
                 // No attributes defined yet => create
                 self.attributes = Attributes::Custom(BTreeMap::new());
 
-                let Attributes::Custom(ref mut new_attributes) =
-                    &mut self.attributes
-                else {
+                let Attributes::Custom(ref mut new_attributes) = &mut self.attributes else {
                     unreachable!()
                 };
                 new_attributes
@@ -444,10 +442,10 @@ impl MySqlConnectOptions {
     /// Disable sending the default client connection attributes.
     pub fn no_default_attributes(mut self) -> Self {
         match self.attributes {
-            Attributes::None => {},
+            Attributes::None => {}
             Attributes::ClientDefault => self.attributes = Attributes::None,
             Attributes::ClientDefaultAndCustom(attr) => self.attributes = Attributes::Custom(attr),
-            Attributes::Custom(_) => {},
+            Attributes::Custom(_) => {}
         }
         self
     }
@@ -455,8 +453,8 @@ impl MySqlConnectOptions {
     /// Clear any previous defined custom connection attributes.
     pub fn clear_custom_attributes(mut self) -> Self {
         match self.attributes {
-            Attributes::None => {},
-            Attributes::ClientDefault => {},
+            Attributes::None => {}
+            Attributes::ClientDefault => {}
             Attributes::ClientDefaultAndCustom(_) => self.attributes = Attributes::ClientDefault,
             Attributes::Custom(_) => self.attributes = Attributes::None,
         }
