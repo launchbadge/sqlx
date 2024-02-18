@@ -43,6 +43,16 @@ pub struct QueryPlanLogger<'q, R: Debug + 'static, S: Debug + DebugDiff + 'stati
     settings: LogSettings,
 }
 
+/// convert a string into dot format
+fn dot_escape_string(value: impl AsRef<str>) -> String {
+    value
+        .as_ref()
+        .replace("\\", "\\\\")
+        .replace("\"", "'")
+        .replace("\n", "\\n")
+        .to_string()
+}
+
 impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanLogger<'_, R, S, P> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         //writes query plan history in dot format
@@ -85,10 +95,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
         }
 
         for (idx, instruction) in self.program.iter().enumerate() {
-            let escaped_instruction = format!("{:?}", instruction)
-                .replace("\\", "\\\\")
-                .replace("\"", "'")
-                .replace("\n", "\\n");
+            let escaped_instruction = dot_escape_string(format!("{:?}", instruction));
             write!(
                 f,
                 "subgraph cluster_{} {{ label=\"{}\"",
@@ -117,12 +124,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                         };
 
                         if let Some(next_state) = all_states.get(&next_ref) {
-                            let state_diff = next_state
-                                .state
-                                .diff(&curr_state.state)
-                                .replace("\\", "\\\\")
-                                .replace("\"", "'")
-                                .replace("\n", "\\n");
+                            let state_diff = next_state.state.diff(&curr_state.state);
 
                             state_list
                                 .entry(state_diff)
@@ -138,12 +140,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                         if let Some(children) = branch_children.get(curr_ref) {
                             for next_ref in children {
                                 if let Some(next_state) = all_states.get(&next_ref) {
-                                    let state_diff = next_state
-                                        .state
-                                        .diff(&curr_state.state)
-                                        .replace("\\", "\\\\")
-                                        .replace("\"", "'")
-                                        .replace("\n", "\\n");
+                                    let state_diff = next_state.state.diff(&curr_state.state);
 
                                     if !state_diff.is_empty() {
                                         branched_with_state.insert(next_ref.clone());
@@ -170,10 +167,11 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 
             for (state_num, (state_diff, ref_list)) in state_list.iter().enumerate() {
                 if !state_diff.is_empty() {
+                    let escaped_state = dot_escape_string(state_diff);
                     write!(
                         f,
                         "subgraph \"cluster_i{}s{}\" {{\nlabel=\"{}\"\n",
-                        idx, state_num, state_diff
+                        idx, state_num, escaped_state
                     )?;
                 }
 
@@ -315,10 +313,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                             prev_ref.id, prev_ref.idx, dedup_ref.id, dedup_ref.idx
                         )?;
                     } else {
-                        let escaped_result = format!("{:?}", result)
-                            .replace("\\", "\\\\")
-                            .replace("\"", "'")
-                            .replace("\n", "\\n");
+                        let escaped_result = dot_escape_string(format!("{:?}", result));
                         write!(
                             f,
                             "\"b{}p{}\" ->\"{}\"; \"{}\" [shape=box];",
