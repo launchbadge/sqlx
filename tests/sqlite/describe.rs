@@ -278,6 +278,18 @@ async fn it_describes_update_with_returning() -> anyhow::Result<()> {
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
+    let d = conn
+        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING *")
+        .await?;
+
+    assert_eq!(d.columns().len(), 3);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.column(1).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(1), Some(false));
+    assert_eq!(d.column(2).type_info().name(), "BOOLEAN");
+    //assert_eq!(d.nullable(2), Some(false)); //query analysis is allowed to notice that it is always set to true by the update
+
     Ok(())
 }
 
