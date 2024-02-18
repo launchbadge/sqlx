@@ -327,7 +327,7 @@ async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
 async fn it_can_bind_and_return_years() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    conn.execute(
+    sqlx::raw_sql(
         r#"
 CREATE TEMPORARY TABLE too_many_years (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -335,6 +335,7 @@ CREATE TEMPORARY TABLE too_many_years (
 );
     "#,
     )
+    .execute(&mut conn)
     .await?;
 
     sqlx::query(
@@ -442,7 +443,8 @@ async fn test_issue_622() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    conn.execute("CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);")
+    sqlx::raw_sql("CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);")
+        .execute(&mut conn)
         .await?;
 
     // begin .. rollback

@@ -243,7 +243,7 @@ async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_fails_to_parse() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
-    let res = conn.execute("SEELCT 1").await;
+    let res = sqlx::raw_sql("SEELCT 1").execute(&mut conn).await;
 
     assert!(res.is_err());
 
