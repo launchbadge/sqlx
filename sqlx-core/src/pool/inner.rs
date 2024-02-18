@@ -197,7 +197,7 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
-        // `options.after_release` is invoked by `PoolConnection::release_to_pool()`.
+        // `options.after_release` and other checks are in `PoolConnection::return_to_pool()`.
 
         let Floating { inner: idle, guard } = floating.into_idle();
 
@@ -273,7 +273,7 @@ impl<DB: Database> PoolInner<DB> {
                             // `try_increment_size()`.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
                             // If so, we're likely in the current-thread runtime if it's Tokio
-                            // and so we should yield to let any spawned release_to_pool() tasks
+                            // and so we should yield to let any spawned return_to_pool() tasks
                             // execute.
                             crate::rt::yield_now().await;
                             continue;
@@ -417,7 +417,7 @@ impl<DB: Database> Drop for PoolInner<DB> {
 }
 
 /// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
-fn is_beyond_max_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
+pub(super) fn is_beyond_max_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
     options
         .max_lifetime
         .map_or(false, |max| live.created_at.elapsed() > max)
@@ -434,12 +434,6 @@ async fn check_idle_conn<DB: Database>(
     mut conn: Floating<DB, Idle<DB>>,
     options: &PoolOptions<DB>,
 ) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
-    // If the connection we pulled has expired, close the connection and
-    // immediately create a new connection
-    if is_beyond_max_lifetime(&conn, options) {
-        return Err(conn.close().await);
-    }
-
     if options.test_before_acquire {
         // Check that the connection is still live
         if let Err(error) = conn.ping().await {
