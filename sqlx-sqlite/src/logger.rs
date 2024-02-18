@@ -320,6 +320,12 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                             prev_ref.id, prev_ref.idx, escaped_result, escaped_result
                         )?;
                     }
+                } else {
+                    write!(
+                        f,
+                        "\"b{}p{}\" ->\"NoResult\"; \"NoResult\" [shape=box];",
+                        prev_ref.id, prev_ref.idx
+                    )?;
                 }
             }
             f.write_str("};\n")?;
