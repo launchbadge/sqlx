@@ -78,7 +78,7 @@ pub struct MySqlConnectOptions {
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
     pub(crate) no_engine_subsitution: bool,
-    pub(crate) set_timezone_utc: bool,
+    pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
 }
 
@@ -109,7 +109,7 @@ impl MySqlConnectOptions {
             pipes_as_concat: true,
             enable_cleartext_plugin: false,
             no_engine_subsitution: true,
-            set_timezone_utc: true,
+            timezone: Some(String::from("+00:00")),
             set_names: true,
         }
     }
@@ -346,7 +346,8 @@ impl MySqlConnectOptions {
     /// If not set, if the available storage engine specified by a `CREATE TABLE` is not available,
     /// a warning is given and the default storage engine is used instead.
     ///
-    /// Per default this is enabled.
+    /// By default, this is `true` (`NO_ENGINE_SUBSTITUTION` is passed, forbidding engine
+    /// substitution).
     ///
     /// https://mariadb.com/kb/en/sql-mode/
     pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
@@ -354,24 +355,45 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// If enabled, sets `time_zone='+00:00'` after connecting with the database.
+    /// If `Some`, sets the `time_zone` option to the given string after connecting to the database.
     ///
-    /// Setting the time zone allows us to assume that the output from a TIMESTAMP field is UTC.
+    /// If `None`, no `time_zone` parameter is sent; the server timezone will be used instead.
     ///
-    /// Per default this is enabled.
-    pub fn set_timezone_utc(mut self, flag_val: bool) -> Self {
-        self.set_timezone_utc = flag_val;
+    /// Defaults to `Some(String::from("+00:00"))` to ensure all timestamps are in UTC.
+    ///
+    /// ### Warning
+    /// Changing this setting from its default will apply an unexpected skew to any
+    /// `time::OffsetDateTime` or `chrono::DateTime<Utc>` value, whether passed as a parameter or
+    /// decoded as a result. `TIMESTAMP` values are not encoded with their UTC offset in the MySQL
+    /// protocol, so encoding and decoding of these types assumes the server timezone is *always*
+    /// UTC.
+    ///
+    /// If you are changing this option, ensure your application only uses
+    /// `time::PrimitiveDateTime` or `chrono::NaiveDateTime` and that it does not assume these
+    /// timestamps can be placed on a real timeline without applying the proper offset.
+    pub fn timezone(mut self, value: impl Into<Option<String>>) -> Self {
+        self.timezone = value.into();
         self
     }
 
-    /// If enabled, `SET NAMES 'charset_name' COLLATE 'collation_name'` is set after connecting
-    /// with the database.
+    /// If enabled, `SET NAMES '{charset}' COLLATE '{collation}'` is passed with the values of
+    /// [`.charset()`] and [`.collation()`] after connecting to the database.
     ///
-    /// This ensures the connection uses the specified charset and encoding.
+    /// This ensures the connection uses the specified character set and collation.
     ///
-    /// Per default this is enabled.
+    /// Enabled by default.
     ///
-    /// https://mathiasbynens.be/notes/mysql-utf8mb4
+    /// ### Warning
+    /// If this is disabled and the default charset is not binary-compatible with UTF-8, query
+    /// strings, column names and string values will likely not decode (or encode) correctly, which
+    /// may result in unexpected errors or garbage outputs at runtime.
+    ///
+    /// For proper functioning, you *must* ensure the server is using a binary-compatible charset,
+    /// such as ASCII or Latin-1 (ISO 8859-1), and that you do not pass any strings containing
+    /// codepoints not supported by said charset.
+    ///
+    /// Instead of disabling this, you may also consider setting [`.charset()`] to a charset that
+    /// is supported by your MySQL or MariaDB server version and compatible with UTF-8.
     pub fn set_names(mut self, flag_val: bool) -> Self {
         self.set_names = flag_val;
         self

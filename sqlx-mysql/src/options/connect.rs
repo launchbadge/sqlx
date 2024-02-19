@@ -61,8 +61,8 @@ impl ConnectOptions for MySqlConnectOptions {
                     sql_mode.join(",")
                 ));
             }
-            if self.set_timezone_utc {
-                options.push(r#"time_zone='+00:00'"#.to_string())
+            if let Some(timezone) = &self.timezone {
+                options.push(format!(r#"time_zone='{}'"#, timezone));
             }
             if self.set_names {
                 options.push(format!(
