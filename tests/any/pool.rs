@@ -225,7 +225,7 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
     let last_meta = Arc::new(Mutex::new(None));
     let last_meta_ = last_meta.clone();
     let pool = AnyPoolOptions::new()
-        .max_lifetime(Duration::from_secs(1))
+        .max_lifetime(Duration::from_millis(400))
         .min_connections(3)
         .before_acquire(move |_conn, _meta| {
             *last_meta_.lock().unwrap() = Some(_meta);
@@ -250,8 +250,8 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
     assert_eq!(pool.size(), 5);
     assert_eq!(pool.num_idle(), 5);
 
-    // Wait for 2 seconds - background maintenance should run in the meantime
-    sqlx_core::rt::sleep(Duration::from_secs(2)).await;
+    // Wait for at least two iterations of maintenance task
+    sqlx_core::rt::sleep(Duration::from_secs(1)).await;
 
     // Existing connections should have been closed due to max lifetime
     // and the pool should have reopened min_connections new ones.
@@ -269,7 +269,11 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
             .unwrap()
             .take()
             .expect("expected a connection from the pool");
-        assert!(meta.age < Duration::from_secs(2));
+        assert!(
+            meta.age < Duration::from_secs(1),
+            "expected a fresh connection (age {:?})",
+            meta.age
+        );
     }
 
     Ok(())
