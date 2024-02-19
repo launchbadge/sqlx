@@ -151,6 +151,19 @@ pub async fn add(
             "".to_string()
         };
 
+        // Provide a link to the current version in case the details change.
+        // Patch version is deliberately omitted.
+        let version = if let (Some(major), Some(minor)) = (
+            // Don't fail if we're not being built by Cargo
+            option_env!("CARGO_PKG_VERSION_MAJOR"),
+            option_env!("CARGO_PKG_VERSION_MINOR"),
+        ) {
+            format!("{major}.{minor}")
+        } else {
+            // If a version isn't available, "latest" is fine.
+            "latest".to_string()
+        };
+
         print!(
             r#"
 Congratulations on creating your first migration!
@@ -158,14 +171,13 @@ Congratulations on creating your first migration!
 Did you know you can embed your migrations in your application binary?
 On startup, after creating your database connection or pool, add:
 
-sqlx::migrate!({}).run(<&your_pool OR &mut your_connection>).await?;
+sqlx::migrate!({quoted_source}).run(<&your_pool OR &mut your_connection>).await?;
 
 Note that the compiler won't pick up new migrations if no Rust source files have changed.
 You can create a Cargo build script to work around this with `sqlx migrate build-script`.
 
-See: https://docs.rs/sqlx/latest/sqlx/macro.migrate.html
+See: https://docs.rs/sqlx/{version}/sqlx/macro.migrate.html
 "#,
-            quoted_source
         );
     }
 
