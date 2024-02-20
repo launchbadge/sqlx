@@ -238,6 +238,57 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_closes_statements_with_persistent_disabled() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let old_statement_count = select_statement_count(&mut conn).await.unwrap_or_default();
+
+    for i in 0..2 {
+        let row = sqlx::query("SELECT ? AS val")
+            .bind(i)
+            .persistent(false)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: i32 = row.get("val");
+
+        assert_eq!(i, val);
+    }
+
+    let new_statement_count = select_statement_count(&mut conn).await.unwrap_or_default();
+
+    assert_eq!(old_statement_count, new_statement_count);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_closes_statements_with_cache_disabled() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    let mut url = url::Url::parse(&env::var("DATABASE_URL")?)?;
+    url.query_pairs_mut()
+        .append_pair("statement-cache-capacity", "0");
+
+    let mut conn = MySqlConnection::connect(url.as_ref()).await?;
+
+    let old_statement_count = select_statement_count(&mut conn).await.unwrap_or_default();
+
+    for index in 1..=10_i32 {
+        let _ = sqlx::query("SELECT ?")
+            .bind(index)
+            .execute(&mut conn)
+            .await?;
+    }
+
+    let new_statement_count = select_statement_count(&mut conn).await.unwrap_or_default();
+
+    assert_eq!(old_statement_count, new_statement_count);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_bind_null_and_non_null_issue_540() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
@@ -509,4 +560,19 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     assert_eq!(ret, 12345678i64);
 
     Ok(())
+}
+
+async fn select_statement_count(conn: &mut MySqlConnection) -> Result<i64, sqlx::Error> {
+    // Fails if performance schema does not exist
+    sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM performance_schema.threads AS t
+        INNER JOIN performance_schema.prepared_statements_instances AS psi
+            ON psi.OWNER_THREAD_ID = t.THREAD_ID 
+        WHERE t.processlist_id = CONNECTION_ID()
+        "#,
+    )
+    .fetch_one(conn)
+    .await
 }

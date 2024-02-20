@@ -1813,3 +1813,27 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_error_handling_with_deferred_constraints() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint ( id INTEGER PRIMARY KEY )")
+        .execute(&mut conn)
+        .await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint_fk ( fk INTEGER CONSTRAINT deferred_fk REFERENCES deferred_constraint(id) DEFERRABLE INITIALLY DEFERRED )")
+            .execute(&mut conn)
+            .await?;
+
+    let result: sqlx::Result<i32> =
+        sqlx::query_scalar("INSERT INTO deferred_constraint_fk VALUES (1) RETURNING fk")
+            .fetch_one(&mut conn)
+            .await;
+
+    let err = result.unwrap_err();
+    let db_err = err.as_database_error().unwrap();
+    assert_eq!(db_err.constraint(), Some("deferred_fk"));
+
+    Ok(())
+}
