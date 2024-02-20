@@ -151,10 +151,16 @@ where
     }
 
     pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+        use std::io::ErrorKind;
+
         let path = dir.as_ref().join(format!("query-{}.json", self.hash));
         match std::fs::remove_file(&path) {
             Ok(()) => {}
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    ErrorKind::NotFound | ErrorKind::PermissionDenied,
+                ) => {}
             Err(err) => return Err(format!("failed to delete {path:?}: {err:?}").into()),
         }
         let mut file = match std::fs::OpenOptions::new()
@@ -164,7 +170,7 @@ where
         {
             Ok(file) => file,
             // We overlapped with a concurrent invocation and the other one succeeded.
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
+            Err(err) if matches!(err.kind(), ErrorKind::AlreadyExists) => return Ok(()),
             Err(err) => {
                 return Err(format!("failed to exclusively create {path:?}: {err:?}").into())
             }
