@@ -45,8 +45,7 @@ pub use ssl_mode::MySqlSslMode;
 ///     .host("localhost")
 ///     .username("root")
 ///     .password("password")
-///     .database("db")
-///     .connect().await?;
+///     .database("db")?;
 ///
 /// // Modifying options parsed from a string
 /// let mut opts: MySqlConnectOptions = "mysql://root:password@localhost/db".parse()?;
