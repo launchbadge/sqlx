@@ -365,6 +365,9 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
     where
         BranchParent: From<I>,
     {
+        if !self.log_enabled() {
+            return;
+        }
         let branch: BranchParent = BranchParent::from(state);
         self.branch_origins.insert(branch.id, parent.clone());
     }
@@ -374,6 +377,9 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         BranchParent: From<I>,
         S: From<I>,
     {
+        if !self.log_enabled() {
+            return;
+        }
         let branch: BranchParent = BranchParent::from(state);
         let state: S = S::from(state);
         self.branch_operations
@@ -386,15 +392,24 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         BranchParent: for<'a> From<&'a I>,
         S: From<I>,
     {
+        if !self.log_enabled() {
+            return;
+        }
         let branch: BranchParent = BranchParent::from(&state);
         self.branch_results.insert(branch.id, result);
     }
 
     pub fn add_unknown_operation(&mut self, operation: usize) {
+        if !self.log_enabled() {
+            return;
+        }
         self.unknown_operations.insert(operation);
     }
 
     pub fn finish(&self) {
+        if !self.log_enabled() {
+            return;
+        }
         let lvl = self.settings.statements_level;
 
         if let Some((tracing_level, log_level)) = logger::private_level_filter_to_levels(lvl) {
