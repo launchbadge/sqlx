@@ -612,6 +612,42 @@ async fn it_describes_union() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_describes_having_group_by() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe(
+            r#"
+        WITH tweet_reply_unq as ( --tweets with a single response
+          SELECT tweet_id id
+          FROM tweet_reply
+          GROUP BY tweet_id
+          HAVING COUNT(1) = 1
+        ) 
+        SELECT 
+          (
+    		  SELECT COUNT(*) 
+    		  FROM (
+    		    SELECT NULL
+    			FROM tweet
+    			JOIN tweet_reply_unq
+    			  USING (id)
+                WHERE tweet.owner_id = accounts.id
+              )
+          ) single_reply_count
+        FROM accounts
+        WHERE id = ?1
+        "#,
+        )
+        .await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    Ok(())
+}
+
 //documents failures originally found through property testing
 #[sqlx_macros::test]
 async fn it_describes_strange_queries() -> anyhow::Result<()> {
