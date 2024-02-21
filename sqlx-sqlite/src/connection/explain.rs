@@ -915,6 +915,9 @@ pub(super) fn explain(
                         state.mem.program_i = (*return_i + 1) as usize;
                         state.mem.r.remove(&p1);
                         continue;
+                    } else if p3 == 1 {
+                        state.mem.program_i += 1;
+                        continue;
                     } else {
                         logger.add_result(state, BranchResult::Error);
                         break;
