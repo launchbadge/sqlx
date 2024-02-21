@@ -195,6 +195,8 @@ be removed in the future.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
 
+-   `geometry`: Add support for `GEOMETRY` using the `geozero` crate, currently only available for MySQL.
+
 -   Offline mode is now always enabled. See [sqlx-cli/README.md][readme-offline].
 
 [readme-offline]: sqlx-cli/README.md#enable-building-in-offline-mode-with-query

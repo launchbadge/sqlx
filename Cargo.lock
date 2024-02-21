@@ -141,6 +141,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "argon2"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1472,6 +1481,31 @@ checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
+]
+
+[[package]]
+name = "geo-types"
+version = "0.7.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "567495020b114f1ce9bed679b29975aa0bfae06ac22beacd5cfde5dabe7b05d6"
+dependencies = [
+ "approx",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
+name = "geozero"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61d25cc15c7e5b86cd8dadea56bb78c46f346d4fb09022e7cbba0839c890d0a1"
+dependencies = [
+ "geo-types",
+ "log",
+ "scroll",
+ "serde_json",
+ "thiserror",
+ "wkt",
 ]
 
 [[package]]
@@ -2889,6 +2923,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "scroll"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04c565b551bafbef4157586fa379538366e4385d42082f255bfd96e4fe8519da"
+
+[[package]]
 name = "sct"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3156,6 +3196,7 @@ dependencies = [
  "dotenvy",
  "env_logger",
  "futures",
+ "geo-types",
  "hex",
  "libsqlite3-sys",
  "paste",
@@ -3443,6 +3484,8 @@ dependencies = [
  "futures-io",
  "futures-util",
  "generic-array",
+ "geo-types",
+ "geozero",
  "hex",
  "hkdf",
  "hmac",
@@ -4461,6 +4504,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "829846f3e3db426d4cee4510841b71a8e58aa2a76b1132579487ae430ccd9c7b"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "wkt"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3c2252781f8927974e8ba6a67c965a759a2b88ea2b1825f6862426bbb1c8f41"
+dependencies = [
+ "geo-types",
+ "log",
+ "num-traits",
+ "thiserror",
 ]
 
 [[package]]
