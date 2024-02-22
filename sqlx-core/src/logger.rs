@@ -54,6 +54,12 @@ pub fn private_level_filter_to_levels(
     tracing_level.zip(filter.to_level())
 }
 
+pub(crate) fn private_level_filter_to_trace_level(
+    filter: log::LevelFilter,
+) -> Option<tracing::Level> {
+    private_level_filter_to_levels(filter).map(|(level, _)| level)
+}
+
 pub use sqlformat;
 
 pub struct QueryLogger<'q> {
