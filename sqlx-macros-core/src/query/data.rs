@@ -151,21 +151,40 @@ where
     }
 
     pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
-        let path = dir.as_ref().join(format!("query-{}.json", self.hash));
-        let mut file = atomic_write_file::AtomicWriteFile::open(&path)
-            .map_err(|err| format!("failed to open the temporary file: {err:?}"))?;
+        use std::io::ErrorKind;
 
-        serde_json::to_writer_pretty(file.as_file_mut(), self)
-            .map_err(|err| format!("failed to serialize query data to file: {err:?}"))?;
+        let path = dir.as_ref().join(format!("query-{}.json", self.hash));
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    ErrorKind::NotFound | ErrorKind::PermissionDenied,
+                ) => {}
+            Err(err) => return Err(format!("failed to delete {path:?}: {err:?}").into()),
+        }
+        let mut file = match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(file) => file,
+            // We overlapped with a concurrent invocation and the other one succeeded.
+            Err(err) if matches!(err.kind(), ErrorKind::AlreadyExists) => return Ok(()),
+            Err(err) => {
+                return Err(format!("failed to exclusively create {path:?}: {err:?}").into())
+            }
+        };
+
+        let data = serde_json::to_string_pretty(self)
+            .map_err(|err| format!("failed to serialize query data: {err:?}"))?;
+        file.write_all(data.as_bytes())
+            .map_err(|err| format!("failed to write query data to file: {err:?}"))?;
 
         // Ensure there is a newline at the end of the JSON file to avoid
         // accidental modification by IDE and make github diff tool happier.
-        file.as_file_mut()
-            .write_all(b"\n")
+        file.write_all(b"\n")
             .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
-
-        file.commit()
-            .map_err(|err| format!("failed to commit the query data to {path:?}: {err:?}"))?;
 
         Ok(())
     }
