@@ -129,6 +129,7 @@ impl<'a> DoHandshake<'a> {
             database: options.database.as_deref(),
             auth_plugin: plugin,
             auth_response: auth_response.as_deref(),
+            attributes: &options.attributes,
         });
 
         stream.flush().await?;

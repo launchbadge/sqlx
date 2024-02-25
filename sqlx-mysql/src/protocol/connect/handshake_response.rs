@@ -1,5 +1,6 @@
 use crate::io::MySqlBufMutExt;
 use crate::io::{BufMutExt, Encode};
+use crate::options::Attributes;
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::connect::ssl_request::SslRequest;
 use crate::protocol::Capabilities;
@@ -25,6 +26,9 @@ pub struct HandshakeResponse<'a> {
 
     /// Opaque authentication response
     pub auth_response: Option<&'a [u8]>,
+
+    /// Connection attributes
+    pub attributes: &'a Attributes,
 }
 
 impl Encode<'_, Capabilities> for HandshakeResponse<'_> {
@@ -69,5 +73,7 @@ impl Encode<'_, Capabilities> for HandshakeResponse<'_> {
                 buf.push(0);
             }
         }
+
+        self.attributes.encode_with(buf, capabilities);
     }
 }
