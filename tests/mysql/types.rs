@@ -290,8 +290,8 @@ mod json_tests {
 #[cfg(feature = "geometry")]
 mod geometry_tests {
     use geo_types::{
-        line_string, point, polygon, Geometry, GeometryCollection, LineString, MultiPoint, Point,
-        Polygon,
+        line_string, point, polygon, Geometry, GeometryCollection, LineString, MultiPoint,
+        MultiPolygon, Point, Polygon,
     };
     use sqlx_test::test_type;
 
@@ -427,7 +427,7 @@ mod geometry_tests {
                 r#"
 CREATE TEMPORARY TABLE with_geometry (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    geom {} NOT NULL
+    geom {} NULL
 );"#,
                 $ty
             )
@@ -493,6 +493,49 @@ CREATE TEMPORARY TABLE with_geometry (
             }
         };
     }
+
+    /// Nullability tests for a subtype of the `GEOMETRY`
+    macro_rules! test_geo_table_null {
+        ($name:ident, $col:literal, $ty:ty $(,)?) => {
+            paste::item! {
+                #[sqlx_macros::test]
+                async fn [< test_geometry_table_null_ $name >] () -> anyhow::Result<()> {
+                    use sqlx::Connection;
+
+                    let mut conn = sqlx_test::new::<MySql>().await?;
+                    let tdl = geo_table!(CREATE, $col);
+
+                    conn.execute(tdl.as_str()).await?;
+
+
+                    println!("Insert with select NULL of {}", std::any::type_name::<$ty>());
+                    conn.execute("INSERT INTO with_geometry (geom) VALUES (NULL)").await?;
+
+                    let row = sqlx::query("SELECT geom FROM with_geometry WHERE geom IS NULL")
+                        .fetch_one(&mut conn)
+                        .await?;
+                    let geom: Option<$ty> = row.try_get(0)?;
+
+                    conn.close().await?;
+                    assert_eq!(geom, None);
+
+                    Ok(())
+                }
+            }
+        };
+    }
+
+    test_geo_table_null!(geometry, "GEOMETRY", Geometry<f64>);
+    test_geo_table_null!(point, "POINT", Point<f64>);
+    test_geo_table_null!(linestring, "LINESTRING", LineString<f64>);
+    test_geo_table_null!(polygon, "POLYGON", Polygon<f64>);
+    test_geo_table_null!(multipoint, "MULTIPOINT", MultiPoint<f64>);
+    test_geo_table_null!(multipolygon, "MULTIPOLYGON", MultiPolygon<f64>);
+    test_geo_table_null!(
+        geometry_collection,
+        "GEOMETRYCOLLECTION",
+        GeometryCollection<f64>
+    );
 
     test_geo_table!(
         point,
