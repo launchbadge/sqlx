@@ -303,16 +303,15 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
 fn validate_applied_migrations(
     applied_migrations: &[AppliedMigration],
     migrator: &Migrator,
-    ignore_missing: bool,
 ) -> Result<(), MigrateError> {
-    if ignore_missing {
+    if migrator.ignore_missing {
         return Ok(());
     }
 
     let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
 
     for applied_migration in applied_migrations {
-        if !migrations.contains(&applied_migration.version) {
+        if applied_migration.version > 0 && !migrations.contains(&applied_migration.version) {
             return Err(MigrateError::VersionMissing(applied_migration.version));
         }
     }
@@ -327,7 +326,9 @@ pub async fn run(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
+    let mut migrator = Migrator::new(Path::new(migration_source)).await?;
+    migrator.set_ignore_missing(ignore_missing);
+
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -344,7 +345,7 @@ pub async fn run(
     }
 
     let applied_migrations = conn.list_applied_migrations().await?;
-    validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+    validate_applied_migrations(&applied_migrations, &migrator)?;
 
     let latest_version = applied_migrations
         .iter()
@@ -357,18 +358,25 @@ pub async fn run(
         }
     }
 
-    let applied_migrations: HashMap<_, _> = applied_migrations
-        .into_iter()
+    let (versioned_migrations, rerunnable_migrations): (Vec<_>, Vec<_>) = migrator
+        .iter()
+        .partition(|m| m.migration_type != MigrationType::OnChange);
+
+    let (applied_versioned_migrations, applied_rerunnable_migrations): (Vec<_>, Vec<_>) =
+        applied_migrations.iter().partition(|am| am.version > 0);
+
+    let applied_migrations_by_version: HashMap<_, _> = applied_versioned_migrations
+        .iter()
         .map(|m| (m.version, m))
         .collect();
 
-    for migration in migrator.iter() {
+    for migration in versioned_migrations {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
             continue;
         }
 
-        match applied_migrations.get(&migration.version) {
+        match applied_migrations_by_version.get(&migration.version) {
             Some(applied_migration) => {
                 if migration.checksum != applied_migration.checksum {
                     bail!(MigrateError::VersionMismatch(migration.version));
@@ -403,6 +411,64 @@ pub async fn run(
         }
     }
 
+    let mut next_available_version = applied_rerunnable_migrations
+        .iter()
+        .min_by(|x, y| x.version.cmp(&y.version))
+        .map(|migration| migration.version - 1)
+        .unwrap_or(-1);
+
+    let applied_migrations_by_checksum: HashMap<_, _> = applied_rerunnable_migrations
+        .iter()
+        .map(|m| (m.checksum.clone(), m))
+        .collect();
+
+    let applied_migrations_by_desc: HashMap<_, _> = applied_rerunnable_migrations
+        .iter()
+        .map(|m| (m.description.to_string(), m))
+        .collect();
+
+    for migration in rerunnable_migrations {
+        if applied_migrations_by_checksum
+            .get(&migration.checksum)
+            .is_none()
+        {
+            let previously_applied =
+                applied_migrations_by_desc.get(&migration.description.to_string());
+
+            let elapsed = if dry_run {
+                Duration::new(0, 0)
+            } else if let Some(previous_applied) = previously_applied {
+                let mut migration = migration.to_owned();
+                migration.version = previous_applied.version;
+                conn.reapply(&migration).await?
+            } else {
+                let mut migration = migration.to_owned();
+                migration.version = next_available_version;
+                next_available_version -= 1;
+                conn.apply(&migration).await?
+            };
+
+            let text = if dry_run && previously_applied.is_none() {
+                "Can apply"
+            } else if dry_run && previously_applied.is_some() {
+                "Can reapply"
+            } else if previously_applied.is_some() {
+                "Reapplied"
+            } else {
+                "Applied"
+            };
+
+            println!(
+                "{} {}/{} {} {}",
+                text,
+                style("rerunnable").cyan(),
+                style(migration.migration_type.label()).green(),
+                migration.description,
+                style(format!("({elapsed:?})")).dim()
+            );
+        }
+    }
+
     // Close the connection before exiting:
     // * For MySQL and Postgres this should ensure timely cleanup on the server side,
     //   including decrementing the open connection count.
@@ -420,7 +486,9 @@ pub async fn revert(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
+    let mut migrator = Migrator::new(Path::new(migration_source)).await?;
+    migrator.set_ignore_missing(ignore_missing);
+
     if let Some(target_version) = target_version {
         if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -437,7 +505,7 @@ pub async fn revert(
     }
 
     let applied_migrations = conn.list_applied_migrations().await?;
-    validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
+    validate_applied_migrations(&applied_migrations, &migrator)?;
 
     let latest_version = applied_migrations
         .iter()
