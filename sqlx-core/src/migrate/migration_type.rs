@@ -13,6 +13,9 @@ pub enum MigrationType {
     /// ReversibleDown migrations represents the  delete or downgrade part of a reversible migrations
     /// It is expected the every migration of this type will have a corresponding up file
     ReversibleDown,
+
+    /// OnChange migrations re-run every time SQLX detects a change on the script
+    OnChange,
 }
 
 impl MigrationType {
@@ -21,6 +24,8 @@ impl MigrationType {
             MigrationType::ReversibleUp
         } else if filename.ends_with(MigrationType::ReversibleDown.suffix()) {
             MigrationType::ReversibleDown
+        } else if filename.ends_with(MigrationType::OnChange.suffix()) {
+            MigrationType::OnChange
         } else {
             MigrationType::Simple
         }
@@ -31,6 +36,7 @@ impl MigrationType {
             MigrationType::Simple => false,
             MigrationType::ReversibleUp => true,
             MigrationType::ReversibleDown => true,
+            MigrationType::OnChange => false,
         }
     }
 
@@ -39,6 +45,7 @@ impl MigrationType {
             MigrationType::Simple => true,
             MigrationType::ReversibleUp => true,
             MigrationType::ReversibleDown => false,
+            MigrationType::OnChange => true,
         }
     }
 
@@ -47,6 +54,7 @@ impl MigrationType {
             MigrationType::Simple => false,
             MigrationType::ReversibleUp => false,
             MigrationType::ReversibleDown => true,
+            MigrationType::OnChange => false,
         }
     }
 
@@ -55,6 +63,7 @@ impl MigrationType {
             MigrationType::Simple => "migrate",
             MigrationType::ReversibleUp => "migrate",
             MigrationType::ReversibleDown => "revert",
+            MigrationType::OnChange => "migrate",
         }
     }
 
@@ -63,6 +72,7 @@ impl MigrationType {
             MigrationType::Simple => ".sql",
             MigrationType::ReversibleUp => ".up.sql",
             MigrationType::ReversibleDown => ".down.sql",
+            MigrationType::OnChange => ".onchange.sql",
         }
     }
 
@@ -71,19 +81,14 @@ impl MigrationType {
             MigrationType::Simple => "-- Add migration script here\n",
             MigrationType::ReversibleUp => "-- Add up migration script here\n",
             MigrationType::ReversibleDown => "-- Add down migration script here\n",
+            MigrationType::OnChange => "-- Add migration script here\n",
         }
     }
 
-    pub fn infer(migrator: &Migrator, reversible: bool) -> MigrationType {
+    pub fn infer(migrator: &Migrator) -> MigrationType {
         match migrator.iter().next() {
             Some(first_migration) => first_migration.migration_type,
-            None => {
-                if reversible {
-                    MigrationType::ReversibleUp
-                } else {
-                    MigrationType::Simple
-                }
-            }
+            None => MigrationType::Simple,
         }
     }
 }
