@@ -55,6 +55,14 @@ pub trait Migrate {
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 
+    // re-run SQL from migration in a DDL transaction
+    // update row to [_migrations] table on completion (success or failure)
+    // returns the time taking to run the migration SQL
+    fn reapply<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+
     // run a revert SQL from migration in a DDL transaction
     // deletes the row in [_migrations] table with specified migration version on completion (success or failure)
     // returns the time taking to run the migration SQL
