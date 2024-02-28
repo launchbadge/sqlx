@@ -39,6 +39,7 @@ fn create_file(
 enum MigrationOrdering {
     Timestamp(String),
     Sequential(String),
+    None,
 }
 
 impl MigrationOrdering {
@@ -57,6 +58,7 @@ impl MigrationOrdering {
         match self {
             MigrationOrdering::Timestamp(prefix) => prefix,
             MigrationOrdering::Sequential(prefix) => prefix,
+            MigrationOrdering::None => "",
         }
     }
 
@@ -74,7 +76,9 @@ impl MigrationOrdering {
                 // inferring the naming scheme
                 let migrations = migrator
                     .iter()
-                    .filter(|migration| migration.migration_type.is_up_migration())
+                    .filter(|migration| {
+                        migration.migration_type.is_up_migration() && migration.version > 0
+                    })
                     .rev()
                     .take(2)
                     .collect::<Vec<_>>();
@@ -108,15 +112,26 @@ pub async fn add(
     reversible: bool,
     sequential: bool,
     timestamp: bool,
+    on_change: bool,
 ) -> anyhow::Result<()> {
     fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
 
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // Type of newly created migration will be the same as the first one
-    // or reversible flag if this is the first migration
-    let migration_type = MigrationType::infer(&migrator, reversible);
 
-    let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
+    let migration_type = match (reversible, on_change) {
+        (true, true) => panic!("Impossible to specify both reversible and on_change mode"),
+        (true, false) => MigrationType::ReversibleUp,
+        (false, true) => MigrationType::OnChange,
+        (false, false) => MigrationType::infer(&migrator),
+    };
+
+    let ordering = match migration_type {
+        MigrationType::Simple | MigrationType::ReversibleUp | MigrationType::ReversibleDown => {
+            MigrationOrdering::infer(sequential, timestamp, &migrator)
+        }
+        MigrationType::OnChange => MigrationOrdering::None,
+    };
+
     let file_prefix = ordering.file_prefix();
 
     if migration_type.is_reversible() {
@@ -133,12 +148,7 @@ pub async fn add(
             MigrationType::ReversibleDown,
         )?;
     } else {
-        create_file(
-            migration_source,
-            file_prefix,
-            description,
-            MigrationType::Simple,
-        )?;
+        create_file(migration_source, file_prefix, description, migration_type)?;
     }
 
     // if the migrations directory is empty
@@ -412,7 +422,7 @@ pub async fn revert(
     for migration in migrator.iter().rev() {
         if !migration.migration_type.is_down_migration() {
             // Skipping non down migration
-            // This will skip any simple or up migration file
+            // This will skip any simple, up on on_change migration file
             continue;
         }
 

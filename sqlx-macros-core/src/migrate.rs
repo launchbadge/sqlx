@@ -19,6 +19,7 @@ impl ToTokens for QuoteMigrationType {
             MigrationType::ReversibleDown => {
                 quote! { ::sqlx::migrate::MigrationType::ReversibleDown }
             }
+            MigrationType::OnChange => quote! { ::sqlx::migrate::MigrationType::OnChange },
         };
         tokens.append_all(ts);
     }
