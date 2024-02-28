@@ -210,20 +210,25 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
 
     conn.ensure_migrations_table().await?;
 
-    let applied_migrations: HashMap<_, _> = conn
-        .list_applied_migrations()
-        .await?
-        .into_iter()
-        .map(|m| (m.version, m))
-        .collect();
+    let applied_migrations: Vec<AppliedMigration> = conn.list_applied_migrations().await?;
 
-    for migration in migrator.iter() {
+    let applied_migrations_by_version: HashMap<_, _> =
+        applied_migrations.iter().map(|m| (m.version, m)).collect();
+
+    let (versioned_migrations_to_apply, rerunnable_migrations_to_apply): (Vec<_>, Vec<_>) =
+        migrator.iter().partition(|am| am.version > 0);
+
+    if !versioned_migrations_to_apply.is_empty() {
+        println!("{}", style("-- Versioned migrations --").dim());
+    }
+
+    for migration in versioned_migrations_to_apply {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
             continue;
         }
 
-        let applied = applied_migrations.get(&migration.version);
+        let applied = applied_migrations_by_version.get(&migration.version);
 
         let (status_msg, mismatched_checksum) = if let Some(applied) = applied {
             if applied.checksum != migration.checksum {
@@ -256,6 +261,38 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
                 short_checksum(&migration.checksum)
             )
         }
+    }
+
+    let applied_migrations_by_checksum: HashMap<_, _> = applied_migrations
+        .iter()
+        .map(|m| (m.checksum.clone(), m))
+        .collect();
+
+    let applied_migrations_by_desc: HashMap<_, _> = applied_migrations
+        .iter()
+        .map(|m| (m.description.to_string(), m))
+        .collect();
+
+    if !rerunnable_migrations_to_apply.is_empty() {
+        println!("{}", style("-- On change migrations --").dim());
+    }
+    for migration in rerunnable_migrations_to_apply {
+        let applied = applied_migrations_by_checksum.get(&migration.checksum);
+
+        let status_msg = match applied {
+            Some(_) => style("executed").green(),
+            None => match applied_migrations_by_desc.get(&migration.description.to_string()) {
+                Some(_) => style("pending (updated)").yellow(),
+                None => style("pending").yellow(),
+            },
+        };
+
+        println!(
+            "{}/{} {}",
+            style("rerunnable").cyan(),
+            status_msg,
+            migration.description
+        );
     }
 
     let _ = conn.close().await;
