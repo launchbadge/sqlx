@@ -20,7 +20,6 @@ fn create_file(
     use std::path::PathBuf;
 
     let mut file_name = file_prefix.to_string();
-    file_name.push('_');
     file_name.push_str(&description.replace(' ', "_"));
     file_name.push_str(migration_type.suffix());
 
@@ -44,11 +43,14 @@ enum MigrationOrdering {
 
 impl MigrationOrdering {
     fn timestamp() -> MigrationOrdering {
-        Self::Timestamp(Utc::now().format("%Y%m%d%H%M%S").to_string())
+        Self::Timestamp(format!(
+            "{}_",
+            Utc::now().format("%Y%m%d%H%M%S").to_string()
+        ))
     }
 
     fn sequential(version: i64) -> MigrationOrdering {
-        Self::Sequential(format!("{version:04}"))
+        Self::Sequential(format!("{version:04}_"))
     }
 
     fn file_prefix(&self) -> &str {
