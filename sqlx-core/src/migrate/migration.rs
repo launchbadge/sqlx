@@ -35,5 +35,6 @@ impl Migration {
 #[derive(Debug, Clone)]
 pub struct AppliedMigration {
     pub version: i64,
+    pub description: String,
     pub checksum: Cow<'static, [u8]>,
 }
