@@ -151,6 +151,15 @@ pub enum MigrateCommand {
         /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
         #[clap(short, long, conflicts_with = "timestamp")]
         sequential: bool,
+
+        /// If set, creates a migration that re-runs on changes. Conflicts with `-r`, `--timestamp` and `--sequential`.
+        #[clap(
+            long,
+            conflicts_with = "timestamp",
+            conflicts_with = "sequential",
+            conflicts_with = "reversible"
+        )]
+        on_change: bool,
     },
 
     /// Run all pending migrations.
