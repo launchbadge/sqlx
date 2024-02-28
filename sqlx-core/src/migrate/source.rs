@@ -9,12 +9,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 /// In the default implementation, a MigrationSource is a directory which
-/// contains the migration SQL scripts. All these scripts must be stored in
-/// files with names using the format `<VERSION>_<DESCRIPTION>.sql`, where
+/// contains the migration SQL scripts. Scripts must either be stored in
+/// files with names:
+/// * using the format `<VERSION>_<DESCRIPTION>([.up|.down]).sql`, where
 /// `<VERSION>` is a string that can be parsed into `i64` and its value is
 /// greater than zero, and `<DESCRIPTION>` is a string.
+/// * using the format `<DESCRIPTION>.onchange.sql` where `<DESCRIPTION>`
+/// is a string.
 ///
-/// Files that don't match this format are silently ignored.
+/// Files that don't match these format are silently ignored.
 ///
 /// You can create a new empty migration script using sqlx-cli:
 /// `sqlx migrate add <DESCRIPTION>`.
@@ -61,6 +64,7 @@ pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, Resolv
     })?;
 
     let mut migrations = Vec::new();
+    let mut unversioned_migrations_id = -1;
 
     for res in s {
         let entry = res.map_err(|e| ResolveError {
@@ -93,28 +97,7 @@ pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, Resolv
         // Using `.to_str()` and returning an error if the filename is not UTF-8
         // would be a breaking change.
         let file_name = file_name.to_string_lossy();
-
-        let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
-
-        if parts.len() != 2 || !parts[1].ends_with(".sql") {
-            // not of the format: <VERSION>_<DESCRIPTION>.<REVERSIBLE_DIRECTION>.sql; ignore
-            continue;
-        }
-
-        let version: i64 = parts[0].parse()
-            .map_err(|_e| ResolveError {
-                message: format!("error parsing migration filename {file_name:?}; expected integer version prefix (e.g. `01_foo.sql`)"),
-                source: None,
-            })?;
-
-        let migration_type = MigrationType::from_filename(parts[1]);
-
-        // remove the `.sql` and replace `_` with ` `
-        let description = parts[1]
-            .trim_end_matches(migration_type.suffix())
-            .replace('_', " ")
-            .to_owned();
-
+        let migration_type = MigrationType::from_filename(&file_name);
         let sql = fs::read_to_string(&entry_path).map_err(|e| ResolveError {
             message: format!(
                 "error reading contents of migration {}: {e}",
@@ -126,16 +109,56 @@ pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, Resolv
         // opt-out of migration transaction
         let no_tx = sql.starts_with("-- no-transaction");
 
-        migrations.push((
-            Migration::new(
-                version,
-                Cow::Owned(description),
-                migration_type,
-                Cow::Owned(sql),
-                no_tx,
-            ),
-            entry_path,
-        ));
+        if migration_type == MigrationType::OnChange {
+            // remove the `.sql` and replace `_` with ` `
+            let description = file_name
+                .trim_end_matches(migration_type.suffix())
+                .replace('_', " ")
+                .to_owned();
+
+            migrations.push((
+                Migration::new(
+                    unversioned_migrations_id,
+                    Cow::Owned(description),
+                    migration_type,
+                    Cow::Owned(sql),
+                    no_tx,
+                ),
+                entry_path,
+            ));
+
+            unversioned_migrations_id -= 1;
+        } else {
+            let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
+
+            if parts.len() != 2 || !parts[1].ends_with(".sql") {
+                // not of the format: <VERSION>_<DESCRIPTION>.<REVERSIBLE_DIRECTION>.sql; ignore
+                continue;
+            }
+
+            let version: i64 = parts[0].parse()
+            .map_err(|_e| ResolveError {
+                message: format!("error parsing migration filename {file_name:?}; expected integer version prefix (e.g. `01_foo.sql`)"),
+                source: None,
+            })?;
+
+            // remove the `.sql` and replace `_` with ` `
+            let description = parts[1]
+                .trim_end_matches(migration_type.suffix())
+                .replace('_', " ")
+                .to_owned();
+
+            migrations.push((
+                Migration::new(
+                    version,
+                    Cow::Owned(description),
+                    migration_type,
+                    Cow::Owned(sql),
+                    no_tx,
+                ),
+                entry_path,
+            ));
+        }
     }
 
     // Ensure that we are sorted by version in ascending order.
