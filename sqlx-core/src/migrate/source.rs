@@ -47,7 +47,10 @@ impl<'s> MigrationSource<'s> for &'s Path {
                     continue;
                 }
 
-                let version: i64 = parts[0].parse()?;
+                let version: i64 = parts[0].parse()
+                    .map_err(|_e| {
+                        format!("error parsing migration filename {file_name:?}; expected integer version prefix (e.g. `01_foo.sql`)")
+                    })?;
 
                 let migration_type = MigrationType::from_filename(parts[1]);
                 // remove the `.sql` and replace `_` with ` `
