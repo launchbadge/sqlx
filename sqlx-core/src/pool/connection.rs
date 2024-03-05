@@ -9,7 +9,7 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 
-use super::inner::{DecrementSizeGuard, PoolInner};
+use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
 use std::future::Future;
 
@@ -235,6 +235,13 @@ impl<DB: Database> Floating<DB, Live<DB>> {
     async fn return_to_pool(mut self) -> bool {
         // Immediately close the connection.
         if self.guard.pool.is_closed() {
+            self.close().await;
+            return false;
+        }
+
+        // If the connection is beyond max lifetime, close the connection and
+        // immediately create a new connection
+        if is_beyond_max_lifetime(&self.inner, &self.guard.pool.options) {
             self.close().await;
             return false;
         }
