@@ -36,7 +36,11 @@ pub trait DatabaseExt: Database {
 
     fn get_feature_gate(info: &Self::TypeInfo) -> Option<&'static str>;
 
-    fn describe_blocking(query: &str, database_url: &str) -> sqlx_core::Result<Describe<Self>>;
+    fn describe_blocking(
+        query: &str,
+        database_url: &str,
+        root: &str,
+    ) -> sqlx_core::Result<Describe<Self>>;
 }
 
 #[allow(dead_code)]
@@ -133,6 +137,7 @@ macro_rules! impl_describe_blocking {
         fn describe_blocking(
             query: &str,
             database_url: &str,
+            _root: &str,
         ) -> sqlx_core::Result<sqlx_core::describe::Describe<Self>> {
             use $crate::database::CachingDescribeBlocking;
 
@@ -146,8 +151,9 @@ macro_rules! impl_describe_blocking {
         fn describe_blocking(
             query: &str,
             database_url: &str,
+            root: &str,
         ) -> sqlx_core::Result<sqlx_core::describe::Describe<Self>> {
-            $describe(query, database_url)
+            $describe(query, database_url, root)
         }
     };
 }

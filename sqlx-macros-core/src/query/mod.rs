@@ -43,6 +43,7 @@ impl QueryDriver {
 }
 pub enum QueryDataSource<'a> {
     Live {
+        root: &'a str,
         database_url: &'a str,
         database_url_parsed: Url,
     },
@@ -50,8 +51,9 @@ pub enum QueryDataSource<'a> {
 }
 
 impl<'a> QueryDataSource<'a> {
-    pub fn live(database_url: &'a str) -> crate::Result<Self> {
+    pub fn live(database_url: &'a str, root: &'a str) -> crate::Result<Self> {
         Ok(QueryDataSource::Live {
+            root,
             database_url,
             database_url_parsed: database_url.parse()?,
         })
@@ -155,10 +157,11 @@ pub fn expand_input<'a>(
 ) -> crate::Result<TokenStream> {
     let data_source = match &*METADATA {
         Metadata {
+            manifest_dir,
             offline: false,
             database_url: Some(db_url),
             ..
-        } => QueryDataSource::live(db_url)?,
+        } => QueryDataSource::live(db_url, manifest_dir.to_str().unwrap())?,
 
         Metadata { offline, .. } => {
             // Try load the cached query metadata file.
@@ -221,8 +224,10 @@ where
 {
     let (query_data, offline): (QueryData<DB>, bool) = match data_source {
         QueryDataSource::Cached(dyn_data) => (QueryData::from_dyn_data(dyn_data)?, true),
-        QueryDataSource::Live { database_url, .. } => {
-            let describe = DB::describe_blocking(&input.sql, &database_url)?;
+        QueryDataSource::Live {
+            database_url, root, ..
+        } => {
+            let describe = DB::describe_blocking(&input.sql, &database_url, root)?;
             (QueryData::from_describe(&input.sql, describe), false)
         }
     };

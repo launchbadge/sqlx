@@ -29,6 +29,8 @@
 #[macro_use]
 extern crate sqlx_core;
 
+use std::borrow::Cow;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
@@ -106,8 +108,15 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
-pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
-    let opts: SqliteConnectOptions = database_url.parse()?;
+pub fn describe_blocking(
+    query: &str,
+    database_url: &str,
+    root: &str,
+) -> Result<Describe<Sqlite>, Error> {
+    let mut opts: SqliteConnectOptions = database_url.parse()?;
+    if opts.filename.is_relative() {
+        opts.filename = Cow::Owned(PathBuf::from(root).join(opts.filename));
+    }
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;
 
