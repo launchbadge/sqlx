@@ -470,6 +470,10 @@ jobs:
         mariadb: [verylatest, 10_11, 10_4]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
+        exclude:
+          # FIXME: `rustls` cannot accept MariaDB's new self-signed certificates: https://github.com/launchbadge/sqlx/issues/3091
+          - mariadb: verylatest
+            tls: rustls
     needs: check
     steps:
       - uses: actions/checkout@v2
