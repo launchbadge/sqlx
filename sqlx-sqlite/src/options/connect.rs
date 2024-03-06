@@ -24,6 +24,10 @@ impl ConnectOptions for SqliteConnectOptions {
         Self::from_str(url.as_str())
     }
 
+    fn to_url_lossy(&self) -> Url {
+        self.build_url()
+    }
+
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
     where
         Self::Connection: Sized,

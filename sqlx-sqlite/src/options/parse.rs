@@ -1,10 +1,11 @@
 use crate::error::Error;
 use crate::SqliteConnectOptions;
-use percent_encoding::percent_decode_str;
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use url::Url;
 
 // https://www.sqlite.org/uri.html
 
@@ -111,6 +112,36 @@ impl SqliteConnectOptions {
 
         Ok(options)
     }
+
+    pub(crate) fn build_url(&self) -> Url {
+        let filename =
+            utf8_percent_encode(&self.filename.to_string_lossy(), NON_ALPHANUMERIC).to_string();
+        let mut url =
+            Url::parse(&format!("sqlite://{}", filename)).expect("BUG: generated un-parseable URL");
+
+        let mode = match (self.in_memory, self.create_if_missing, self.read_only) {
+            (true, _, _) => "memory",
+            (false, true, _) => "rwc",
+            (false, false, true) => "ro",
+            (false, false, false) => "rw",
+        };
+        url.query_pairs_mut().append_pair("mode", mode);
+
+        let cache = match self.shared_cache {
+            true => "shared",
+            false => "private",
+        };
+        url.query_pairs_mut().append_pair("cache", cache);
+
+        url.query_pairs_mut()
+            .append_pair("immutable", &self.immutable.to_string());
+
+        if let Some(vfs) = &self.vfs {
+            url.query_pairs_mut().append_pair("vfs", &vfs);
+        }
+
+        url
+    }
 }
 
 impl FromStr for SqliteConnectOptions {
@@ -166,6 +197,17 @@ fn test_parse_shared_in_memory() -> Result<(), Error> {
     let options: SqliteConnectOptions = "sqlite://a.db?cache=shared".parse()?;
     assert!(options.shared_cache);
     assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    Ok(())
+}
+
+#[test]
+fn it_returns_the_parsed_url() -> Result<(), Error> {
+    let url = "sqlite://test.db?mode=rw&cache=shared";
+    let options: SqliteConnectOptions = url.parse()?;
+
+    let expected_url = Url::parse(url).unwrap();
+    assert_eq!(options.build_url(), expected_url);
 
     Ok(())
 }

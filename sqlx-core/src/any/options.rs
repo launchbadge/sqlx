@@ -43,6 +43,10 @@ impl ConnectOptions for AnyConnectOptions {
         })
     }
 
+    fn to_url_lossy(&self) -> Url {
+        self.database_url.clone()
+    }
+
     #[inline]
     fn connect(&self) -> BoxFuture<'_, Result<AnyConnection, Error>> {
         AnyConnection::connect(self)
