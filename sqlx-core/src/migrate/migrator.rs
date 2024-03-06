@@ -5,11 +5,21 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::slice;
 
+/// A resolved set of migrations, ready to be run.
+///
+/// Can be constructed statically using `migrate!()` or at runtime using [`Migrator::new()`].
 #[derive(Debug)]
-#[doc(hidden)]
+// Forbids `migrate!()` from constructing this:
+// #[non_exhaustive]
 pub struct Migrator {
+    // NOTE: these fields are semver-exempt and may be changed or removed in any future version.
+    // These have to be public for `migrate!()` to be able to initialize them in an implicitly
+    // const-promotable context. A `const fn` constructor isn't implicitly const-promotable.
+    #[doc(hidden)]
     pub migrations: Cow<'static, [Migration]>,
+    #[doc(hidden)]
     pub ignore_missing: bool,
+    #[doc(hidden)]
     pub locking: bool,
 }
 
@@ -33,6 +43,13 @@ fn validate_applied_migrations(
 }
 
 impl Migrator {
+    #[doc(hidden)]
+    pub const DEFAULT: Migrator = Migrator {
+        migrations: Cow::Borrowed(&[]),
+        ignore_missing: false,
+        locking: true,
+    };
+
     /// Creates a new instance with the given source.
     ///
     /// # Examples
@@ -57,8 +74,7 @@ impl Migrator {
     {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
-            ignore_missing: false,
-            locking: true,
+            ..Self::DEFAULT
         })
     }
 
@@ -68,7 +84,7 @@ impl Migrator {
         self
     }
 
-    /// Specify whether or not to lock database during migration. Defaults to `true`.
+    /// Specify whether or not to lock the database during migration. Defaults to `true`.
     ///
     /// ### Warning
     /// Disabling locking can lead to errors or data loss if multiple clients attempt to apply migrations simultaneously
