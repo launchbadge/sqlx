@@ -177,7 +177,10 @@ hex = "0.4.3"
 tempfile = "3.9.0"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
 
-# Needed to test SQLCipher
+# If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,
+# even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
+[target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]
+# Enable testing with SQLCipher if specifically requested.
 libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
 
 #
