@@ -378,7 +378,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// use sqlx::postgres::PgPoolOptions;
     ///
     /// let pool = PgPoolOptions::new()
-    ///     .after_connect(move |opts, _num_attempts| Box::pin(async move {
+    ///     .before_connect(move |opts, _num_attempts| Box::pin(async move {
     ///         Ok(Cow::Owned(opts.clone().password("abc")))
     ///     }))
     ///     .connect("postgres:// …").await?;
