@@ -146,10 +146,9 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     Ok(quote! {
         ::sqlx::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(&[
-                #(#migrations),*
+                    #(#migrations),*
             ]),
-            ignore_missing: false,
-            locking: true,
+            ..::sqlx::migrate::Migrator::DEFAULT
         }
     })
 }
