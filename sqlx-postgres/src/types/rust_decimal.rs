@@ -71,6 +71,7 @@ impl TryFrom<PgNumeric> for Decimal {
     }
 }
 
+// This impl is effectively infallible because `NUMERIC` has a greater range than `Decimal`.
 impl TryFrom<&'_ Decimal> for PgNumeric {
     type Error = BoxDynError;
 
@@ -142,18 +143,17 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
     }
 }
 
-/// ### Panics
-/// If this `Decimal` cannot be represented by `PgNumeric`.
 impl Encode<'_, Postgres> for Decimal {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         PgNumeric::try_from(self)
-            .expect("Decimal magnitude too great for Postgres NUMERIC type")
+            .expect("BUG: `Decimal` to `PgNumeric` conversion should be infallible")
             .encode(buf);
 
         IsNull::No
     }
 }
 
+#[doc=include_str!("rust_decimal-range.md")]
 impl Decode<'_, Postgres> for Decimal {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.format() {
