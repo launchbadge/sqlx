@@ -167,9 +167,6 @@ jobs:
       matrix:
         runtime: [async-std, tokio]
     needs: check
-    env:
-      # Enable tests with SQLCipher
-      RUSTFLAGS: --cfg sqlite_test_sqlcipher
     steps:
       - uses: actions/checkout@v2
 
@@ -201,7 +198,7 @@ jobs:
         env:
           DATABASE_URL: sqlite:tests/sqlite/sqlite.db
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg sqlite_ipaddr
+          RUSTFLAGS: --cfg sqlite_ipaddr --cfg sqlite_test_sqlcipher
           LD_LIBRARY_PATH: /tmp/sqlite3-lib
 
       # Remove test artifacts

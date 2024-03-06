@@ -1,3 +1,5 @@
+#![cfg(sqlite_test_sqlcipher)]
+
 use std::str::FromStr;
 
 use sqlx::sqlite::SqliteQueryResult;
@@ -125,7 +127,6 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(sqlite_test_sqlcipher)]
 #[sqlx_macros::test]
 async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
