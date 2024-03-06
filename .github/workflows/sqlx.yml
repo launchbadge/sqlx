@@ -167,6 +167,9 @@ jobs:
       matrix:
         runtime: [async-std, tokio]
     needs: check
+    env:
+      # Enable tests with SQLCipher
+      RUSTFLAGS: --cfg sqlite_test_sqlcipher
     steps:
       - uses: actions/checkout@v2
 
