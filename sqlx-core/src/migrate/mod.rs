@@ -12,3 +12,6 @@ pub use migration::{AppliedMigration, Migration};
 pub use migration_type::MigrationType;
 pub use migrator::Migrator;
 pub use source::MigrationSource;
+
+#[doc(hidden)]
+pub use source::resolve_blocking;
