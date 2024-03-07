@@ -1,10 +1,13 @@
-use super::fake_sqlx as sqlx;
+#[allow(unused_imports)]
+use sqlx_core as sqlx;
+
+use crate::Sqlite;
 
 // f32 is not included below as REAL represents a floating point value
-// stored as an 8-byte IEEE floating point number
+// stored as an 8-byte IEEE floating point number (i.e. an f64)
 // For more info see: https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes
-impl_database_ext! {
-    sqlx::sqlite::Sqlite {
+impl_type_checking!(
+    Sqlite {
         bool,
         i32,
         i64,
@@ -34,9 +37,10 @@ impl_database_ext! {
         sqlx::types::Uuid,
     },
     ParamChecking::Weak,
+    // While there are type integrations that must be enabled via Cargo feature,
+    // SQLite's type system doesn't actually have any type that we cannot decode by default.
+    //
+    // The type integrations simply allow the user to skip some intermediate representation,
+    // which is usually TEXT.
     feature-types: _info => None,
-    row: sqlx::sqlite::SqliteRow,
-    // Since proc-macros don't benefit from async, we can make a describe call directly
-    // which also ensures that the database is closed afterwards, regardless of errors.
-    describe-blocking: sqlx_sqlite::describe_blocking,
-}
+);
