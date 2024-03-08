@@ -35,7 +35,7 @@ impl Migration {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AppliedMigration {
     pub version: i64,
     pub description: String,
