@@ -1,6 +1,8 @@
 //! Provides [`Encode`] for encoding values for the database.
 
+use std::borrow::Cow;
 use std::mem;
+use std::ops::Deref;
 
 use crate::database::{Database, HasArguments};
 
@@ -116,4 +118,30 @@ macro_rules! impl_encode_for_option {
             }
         }
     };
+}
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'_, T>
+where
+    T: ToOwned + ?Sized,
+    T: Encode<'q, DB>,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        <T as Encode<'q, DB>>::encode_by_ref(self.deref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        <T as Encode<'q, DB>>::encode_by_ref(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        <T as Encode<'q, DB>>::produces(self)
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        <T as Encode<'q, DB>>::size_hint(self)
+    }
 }

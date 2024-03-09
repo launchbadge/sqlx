@@ -19,6 +19,7 @@
 //!
 
 use crate::database::Database;
+use std::borrow::Cow;
 
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
@@ -235,5 +236,20 @@ impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
         <T as Type<DB>>::compatible(ty)
+    }
+}
+
+impl<T, DB> Type<DB> for Cow<'_, T>
+where
+    T: ToOwned + ?Sized,
+    T::Owned: Type<DB>,
+    DB: Database,
+{
+    fn type_info() -> DB::TypeInfo {
+        <T::Owned as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <T::Owned as Type<DB>>::compatible(ty)
     }
 }

@@ -1,8 +1,9 @@
 //! Provides [`Decode`] for decoding values from the database.
 
+use std::borrow::Cow;
+
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
-
 use crate::value::ValueRef;
 
 /// A type that can be decoded from the database.
@@ -75,5 +76,17 @@ where
         } else {
             Ok(Some(T::decode(value)?))
         }
+    }
+}
+
+impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
+where
+    T: ToOwned + ?Sized + 'r,
+    T::Owned: Decode<'r, DB>,
+    DB: Database,
+{
+    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+        let decoded = <T::Owned as Decode<'r, DB>>::decode(value)?;
+        Ok(Cow::Owned(decoded))
     }
 }
