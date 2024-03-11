@@ -21,11 +21,18 @@ regexp = ["dep:regex"]
 
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
-futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
+futures-channel = { version = "0.3.19", default-features = false, features = [
+    "sink",
+    "alloc",
+    "std",
+] }
 # used by the SQLite worker thread to block on the async mutex that locks the database handle
 futures-executor = { version = "0.3.19" }
 futures-intrusive = "0.5.0"
-futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink"] }
+futures-util = { version = "0.3.19", default-features = false, features = [
+    "alloc",
+    "sink",
+] }
 
 chrono = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
@@ -48,15 +55,7 @@ regex = { version = "1.5.5", optional = true }
 [dependencies.libsqlite3-sys]
 version = "0.28.0"
 default-features = false
-features = [
-    "pkg-config",
-    "vcpkg",
-    "bundled",
-    "unlock_notify"
-]
+features = ["pkg-config", "vcpkg", "bundled", "unlock_notify"]
 
 [dependencies.sqlx-core]
 workspace = true
-
-[dev-dependencies]
-sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }
