@@ -377,7 +377,7 @@ pub struct PgCopyBothReceiver(flume::r#async::RecvStream<'static, Result<Bytes>>
 // # Example
 //
 // ```rust,no_run
-// # use sqlx_postgres::{
+// # use sqlx::postgres::{
 // #     pg_copy_both, PgConnectOptions, PgPoolOptions, PgReplicationMode,
 // # };
 // // Connection must be configured with a replication mode!

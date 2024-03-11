@@ -3472,6 +3472,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smallvec",
+ "sqlx",
  "sqlx-core",
  "stringprep",
  "thiserror",
