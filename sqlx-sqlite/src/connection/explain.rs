@@ -566,8 +566,7 @@ pub(super) fn explain(
             .collect::<Result<Vec<_>, Error>>()?;
     let program_size = program.len();
 
-    let mut logger =
-        crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
+    let mut logger = crate::logger::QueryPlanLogger::new(query, &program);
     let mut branch_seq = Sequence::new();
     let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],

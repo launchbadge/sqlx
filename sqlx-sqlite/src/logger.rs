@@ -1,5 +1,4 @@
 use crate::connection::intmap::IntMap;
-use sqlx_core::{connection::LogSettings, logger};
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -40,7 +39,6 @@ pub struct QueryPlanLogger<'q, R: Debug + 'static, S: Debug + DebugDiff + 'stati
     branch_results: IntMap<BranchResult<R>>,
     branch_operations: IntMap<IntMap<InstructionHistory<S>>>,
     program: &'q [P],
-    settings: LogSettings,
 }
 
 /// convert a string into dot format
@@ -338,7 +336,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
 }
 
 impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> {
-    pub fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
+    pub fn new(sql: &'q str, program: &'q [P]) -> Self {
         Self {
             sql,
             unknown_operations: HashSet::new(),
@@ -346,19 +344,12 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
             branch_results: IntMap::new(),
             branch_operations: IntMap::new(),
             program,
-            settings,
         }
     }
 
     pub fn log_enabled(&self) -> bool {
-        if let Some((tracing_level, log_level)) =
-            logger::private_level_filter_to_levels(self.settings.statements_level)
-        {
-            log::log_enabled!(target: "sqlx::explain", log_level)
-                || private_tracing_dynamic_enabled!(target: "sqlx::explain", tracing_level)
-        } else {
-            false
-        }
+        log::log_enabled!(target: "sqlx::explain", log::Level::Trace)
+            || private_tracing_dynamic_enabled!(target: "sqlx::explain", tracing::Level::TRACE)
     }
 
     pub fn add_branch<I: Copy>(&mut self, state: I, parent: &BranchParent)
@@ -410,33 +401,28 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         if !self.log_enabled() {
             return;
         }
-        let lvl = self.settings.statements_level;
 
-        if let Some((tracing_level, _)) = logger::private_level_filter_to_levels(lvl) {
-            if self.log_enabled() {
-                let mut summary = parse_query_summary(&self.sql);
+        let mut summary = parse_query_summary(&self.sql);
 
-                let sql = if summary != self.sql {
-                    summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        sqlformat::format(
-                            &self.sql,
-                            &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
-                        )
-                    )
-                } else {
-                    String::new()
-                };
+        let sql = if summary != self.sql {
+            summary.push_str(" …");
+            format!(
+                "\n\n{}\n",
+                sqlformat::format(
+                    &self.sql,
+                    &sqlformat::QueryParams::None,
+                    sqlformat::FormatOptions::default()
+                )
+            )
+        } else {
+            String::new()
+        };
 
-                sqlx_core::private_tracing_dynamic_event!(
-                    target: "sqlx::explain",
-                    tracing_level,
-                    "{}; program:\n{}\n\n{:?}", summary, self, sql
-                );
-            }
-        }
+        sqlx_core::private_tracing_dynamic_event!(
+            target: "sqlx::explain",
+            tracing::Level::TRACE,
+            "{}; program:\n{}\n\n{:?}", summary, self, sql
+        );
     }
 }
 
