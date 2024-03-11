@@ -3541,7 +3541,6 @@ dependencies = [
  "percent-encoding",
  "regex",
  "serde",
- "sqlx",
  "sqlx-core",
  "time",
  "tracing",
