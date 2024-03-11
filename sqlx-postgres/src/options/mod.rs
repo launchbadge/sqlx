@@ -514,15 +514,7 @@ impl PgConnectOptions {
     /// can be used.
     ///
     /// The default behavior is to disable the replication mode.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx::postgres::{PgConnectOptions, PgReplicationMode};
-    /// let options = PgConnectOptions::new()
-    ///     .replication_mode(PgReplicationMode::Logical);
-    /// ```
-    pub fn replication_mode(mut self, replication_mode: PgReplicationMode) -> Self {
+    pub(crate) fn replication_mode(mut self, replication_mode: PgReplicationMode) -> Self {
         self.replication_mode = Some(replication_mode);
         self
     }
