@@ -79,10 +79,9 @@ pub fn migrate(input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let input = syn::parse_macro_input!(input as syn::ItemFn);
 
-    match test_attr::expand(args, input) {
+    match test_attr::expand(args.into(), input) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
