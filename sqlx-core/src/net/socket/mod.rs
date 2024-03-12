@@ -195,6 +195,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
         use tokio::net::TcpStream;
 
         let stream = TcpStream::connect((host, port)).await?;
+        stream.set_nodelay(true)?;
 
         return Ok(with_socket.with_socket(stream));
     }
@@ -209,7 +210,13 @@ pub async fn connect_tcp<Ws: WithSocket>(
 
         // Loop through all the Socket Addresses that the hostname resolves to
         for socket_addr in (host, port).to_socket_addrs().await? {
-            match Async::<TcpStream>::connect(socket_addr).await {
+            let stream = Async::<TcpStream>::connect(socket_addr)
+                .await
+                .and_then(|s| {
+                    s.get_ref().set_nodelay(true)?;
+                    Ok(s)
+                });
+            match stream {
                 Ok(stream) => return Ok(with_socket.with_socket(stream)),
                 Err(e) => last_err = Some(e),
             }
@@ -244,6 +251,8 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 ) -> crate::Result<Ws::Output> {
     #[cfg(not(unix))]
     {
+        drop((path, with_socket));
+
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "Unix domain sockets are not supported on this platform",
@@ -270,7 +279,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
         return Ok(with_socket.with_socket(stream));
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(all(unix, not(feature = "_rt-async-std")))]
     {
         crate::rt::missing_rt((path, with_socket))
     }

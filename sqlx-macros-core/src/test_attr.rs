@@ -161,7 +161,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
         #[::core::prelude::v1::test]
         #(#attrs)*
         fn #name() #ret {
-            async fn inner(#inputs) #ret {
+            async fn #name(#inputs) #ret {
                 #body
             }
 
@@ -172,7 +172,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
             args.fixtures(&[#(#fixtures),*]);
 
             // We need to give a coercion site or else we get "unimplemented trait" errors.
-            let f: fn(#(#fn_arg_types),*) -> _ = inner;
+            let f: fn(#(#fn_arg_types),*) -> _ = #name;
 
             ::sqlx::testing::TestFn::run_test(f, args)
         }

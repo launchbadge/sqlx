@@ -195,15 +195,33 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
     mac.update(&salt);
     mac.update(&1u32.to_be_bytes());
 
-    let mut u = mac.finalize().into_bytes();
+    let mut u = mac.finalize_reset().into_bytes();
     let mut hi = u;
 
     for _ in 1..iter_count {
-        let mut mac = Hmac::<Sha256>::new_from_slice(s.as_bytes()).map_err(Error::protocol)?;
         mac.update(u.as_slice());
-        u = mac.finalize().into_bytes();
+        u = mac.finalize_reset().into_bytes();
         hi = hi.iter().zip(u.iter()).map(|(&a, &b)| a ^ b).collect();
     }
 
     Ok(hi.into())
+}
+
+#[cfg(all(test, not(debug_assertions)))]
+#[bench]
+fn bench_sasl_hi(b: &mut test::Bencher) {
+    use test::black_box;
+
+    let mut rng = rand::thread_rng();
+    let nonce: Vec<u8> = std::iter::repeat(())
+        .map(|()| rng.sample(rand::distributions::Alphanumeric))
+        .take(64)
+        .collect();
+    b.iter(|| {
+        let _ = hi(
+            test::black_box("secret_password"),
+            test::black_box(&nonce),
+            test::black_box(4096),
+        );
+    });
 }

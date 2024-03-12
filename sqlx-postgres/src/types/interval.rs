@@ -10,7 +10,7 @@ use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValue
 
 // `PgInterval` is available for direct access to the INTERVAL type
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Default)]
 pub struct PgInterval {
     pub months: i32,
     pub days: i32,
@@ -301,6 +301,15 @@ fn test_encode_interval() {
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
     buf.clear();
+
+    assert_eq!(
+        PgInterval::default(),
+        PgInterval {
+            months: 0,
+            days: 0,
+            microseconds: 0,
+        }
+    );
 }
 
 #[test]

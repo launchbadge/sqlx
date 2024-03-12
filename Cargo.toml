@@ -6,7 +6,7 @@ members = [
     "sqlx-macros-core",
     "sqlx-test",
     "sqlx-cli",
-#    "sqlx-bench",
+    #    "sqlx-bench",
     "sqlx-mysql",
     "sqlx-postgres",
     "sqlx-sqlite",
@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.3"
+version = "0.8.0-alpha.0"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -114,17 +114,17 @@ regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.7.3", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.7.3", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.7.3", path = "sqlx-macros" }
+sqlx-core = { version = "=0.8.0-alpha.0", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.8.0-alpha.0", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.8.0-alpha.0", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.7.3", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.7.3", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.7.3", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.8.0-alpha.0", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.8.0-alpha.0", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.8.0-alpha.0", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.7.3", path = ".", default-features = false }
+sqlx = { version = "=0.8.0-alpha.0", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -161,7 +161,7 @@ sqlx-sqlite = { workspace = true, optional = true }
 anyhow = "1.0.52"
 time_ = { version = "0.3.2", package = "time" }
 futures = "0.3.19"
-env_logger = "0.9.0"
+env_logger = "0.11"
 async-std = { version = "1.12.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenvy = "0.15.0"
@@ -174,10 +174,13 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
-tempdir = "0.3.7"
-criterion = {version = "0.4", features = ["async_tokio"]}
+tempfile = "3.9.0"
+criterion = { version = "0.5.1", features = ["async_tokio"] }
 
-# Needed to test SQLCipher
+# If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,
+# even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
+[target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]
+# Enable testing with SQLCipher if specifically requested.
 libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
 
 #

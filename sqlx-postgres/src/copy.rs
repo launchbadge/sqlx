@@ -221,10 +221,6 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
         }
 
         let conn: &mut PgConnection = self.conn.as_deref_mut().expect("copy_from: conn taken");
-
-        // flush any existing messages in the buffer and clear it
-        conn.stream.flush().await?;
-
         loop {
             let buf = conn.stream.write_buffer_mut();
 

@@ -14,6 +14,10 @@ impl ConnectOptions for MySqlConnectOptions {
         Self::parse_from_url(url)
     }
 
+    fn to_url_lossy(&self) -> Url {
+        self.build_url()
+    }
+
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
     where
         Self::Connection: Sized,
@@ -46,22 +50,36 @@ impl ConnectOptions for MySqlConnectOptions {
 
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
-            let mut options = String::new();
+            let mut sql_mode = Vec::new();
             if self.pipes_as_concat {
-                options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
-            } else {
-                options.push_str(
-                    r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',NO_ENGINE_SUBSTITUTION')),"#,
-                );
+                sql_mode.push(r#"PIPES_AS_CONCAT"#);
             }
-            options.push_str(r#"time_zone='+00:00',"#);
-            options.push_str(&format!(
-                r#"NAMES {} COLLATE {};"#,
-                conn.stream.charset.as_str(),
-                conn.stream.collation.as_str()
-            ));
+            if self.no_engine_subsitution {
+                sql_mode.push(r#"NO_ENGINE_SUBSTITUTION"#);
+            }
 
-            conn.execute(&*options).await?;
+            let mut options = Vec::new();
+            if !sql_mode.is_empty() {
+                options.push(format!(
+                    r#"sql_mode=(SELECT CONCAT(@@sql_mode, ',{}'))"#,
+                    sql_mode.join(",")
+                ));
+            }
+            if let Some(timezone) = &self.timezone {
+                options.push(format!(r#"time_zone='{}'"#, timezone));
+            }
+            if self.set_names {
+                options.push(format!(
+                    r#"NAMES {} COLLATE {}"#,
+                    conn.stream.charset.as_str(),
+                    conn.stream.collation.as_str()
+                ))
+            }
+
+            if !options.is_empty() {
+                conn.execute(&*format!(r#"SET {};"#, options.join(",")))
+                    .await?;
+            }
 
             Ok(conn)
         })

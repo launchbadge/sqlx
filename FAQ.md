@@ -70,6 +70,162 @@ in covering cases that trigger this (as it might indicate a protocol handling bu
 https://github.com/rustls/rustls/issues/893
 
 ----------------------------------------------------------------
+### How does SQLx help prevent SQL Injection?
+### How do Query Parameters work?
+### Why does SQLx use Prepared Statements for most queries?
+### Can I Use Query Parameters to add conditional SQL to my query?
+### Why can't I use DDL (e.g. `CREATE TABLE`, `ALTER TABLE`, etc.) with the `sqlx::query*()` functions or `sqlx::query*!()` macros?
+
+These questions can all be answered by a thorough explanation of prepared statements. Feel free to skip the parts you already know.
+
+Back in the day, if a web application wanted to include user input in a SQL query,
+a search parameter for example, it had no choice but to simply format that data into the query.
+PHP applications used to be full of snippets like this:
+
+```php
+/* Imagine this is user input */
+$city = "Munich";
+
+/* $query = "SELECT country FROM city WHERE name='Munich'" */
+$query = sprintf("SELECT country FROM city WHERE name='%s'", $city);
+$result = $mysqli->query($query);
+```
+
+However, this leaves the application vulnerable to [SQL injection attacks](https://en.wikipedia.org/wiki/SQL_injection),
+because it's trivial to craft an input string that will terminate the existing query and begin a new one,
+and the database won't know the difference and will execute both. As illustrated in the famous XKCD #327:
+
+<a href="https://xkcd.com/327/"><img src="https://imgs.xkcd.com/comics/exploits_of_a_mom.png" title="Her daughter is named Help I'm trapped in a driver's license factory." alt="Exploits of a Mom" srcset="https:////imgs.xkcd.com/comics/exploits_of_a_mom_2x.png 2x" style="image-orientation:none">
+
+The fictional school's student database application might have contained a query that looked like this:
+```php
+$student_name = "Robert');DROP TABLE Students;--"
+
+$query = sprintf("INSERT INTO Students (name) VALUES ('%s')", $student_name);
+$result = $mysqli->query($query);
+```
+
+When formatted into the middle of this query, the maliciously crafted input string closes the quotes and finishes the statement (`Robert');`),
+then starts another one with the nefarious payload (`DROP TABLE Students;`), and causes the rest of the original query to be ignored by starting a SQL comment (`--`).
+Thus, the database server sees, and executes, three separate statements like so:
+
+```SQL
+INSERT INTO Students(firstname) VALUES ('Robert');
+DROP TABLE Students;
+--');
+```
+
+And thus the school has lost this year's student records (at least they had last years' backed up?).
+
+The original mitigation for this attack was to make sure that any untrustworthy user input was properly escaped (or "sanitized"),
+and many frameworks provided utility functions for this, such as PHP's [`mysqli::real_escape_string()`](https://www.php.net/manual/en/mysqli.real-escape-string.php) (not to be confused with the obsolete [`mysql_real_escape_string()`](https://www.php.net/manual/en/function.mysql-real-escape-string) or [`mysql_escape_string()`](https://www.php.net/manual/en/function.mysql-escape-string.php)).
+
+These would prefix any syntactically significant characters (in this case, quotation marks) with a backslash,
+so it's less likely to affect the database server's interpretation of the query:
+
+```php
+$student_name = $mysqli->real_escape_string("Robert');DROP TABLE Students;--");
+
+/*
+    Everything is okay now as the dastardly single-quote has been inactivated by the backslash:
+    "INSERT INTO Students (name) VALUES ('Robert\');DROP TABLE Students;--');"
+*/
+$query = sprintf("INSERT INTO Students (name) VALUES ('%s')", $student_name);
+```
+
+The database server sees the backslash and knows that the single-quote is part of the string content, not its terminating character.
+
+However, this was something that you still had to _remember_ to do, making it only half a solution. Additionally, properly escaping the string requires knowledge of the current character set of the connection which is why the `mysqli` object is a required parameter 
+(or the receiver in object-oriented style). And you could always just forget to wrap the string parameter in quotes (`'%s'`) in the first place, which these wouldn't help with.
+
+Even when everything is working correctly, formatting dynamic data into a query still requires the database server to 
+re-parse and generate a new query plan with every new variant--caching helps, but is not a silver bullet.
+
+#### Prepared Statements to the rescue!
+
+These solve both problems (injection and re-parsing) by **completely separating** the query from any dynamic input data.
+
+Instead of formatting data into the query, you use a (database-specific) token to signify a value that will be passed separately:
+
+```SQL
+-- MySQL
+INSERT INTO Students (name) VALUES(?);
+-- Postgres and SQLite
+INSERT INTO Students (name) VALUES($1);
+```
+
+The database will substitute a given value when _executing_ the query, long after it's finished parsing it. 
+The database will effectively treat the parameter as a variable.
+There is, by design, **no way** for a query parameter to modify the SQL of a query, 
+unless you're using some `exec()`-like SQL function that lets you execute a string as a query, 
+but then hopefully you know what you're doing.
+
+In fact, parsing and executing prepared statements are explicitly separate steps in pretty much every database's protocol,
+where the query string, without any values attached, is parsed first and given an identifier, then a separate execution step
+simply passes that identifier along with the values to substitute.
+
+The response from the initial parsing often contains useful metadata about the query, which SQLx's query macros use to great effect 
+(see "How do the query macros work under the hood?" below).
+
+Unfortunately, query parameters do not appear to be standardized, as every database has a different syntax.
+Look through the project for specific examples for your database, and consult your database manual about prepared statements
+for more information.
+
+The syntax SQLite supports is effectively a superset of many databases' syntaxes, including MySQL and Postgres.
+To simplify our examples, we use the same syntax for Postgres and SQLite; though SQLite's syntax technically allows
+alphanumeric identifiers, that's not currently exposed in SQLx, and it's expected to be a numeric 1-based index like Postgres.
+
+Some databases, like MySQL and PostgreSQL, may have special statements that let the user explicitly create and execute prepared statements (often `PREPARE` and `EXECUTE`, respectively),
+but most of the time an application, or library like SQLx, will interact with prepared statements using specialized messages in the database's client/server protocol.
+Prepared statements created through this protocol may or may not be accessible using explicit SQL statements, depending on the database flavor.
+
+Since the dynamic data is handled separately, an application only needs to prepare a statement once,
+and then it can execute it as many times as it wants with all kinds of different data (at least of the same type and number).
+Prepared statements are generally tracked per-connection, so an application may need to re-prepare a statement several times over its lifetime as it opens new connections. 
+If it uses a connection pool, ideally all connections will eventually have all statements already prepared (assuming a closed set of statements),
+so the overhead of parsing and generating a query plan is amortized.
+
+Query parameters are also usually transmitted in a compact binary format, which saves bandwidth over having to send them as human-readable strings.
+
+Because of the obvious security and performance benefits of prepared statements, the design of SQLx tries to make them as easy to use and transparent as possible.
+The `sqlx::query*()` family of functions, as well as the `sqlx::query*!()` macros, will always prefer prepared statements. This was an explicit goal from day one.
+
+SQLx will **never** substitute query parameters for values on the client-side, it will always let the database server handle that. We have concepts for making certain usage patterns easier, 
+like expanding a dynamic list of parameters (e.g. `?, ?, ?, ?, ...`) since MySQL and SQLite don't really support arrays, but will never simply format data into a query implicitly.
+
+Our pervasive use of prepared statements can cause some problems with third-party database implementations, e.g. projects like CockroachDB or PGBouncer that support the Postgres protocol but have their own semantics.
+In this case, you might try setting [`.persistent(false)`](https://docs.rs/sqlx/latest/sqlx/query/struct.Query.html#method.persistent) before executing a query, which will cause the connection not to retain
+the prepared statement after executing it.
+
+Not all SQL statements are allowed in prepared statements, either. 
+As a general rule, DML (Data Manipulation Language, i.e. `SELECT`, `INSERT`, `UPDATE`, `DELETE`) is allowed while DDL (Data Definition Language, e.g. `CREATE TABLE`, `ALTER TABLE`, etc.) is not.
+Consult your database manual for details.
+
+To execute DDL requires using a different API than `query*()` or `query*!()` in SQLx. 
+Ideally, we'd like to encourage you to use SQLx's built-in support for migrations (though that could be better documented, we'll get to it).
+However, in the event that isn't feasible, or you have different needs, you can execute pretty much any statement,
+including multiple statements separated by semicolons (`;`), by directly invoking methods of the [`Executor` trait](https://docs.rs/sqlx/latest/sqlx/trait.Executor.html#method.execute)
+on any type that implements it, and passing your query string, e.g.:
+
+```rust
+use sqlx::postgres::PgConnection;
+use sqlx::Executor;
+
+let mut conn: PgConnection = connect().await?;
+
+conn
+    .execute(
+        "CREATE TABLE IF NOT EXISTS StudentContactInfo (student_id INTEGER, person_name TEXT, relation TEXT, phone TEXT);\
+         INSERT INTO StudentContactInfo (student_id, person_name, relation, phone) \
+             SELECT student_id, guardian_name, guardian_relation, guardian_phone FROM Students;\
+         ALTER TABLE Students DROP guardian_name, guardian_relation, guardian_phone;"
+    )
+    .await?;
+```
+
+This is also pending a redesign to make it easier to discover and utilize.
+
+----------------------------------------------------------------
 ### How can I do a `SELECT ... WHERE foo IN (...)` query?
 
 

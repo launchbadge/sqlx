@@ -49,7 +49,8 @@ async fn it_pings() -> anyhow::Result<()> {
 async fn it_pings_after_suspended_query() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    conn.execute("create temporary table processed_row(val int4 primary key)")
+    sqlx::raw_sql("create temporary table processed_row(val int4 primary key)")
+        .execute(&mut conn)
         .await?;
 
     // This query wants to return 50 rows but we only read the first one.
@@ -932,11 +933,7 @@ from (values (null)) vals(val)
 
 #[sqlx_macros::test]
 async fn test_listener_cleanup() -> anyhow::Result<()> {
-    #[cfg(feature = "_rt-tokio")]
-    use tokio::time::timeout;
-
-    #[cfg(feature = "_rt-async-std")]
-    use async_std::future::timeout;
+    use sqlx_core::rt::timeout;
 
     use sqlx::pool::PoolOptions;
     use sqlx::postgres::PgListener;
@@ -1812,4 +1809,70 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     assert_eq!(ret, 12345678i64);
 
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_error_handling_with_deferred_constraints() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint ( id INTEGER PRIMARY KEY )")
+        .execute(&mut conn)
+        .await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint_fk ( fk INTEGER CONSTRAINT deferred_fk REFERENCES deferred_constraint(id) DEFERRABLE INITIALLY DEFERRED )")
+            .execute(&mut conn)
+            .await?;
+
+    let result: sqlx::Result<i32> =
+        sqlx::query_scalar("INSERT INTO deferred_constraint_fk VALUES (1) RETURNING fk")
+            .fetch_one(&mut conn)
+            .await;
+
+    let err = result.unwrap_err();
+    let db_err = err.as_database_error().unwrap();
+    assert_eq!(db_err.constraint(), Some("deferred_fk"));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+#[cfg(feature = "bigdecimal")]
+async fn test_issue_3052() {
+    use sqlx::types::BigDecimal;
+
+    // https://github.com/launchbadge/sqlx/issues/3052
+    // Previously, attempting to bind a `BigDecimal` would panic if the value was out of range.
+    // Now, we rewrite it to a sentinel value so that Postgres will return a range error.
+    let too_small: BigDecimal = "1E-65536".parse().unwrap();
+    let too_large: BigDecimal = "1E262144".parse().unwrap();
+
+    let mut conn = new::<Postgres>().await.unwrap();
+
+    let too_small_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+        .bind(&too_small)
+        .fetch_one(&mut conn)
+        .await;
+
+    match too_small_res {
+        Err(sqlx::Error::Database(dbe)) => {
+            let dbe = dbe.downcast::<PgDatabaseError>();
+
+            assert_eq!(dbe.code(), "22P03");
+        }
+        other => panic!("expected Err(DatabaseError), got {other:?}"),
+    }
+
+    let too_large_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+        .bind(&too_large)
+        .fetch_one(&mut conn)
+        .await;
+
+    match too_large_res {
+        Err(sqlx::Error::Database(dbe)) => {
+            let dbe = dbe.downcast::<PgDatabaseError>();
+
+            assert_eq!(dbe.code(), "22P03");
+        }
+        other => panic!("expected Err(DatabaseError), got {other:?}"),
+    }
 }

@@ -32,12 +32,16 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | NUMERIC                                              |
 //!
+#![doc=include_str!("bigdecimal-range.md")]
+//!
 //! ### [`rust_decimal`](https://crates.io/crates/rust_decimal)
 //! Requires the `rust_decimal` Cargo feature flag.
 //!
 //! | Rust type                             | Postgres type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | NUMERIC                                              |
+//!
+#![doc=include_str!("rust_decimal-range.md")]
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!

@@ -124,7 +124,10 @@ impl<'q> QueryLogger<'q> {
                         db.statement = sql,
                         rows_affected = self.rows_affected,
                         rows_returned = self.rows_returned,
+                        // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
+                        // Search friendly - numeric
+                        elapsed_secs = elapsed.as_secs_f64(),
                         // When logging to JSON, one can trigger alerts from the presence of this field.
                         slow_threshold=?self.settings.slow_statements_duration,
                         // Make sure to use "slow" in the message as that's likely
@@ -139,7 +142,10 @@ impl<'q> QueryLogger<'q> {
                         db.statement = sql,
                         rows_affected = self.rows_affected,
                         rows_returned = self.rows_returned,
+                        // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
+                        // Search friendly - numeric
+                        elapsed_secs = elapsed.as_secs_f64(),
                     );
                 }
             }

@@ -178,7 +178,7 @@ impl<'a> TryFrom<&'a PgTypeInfo> for AnyTypeInfo {
                 PgType::Float4 => AnyTypeInfoKind::Real,
                 PgType::Float8 => AnyTypeInfoKind::Double,
                 PgType::Bytea => AnyTypeInfoKind::Blob,
-                PgType::Text => AnyTypeInfoKind::Text,
+                PgType::Text | PgType::Varchar => AnyTypeInfoKind::Text,
                 PgType::DeclareWithName(UStr::Static("citext")) => AnyTypeInfoKind::Text,
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(

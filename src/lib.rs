@@ -15,6 +15,7 @@ pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_builder::{self, QueryBuilder};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
+pub use sqlx_core::raw_sql::{raw_sql, RawSql};
 pub use sqlx_core::row::Row;
 pub use sqlx_core::statement::Statement;
 pub use sqlx_core::transaction::{Transaction, TransactionManager};

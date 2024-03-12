@@ -197,7 +197,7 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
-        // `options.after_release` is invoked by `PoolConnection::release_to_pool()`.
+        // `options.after_release` and other checks are in `PoolConnection::return_to_pool()`.
 
         let Floating { inner: idle, guard } = floating.into_idle();
 
@@ -273,7 +273,7 @@ impl<DB: Database> PoolInner<DB> {
                             // `try_increment_size()`.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
                             // If so, we're likely in the current-thread runtime if it's Tokio
-                            // and so we should yield to let any spawned release_to_pool() tasks
+                            // and so we should yield to let any spawned return_to_pool() tasks
                             // execute.
                             crate::rt::yield_now().await;
                             continue;
@@ -417,7 +417,10 @@ impl<DB: Database> Drop for PoolInner<DB> {
 }
 
 /// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
-fn is_beyond_max_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
+pub(super) fn is_beyond_max_lifetime<DB: Database>(
+    live: &Live<DB>,
+    options: &PoolOptions<DB>,
+) -> bool {
     options
         .max_lifetime
         .map_or(false, |max| live.created_at.elapsed() > max)
@@ -434,12 +437,6 @@ async fn check_idle_conn<DB: Database>(
     mut conn: Floating<DB, Idle<DB>>,
     options: &PoolOptions<DB>,
 ) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
-    // If the connection we pulled has expired, close the connection and
-    // immediately create a new connection
-    if is_beyond_max_lifetime(&conn, options) {
-        return Err(conn.close().await);
-    }
-
     if options.test_before_acquire {
         // Check that the connection is still live
         if let Err(error) = conn.ping().await {
@@ -503,22 +500,30 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
     crate::rt::spawn(async move {
         let _ = close_event
             .do_until(async {
-                let mut slept = true;
-
                 // If the last handle to the pool was dropped while we were sleeping
                 while let Some(pool) = pool_weak.upgrade() {
                     if pool.is_closed() {
                         return;
                     }
 
-                    // Don't run the reaper right away.
-                    if slept && !pool.idle_conns.is_empty() {
-                        do_reap(&pool).await;
-                    }
-
                     let next_run = Instant::now() + period;
 
-                    pool.min_connections_maintenance(Some(next_run)).await;
+                    // Go over all idle connections, check for idleness and lifetime,
+                    // and if we have fewer than min_connections after reaping a connection,
+                    // open a new one immediately. Note that other connections may be popped from
+                    // the queue in the meantime - that's fine, there is no harm in checking more
+                    for _ in 0..pool.num_idle() {
+                        if let Some(conn) = pool.try_acquire() {
+                            if is_beyond_idle_timeout(&conn, &pool.options)
+                                || is_beyond_max_lifetime(&conn, &pool.options)
+                            {
+                                let _ = conn.close().await;
+                                pool.min_connections_maintenance(Some(next_run)).await;
+                            } else {
+                                pool.release(conn.into_live());
+                            }
+                        }
+                    }
 
                     // Don't hold a reference to the pool while sleeping.
                     drop(pool);
@@ -530,35 +535,10 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
                         // `next_run` is in the past, just yield.
                         crate::rt::yield_now().await;
                     }
-
-                    slept = true;
                 }
             })
             .await;
     });
-}
-
-async fn do_reap<DB: Database>(pool: &Arc<PoolInner<DB>>) {
-    // reap at most the current size minus the minimum idle
-    let max_reaped = pool.size().saturating_sub(pool.options.min_connections);
-
-    // collect connections to reap
-    let (reap, keep) = (0..max_reaped)
-        // only connections waiting in the queue
-        .filter_map(|_| pool.try_acquire())
-        .partition::<Vec<_>, _>(|conn| {
-            is_beyond_idle_timeout(conn, &pool.options)
-                || is_beyond_max_lifetime(conn, &pool.options)
-        });
-
-    for conn in keep {
-        // return valid connections to the pool first
-        pool.release(conn.into_live());
-    }
-
-    for conn in reap {
-        let _ = conn.close().await;
-    }
 }
 
 /// RAII guard returned by `Pool::try_increment_size()` and others.

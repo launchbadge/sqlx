@@ -77,6 +77,9 @@ pub struct MySqlConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
+    pub(crate) no_engine_subsitution: bool,
+    pub(crate) timezone: Option<String>,
+    pub(crate) set_names: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -105,6 +108,9 @@ impl MySqlConnectOptions {
             log_settings: Default::default(),
             pipes_as_concat: true,
             enable_cleartext_plugin: false,
+            no_engine_subsitution: true,
+            timezone: Some(String::from("+00:00")),
+            set_names: true,
         }
     }
 
@@ -152,20 +158,6 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Get the current database name.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::mysql::MySqlConnectOptions;
-    /// let options = MySqlConnectOptions::new()
-    ///     .database("mysqldb");
-    /// assert!(options.get_database().is_some());
-    /// ```
-    pub fn get_database(&self) -> Option<&str> {
-        self.database.as_deref()
-    }
-
     /// Sets whether or with what priority a secure SSL TCP/IP connection will be negotiated
     /// with the server.
     ///
@@ -175,7 +167,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::Required);
     /// ```
@@ -189,7 +181,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca("path/to/ca.crt");
@@ -204,7 +196,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_ca_from_pem(vec![]);
@@ -219,7 +211,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_client_cert("path/to/client.crt");
@@ -238,7 +230,7 @@ impl MySqlConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
     /// const CERT: &[u8] = b"\
     /// -----BEGIN CERTIFICATE-----
@@ -259,7 +251,7 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
     ///     .ssl_mode(MySqlSslMode::VerifyCa)
     ///     .ssl_client_key("path/to/client.key");
@@ -278,7 +270,7 @@ impl MySqlConnectOptions {
     /// This is for illustration purposes only.
     ///
     /// ```rust
-    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// # use sqlx_mysql::{MySqlSslMode, MySqlConnectOptions};
     ///
     /// const KEY: &[u8] = b"\
     /// -----BEGIN PRIVATE KEY-----
@@ -346,5 +338,176 @@ impl MySqlConnectOptions {
     pub fn enable_cleartext_plugin(mut self, flag_val: bool) -> Self {
         self.enable_cleartext_plugin = flag_val;
         self
+    }
+
+    /// Flag that enables or disables the `NO_ENGINE_SUBSTITUTION` sql_mode setting after
+    /// connection.
+    ///
+    /// If not set, if the available storage engine specified by a `CREATE TABLE` is not available,
+    /// a warning is given and the default storage engine is used instead.
+    ///
+    /// By default, this is `true` (`NO_ENGINE_SUBSTITUTION` is passed, forbidding engine
+    /// substitution).
+    ///
+    /// https://mariadb.com/kb/en/sql-mode/
+    pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
+        self.no_engine_subsitution = flag_val;
+        self
+    }
+
+    /// If `Some`, sets the `time_zone` option to the given string after connecting to the database.
+    ///
+    /// If `None`, no `time_zone` parameter is sent; the server timezone will be used instead.
+    ///
+    /// Defaults to `Some(String::from("+00:00"))` to ensure all timestamps are in UTC.
+    ///
+    /// ### Warning
+    /// Changing this setting from its default will apply an unexpected skew to any
+    /// `time::OffsetDateTime` or `chrono::DateTime<Utc>` value, whether passed as a parameter or
+    /// decoded as a result. `TIMESTAMP` values are not encoded with their UTC offset in the MySQL
+    /// protocol, so encoding and decoding of these types assumes the server timezone is *always*
+    /// UTC.
+    ///
+    /// If you are changing this option, ensure your application only uses
+    /// `time::PrimitiveDateTime` or `chrono::NaiveDateTime` and that it does not assume these
+    /// timestamps can be placed on a real timeline without applying the proper offset.
+    pub fn timezone(mut self, value: impl Into<Option<String>>) -> Self {
+        self.timezone = value.into();
+        self
+    }
+
+    /// If enabled, `SET NAMES '{charset}' COLLATE '{collation}'` is passed with the values of
+    /// [`.charset()`] and [`.collation()`] after connecting to the database.
+    ///
+    /// This ensures the connection uses the specified character set and collation.
+    ///
+    /// Enabled by default.
+    ///
+    /// ### Warning
+    /// If this is disabled and the default charset is not binary-compatible with UTF-8, query
+    /// strings, column names and string values will likely not decode (or encode) correctly, which
+    /// may result in unexpected errors or garbage outputs at runtime.
+    ///
+    /// For proper functioning, you *must* ensure the server is using a binary-compatible charset,
+    /// such as ASCII or Latin-1 (ISO 8859-1), and that you do not pass any strings containing
+    /// codepoints not supported by said charset.
+    ///
+    /// Instead of disabling this, you may also consider setting [`.charset()`] to a charset that
+    /// is supported by your MySQL or MariaDB server version and compatible with UTF-8.
+    pub fn set_names(mut self, flag_val: bool) -> Self {
+        self.set_names = flag_val;
+        self
+    }
+}
+
+impl MySqlConnectOptions {
+    /// Get the current host.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .host("127.0.0.1");
+    /// assert_eq!(options.get_host(), "127.0.0.1");
+    /// ```
+    pub fn get_host(&self) -> &str {
+        &self.host
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .port(6543);
+    /// assert_eq!(options.get_port(), 6543);
+    /// ```
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
+    /// Get the socket path.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .socket("/tmp");
+    /// assert!(options.get_socket().is_some());
+    /// ```
+    pub fn get_socket(&self) -> Option<&PathBuf> {
+        self.socket.as_ref()
+    }
+
+    /// Get the server's port.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .username("foo");
+    /// assert_eq!(options.get_username(), "foo");
+    /// ```
+    pub fn get_username(&self) -> &str {
+        &self.username
+    }
+
+    /// Get the current database name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .database("postgres");
+    /// assert!(options.get_database().is_some());
+    /// ```
+    pub fn get_database(&self) -> Option<&str> {
+        self.database.as_deref()
+    }
+
+    /// Get the SSL mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::{MySqlConnectOptions, MySqlSslMode};
+    /// let options = MySqlConnectOptions::new();
+    /// assert!(matches!(options.get_ssl_mode(), MySqlSslMode::Preferred));
+    /// ```
+    pub fn get_ssl_mode(&self) -> MySqlSslMode {
+        self.ssl_mode
+    }
+
+    /// Get the server charset.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new();
+    /// assert_eq!(options.get_charset(), "utf8mb4");
+    /// ```
+    pub fn get_charset(&self) -> &str {
+        &self.charset
+    }
+
+    /// Get the server collation.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .collation("collation");
+    /// assert!(options.get_collation().is_some());
+    /// ```
+    pub fn get_collation(&self) -> Option<&str> {
+        self.collation.as_deref()
     }
 }

@@ -37,6 +37,7 @@ pub use copy::{CopyData, CopyDone, CopyFail, CopyResponse};
 pub use data_row::DataRow;
 pub use describe::Describe;
 pub use execute::Execute;
+#[allow(unused_imports)]
 pub use flush::Flush;
 pub use notification::Notification;
 pub use parameter_description::ParameterDescription;

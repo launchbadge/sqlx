@@ -17,3 +17,6 @@ target/
 # Integration testing extension library for SQLite.
 ipaddr.dylib
 ipaddr.so
+
+# Temporary files from running the tests locally like they would be run from CI
+.sqlx
