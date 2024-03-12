@@ -37,11 +37,30 @@
 //!
 //! | Rust type                             | Sqlite type(s)                                       |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `chrono::NaiveDateTime`               | DATETIME                                             |
-//! | `chrono::DateTime<Utc>`               | DATETIME                                             |
-//! | `chrono::DateTime<Local>`             | DATETIME                                             |
-//! | `chrono::NaiveDate`                   | DATE                                                 |
-//! | `chrono::NaiveTime`                   | TIME                                                 |
+//! | `chrono::NaiveDateTime`               | DATETIME (TEXT, INTEGER, REAL)                       |
+//! | `chrono::DateTime<Utc>`               | DATETIME (TEXT, INTEGER, REAL)                       |
+//! | `chrono::DateTime<Local>`             | DATETIME (TEXT, INTEGER, REAL)                       |
+//! | `chrono::DateTime<FixedOffset>`       | DATETIME (TEXT, INTEGER, REAL)                       |
+//! | `chrono::NaiveDate`                   | DATE (TEXT only)                                     |
+//! | `chrono::NaiveTime`                   | TIME (TEXT only)                                     |
+//!
+//! ##### NOTE: `DATETIME` conversions
+//! SQLite may represent `DATETIME` values as one of three types: `TEXT`, `REAL`, or `INTEGER`.
+//! Which one is used is entirely up to you and how you store timestamps in your database.
+//!
+//! The deserialization for `NaiveDateTime`, `DateTime<Utc>` and `DateTime<Local>` infer the date
+//! format from the type of the value they're being decoded from:
+//!
+//! * If `TEXT`, the format is assumed to be an ISO-8601 compatible datetime string.
+//!   A number of possible formats are tried; see `sqlx-sqlite/src/types/chrono.rs` for the current
+//!   set of formats.
+//! * If `INTEGER`, it is expected to be the number of seconds since January 1, 1970 00:00 UTC,
+//!   as if returned from the `unixtime()` function (without the `subsec` modifier).
+//! * If `REAL`, it is expected to be the (possibly fractional) number of days since the Julian epoch,
+//!   November 24, 4714 BCE 12:00 UTC, as if returned from the `julianday()` function.
+//!
+//! These types will always encode to a datetime string, either
+//! with (`DateTime<Tz>` for any `Tz: TimeZone`) or without (`NaiveDateTime`) a timezone offset.
 //!
 //! ### [`time`](https://crates.io/crates/time)
 //!
@@ -49,10 +68,14 @@
 //!
 //! | Rust type                             | Sqlite type(s)                                       |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `time::PrimitiveDateTime`             | DATETIME                                             |
-//! | `time::OffsetDateTime`                | DATETIME                                             |
-//! | `time::Date`                          | DATE                                                 |
-//! | `time::Time`                          | TIME                                                 |
+//! | `time::PrimitiveDateTime`             | DATETIME (TEXT, INTEGER)                             |
+//! | `time::OffsetDateTime`                | DATETIME (TEXT, INTEGER)                             |
+//! | `time::Date`                          | DATE (TEXT only)                                     |
+//! | `time::Time`                          | TIME (TEXT only)                                     |
+//!
+//! ##### NOTE: `DATETIME` conversions
+//! The behavior here is identical to the corresponding `chrono` types, minus the support for `REAL`
+//! values as Julian days (it's just not implemented).
 //!
 //! ### [`uuid`](https://crates.io/crates/uuid)
 //!
