@@ -12,7 +12,6 @@ pub use row::expand_derive_from_row;
 use self::attributes::RenameAll;
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::TokenStream;
-use std::iter::FromIterator;
 use syn::DeriveInput;
 
 pub fn expand_derive_type_encode_decode(input: &DeriveInput) -> syn::Result<TokenStream> {

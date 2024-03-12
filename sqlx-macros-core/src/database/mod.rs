@@ -172,6 +172,7 @@ mod mysql;
 mod sqlite;
 
 mod fake_sqlx {
+    #[cfg(any(feature = "mysql", feature = "postgres", feature = "sqlite"))]
     pub use sqlx_core::*;
 
     #[cfg(feature = "mysql")]

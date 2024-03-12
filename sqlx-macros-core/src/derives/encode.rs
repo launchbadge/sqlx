@@ -9,7 +9,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Lifetime, LifetimeDef, Stmt, Variant,
+    FieldsUnnamed, Lifetime, LifetimeParam, Stmt, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -66,7 +66,7 @@ fn expand_derive_encode_transparent(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, LifetimeDef::new(lifetime.clone()).into());
+        .insert(0, LifetimeParam::new(lifetime.clone()).into());
 
     generics
         .params

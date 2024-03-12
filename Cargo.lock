@@ -488,10 +488,12 @@ dependencies = [
 
 [[package]]
 name = "bigdecimal"
-version = "0.3.1"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6773ddc0eafc0e509fb60e48dff7f450f8e674a0686ae8605e8d9901bd5eefa"
+checksum = "9324c8014cd04590682b34f1e9448d38f0674d0f7b2dc553331016ef0e4e9ebc"
 dependencies = [
+ "autocfg",
+ "libm",
  "num-bigint",
  "num-integer",
  "num-traits",
@@ -2520,9 +2522,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.78"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2422ad645d89c99f8f3e6b88a9fdeca7fabeac836b1002371c4367c8f984aae"
+checksum = "e835ff2298f5721608eb1a980ecaee1aef2c132bf95ecc026a11b7bf3c01c02e"
 dependencies = [
  "unicode-ident",
 ]
@@ -3155,7 +3157,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3185,7 +3187,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3211,7 +3213,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "ahash 0.8.11",
  "async-io 1.13.0",
@@ -3395,18 +3397,18 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "sqlx-core",
  "sqlx-macros-core",
- "syn 1.0.109",
+ "syn 2.0.52",
 ]
 
 [[package]]
 name = "sqlx-macros-core"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "async-std",
  "dotenvy",
@@ -3423,7 +3425,7 @@ dependencies = [
  "sqlx-mysql",
  "sqlx-postgres",
  "sqlx-sqlite",
- "syn 1.0.109",
+ "syn 2.0.52",
  "tempfile",
  "tokio",
  "url",
@@ -3431,7 +3433,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-mysql"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "atoi",
  "base64 0.21.7",
@@ -3476,7 +3478,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-postgres"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "atoi",
  "base64 0.21.7",
@@ -3521,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-sqlite"
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 dependencies = [
  "atoi",
  "chrono",
