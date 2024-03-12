@@ -159,7 +159,7 @@ where
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
     #[inline]
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead. See https://github.com/launchbadge/sqlx/issues/3108 for discussion."]
     pub async fn execute_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -188,7 +188,7 @@ where
     /// For each query in the stream, any generated rows are returned first,
     /// then the `QueryResult` with the number of rows affected.
     #[inline]
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead. See https://github.com/launchbadge/sqlx/issues/3108 for discussion."]
     // TODO: we'll probably still want a way to get the `DB::QueryResult` at the end of a `fetch()` stream.
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,

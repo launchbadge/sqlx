@@ -99,7 +99,7 @@ where
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
     #[inline]
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead. See https://github.com/launchbadge/sqlx/issues/3108 for discussion."]
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
