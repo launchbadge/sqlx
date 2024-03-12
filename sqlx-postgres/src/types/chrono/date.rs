@@ -1,10 +1,12 @@
+use std::mem;
+
+use chrono::{NaiveDate, TimeDelta};
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
-use chrono::{Duration, NaiveDate};
-use std::mem;
 
 impl Type<Postgres> for NaiveDate {
     fn type_info() -> PgTypeInfo {
@@ -36,7 +38,13 @@ impl<'r> Decode<'r, Postgres> for NaiveDate {
             PgValueFormat::Binary => {
                 // DATE is encoded as the days since epoch
                 let days: i32 = Decode::<Postgres>::decode(value)?;
-                postgres_epoch_date() + Duration::days(days.into())
+
+                let days = TimeDelta::try_days(days.into())
+                    .unwrap_or_else(|| {
+                        unreachable!("BUG: days ({days}) as `i32` multiplied into seconds should not overflow `i64`")
+                    });
+
+                postgres_epoch_date() + days
             }
 
             PgValueFormat::Text => NaiveDate::parse_from_str(value.as_str()?, "%Y-%m-%d")?,
