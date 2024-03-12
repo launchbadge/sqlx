@@ -164,10 +164,6 @@
 /// Using `expr as _` simply signals to the macro to not type-check that bind expression,
 /// and then that syntax is stripped from the expression so as to not trigger type errors.
 ///
-/// **NOTE:** type ascription syntax (`expr: _`) is deprecated and will be removed in a
-/// future release. This is due to Rust's [RFC 3307](https://github.com/rust-lang/rfcs/pull/3307)
-/// officially dropping support for the syntax.
-///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
 /// for arbitrary text in column names:
