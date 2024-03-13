@@ -18,6 +18,8 @@ _tls-native-tls = ["sqlx-core/_tls-native-tls"]
 _tls-rustls = ["sqlx-core/_tls-rustls"]
 
 # SQLx features
+derive = []
+macros = []
 migrate = ["sqlx-core/migrate"]
 
 # database
