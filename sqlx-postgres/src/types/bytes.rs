@@ -16,12 +16,6 @@ impl PgHasArrayType for &'_ [u8] {
     }
 }
 
-impl<const N: usize> PgHasArrayType for &'_ [u8; N] {
-    fn array_type_info() -> PgTypeInfo {
-        PgTypeInfo::BYTEA_ARRAY
-    }
-}
-
 impl PgHasArrayType for Box<[u8]> {
     fn array_type_info() -> PgTypeInfo {
         <[&[u8]] as Type<Postgres>>::type_info()

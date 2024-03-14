@@ -55,6 +55,19 @@ pub trait PgHasArrayType {
     }
 }
 
+impl<T> PgHasArrayType for &T
+where
+    T: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
 impl<T> PgHasArrayType for Option<T>
 where
     T: PgHasArrayType,
