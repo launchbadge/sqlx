@@ -54,7 +54,8 @@ pub struct ResolveError {
 
 // FIXME: paths should just be part of `Migration` but we can't add a field backwards compatibly
 // since it's `#[non_exhaustive]`.
-pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
+pub fn resolve_blocking(path: impl AsRef<Path>) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
+    let path = path.as_ref().to_path_buf();
     let mut s = fs::read_dir(&path).map_err(|e| ResolveError {
         message: format!("error reading migration directory {}: {e}", path.display()),
         source: Some(e),

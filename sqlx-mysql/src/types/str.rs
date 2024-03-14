@@ -105,28 +105,3 @@ impl Decode<'_, MySql> for String {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }
-
-impl Type<MySql> for Cow<'_, str> {
-    fn type_info() -> MySqlTypeInfo {
-        <&str as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <&str as Type<MySql>>::compatible(ty)
-    }
-}
-
-impl Encode<'_, MySql> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
-        match self {
-            Cow::Borrowed(str) => <&str as Encode<MySql>>::encode(*str, buf),
-            Cow::Owned(str) => <&str as Encode<MySql>>::encode(&**str, buf),
-        }
-    }
-}
-
-impl<'r> Decode<'r, MySql> for Cow<'r, str> {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.as_str().map(Cow::Borrowed)
-    }
-}
