@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -141,7 +141,7 @@ where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
 }
@@ -151,7 +151,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }
@@ -177,7 +177,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }

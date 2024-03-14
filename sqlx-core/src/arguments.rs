@@ -1,6 +1,6 @@
 //! Types and traits for passing arguments to SQL queries.
 
-use crate::database::{Database, HasArguments};
+use crate::database::Database;
 use crate::encode::Encode;
 use crate::types::Type;
 use std::fmt::{self, Write};
@@ -23,8 +23,8 @@ pub trait Arguments<'q>: Send + Sized + Default {
     }
 }
 
-pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {
-    fn into_arguments(self) -> <DB as HasArguments<'q>>::Arguments;
+pub trait IntoArguments<'q, DB: Database>: Sized + Send {
+    fn into_arguments(self) -> <DB as Database>::Arguments<'q>;
 }
 
 // NOTE: required due to lack of lazy normalization
@@ -45,10 +45,10 @@ macro_rules! impl_into_arguments_for_arguments {
 }
 
 /// used by the query macros to prevent supernumerary `.bind()` calls
-pub struct ImmutableArguments<'q, DB: HasArguments<'q>>(pub <DB as HasArguments<'q>>::Arguments);
+pub struct ImmutableArguments<'q, DB: Database>(pub <DB as Database>::Arguments<'q>);
 
-impl<'q, DB: HasArguments<'q>> IntoArguments<'q, DB> for ImmutableArguments<'q, DB> {
-    fn into_arguments(self) -> <DB as HasArguments<'q>>::Arguments {
+impl<'q, DB: Database> IntoArguments<'q, DB> for ImmutableArguments<'q, DB> {
+    fn into_arguments(self) -> <DB as Database>::Arguments<'q> {
         self.0
     }
 }

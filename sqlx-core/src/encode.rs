@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use crate::database::{Database, HasArguments};
+use crate::database::Database;
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -19,7 +19,7 @@ pub enum IsNull {
 pub trait Encode<'q, DB: Database> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
     #[must_use]
-    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull
     where
         Self: Sized,
     {
@@ -31,7 +31,7 @@ pub trait Encode<'q, DB: Database> {
     /// Where possible, make use of `encode` instead as it can take advantage of re-using
     /// memory.
     #[must_use]
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull;
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull;
 
     fn produces(&self) -> Option<DB::TypeInfo> {
         // `produces` is inherently a hook to allow database drivers to produce value-dependent
@@ -50,12 +50,12 @@ where
     T: Encode<'q, DB>,
 {
     #[inline]
-    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
         <T as Encode<DB>>::encode_by_ref(self, buf)
     }
 
     #[inline]
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
         <&T as Encode<DB>>::encode(self, buf)
     }
 
@@ -89,7 +89,7 @@ macro_rules! impl_encode_for_option {
             #[inline]
             fn encode(
                 self,
-                buf: &mut <$DB as $crate::database::HasArguments<'q>>::ArgumentBuffer,
+                buf: &mut <$DB as $crate::database::Database>::ArgumentBuffer<'q>,
             ) -> $crate::encode::IsNull {
                 if let Some(v) = self {
                     v.encode(buf)
@@ -101,7 +101,7 @@ macro_rules! impl_encode_for_option {
             #[inline]
             fn encode_by_ref(
                 &self,
-                buf: &mut <$DB as $crate::database::HasArguments<'q>>::ArgumentBuffer,
+                buf: &mut <$DB as $crate::database::Database>::ArgumentBuffer<'q>,
             ) -> $crate::encode::IsNull {
                 if let Some(v) = self {
                     v.encode_by_ref(buf)

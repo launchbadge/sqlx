@@ -1,6 +1,6 @@
 use crate::arguments::IntoArguments;
 use crate::column::ColumnIndex;
-use crate::database::{Database, HasArguments, HasStatement};
+use crate::database::Database;
 use crate::error::Error;
 use crate::from_row::FromRow;
 use crate::query::Query;
@@ -21,7 +21,7 @@ pub trait Statement<'q>: Send + Sync {
 
     /// Creates an owned statement from this statement reference. This copies
     /// the original SQL text.
-    fn to_owned(&self) -> <Self::Database as HasStatement<'static>>::Statement;
+    fn to_owned(&self) -> <Self::Database as Database>::Statement<'static>;
 
     /// Get the original SQL text used to create this statement.
     fn sql(&self) -> &str;
@@ -59,7 +59,7 @@ pub trait Statement<'q>: Send + Sync {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    fn query(&self) -> Query<'_, Self::Database, <Self::Database as HasArguments<'_>>::Arguments>;
+    fn query(&self) -> Query<'_, Self::Database, <Self::Database as Database>::Arguments<'_>>;
 
     fn query_with<'s, A>(&'s self, arguments: A) -> Query<'s, Self::Database, A>
     where
@@ -67,7 +67,7 @@ pub trait Statement<'q>: Send + Sync {
 
     fn query_as<O>(
         &self,
-    ) -> QueryAs<'_, Self::Database, O, <Self::Database as HasArguments<'_>>::Arguments>
+    ) -> QueryAs<'_, Self::Database, O, <Self::Database as Database>::Arguments<'_>>
     where
         O: for<'r> FromRow<'r, <Self::Database as Database>::Row>;
 
@@ -78,7 +78,7 @@ pub trait Statement<'q>: Send + Sync {
 
     fn query_scalar<O>(
         &self,
-    ) -> QueryScalar<'_, Self::Database, O, <Self::Database as HasArguments<'_>>::Arguments>
+    ) -> QueryScalar<'_, Self::Database, O, <Self::Database as Database>::Arguments<'_>>
     where
         (O,): for<'r> FromRow<'r, <Self::Database as Database>::Row>;
 
@@ -111,7 +111,7 @@ macro_rules! impl_statement_query {
             '_,
             Self::Database,
             O,
-            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
+            <Self::Database as $crate::database::Database>::Arguments<'_>,
         >
         where
             O: for<'r> $crate::from_row::FromRow<
@@ -144,7 +144,7 @@ macro_rules! impl_statement_query {
             '_,
             Self::Database,
             O,
-            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
+            <Self::Database as $crate::database::Database>::Arguments<'_>,
         >
         where
             (O,): for<'r> $crate::from_row::FromRow<

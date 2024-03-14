@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::any::{Any, AnyTypeInfo, AnyTypeInfoKind};
-use crate::database::{Database, HasValueRef};
+use crate::database::Database;
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::value::{Value, ValueRef};
@@ -71,7 +71,7 @@ pub struct AnyValueRef<'a> {
 impl Value for AnyValue {
     type Database = Any;
 
-    fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef {
+    fn as_ref(&self) -> <Self::Database as Database>::ValueRef<'_> {
         AnyValueRef {
             kind: match &self.kind {
                 AnyValueKind::Null => AnyValueKind::Null,

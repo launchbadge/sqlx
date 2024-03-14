@@ -3,7 +3,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::IntoArguments;
-use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
+use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -29,12 +29,12 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&DB::Statement<'q>> {
         self.inner.statement()
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
         self.inner.take_arguments()
     }
 
@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {
+impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
@@ -320,7 +320,7 @@ where
 #[inline]
 pub fn query_scalar<'q, DB, O>(
     sql: &'q str,
-) -> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments>
+) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
@@ -350,8 +350,8 @@ where
 
 // Make a SQL query from a statement, that is mapped to a concrete value.
 pub fn query_statement_scalar<'q, DB, O>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
-) -> QueryScalar<'q, DB, O, <DB as HasArguments<'_>>::Arguments>
+    statement: &'q DB::Statement<'q>,
+) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
@@ -363,7 +363,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete value.
 pub fn query_statement_scalar_with<'q, DB, O, A>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q DB::Statement<'q>,
     arguments: A,
 ) -> QueryScalar<'q, DB, O, A>
 where

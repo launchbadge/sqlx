@@ -5,7 +5,7 @@ use std::fmt::Write;
 use std::marker::PhantomData;
 
 use crate::arguments::{Arguments, IntoArguments};
-use crate::database::{Database, HasArguments};
+use crate::database::Database;
 use crate::encode::Encode;
 use crate::from_row::FromRow;
 use crate::query::Query;
@@ -27,7 +27,7 @@ where
 {
     query: String,
     init_len: usize,
-    arguments: Option<<DB as HasArguments<'args>>::Arguments>,
+    arguments: Option<<DB as Database>::Arguments<'args>>,
 }
 
 impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
@@ -49,7 +49,7 @@ where
     /// Start building a query with an initial SQL fragment, which may be an empty string.
     pub fn new(init: impl Into<String>) -> Self
     where
-        <DB as HasArguments<'args>>::Arguments: Default,
+        <DB as Database>::Arguments<'args>: Default,
     {
         let init = init.into();
 
@@ -445,7 +445,7 @@ where
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build(&mut self) -> Query<'_, DB, <DB as HasArguments<'args>>::Arguments> {
+    pub fn build(&mut self) -> Query<'_, DB, <DB as Database>::Arguments<'args>> {
         self.sanity_check();
 
         Query {
@@ -470,7 +470,7 @@ where
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
     pub fn build_query_as<'q, T: FromRow<'q, DB::Row>>(
         &'q mut self,
-    ) -> QueryAs<'q, DB, T, <DB as HasArguments<'args>>::Arguments> {
+    ) -> QueryAs<'q, DB, T, <DB as Database>::Arguments<'args>> {
         QueryAs {
             inner: self.build(),
             output: PhantomData,
@@ -491,7 +491,7 @@ where
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
     pub fn build_query_scalar<'q, T>(
         &'q mut self,
-    ) -> QueryScalar<'q, DB, T, <DB as HasArguments<'args>>::Arguments>
+    ) -> QueryScalar<'q, DB, T, <DB as Database>::Arguments<'args>>
     where
         DB: Database,
         (T,): for<'r> FromRow<'r, DB::Row>,
