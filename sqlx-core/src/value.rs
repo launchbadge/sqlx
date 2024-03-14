@@ -7,7 +7,7 @@ use std::borrow::Cow;
 
 /// An owned value from the database.
 pub trait Value {
-    type Database: Database;
+    type Database: Database<Value = Self>;
 
     /// Get this value as a reference.
     fn as_ref(&self) -> <Self::Database as Database>::ValueRef<'_>;

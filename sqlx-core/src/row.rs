@@ -12,7 +12,7 @@ use crate::value::ValueRef;
 /// [`FromRow`]: crate::row::FromRow
 /// [`Query::fetch`]: crate::query::Query::fetch
 pub trait Row: Unpin + Send + Sync + 'static {
-    type Database: Database;
+    type Database: Database<Row = Self>;
 
     /// Returns `true` if this row has no columns.
     #[inline]
