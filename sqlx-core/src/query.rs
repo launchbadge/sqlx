@@ -525,6 +525,7 @@ where
 /// // where `conn` is `PgConnection` or `MySqlConnection`
 /// // or some other type that implements `Executor`.
 /// let results = sqlx::query(&query).fetch_all(&mut conn).await?;
+/// # Ok(())
 /// # }
 /// ```
 ///
