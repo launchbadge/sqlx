@@ -18,7 +18,7 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
 
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>,
+        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>,
     {
         let _ = value.encode(&mut self.values);
     }

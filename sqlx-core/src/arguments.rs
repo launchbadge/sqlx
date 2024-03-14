@@ -16,7 +16,7 @@ pub trait Arguments<'q>: Send + Sized + Default {
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
+        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
 
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         writer.write_str("?")
