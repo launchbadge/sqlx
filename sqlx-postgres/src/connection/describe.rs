@@ -10,6 +10,7 @@ use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
+use smallvec::SmallVec;
 use std::fmt::Write;
 use std::sync::Arc;
 
@@ -447,20 +448,21 @@ WHERE rngtypid = $1
             explain += ")";
         }
 
-        let (Json([explain]),): (Json<[Explain; 1]>,) = query_as(&explain).fetch_one(self).await?;
+        let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
+            query_as(&explain).fetch_one(self).await?;
 
         let mut nullables = Vec::new();
 
-        if let Explain::Plan {
+        if let Some(Explain::Plan {
             plan:
                 plan @ Plan {
                     output: Some(ref outputs),
                     ..
                 },
-        } = &explain
+        }) = explains.first()
         {
             nullables.resize(outputs.len(), None);
-            visit_plan(plan, outputs, &mut nullables);
+            visit_plan(&plan, outputs, &mut nullables);
         }
 
         Ok(nullables)
