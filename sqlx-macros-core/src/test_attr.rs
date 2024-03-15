@@ -158,8 +158,8 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
     };
 
     Ok(quote! {
-        #[::core::prelude::v1::test]
         #(#attrs)*
+        #[::core::prelude::v1::test]
         fn #name() #ret {
             async fn #name(#inputs) #ret {
                 #body
