@@ -49,7 +49,7 @@ pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, 
 #[cfg_attr(docsrs, doc(cfg(feature = "any")))]
 pub use crate::any::{reexports::*, Any, AnyExecutor};
 
-#[cfg(any(feature = "derive", feature = "macro"))]
+#[cfg(any(feature = "derive", feature = "macros"))]
 #[doc(hidden)]
 pub extern crate sqlx_macros;
 
