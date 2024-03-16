@@ -71,8 +71,7 @@ where
         buf.push(1);
 
         // the JSON data written to the buffer is the same regardless of parameter type
-        serde_json::to_writer(&mut **buf, &self.0)
-            .expect("failed to serialize to JSON for encoding on transmission to the database");
+        serde_json::to_writer(&mut **buf, &self.0)?;
 
         Ok(IsNull::No)
     }

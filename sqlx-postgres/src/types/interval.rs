@@ -84,9 +84,7 @@ impl PgHasArrayType for std::time::Duration {
 
 impl Encode<'_, Postgres> for std::time::Duration {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        PgInterval::try_from(*self)
-            .expect("failed to encode `std::time::Duration`")
-            .encode_by_ref(buf)
+        PgInterval::try_from(*self)?.encode_by_ref(buf)
     }
 
     fn size_hint(&self) -> usize {
@@ -131,7 +129,7 @@ impl PgHasArrayType for chrono::Duration {
 #[cfg(feature = "chrono")]
 impl Encode<'_, Postgres> for chrono::Duration {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let pg_interval = PgInterval::try_from(*self).expect("Failed to encode chrono::Duration");
+        let pg_interval = PgInterval::try_from(*self)?;
         pg_interval.encode_by_ref(buf)
     }
 
@@ -193,7 +191,7 @@ impl PgHasArrayType for time::Duration {
 #[cfg(feature = "time")]
 impl Encode<'_, Postgres> for time::Duration {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let pg_interval = PgInterval::try_from(*self).expect("Failed to encode time::Duration");
+        let pg_interval = PgInterval::try_from(*self)?;
         pg_interval.encode_by_ref(buf)
     }
 

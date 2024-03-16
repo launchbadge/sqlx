@@ -183,8 +183,7 @@ impl PgHasArrayType for PgLTree {
 impl Encode<'_, Postgres> for PgLTree {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(1i8.to_le_bytes());
-        write!(buf, "{self}")
-            .expect("Display implementation panicked while writing to PgArgumentBuffer");
+        write!(buf, "{self}")?;
 
         Ok(IsNull::No)
     }

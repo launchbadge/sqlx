@@ -21,7 +21,7 @@ where
     T: Serialize,
 {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        Encode::<Sqlite>::encode(self.encode_to_string(), buf)
+        Encode::<Sqlite>::encode(self.encode_to_string()?, buf)
     }
 }
 
