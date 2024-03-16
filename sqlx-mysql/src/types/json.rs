@@ -26,7 +26,7 @@ impl<T> Encode<'_, MySql> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         // Encode JSON as a length-prefixed string.
         //
         // The previous implementation encoded into an intermediate buffer to get the final length.
@@ -54,7 +54,7 @@ where
         buf[lenenc_start] = 0xFE;
         buf[lenenc_start + 1..][..8].copy_from_slice(&encoded_len.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

@@ -22,7 +22,10 @@ impl MySqlArguments {
         self.types.push(ty);
         self.null_bitmap.resize((index / 8) + 1, 0);
 
-        if let IsNull::Yes = value.encode(&mut self.values) {
+        if let IsNull::Yes = value
+            .encode(&mut self.values)
+            .expect("Encoding value failed")
+        {
             self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
         }
     }

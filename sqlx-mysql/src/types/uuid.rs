@@ -21,10 +21,10 @@ impl Type<MySql> for Uuid {
 }
 
 impl Encode<'_, MySql> for Uuid {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_bytes_lenenc(self.as_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -49,10 +49,10 @@ impl Type<MySql> for Hyphenated {
 }
 
 impl Encode<'_, MySql> for Hyphenated {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(&self.to_string());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -79,10 +79,10 @@ impl Type<MySql> for Simple {
 }
 
 impl Encode<'_, MySql> for Simple {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(&self.to_string());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

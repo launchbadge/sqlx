@@ -16,15 +16,18 @@ impl Type<Any> for str {
 }
 
 impl<'a> Encode<'a, Any> for &'a str {
-    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer<'a>) -> IsNull
+    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer<'a>) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
         buf.0.push(AnyValueKind::Text(self.into()));
-        IsNull::No
+        Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'a>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'a>,
+    ) -> Result<IsNull, BoxDynError> {
         (*self).encode(buf)
     }
 }
@@ -50,9 +53,12 @@ impl Type<Any> for String {
 }
 
 impl<'q> Encode<'q, Any> for String {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Text(Cow::Owned(self.clone())));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

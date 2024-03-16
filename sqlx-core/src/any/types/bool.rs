@@ -14,9 +14,12 @@ impl Type<Any> for bool {
 }
 
 impl<'q> Encode<'q, Any> for bool {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Bool(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

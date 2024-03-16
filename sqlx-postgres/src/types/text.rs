@@ -22,7 +22,7 @@ impl<'q, T> Encode<'q, Postgres> for Text<T>
 where
     T: Display,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // Unfortunately, our API design doesn't give us a way to bubble up the error here.
         //
         // Fortunately, writing to `Vec<u8>` is infallible so the only possible source of
@@ -34,7 +34,7 @@ where
         //
         // However, the panic should be documented anyway.
         write!(**buf, "{}", self.0).expect("unexpected error from `Display::fmt()`");
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

@@ -19,7 +19,7 @@ impl PgHasArrayType for NaiveTime {
 }
 
 impl Encode<'_, Postgres> for NaiveTime {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // TIME is encoded as the microseconds since midnight
         // NOTE: panic! is on overflow and 1 day does not have enough micros to overflow
         let us = (*self - NaiveTime::default()).num_microseconds().unwrap();

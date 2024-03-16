@@ -141,7 +141,10 @@ where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
 }

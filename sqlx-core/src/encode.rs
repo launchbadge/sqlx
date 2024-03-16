@@ -3,6 +3,7 @@
 use std::mem;
 
 use crate::database::Database;
+use crate::error::BoxDynError;
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -18,8 +19,7 @@ pub enum IsNull {
 /// Encode a single value to be sent to the database.
 pub trait Encode<'q, DB: Database> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
-    #[must_use]
-    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
@@ -30,8 +30,10 @@ pub trait Encode<'q, DB: Database> {
     ///
     /// Where possible, make use of `encode` instead as it can take advantage of re-using
     /// memory.
-    #[must_use]
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull;
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError>;
 
     fn produces(&self) -> Option<DB::TypeInfo> {
         // `produces` is inherently a hook to allow database drivers to produce value-dependent
@@ -50,12 +52,15 @@ where
     T: Encode<'q, DB>,
 {
     #[inline]
-    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
         <T as Encode<DB>>::encode_by_ref(self, buf)
     }
 
     #[inline]
-    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         <&T as Encode<DB>>::encode(self, buf)
     }
 
@@ -90,11 +95,11 @@ macro_rules! impl_encode_for_option {
             fn encode(
                 self,
                 buf: &mut <$DB as $crate::database::Database>::ArgumentBuffer<'q>,
-            ) -> $crate::encode::IsNull {
+            ) -> Result<$crate::encode::IsNull, $crate::error::BoxDynError> {
                 if let Some(v) = self {
                     v.encode(buf)
                 } else {
-                    $crate::encode::IsNull::Yes
+                    Ok($crate::encode::IsNull::Yes)
                 }
             }
 
@@ -102,11 +107,11 @@ macro_rules! impl_encode_for_option {
             fn encode_by_ref(
                 &self,
                 buf: &mut <$DB as $crate::database::Database>::ArgumentBuffer<'q>,
-            ) -> $crate::encode::IsNull {
+            ) -> Result<$crate::encode::IsNull, $crate::error::BoxDynError> {
                 if let Some(v) = self {
                     v.encode_by_ref(buf)
                 } else {
-                    $crate::encode::IsNull::Yes
+                    Ok($crate::encode::IsNull::Yes)
                 }
             }
 

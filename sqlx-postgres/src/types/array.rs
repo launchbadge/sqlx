@@ -136,7 +136,7 @@ where
     T: Encode<'q, Postgres>,
 {
     #[inline]
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         self.as_slice().encode_by_ref(buf)
     }
 }
@@ -146,7 +146,7 @@ where
     for<'a> &'a [T]: Encode<'q, Postgres>,
     T: Encode<'q, Postgres>,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         self.as_slice().encode_by_ref(buf)
     }
 }
@@ -155,7 +155,7 @@ impl<'q, T> Encode<'q, Postgres> for &'_ [T]
 where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         let type_info = if self.len() < 1 {
             T::type_info()
         } else {
@@ -181,7 +181,7 @@ where
             buf.encode(element);
         }
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

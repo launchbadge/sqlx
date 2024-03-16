@@ -19,10 +19,10 @@ impl PgHasArrayType for i8 {
 }
 
 impl Encode<'_, Postgres> for i8 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_be_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -46,10 +46,10 @@ impl PgHasArrayType for i16 {
 }
 
 impl Encode<'_, Postgres> for i16 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_be_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -75,10 +75,10 @@ impl PgHasArrayType for i32 {
 }
 
 impl Encode<'_, Postgres> for i32 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_be_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -104,10 +104,10 @@ impl PgHasArrayType for i64 {
 }
 
 impl Encode<'_, Postgres> for i64 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_be_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

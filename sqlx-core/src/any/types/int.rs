@@ -18,9 +18,12 @@ impl Type<Any> for i16 {
 }
 
 impl<'q> Encode<'q, Any> for i16 {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::SmallInt(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -43,9 +46,12 @@ impl Type<Any> for i32 {
 }
 
 impl<'q> Encode<'q, Any> for i32 {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Integer(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -68,9 +74,12 @@ impl Type<Any> for i64 {
 }
 
 impl<'q> Encode<'q, Any> for i64 {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::BigInt(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

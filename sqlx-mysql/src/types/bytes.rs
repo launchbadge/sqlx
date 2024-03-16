@@ -27,10 +27,10 @@ impl Type<MySql> for [u8] {
 }
 
 impl Encode<'_, MySql> for &'_ [u8] {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_bytes_lenenc(self);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -51,7 +51,7 @@ impl Type<MySql> for Box<[u8]> {
 }
 
 impl Encode<'_, MySql> for Box<[u8]> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<MySql>>::encode(self.as_ref(), buf)
     }
 }
@@ -73,7 +73,7 @@ impl Type<MySql> for Vec<u8> {
 }
 
 impl Encode<'_, MySql> for Vec<u8> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<MySql>>::encode(&**self, buf)
     }
 }

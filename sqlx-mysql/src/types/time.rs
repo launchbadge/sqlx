@@ -22,7 +22,7 @@ impl Type<MySql> for OffsetDateTime {
 }
 
 impl Encode<'_, MySql> for OffsetDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let utc_dt = self.to_offset(UtcOffset::UTC);
         let primitive_dt = PrimitiveDateTime::new(utc_dt.date(), utc_dt.time());
 
@@ -45,7 +45,7 @@ impl Type<MySql> for Time {
 }
 
 impl Encode<'_, MySql> for Time {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
@@ -58,7 +58,7 @@ impl Encode<'_, MySql> for Time {
 
         encode_time(self, len > 9, buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -115,12 +115,12 @@ impl Type<MySql> for Date {
 }
 
 impl Encode<'_, MySql> for Date {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.push(4);
 
         encode_date(self, buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -149,7 +149,7 @@ impl Type<MySql> for PrimitiveDateTime {
 }
 
 impl Encode<'_, MySql> for PrimitiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
@@ -159,7 +159,7 @@ impl Encode<'_, MySql> for PrimitiveDateTime {
             encode_time(&self.time(), len > 8, buf);
         }
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {

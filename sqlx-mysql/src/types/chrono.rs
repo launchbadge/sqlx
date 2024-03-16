@@ -23,7 +23,7 @@ impl Type<MySql> for DateTime<Utc> {
 
 /// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl Encode<'_, MySql> for DateTime<Utc> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         Encode::<MySql>::encode(&self.naive_utc(), buf)
     }
 }
@@ -49,7 +49,7 @@ impl Type<MySql> for DateTime<Local> {
 
 /// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl Encode<'_, MySql> for DateTime<Local> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         Encode::<MySql>::encode(&self.naive_utc(), buf)
     }
 }
@@ -68,7 +68,7 @@ impl Type<MySql> for NaiveTime {
 }
 
 impl Encode<'_, MySql> for NaiveTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
@@ -81,7 +81,7 @@ impl Encode<'_, MySql> for NaiveTime {
 
         encode_time(self, len > 9, buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -138,12 +138,12 @@ impl Type<MySql> for NaiveDate {
 }
 
 impl Encode<'_, MySql> for NaiveDate {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.push(4);
 
         encode_date(self, buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -173,7 +173,7 @@ impl Type<MySql> for NaiveDateTime {
 }
 
 impl Encode<'_, MySql> for NaiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
@@ -183,7 +183,7 @@ impl Encode<'_, MySql> for NaiveDateTime {
             encode_time(&self.time(), len > 8, buf);
         }
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {

@@ -292,7 +292,7 @@ impl<'q, T> Encode<'q, Postgres> for PgRange<T>
 where
     T: Encode<'q, Postgres>,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/backend/utils/adt/rangetypes.c#L245
 
         let mut flags = RangeFlags::empty();
@@ -320,7 +320,7 @@ where
         }
 
         // ranges are themselves never null
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
