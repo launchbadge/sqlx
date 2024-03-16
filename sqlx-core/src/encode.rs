@@ -6,6 +6,7 @@ use crate::database::Database;
 use crate::error::BoxDynError;
 
 /// The return type of [Encode::encode].
+#[must_use]
 pub enum IsNull {
     /// The value is null; no data was written.
     Yes,

@@ -23,17 +23,7 @@ where
     T: Display,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        // Unfortunately, our API design doesn't give us a way to bubble up the error here.
-        //
-        // Fortunately, writing to `Vec<u8>` is infallible so the only possible source of
-        // errors is from the implementation of `Display::fmt()` itself,
-        // where the onus is on the user.
-        //
-        // The blanket impl of `ToString` also panics if there's an error, so this is not
-        // unprecedented.
-        //
-        // However, the panic should be documented anyway.
-        write!(**buf, "{}", self.0).expect("unexpected error from `Display::fmt()`");
+        write!(**buf, "{}", self.0)?;
         Ok(IsNull::No)
     }
 }

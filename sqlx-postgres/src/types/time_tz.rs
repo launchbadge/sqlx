@@ -52,8 +52,9 @@ mod chrono {
 
     impl Encode<'_, Postgres> for PgTimeTz<NaiveTime, FixedOffset> {
         fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-            let _ = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf);
+            let _: IsNull = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf)?;
 
             Ok(IsNull::No)
         }
@@ -135,8 +136,9 @@ mod time {
 
     impl Encode<'_, Postgres> for PgTimeTz<Time, UtcOffset> {
         fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-            let _ = <Time as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf);
+            let _: IsNull = <Time as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf)?;
 
             Ok(IsNull::No)
         }

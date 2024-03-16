@@ -177,7 +177,7 @@ impl Encode<'_, MySql> for NaiveDate {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.push(4);
 
-        encode_date(self, buf);
+        encode_date(self, buf)?;
 
         Ok(IsNull::No)
     }
@@ -220,7 +220,7 @@ impl Encode<'_, MySql> for NaiveDateTime {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
-        encode_date(&self.date(), buf);
+        encode_date(&self.date(), buf)?;
 
         if len > 4 {
             encode_time(&self.time(), len > 8, buf);
@@ -282,14 +282,16 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
     }
 }
 
-fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) {
+fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) -> Result<(), BoxDynError> {
     // MySQL supports years from 1000 - 9999
     let year = u16::try_from(date.year())
-        .unwrap_or_else(|_| panic!("NaiveDateTime out of range for Mysql: {date}"));
+        .map_err(|_| format!("NaiveDateTime out of range for Mysql: {date}"))?;
 
     buf.extend_from_slice(&year.to_le_bytes());
     buf.push(date.month() as u8);
     buf.push(date.day() as u8);
+
+    Ok(())
 }
 
 fn decode_date(mut buf: &[u8]) -> Result<Option<NaiveDate>, BoxDynError> {

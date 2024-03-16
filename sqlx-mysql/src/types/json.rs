@@ -47,7 +47,7 @@ where
         buf.extend_from_slice(&[0u8; 9]);
 
         let encode_start = buf.len();
-        self.encode_to(buf);
+        self.encode_to(buf)?;
         let encoded_len = (buf.len() - encode_start) as u64;
 
         // This prefix indicates that the following 8 bytes are a little-endian integer.
