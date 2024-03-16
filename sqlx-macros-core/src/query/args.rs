@@ -109,7 +109,7 @@ pub fn quote_args<DB: DatabaseExt>(
             #args_count,
             0 #(+ ::sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
         );
-        #(query_args.add(#arg_name);)*
+        #(query_args.add(#arg_name).expect("Encoding argument {#arg_name} failed");)*
     })
 }
 

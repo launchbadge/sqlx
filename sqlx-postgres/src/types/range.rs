@@ -312,11 +312,11 @@ where
         buf.push(flags.bits());
 
         if let Bound::Included(v) | Bound::Excluded(v) = &self.start {
-            buf.encode(v);
+            buf.encode(v)?;
         }
 
         if let Bound::Included(v) | Bound::Excluded(v) = &self.end {
-            buf.encode(v);
+            buf.encode(v)?;
         }
 
         // ranges are themselves never null

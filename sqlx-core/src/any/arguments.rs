@@ -1,7 +1,8 @@
 use crate::any::value::AnyValueKind;
 use crate::any::Any;
 use crate::arguments::Arguments;
-use crate::encode::Encode;
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
 use crate::types::Type;
 
 pub struct AnyArguments<'q> {
@@ -16,11 +17,12 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
         self.values.0.reserve(additional);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: 'q + Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        let _ = value.encode(&mut self.values);
+        let _: IsNull = value.encode(&mut self.values)?;
+        Ok(())
     }
 }
 
@@ -36,7 +38,7 @@ impl<'q> Default for AnyArguments<'q> {
 
 impl<'q> AnyArguments<'q> {
     #[doc(hidden)]
-    pub fn convert_to<'a, A: Arguments<'a>>(&'a self) -> A
+    pub fn convert_to<'a, A: Arguments<'a>>(&'a self) -> Result<A, BoxDynError>
     where
         'q: 'a,
         Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
@@ -62,9 +64,9 @@ impl<'q> AnyArguments<'q> {
                 AnyValueKind::Double(d) => out.add(d),
                 AnyValueKind::Text(t) => out.add(&**t),
                 AnyValueKind::Blob(b) => out.add(&**b),
-            }
+            }?
         }
 
-        out
+        Ok(out)
     }
 }

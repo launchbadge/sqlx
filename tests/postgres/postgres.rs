@@ -1164,8 +1164,8 @@ CREATE TABLE heating_bills (
             buf: &mut sqlx::postgres::PgArgumentBuffer,
         ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
             let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
-            encoder.encode(self.year);
-            encoder.encode(self.month);
+            encoder.encode(self.year)?;
+            encoder.encode(self.month)?;
             encoder.finish();
             Ok(sqlx::encode::IsNull::No)
         }

@@ -228,7 +228,7 @@ fn expand_derive_encode_struct(
             let id = &field.ident;
 
             parse_quote!(
-                encoder.encode(&self. #id);
+                encoder.encode(&self. #id)?;
             )
         });
 

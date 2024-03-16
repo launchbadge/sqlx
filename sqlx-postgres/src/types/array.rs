@@ -178,7 +178,7 @@ where
         buf.extend(&1_i32.to_be_bytes()); // lower bound
 
         for element in self.iter() {
-            buf.encode(element);
+            buf.encode(element)?;
         }
 
         Ok(IsNull::No)

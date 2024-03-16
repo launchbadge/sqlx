@@ -80,7 +80,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     /// flavors will perform type coercion (Postgres will return a database error).
     pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
-            arguments.add(value);
+            arguments.add(value).expect("Failed to add argument");
         }
 
         self

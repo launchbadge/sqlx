@@ -7,6 +7,7 @@ use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
 
 pub(crate) use sqlx_core::arguments::*;
+use sqlx_core::error::BoxDynError;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue<'q> {
@@ -24,16 +25,15 @@ pub struct SqliteArguments<'q> {
 }
 
 impl<'q> SqliteArguments<'q> {
-    pub(crate) fn add<T>(&mut self, value: T)
+    pub(crate) fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Sqlite>,
     {
-        if let IsNull::Yes = value
-            .encode(&mut self.values)
-            .expect("Encoding value failed")
-        {
+        if let IsNull::Yes = value.encode(&mut self.values)? {
             self.values.push(SqliteArgumentValue::Null);
         }
+
+        Ok(())
     }
 
     pub(crate) fn into_static(self) -> SqliteArguments<'static> {
@@ -54,7 +54,7 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
         self.values.reserve(len);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Self::Database>,
     {
