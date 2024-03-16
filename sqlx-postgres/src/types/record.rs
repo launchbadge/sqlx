@@ -34,7 +34,7 @@ impl<'a> PgRecordEncoder<'a> {
     }
 
     #[doc(hidden)]
-    pub fn encode<'q, T>(&mut self, value: T) -> &mut Self
+    pub fn encode<'q, T>(&mut self, value: T) -> Result<&mut Self, BoxDynError>
     where
         'a: 'q,
         T: Encode<'q, Postgres> + Type<Postgres>,
@@ -50,10 +50,10 @@ impl<'a> PgRecordEncoder<'a> {
             self.buf.extend(&ty.0.oid().0.to_be_bytes());
         }
 
-        self.buf.encode(value);
+        self.buf.encode(value)?;
         self.num += 1;
 
-        self
+        Ok(self)
     }
 }
 

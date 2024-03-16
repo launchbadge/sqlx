@@ -8,6 +8,7 @@ use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::arguments::Arguments;
+use sqlx_core::error::BoxDynError;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
 // TODO: Extend the patch system to support dynamic lengths
@@ -59,7 +60,7 @@ pub struct PgArguments {
 }
 
 impl PgArguments {
-    pub(crate) fn add<'q, T>(&mut self, value: T)
+    pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres> + Type<Postgres>,
     {
@@ -68,10 +69,12 @@ impl PgArguments {
             .push(value.produces().unwrap_or_else(T::type_info));
 
         // encode the value into our buffer
-        self.buffer.encode(value);
+        self.buffer.encode(value)?;
 
         // increment the number of arguments we are tracking
         self.buffer.count += 1;
+
+        Ok(())
     }
 
     // Apply patches
@@ -112,7 +115,7 @@ impl<'q> Arguments<'q> for PgArguments {
         self.buffer.reserve(size);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
@@ -125,7 +128,7 @@ impl<'q> Arguments<'q> for PgArguments {
 }
 
 impl PgArgumentBuffer {
-    pub(crate) fn encode<'q, T>(&mut self, value: T)
+    pub(crate) fn encode<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres>,
     {
@@ -134,7 +137,7 @@ impl PgArgumentBuffer {
         self.extend(&[0; 4]);
 
         // encode the value into our buffer
-        let len = if let IsNull::No = value.encode(self).expect("Encoding value failed") {
+        let len = if let IsNull::No = value.encode(self)? {
             (self.len() - offset - 4) as i32
         } else {
             // Write a -1 to indicate NULL
@@ -145,6 +148,8 @@ impl PgArgumentBuffer {
 
         // write the len to the beginning of the value
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+
+        Ok(())
     }
 
     // Adds a callback to be invoked later when we know the parameter type

@@ -382,9 +382,10 @@ WHERE rngtypid = $1
                 bind + 2
             );
 
-            args.add(i as i32);
-            args.add(column.relation_id);
-            args.add(column.relation_attribute_no);
+            args.add(i as i32).map_err(Error::Encode)?;
+            args.add(column.relation_id).map_err(Error::Encode)?;
+            args.add(column.relation_attribute_no)
+                .map_err(Error::Encode)?;
         }
 
         nullable_query.push_str(
