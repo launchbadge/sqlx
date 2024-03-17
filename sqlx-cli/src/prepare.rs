@@ -318,6 +318,8 @@ fn minimal_project_recompile_action(metadata: &Metadata) -> ProjectRecompileActi
                 .package(id)
                 .map(|package| package.name().to_owned())
         })
+        // Do not clean sqlx, it depends on sqlx-macros but has no queries to prepare itself.
+        .filter(|name| name != "sqlx")
         .collect();
 
     ProjectRecompileAction {
