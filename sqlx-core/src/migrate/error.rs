@@ -6,6 +6,9 @@ pub enum MigrateError {
     #[error("while executing migrations: {0}")]
     Execute(#[from] Error),
 
+    #[error("while executing migration {1}: {0}")]
+    ExecuteMigration(#[source] Error, i64),
+
     #[error("while resolving migrations: {0}")]
     Source(#[source] BoxDynError),
 
