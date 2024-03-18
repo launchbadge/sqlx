@@ -199,7 +199,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .execute(&mut *tx)
             .await?;
 
-            let _ = tx.execute(&*migration.sql).await?;
+            let _ = tx
+                .execute(&*migration.sql)
+                .await
+                .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
             // language=MySQL
             let _ = query(
