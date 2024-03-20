@@ -208,6 +208,7 @@ impl SqliteConnectOptions {
     /// Sets the name of the database file.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = Cow::Owned(filename.as_ref().to_owned());
+        self.in_memory = filename.as_ref() == Path::new(":memory:");
         self
     }
 
