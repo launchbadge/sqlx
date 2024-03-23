@@ -1,0 +1,70 @@
+[advisories]
+ignore = [
+    # No upgrade available for rsa 0.9.4, a direct dependency of sqlx-mysql
+    "RUSTSEC-2023-0071",
+]
+version = 2
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+confidence-threshold = 0.9
+version = 2
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[bans]
+allow = []
+deny = []
+multiple-versions = "deny"
+skip = [
+    # async-std 1.12 uses two versions - this older version directly, and a newer verison transitively.
+    { name = "async-channel", version = "=1.9.0" },
+    # async-global-executor transitively depends on two different versions of this crate
+    { name = "event-listener", version = "^4.0.0" },
+    # async-global-executor transitively depends on two different versions of this crate
+    { name = "event-listener-strategy", version = "=0.4.0" },
+    # criterion 0.5.1 uses this older version of itertools
+    # Note that cargo deny will warn about this being unmatched with the --all-features flag set
+    { name = "itertools", version = "=0.10.5" },
+    # mac_address 1.1.5, an optional feature of sqlx-core, this older version as a direct dependency
+    { name = "nix", version = "=0.23.2" },
+    # native-tls 0.2.11 has this older version as a transitive dependency
+    { name = "spin", version = "=0.5.2" },
+    # syn 2.0 has not been adopted by many crates using syn 1.x due to difficult breaking changes
+    { name = "syn", version = "<2" },
+]
+skip-tree = [
+    # async-std 1.12 uses two versions - this older version directly, and a newer verison transitively.
+    { name = "async-io", version = "=1.13.0" },
+]
+
+# Warn, rather than deny, due to sqlx crates not referencing each other by a specific version
+wildcards = "warn"
+
+[sources]
+allow-git = []
+allow-registry = [
+    "https://github.com/rust-lang/crates.io-index"
+]
+unknown-git = "deny"
+unknown-registry = "deny"
+
+[sources.allow-org]
+bitbucket = []
+github = []
+gitlab = []
