@@ -49,12 +49,12 @@ pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, 
 #[cfg_attr(docsrs, doc(cfg(feature = "any")))]
 pub use crate::any::{reexports::*, Any, AnyExecutor};
 
-#[cfg(feature = "macros")]
+#[cfg(any(feature = "derive", feature = "macros"))]
 #[doc(hidden)]
 pub extern crate sqlx_macros;
 
 // derives
-#[cfg(feature = "macros")]
+#[cfg(feature = "derive")]
 #[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
 
@@ -103,7 +103,7 @@ pub use sqlx_core::rt as __rt;
 pub mod types {
     pub use sqlx_core::types::*;
 
-    #[cfg(feature = "macros")]
+    #[cfg(feature = "derive")]
     #[doc(hidden)]
     pub use sqlx_macros::Type;
 }
@@ -112,7 +112,7 @@ pub mod types {
 pub mod encode {
     pub use sqlx_core::encode::{Encode, IsNull};
 
-    #[cfg(feature = "macros")]
+    #[cfg(feature = "derive")]
     #[doc(hidden)]
     pub use sqlx_macros::Encode;
 }
@@ -123,7 +123,7 @@ pub use self::encode::Encode;
 pub mod decode {
     pub use sqlx_core::decode::Decode;
 
-    #[cfg(feature = "macros")]
+    #[cfg(feature = "derive")]
     #[doc(hidden)]
     pub use sqlx_macros::Decode;
 }
