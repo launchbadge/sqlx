@@ -4,21 +4,21 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
-use futures_intrusive::sync::{Mutex, MutexGuard};
-
 use futures_channel::oneshot;
+use futures_intrusive::sync::{Mutex, MutexGuard};
+use tracing::span::Span;
+
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::transaction::{
     begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
 };
 use sqlx_core::Either;
-use tracing::span::Span;
 
 use crate::connection::describe::describe;
 use crate::connection::establish::EstablishParams;
+use crate::connection::execute;
 use crate::connection::ConnectionState;
-use crate::connection::{execute, ConnectionHandleRaw};
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
 // Each SQLite connection has a dedicated thread.
@@ -29,8 +29,6 @@ use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStateme
 
 pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<(Command, tracing::Span)>,
-    /// The `sqlite3` pointer. NOTE: access is unsynchronized!
-    pub(crate) _handle_raw: ConnectionHandleRaw,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
 }
@@ -105,7 +103,6 @@ impl ConnectionWorker {
                 if establish_tx
                     .send(Ok(Self {
                         command_tx,
-                        _handle_raw: conn.handle.to_raw(),
                         shared: Arc::clone(&shared),
                     }))
                     .is_err()

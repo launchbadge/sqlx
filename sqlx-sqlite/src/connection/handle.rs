@@ -15,10 +15,6 @@ use crate::{statement::unlock_notify, SqliteError};
 #[derive(Debug)]
 pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
 
-/// A wrapper around `ConnectionHandle` which *does not* finalize the handle on-drop.
-#[derive(Clone, Debug)]
-pub(crate) struct ConnectionHandleRaw(NonNull<sqlite3>);
-
 // A SQLite3 handle is safe to send between threads, provided not more than
 // one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
 // enabled and [SQLITE_THREADSAFE] was enabled when sqlite was compiled. We refuse to work
@@ -29,9 +25,6 @@ pub(crate) struct ConnectionHandleRaw(NonNull<sqlite3>);
 // <https://www.sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmultithread>
 
 unsafe impl Send for ConnectionHandle {}
-
-// SAFETY: this type does nothing but provide access to the DB handle pointer.
-unsafe impl Send for ConnectionHandleRaw {}
 
 impl ConnectionHandle {
     #[inline]
@@ -46,11 +39,6 @@ impl ConnectionHandle {
 
     pub(crate) fn as_non_null_ptr(&self) -> NonNull<sqlite3> {
         self.0
-    }
-
-    #[inline]
-    pub(crate) fn to_raw(&self) -> ConnectionHandleRaw {
-        ConnectionHandleRaw(self.0)
     }
 
     pub(crate) fn last_insert_rowid(&mut self) -> i64 {
