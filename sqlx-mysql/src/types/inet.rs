@@ -18,10 +18,10 @@ impl Type<MySql> for Ipv4Addr {
 }
 
 impl Encode<'_, MySql> for Ipv4Addr {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(&self.to_string());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -46,10 +46,10 @@ impl Type<MySql> for Ipv6Addr {
 }
 
 impl Encode<'_, MySql> for Ipv6Addr {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(&self.to_string());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -74,10 +74,10 @@ impl Type<MySql> for IpAddr {
 }
 
 impl Encode<'_, MySql> for IpAddr {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(&self.to_string());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

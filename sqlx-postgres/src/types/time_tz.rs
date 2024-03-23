@@ -51,11 +51,12 @@ mod chrono {
     }
 
     impl Encode<'_, Postgres> for PgTimeTz<NaiveTime, FixedOffset> {
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-            let _ = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf);
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+            let _: IsNull = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf)?;
 
-            IsNull::No
+            Ok(IsNull::No)
         }
 
         fn size_hint(&self) -> usize {
@@ -134,11 +135,12 @@ mod time {
     }
 
     impl Encode<'_, Postgres> for PgTimeTz<Time, UtcOffset> {
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-            let _ = <Time as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf);
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+            let _: IsNull = <Time as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf)?;
 
-            IsNull::No
+            Ok(IsNull::No)
         }
 
         fn size_hint(&self) -> usize {

@@ -15,9 +15,12 @@ impl Type<Any> for [u8] {
 }
 
 impl<'q> Encode<'q, Any> for &'q [u8] {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Blob((*self).into()));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -42,9 +45,12 @@ impl Type<Any> for Vec<u8> {
 }
 
 impl<'q> Encode<'q, Any> for Vec<u8> {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Blob(Cow::Owned(self.clone())));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

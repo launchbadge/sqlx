@@ -1098,12 +1098,12 @@ CREATE TABLE heating_bills (
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
             let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
-            encoder.encode(self.year);
-            encoder.encode(self.month);
+            encoder.encode(self.year)?;
+            encoder.encode(self.month)?;
             encoder.finish();
-            sqlx::encode::IsNull::No
+            Ok(sqlx::encode::IsNull::No)
         }
     }
     let mut conn = new::<Postgres>().await?;
@@ -1609,7 +1609,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
             }
         }
 
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
             match self {
                 Value::String(s) => <String as Encode<'_, Postgres>>::encode_by_ref(s, buf),
                 Value::Number(n) => <i32 as Encode<'_, Postgres>>::encode_by_ref(n, buf),

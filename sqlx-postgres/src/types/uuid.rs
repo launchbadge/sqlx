@@ -19,10 +19,10 @@ impl PgHasArrayType for Uuid {
 }
 
 impl Encode<'_, Postgres> for Uuid {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend_from_slice(self.as_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

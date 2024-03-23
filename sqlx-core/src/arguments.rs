@@ -2,6 +2,7 @@
 
 use crate::database::Database;
 use crate::encode::Encode;
+use crate::error::BoxDynError;
 use crate::types::Type;
 use std::fmt::{self, Write};
 
@@ -14,7 +15,7 @@ pub trait Arguments<'q>: Send + Sized + Default {
     fn reserve(&mut self, additional: usize, size: usize);
 
     /// Add the value to the end of the arguments.
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
 

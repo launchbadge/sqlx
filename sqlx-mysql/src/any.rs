@@ -77,7 +77,11 @@ impl AnyConnectionBackend for MySqlConnection {
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
         let persistent = arguments.is_some();
-        let args = arguments.as_ref().map(AnyArguments::convert_to);
+        let args = arguments
+            .as_ref()
+            .map(AnyArguments::convert_to)
+            .transpose()
+            .expect("Failed to encode arguments");
 
         Box::pin(
             self.run(query, args, persistent)
@@ -97,7 +101,11 @@ impl AnyConnectionBackend for MySqlConnection {
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
         let persistent = arguments.is_some();
-        let args = arguments.as_ref().map(AnyArguments::convert_to);
+        let args = arguments
+            .as_ref()
+            .map(AnyArguments::convert_to)
+            .transpose()
+            .expect("Failed to encode arguments");
 
         Box::pin(async move {
             let stream = self.run(query, args, persistent).await?;

@@ -58,7 +58,7 @@ impl<'q, T> Encode<'q, Postgres> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // we have a tiny amount of dynamic behavior depending if we are resolved to be JSON
         // instead of JSONB
         buf.patch(|buf, ty: &PgTypeInfo| {
@@ -71,10 +71,9 @@ where
         buf.push(1);
 
         // the JSON data written to the buffer is the same regardless of parameter type
-        serde_json::to_writer(&mut **buf, &self.0)
-            .expect("failed to serialize to JSON for encoding on transmission to the database");
+        serde_json::to_writer(&mut **buf, &self.0)?;
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

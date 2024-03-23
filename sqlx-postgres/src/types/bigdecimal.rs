@@ -137,7 +137,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
 
 #[doc=include_str!("bigdecimal-range.md")]
 impl Encode<'_, Postgres> for BigDecimal {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // If the argument is too big, then we replace it with a less big argument.
         // This less big argument is already outside the range of allowed PostgreSQL DECIMAL, which
         // means that PostgreSQL will return the 22P03 error kind upon receiving it. This is the
@@ -154,7 +154,7 @@ impl Encode<'_, Postgres> for BigDecimal {
             })
             .encode(buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
