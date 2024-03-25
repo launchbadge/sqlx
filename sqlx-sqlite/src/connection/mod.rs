@@ -30,7 +30,7 @@ pub(crate) mod execute;
 mod executor;
 mod explain;
 mod handle;
-mod intmap;
+pub(crate) mod intmap;
 
 mod worker;
 
