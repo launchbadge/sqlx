@@ -14,10 +14,13 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 use std::task::Poll;
 
+use crate::logger::private_level_filter_to_trace_level;
 use crate::pool::options::PoolConnectionMetadata;
+use crate::private_tracing_dynamic_event;
 use futures_util::future::{self};
 use futures_util::FutureExt;
 use std::time::{Duration, Instant};
+use tracing::Level;
 
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,
@@ -28,6 +31,8 @@ pub(crate) struct PoolInner<DB: Database> {
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
+    pub(crate) acquire_time_level: Option<Level>,
+    pub(crate) acquire_slow_level: Option<Level>,
 }
 
 impl<DB: Database> PoolInner<DB> {
@@ -54,6 +59,8 @@ impl<DB: Database> PoolInner<DB> {
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
+            acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
+            acquire_slow_level: private_level_filter_to_trace_level(options.acquire_slow_level),
             options,
         };
 
@@ -241,9 +248,10 @@ impl<DB: Database> PoolInner<DB> {
             return Err(Error::PoolClosed);
         }
 
-        let deadline = Instant::now() + self.options.acquire_timeout;
+        let acquire_started_at = Instant::now();
+        let deadline = acquire_started_at + self.options.acquire_timeout;
 
-        crate::rt::timeout(
+        let acquired = crate::rt::timeout(
             self.options.acquire_timeout,
             async {
                 loop {
@@ -272,7 +280,7 @@ impl<DB: Database> PoolInner<DB> {
                             // or if the pool was closed between `acquire_permit()` and
                             // `try_increment_size()`.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
-                            // If so, we're likely in the current-thread runtime if it's Tokio
+                            // If so, we're likely in the current-thread runtime if it's Tokio,
                             // and so we should yield to let any spawned return_to_pool() tasks
                             // execute.
                             crate::rt::yield_now().await;
@@ -286,7 +294,32 @@ impl<DB: Database> PoolInner<DB> {
             }
         )
             .await
-            .map_err(|_| Error::PoolTimedOut)?
+            .map_err(|_| Error::PoolTimedOut)??;
+
+        let acquired_after = acquire_started_at.elapsed();
+
+        let acquire_slow_level = self
+            .acquire_slow_level
+            .filter(|_| acquired_after > self.options.acquire_slow_threshold);
+
+        if let Some(level) = acquire_slow_level {
+            private_tracing_dynamic_event!(
+                target: "sqlx::pool::acquire",
+                level,
+                aquired_after_secs = acquired_after.as_secs_f64(),
+                slow_acquire_threshold_secs = self.options.acquire_slow_threshold.as_secs_f64(),
+                "acquired connection, but time to acquire exceeded slow threshold"
+            );
+        } else if let Some(level) = self.acquire_time_level {
+            private_tracing_dynamic_event!(
+                target: "sqlx::pool::acquire",
+                level,
+                aquired_after_secs = acquired_after.as_secs_f64(),
+                "acquired connection"
+            );
+        }
+
+        Ok(acquired)
     }
 
     pub(super) async fn connect(

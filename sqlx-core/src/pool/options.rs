@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::pool::inner::PoolInner;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
+use log::LevelFilter;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -74,6 +75,9 @@ pub struct PoolOptions<DB: Database> {
         >,
     >,
     pub(crate) max_connections: u32,
+    pub(crate) acquire_time_level: LevelFilter,
+    pub(crate) acquire_slow_level: LevelFilter,
+    pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
@@ -94,6 +98,9 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             before_acquire: self.before_acquire.clone(),
             after_release: self.after_release.clone(),
             max_connections: self.max_connections,
+            acquire_time_level: self.acquire_time_level,
+            acquire_slow_threshold: self.acquire_slow_threshold,
+            acquire_slow_level: self.acquire_slow_level,
             acquire_timeout: self.acquire_timeout,
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
@@ -143,6 +150,13 @@ impl<DB: Database> PoolOptions<DB> {
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             min_connections: 0,
+            // Logging all acquires is opt-in
+            acquire_time_level: LevelFilter::Off,
+            // Default to warning, because an acquire timeout will be an error
+            acquire_slow_level: LevelFilter::Warn,
+            // Fast enough to catch problems (e.g. a full pool); slow enough
+            // to not flag typical time to add a new connection to a pool.
+            acquire_slow_threshold: Duration::from_secs(2),
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
@@ -196,6 +210,39 @@ impl<DB: Database> PoolOptions<DB> {
     /// Get the minimum number of connections to maintain at all times.
     pub fn get_min_connections(&self) -> u32 {
         self.min_connections
+    }
+
+    /// Enable logging of time taken to acquire a connection from the connection pool via
+    /// [`Pool::acquire()`].
+    ///
+    /// If slow acquire logging is also enabled, this level is used for acquires that are not
+    /// considered slow.
+    pub fn acquire_time_level(mut self, level: LevelFilter) -> Self {
+        self.acquire_time_level = level;
+        self
+    }
+
+    /// Log excessive time taken to acquire a connection at a different log level than time taken
+    /// for faster connection acquires via [`Pool::acquire()`].
+    pub fn acquire_slow_level(mut self, level: LevelFilter) -> Self {
+        self.acquire_slow_level = level;
+        self
+    }
+
+    /// Set a threshold for reporting excessive time taken to acquire a connection from
+    /// the connection pool via [`Pool::acquire()`]. When the threshold is exceeded, a warning is logged.
+    ///
+    /// Defaults to a value that should not typically be exceeded by the pool enlarging
+    /// itself with an additional new connection.
+    pub fn acquire_slow_threshold(mut self, threshold: Duration) -> Self {
+        self.acquire_slow_threshold = threshold;
+        self
+    }
+
+    /// Get the threshold for reporting excessive time taken to acquire a connection via
+    /// [`Pool::acquire()`].
+    pub fn get_acquire_slow_threshold(&self) -> Duration {
+        self.acquire_slow_threshold
     }
 
     /// Set the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
@@ -269,7 +316,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    /// Get's whether `test_before_acquire` is currently set.
+    /// Get whether `test_before_acquire` is currently set.
     pub fn get_test_before_acquire(&self) -> bool {
         self.test_before_acquire
     }

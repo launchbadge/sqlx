@@ -230,7 +230,7 @@ pub use self::maybe::MaybePoolConnection;
 /// scheme. However, in a web context, telling a client "go away, maybe try again later" results in
 /// a sub-optimal user experience.
 ///
-/// Instead with a connection pool, clients are made to wait in a fair queue for a connection to
+/// Instead, with a connection pool, clients are made to wait in a fair queue for a connection to
 /// become available; by using a single connection pool for your whole application, you can ensure
 /// that you don't exceed the connection limit of your database server while allowing response
 /// time to degrade gracefully at high load.
