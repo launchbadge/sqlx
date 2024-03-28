@@ -52,7 +52,7 @@ async fn it_describes_enum() -> anyhow::Result<()> {
 
     let ty = d.columns()[0].type_info();
 
-    assert_eq!(ty.name(), "status");
+    assert_eq!(ty.name(), "public.status");
 
     assert_eq!(
         format!("{:?}", ty.kind()),
@@ -84,7 +84,7 @@ async fn it_describes_composite() -> anyhow::Result<()> {
 
     let ty = d.columns()[0].type_info();
 
-    assert_eq!(ty.name(), "inventory_item");
+    assert_eq!(ty.name(), "public.inventory_item");
 
     assert_eq!(
         format!("{:?}", ty.kind()),

@@ -184,6 +184,18 @@ fn expand_derive_has_sql_type_strong_enum(
                 }
             }
         ));
+
+        if !attributes.no_pg_array {
+            let array_ty_name = pg_array_type_name(ident, attributes.type_name.as_ref());
+            tts.extend(quote!(
+                    #[automatically_derived]
+                    impl ::sqlx::postgres::PgHasArrayType for #ident {
+                        fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                            ::sqlx::postgres::PgTypeInfo::with_name(#array_ty_name)
+                        }
+                    }
+            ));
+        }
     }
 
     if cfg!(feature = "sqlite") {
@@ -234,4 +246,22 @@ fn type_name(ident: &Ident, explicit_name: Option<&TypeName>) -> TokenStream {
         let s = ident.to_string();
         quote_spanned!(ident.span()=> #s)
     })
+}
+
+fn pg_array_type_name(ident: &Ident, explicit_name: Option<&TypeName>) -> TokenStream {
+    explicit_name
+        .map(|tn| {
+            let s = pg_array_type_name_from_type_name(&tn.val);
+            quote! { #s }
+        })
+        .unwrap_or_else(|| {
+            let s = pg_array_type_name_from_type_name(&ident.to_string());
+            quote_spanned!(ident.span()=> #s)
+        })
+}
+
+fn pg_array_type_name_from_type_name(name: &str) -> String {
+    name.split_once('.')
+        .map(|(schema, name)| format!("{}._{}", schema, name))
+        .unwrap_or_else(|| format!("_{}", name))
 }
