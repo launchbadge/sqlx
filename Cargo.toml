@@ -67,7 +67,7 @@ _unstable-all-types = [
     "ipnetwork",
     "mac_address",
     "uuid",
-    "bit-vec",
+    "bit-vec"
 ]
 
 # Base runtime features without TLS
