@@ -110,6 +110,7 @@ mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address", "sqlx-postgr
 rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mysql?/rust_decimal", "sqlx-postgres?/rust_decimal"]
 time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
 uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
+geometry = ["sqlx-mysql?/geometry"]
 regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
@@ -136,6 +137,8 @@ mac_address = "1.1.5"
 rust_decimal = "1.26.1"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
+geozero = { version = "0.12.0", default-features = false }
+geo-types = "0.7.12"
 
 # Common utility crates
 dotenvy = { version = "0.15.0", default-features = false }
@@ -170,6 +173,7 @@ sqlx-test = { path = "./sqlx-test" }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"
+geo-types = { workspace = true }
 url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"

@@ -14,6 +14,7 @@ json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
+geometry = ["geozero", "geo-types"]
 
 [dependencies]
 sqlx-core = { workspace = true }
@@ -41,6 +42,8 @@ chrono = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
+geozero = { workspace = true, features = ["with-geo", "with-wkb"], optional = true }
+geo-types = { workspace = true, optional = true }
 
 # Misc
 atoi = "2.0"
