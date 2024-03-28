@@ -92,7 +92,7 @@ impl Value for AnyValue {
     }
 
     fn is_null(&self) -> bool {
-        false
+        matches!(self.kind, AnyValueKind::Null)
     }
 }
 
@@ -120,6 +120,6 @@ impl<'a> ValueRef<'a> for AnyValueRef<'a> {
     }
 
     fn is_null(&self) -> bool {
-        false
+        matches!(self.kind, AnyValueKind::Null)
     }
 }
