@@ -119,6 +119,20 @@ fn uint_decode(value: MySqlValueRef<'_>) -> Result<u64, BoxDynError> {
 
         MySqlValueFormat::Binary => {
             let buf = value.as_bytes()?;
+
+            // Check conditions that could cause `read_uint()` to panic.
+            if buf.is_empty() {
+                return Err("empty buffer".into());
+            }
+
+            if buf.len() > 8 {
+                return Err(format!(
+                    "expected no more than 8 bytes for unsigned integer value, got {}",
+                    buf.len()
+                )
+                .into());
+            }
+
             LittleEndian::read_uint(buf, buf.len())
         }
     })

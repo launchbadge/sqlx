@@ -2,13 +2,14 @@ use bytes::Buf;
 use chrono::{
     DateTime, Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, Utc,
 };
+use sqlx_core::database::Database;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::protocol::text::ColumnType;
 use crate::type_info::MySqlTypeInfo;
-use crate::types::Type;
+use crate::types::{MySqlTime, MySqlTimeSign, Type};
 use crate::{MySql, MySqlValueFormat, MySqlValueRef};
 
 impl Type<MySql> for DateTime<Utc> {
@@ -63,7 +64,7 @@ impl<'r> Decode<'r, MySql> for DateTime<Local> {
 
 impl Type<MySql> for NaiveTime {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::binary(ColumnType::Time)
+        MySqlTime::type_info()
     }
 }
 
@@ -75,7 +76,7 @@ impl Encode<'_, MySql> for NaiveTime {
         // NaiveTime is not negative
         buf.push(0);
 
-        // "date on 4 bytes little-endian format" (?)
+        // Number of days in the interval; always 0 for time-of-day values.
         // https://mariadb.com/kb/en/resultset-row/#teimstamp-binary-encoding
         buf.extend_from_slice(&[0_u8; 4]);
 
@@ -95,39 +96,74 @@ impl Encode<'_, MySql> for NaiveTime {
     }
 }
 
+/// Decode from a `TIME` value.
+///
+/// ### Errors
+/// Returns an error if the `TIME` value is negative or exceeds `23:59:59.999999`.
 impl<'r> Decode<'r, MySql> for NaiveTime {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
-                let mut buf = value.as_bytes()?;
-
-                // data length, expecting 8 or 12 (fractional seconds)
-                let len = buf.get_u8();
-
-                // MySQL specifies that if all of hours, minutes, seconds, microseconds
-                // are 0 then the length is 0 and no further data is send
-                // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
-                if len == 0 {
-                    return Ok(NaiveTime::from_hms_micro_opt(0, 0, 0, 0)
-                        .expect("expected NaiveTime to construct from all zeroes"));
-                }
-
-                // is negative : int<1>
-                let is_negative = buf.get_u8();
-                debug_assert_eq!(is_negative, 0, "Negative dates/times are not supported");
-
-                // "date on 4 bytes little-endian format" (?)
-                // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
-                buf.advance(4);
-
-                decode_time(len - 5, buf)
+                // Covers most possible failure modes.
+                MySqlTime::decode(value)?.try_into()
             }
-
+            // Retaining this parsing for now as it allows us to cross-check our impl.
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
                 NaiveTime::parse_from_str(s, "%H:%M:%S%.f").map_err(Into::into)
             }
         }
+    }
+}
+
+impl TryFrom<MySqlTime> for NaiveTime {
+    type Error = BoxDynError;
+
+    fn try_from(time: MySqlTime) -> Result<Self, Self::Error> {
+        NaiveTime::from_hms_micro_opt(
+            time.hours(),
+            time.minutes() as u32,
+            time.seconds() as u32,
+            time.microseconds(),
+        )
+        .ok_or_else(|| format!("Cannot convert `MySqlTime` value to `NaiveTime`: {time}").into())
+    }
+}
+
+impl From<MySqlTime> for chrono::TimeDelta {
+    fn from(time: MySqlTime) -> Self {
+        chrono::TimeDelta::new(time.whole_seconds_signed(), time.subsec_nanos())
+            .expect("BUG: chrono::TimeDelta should have a greater range than MySqlTime")
+    }
+}
+
+impl TryFrom<chrono::TimeDelta> for MySqlTime {
+    type Error = BoxDynError;
+
+    fn try_from(value: chrono::TimeDelta) -> Result<Self, Self::Error> {
+        let sign = if value < chrono::TimeDelta::zero() {
+            MySqlTimeSign::Negative
+        } else {
+            MySqlTimeSign::Positive
+        };
+
+        Ok(
+            // `std::time::Duration` has a greater positive range than `TimeDelta`
+            // which makes it a great intermediate if you ignore the sign.
+            MySqlTime::try_from(value.abs().to_std()?)?.with_sign(sign),
+        )
+    }
+}
+
+impl Type<MySql> for chrono::TimeDelta {
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTime::type_info()
+    }
+}
+
+impl<'r> Decode<'r, MySql> for chrono::TimeDelta {
+    fn decode(value: <MySql as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(MySqlTime::decode(value)?.into())
     }
 }
 
@@ -155,7 +191,14 @@ impl<'r> Decode<'r, MySql> for NaiveDate {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
-                decode_date(&value.as_bytes()?[1..])?.ok_or_else(|| UnexpectedNullError.into())
+                let buf = value.as_bytes()?;
+
+                // Row decoding should have left the length prefix.
+                if buf.is_empty() {
+                    return Err("empty buffer".into());
+                }
+
+                decode_date(&buf[1..])?.ok_or_else(|| UnexpectedNullError.into())
             }
 
             MySqlValueFormat::Text => {
@@ -213,6 +256,10 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
         match value.format() {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
+
+                if buf.is_empty() {
+                    return Err("empty buffer".into());
+                }
 
                 let len = buf[0];
                 let date = decode_date(&buf[1..])?.ok_or(UnexpectedNullError)?;

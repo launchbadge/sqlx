@@ -45,7 +45,20 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for BinaryRow {
             // NOTE: MySQL will never generate NULL types for non-NULL values
             let type_info = &column.type_info;
 
+            // Unlike Postgres, MySQL does not length-prefix every value in a binary row.
+            // Values are *either* fixed-length or length-prefixed,
+            // so we need to inspect the type code to be sure.
             let size: usize = match type_info.r#type {
+                // All fixed-length types.
+                ColumnType::LongLong => 8,
+                ColumnType::Long | ColumnType::Int24 => 4,
+                ColumnType::Short | ColumnType::Year => 2,
+                ColumnType::Tiny => 1,
+                ColumnType::Float => 4,
+                ColumnType::Double => 8,
+
+                // Blobs and strings are prefixed with their length,
+                // which is itself a length-encoded integer.
                 ColumnType::String
                 | ColumnType::VarChar
                 | ColumnType::VarString
@@ -61,18 +74,13 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for BinaryRow {
                 | ColumnType::Json
                 | ColumnType::NewDecimal => buf.get_uint_lenenc() as usize,
 
-                ColumnType::LongLong => 8,
-                ColumnType::Long | ColumnType::Int24 => 4,
-                ColumnType::Short | ColumnType::Year => 2,
-                ColumnType::Tiny => 1,
-                ColumnType::Float => 4,
-                ColumnType::Double => 8,
-
+                // Like strings and blobs, these values are variable-length.
+                // Unlike strings and blobs, however, they exclusively use one byte for length.
                 ColumnType::Time
                 | ColumnType::Timestamp
                 | ColumnType::Date
                 | ColumnType::Datetime => {
-                    // The size of this type is important for decoding
+                    // Leave the length byte on the front of the value because decoding uses it.
                     buf[0] as usize + 1
                 }
 

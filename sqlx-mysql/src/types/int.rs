@@ -95,6 +95,20 @@ fn int_decode(value: MySqlValueRef<'_>) -> Result<i64, BoxDynError> {
         MySqlValueFormat::Text => value.as_str()?.parse()?,
         MySqlValueFormat::Binary => {
             let buf = value.as_bytes()?;
+
+            // Check conditions that could cause `read_int()` to panic.
+            if buf.is_empty() {
+                return Err("empty buffer".into());
+            }
+
+            if buf.len() > 8 {
+                return Err(format!(
+                    "expected no more than 8 bytes for integer value, got {}",
+                    buf.len()
+                )
+                .into());
+            }
+
             LittleEndian::read_int(buf, buf.len())
         }
     })
