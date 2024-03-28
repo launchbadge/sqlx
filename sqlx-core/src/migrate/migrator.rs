@@ -34,7 +34,7 @@ fn validate_applied_migrations(
     let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
 
     for applied_migration in applied_migrations {
-        if !migrations.contains(&applied_migration.version) {
+        if applied_migration.version > 0 && !migrations.contains(&applied_migration.version) {
             return Err(MigrateError::VersionMissing(applied_migration.version));
         }
     }
