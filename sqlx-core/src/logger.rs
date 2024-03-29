@@ -39,6 +39,22 @@ macro_rules! private_tracing_dynamic_event {
 }
 
 #[doc(hidden)]
+#[macro_export]
+macro_rules! private_tracing_dynamic_span {
+    (target: $target:expr, $level:expr, $($args:tt)*) => {{
+        use ::tracing::Level;
+
+        match $level {
+            Level::ERROR => ::tracing::span!(target: $target, Level::ERROR, $($args)*),
+            Level::WARN => ::tracing::span!(target: $target, Level::WARN, $($args)*),
+            Level::INFO => ::tracing::span!(target: $target, Level::INFO, $($args)*),
+            Level::DEBUG => ::tracing::span!(target: $target, Level::DEBUG, $($args)*),
+            Level::TRACE => ::tracing::span!(target: $target, Level::TRACE, $($args)*),
+        }
+    }};
+}
+
+#[doc(hidden)]
 pub fn private_level_filter_to_levels(
     filter: log::LevelFilter,
 ) -> Option<(tracing::Level, log::Level)> {
@@ -55,6 +71,7 @@ pub fn private_level_filter_to_levels(
 }
 
 pub use sqlformat;
+use tracing::span::EnteredSpan;
 
 pub struct QueryLogger<'q> {
     sql: &'q str,
@@ -62,16 +79,50 @@ pub struct QueryLogger<'q> {
     rows_affected: u64,
     start: Instant,
     settings: LogSettings,
+    span: Option<EnteredSpan>,
+}
+
+fn level_filter_to_level_if_enabled(level: log::LevelFilter) -> Option<tracing::Level> {
+    if let Some((tracing_level, log_level)) = private_level_filter_to_levels(level) {
+        if log::log_enabled!(target: "sqlx::query", log_level)
+            || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
+        {
+            return Some(tracing_level);
+        }
+    }
+    None
 }
 
 impl<'q> QueryLogger<'q> {
     pub fn new(sql: &'q str, settings: LogSettings) -> Self {
+        let start = Instant::now();
+
+        let span = if let Some(tracing_level) =
+            level_filter_to_level_if_enabled(settings.statements_level)
+        {
+            // Ideally we would use the summary as the trace message, but `tracing` requires the message to be static
+            Some(
+                private_tracing_dynamic_span!(
+                    target: "sqlx::query",
+                    tracing_level,
+                    "sqlx::query",
+                    db.statement = sql,
+                    rows_affected = tracing::field::Empty,
+                    rows_returned = tracing::field::Empty,
+                )
+                .entered(),
+            )
+        } else {
+            None
+        };
+
         Self {
             sql,
             rows_returned: 0,
             rows_affected: 0,
-            start: Instant::now(),
+            start,
             settings,
+            span,
         }
     }
 
@@ -83,7 +134,7 @@ impl<'q> QueryLogger<'q> {
         self.rows_affected += n;
     }
 
-    pub fn finish(&self) {
+    pub fn finish(&mut self) {
         let elapsed = self.start.elapsed();
 
         let was_slow = elapsed >= self.settings.slow_statements_duration;
@@ -147,6 +198,11 @@ impl<'q> QueryLogger<'q> {
                         // Search friendly - numeric
                         elapsed_secs = elapsed.as_secs_f64(),
                     );
+                }
+
+                if let Some(span) = self.span.take().map(|span| span.exit()) {
+                    span.record("rows_affected", self.rows_affected);
+                    span.record("rows_returned", self.rows_returned);
                 }
             }
         }
