@@ -20,6 +20,8 @@
 //! | `IpAddr`                              | VARCHAR, TEXT                                        |
 //! | `Ipv4Addr`                            | INET4 (MariaDB-only), VARCHAR, TEXT                  |
 //! | `Ipv6Addr`                            | INET6 (MariaDB-only), VARCHAR, TEXT                  |
+//! | [`MySqlTime`]                         | TIME (encode and decode full range)                  |
+//! | [`Duration`]                          | TIME (for decoding positive values only)             |
 //!
 //! ##### Note: `BOOLEAN`/`BOOL` Type
 //! MySQL and MariaDB treat `BOOLEAN` as an alias of the `TINYINT` type:
@@ -38,6 +40,12 @@
 //! Thus, you must use the type override syntax in the query to tell the macros you are expecting
 //! a `bool` column. See the docs for `query!()` and `query_as!()` for details on this syntax.
 //!
+//! ### NOTE: MySQL's `TIME` type is signed
+//! MySQL's `TIME` type can be used as either a time-of-day value, or a signed interval.
+//! Thus, it may take on negative values.
+//!
+//! Decoding a [`std::time::Duration`] returns an error if the `TIME` value is negative.
+//!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
 //! Requires the `chrono` Cargo feature flag.
@@ -48,7 +56,20 @@
 //! | `chrono::DateTime<Local>`             | TIMESTAMP                                            |
 //! | `chrono::NaiveDateTime`               | DATETIME                                             |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
-//! | `chrono::NaiveTime`                   | TIME                                                 |
+//! | `chrono::NaiveTime`                   | TIME (time-of-day only)                              |
+//! | `chrono::TimeDelta`                   | TIME (decodes full range; see note for encoding)     |
+//!
+//! ### NOTE: MySQL's `TIME` type is dual-purpose
+//! MySQL's `TIME` type can be used as either a time-of-day value, or an interval.
+//! However, `chrono::NaiveTime` is designed only to represent a time-of-day.
+//!
+//! Decoding a `TIME` value as `chrono::NaiveTime` will return an error if the value is out of range.
+//!
+//! The [`MySqlTime`] type supports the full range and it also implements `TryInto<chrono::NaiveTime>`.
+//!
+//! Decoding a `chrono::TimeDelta` also supports the full range.
+//!
+//! To encode a `chrono::TimeDelta`, convert it to [`MySqlTime`] first using `TryFrom`/`TryInto`.
 //!
 //! ### [`time`](https://crates.io/crates/time)
 //!
@@ -59,7 +80,20 @@
 //! | `time::PrimitiveDateTime`             | DATETIME                                             |
 //! | `time::OffsetDateTime`                | TIMESTAMP                                            |
 //! | `time::Date`                          | DATE                                                 |
-//! | `time::Time`                          | TIME                                                 |
+//! | `time::Time`                          | TIME (time-of-day only)                              |
+//! | `time::Duration`                      | TIME (decodes full range; see note for encoding)     |
+//!
+//! ### NOTE: MySQL's `TIME` type is dual-purpose
+//! MySQL's `TIME` type can be used as either a time-of-day value, or an interval.
+//! However, `time::Time` is designed only to represent a time-of-day.
+//!
+//! Decoding a `TIME` value as `time::Time` will return an error if the value is out of range.
+//!
+//! The [`MySqlTime`] type supports the full range, and it also implements `TryInto<time::Time>`.
+//!
+//! Decoding a `time::Duration` also supports the full range.
+//!
+//! To encode a `time::Duration`, convert it to [`MySqlTime`] first using `TryFrom`/`TryInto`.
 //!
 //! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
 //! Requires the `bigdecimal` Cargo feature flag.
@@ -102,11 +136,14 @@
 
 pub(crate) use sqlx_core::types::*;
 
+pub use mysql_time::{MySqlTime, MySqlTimeError, MySqlTimeSign};
+
 mod bool;
 mod bytes;
 mod float;
 mod inet;
 mod int;
+mod mysql_time;
 mod str;
 mod text;
 mod uint;
