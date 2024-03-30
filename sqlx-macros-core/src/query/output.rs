@@ -8,6 +8,7 @@ use sqlx_core::describe::Describe;
 use crate::database::DatabaseExt;
 
 use crate::query::QueryMacroInput;
+use sqlx_core::type_checking::TypeChecking;
 use std::fmt::{self, Display, Formatter};
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
@@ -222,10 +223,10 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
 fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
     let type_info = &*column.type_info();
 
-    <DB as DatabaseExt>::return_type_for_id(&type_info).map_or_else(
+    <DB as TypeChecking>::return_type_for_id(&type_info).map_or_else(
         || {
             let message =
-                if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_info) {
+                if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(&type_info) {
                     format!(
                         "optional sqlx feature `{feat}` required for type {ty} of {col}",
                         ty = &type_info,
