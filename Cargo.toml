@@ -183,7 +183,7 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 # even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
 [target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]
 # Enable testing with SQLCipher if specifically requested.
-libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.28", features = ["bundled-sqlcipher"] }
 
 #
 # Any
