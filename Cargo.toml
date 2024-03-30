@@ -53,7 +53,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["any", "macros", "migrate", "json"]
-macros = ["sqlx-macros"]
+
+derive = ["sqlx-macros/derive"]
+macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
 
 # intended mainly for CI and docs
