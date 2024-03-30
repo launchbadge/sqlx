@@ -9,7 +9,9 @@ use libsqlite3_sys::{
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
+use percent_encoding::NON_ALPHANUMERIC;
 use sqlx_core::IndexMap;
+use std::collections::BTreeMap;
 use std::ffi::{c_void, CStr, CString};
 use std::io;
 use std::os::raw::c_int;
@@ -92,21 +94,21 @@ impl EstablishParams {
             SQLITE_OPEN_PRIVATECACHE
         };
 
-        let mut query_params: Vec<String> = vec![];
+        let mut query_params = BTreeMap::new();
 
         if options.immutable {
-            query_params.push("immutable=true".into())
+            query_params.insert("immutable", "true");
         }
 
-        if let Some(vfs) = &options.vfs {
-            query_params.push(format!("vfs={vfs}"))
+        if let Some(vfs) = options.vfs.as_deref() {
+            query_params.insert("vfs", &vfs);
         }
 
         if !query_params.is_empty() {
             filename = format!(
                 "file:{}?{}",
-                urlencoding::encode(&filename),
-                query_params.join("&")
+                percent_encoding::percent_encode(filename.as_bytes(), &NON_ALPHANUMERIC),
+                serde_urlencoded::to_string(&query_params).unwrap()
             );
             flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
