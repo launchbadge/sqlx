@@ -14,6 +14,7 @@ any = ["sqlx-core/any"]
 json = ["sqlx-core/json"]
 migrate = ["sqlx-core/migrate"]
 offline = ["sqlx-core/offline"]
+full_text_search = ["sqlx-core/full_text_search"]
 
 # Type integration features which require additional dependencies
 rust_decimal = ["dep:rust_decimal", "rust_decimal/maths"]
@@ -69,7 +70,7 @@ serde_json = { version = "1.0.85", features = ["raw_value"] }
 [dependencies.sqlx-core]
 workspace = true
 # We use JSON in the driver implementation itself so there's no reason not to enable it here.
-features = ["json"]
+features = ["json", "full_text_search"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
 etcetera = "0.8.0"
