@@ -108,7 +108,6 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             })?;
 
         let migration_type = MigrationType::from_filename(parts[1]);
-        let no_tx = parts[1].contains(".no_tx");
 
         // remove the `.sql` and replace `_` with ` `
         let description = parts[1]
@@ -124,6 +123,9 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             ),
             source: Some(e),
         })?;
+
+        // opt-out of migration transaction
+        let no_tx = sql.starts_with("-- no-transaction");
 
         migrations.push((
             Migration::new(
