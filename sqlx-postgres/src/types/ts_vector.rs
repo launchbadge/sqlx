@@ -1,10 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::types::Type;
-use crate::{
-    database::HasArguments, error::BoxDynError, PgHasArrayType, PgTypeInfo, PgValueFormat,
-    PgValueRef, Postgres,
-};
+use crate::{error::BoxDynError, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt::{Display, Formatter};
 use std::io::{BufRead, Cursor, Write};
@@ -149,7 +146,7 @@ impl PgHasArrayType for TsVector {
 }
 
 impl Encode<'_, Postgres> for TsVector {
-    fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'_>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         if let Ok(encoded_ts_vector) = <&TsVector as TryInto<Vec<u8>>>::try_into(self) {
             buf.extend_from_slice(encoded_ts_vector.as_slice());
 

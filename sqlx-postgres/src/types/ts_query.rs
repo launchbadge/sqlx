@@ -1,6 +1,5 @@
-use crate::{PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use sqlx_core::database::HasArguments;
 use sqlx_core::decode::Decode;
 use sqlx_core::encode::{Encode, IsNull};
 use sqlx_core::error::BoxDynError;
@@ -188,7 +187,7 @@ impl PgHasArrayType for TsQuery {
 }
 
 impl Encode<'_, Postgres> for TsQuery {
-    fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'_>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         if let Ok(encoded_ts_query) = <&TsQuery as TryInto<Vec<u8>>>::try_into(self) {
             buf.extend_from_slice(encoded_ts_query.as_slice());
 
