@@ -97,7 +97,7 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
         let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
 
         if parts.len() != 2 || !parts[1].ends_with(".sql") {
-            // not of the format: <VERSION>_<DESCRIPTION>.<NO_TX>.<REVERSIBLE_DIRECTION>.sql; ignore
+            // not of the format: <VERSION>_<DESCRIPTION>.<REVERSIBLE_DIRECTION>.sql; ignore
             continue;
         }
 
