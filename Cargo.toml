@@ -53,7 +53,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["any", "macros", "migrate", "json"]
-
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
@@ -69,8 +68,7 @@ _unstable-all-types = [
     "ipnetwork",
     "mac_address",
     "uuid",
-    "bit-vec",
-    "full_text_search"
+    "bit-vec"
 ]
 
 # Base runtime features without TLS
@@ -114,7 +112,6 @@ rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mys
 time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
 uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
 regexp = ["sqlx-sqlite?/regexp"]
-full_text_search = ["sqlx-core/full_text_search", "sqlx-macros?/full_text_search", "sqlx-postgres?/full_text_search"]
 
 [workspace.dependencies]
 # Core Crates
@@ -154,7 +151,7 @@ features = ["time", "net", "sync", "fs", "io-util", "rt"]
 default-features = false
 
 [dependencies]
-sqlx-core = { workspace = true, features = ["offline", "migrate", "full_text_search"] }
+sqlx-core = { workspace = true, features = ["offline", "migrate"] }
 sqlx-macros = { workspace = true, optional = true }
 
 sqlx-mysql = { workspace = true, optional = true }

@@ -18,8 +18,6 @@ any = []
 
 json = ["serde", "serde_json"]
 
-full_text_search = []
-
 # for conditional compilation
 _rt-async-std = ["async-std", "async-io"]
 _rt-tokio = ["tokio", "tokio-stream"]

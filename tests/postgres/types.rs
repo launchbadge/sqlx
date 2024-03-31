@@ -442,7 +442,6 @@ mod json {
     }
 }
 
-#[cfg(feature = "full_text_search")]
 mod full_text_search {
     use super::*;
     use sqlx::postgres::types::TsVector;
