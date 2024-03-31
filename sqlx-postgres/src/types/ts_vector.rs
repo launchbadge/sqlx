@@ -1,7 +1,10 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::types::Type;
-use crate::{error::BoxDynError, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::{
+    error::BoxDynError, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef,
+    Postgres,
+};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt::{Display, Formatter};
 use std::io::{BufRead, Cursor, Write};
