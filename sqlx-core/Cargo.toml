@@ -144,7 +144,7 @@ percent-encoding = "2.1.0"
 rand = { version = "0.8.4", default-features = false, optional = true, features = ["std", "std_rng"] }
 regex = { version = "1.5.5", optional = true }
 rsa = { version = "0.9.2", optional = true }
-rustls = { version = "0.21.5", optional = true }
+rustls = { version = "0.21.5", features = ["dangerous_configuration"], optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
