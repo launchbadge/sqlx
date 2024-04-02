@@ -266,7 +266,7 @@ jobs:
             --features postgres,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: |
-          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
+          docker compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
           docker exec postgres_${{ matrix.postgres }} bash -c "until pg_isready; do sleep 1; done"
 
       # Create data dir for offline mode
@@ -337,7 +337,7 @@ jobs:
 
       - run: |
           docker stop postgres_${{ matrix.postgres }}
-          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }}_client_ssl postgres_${{ matrix.postgres }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }}_client_ssl postgres_${{ matrix.postgres }}_client_ssl
           docker exec postgres_${{ matrix.postgres }}_client_ssl bash -c "until pg_isready; do sleep 1; done"
 
       - uses: actions-rs/cargo@v1
@@ -381,7 +381,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }} mysql_${{ matrix.mysql }}
+      - run: docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }} mysql_${{ matrix.mysql }}
       - run: sleep 60
 
       # Create data dir for offline mode
@@ -447,7 +447,7 @@ jobs:
 
       - run: |
           docker stop mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
       # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
@@ -494,7 +494,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }} mariadb_${{ matrix.mariadb }}
+      - run: docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }} mariadb_${{ matrix.mariadb }}
       - run: sleep 30
 
       # Create data dir for offline mode
@@ -545,7 +545,7 @@ jobs:
 
       - run: |
           docker stop mariadb_${{ matrix.mariadb }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
       - uses: actions-rs/cargo@v1
