@@ -53,7 +53,7 @@
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
 /// server with the schema that the query string will be checked against. All variants of `query!()`
-/// use [dotenv]<sup>1</sup> so this can be in a `.env` file instead.
+/// use [dotenvy] so this can be in a `.env` file instead.
 ///
 ///     * Or, `.sqlx` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
@@ -69,11 +69,7 @@
 ///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
 ///       determine the database type.
 ///
-/// <sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
-/// so we now use the [dotenvy] crate instead. The file format is the same.
-///
-/// [dotenv]: https://crates.io/crates/dotenv
-/// [dotenvy]: https://crates.io/crates/dotenvy
+/// [dotenvy]: https://github.com/allan2/dotenvy
 /// ## Query Arguments
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
