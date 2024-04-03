@@ -6,6 +6,16 @@ use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 
+fn int_decode(value: PgValueRef<'_>) -> Result<i64, BoxDynError> {
+    Ok(match value.format() {
+        PgValueFormat::Text => value.as_str()?.parse()?,
+        PgValueFormat::Binary => {
+            let buf = value.as_bytes()?;
+            BigEndian::read_int(buf, buf.len())
+        }
+    })
+}
+
 impl Type<Postgres> for i8 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::CHAR
@@ -29,7 +39,11 @@ impl Encode<'_, Postgres> for i8 {
 impl Decode<'_, Postgres> for i8 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         // note: in the TEXT encoding, a value of "0" here is encoded as an empty string
-        Ok(value.as_bytes()?.get(0).copied().unwrap_or_default() as i8)
+        if (value.format() == PgValueFormat::Text) && (value.as_bytes()?.is_empty()) {
+            return Ok(Default::default());
+        }
+
+        int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -55,10 +69,7 @@ impl Encode<'_, Postgres> for i16 {
 
 impl Decode<'_, Postgres> for i16 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => BigEndian::read_i16(value.as_bytes()?),
-            PgValueFormat::Text => value.as_str()?.parse()?,
-        })
+        int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -84,10 +95,7 @@ impl Encode<'_, Postgres> for i32 {
 
 impl Decode<'_, Postgres> for i32 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => BigEndian::read_i32(value.as_bytes()?),
-            PgValueFormat::Text => value.as_str()?.parse()?,
-        })
+        int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -113,9 +121,6 @@ impl Encode<'_, Postgres> for i64 {
 
 impl Decode<'_, Postgres> for i64 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => BigEndian::read_i64(value.as_bytes()?),
-            PgValueFormat::Text => value.as_str()?.parse()?,
-        })
+        int_decode(value)
     }
 }
