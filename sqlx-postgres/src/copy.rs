@@ -342,16 +342,21 @@ async fn pg_begin_copy_out<'c, C: DerefMut<Target = PgConnection> + Send + 'c>(
 
     let stream: TryAsyncStream<'c, Bytes> = try_stream! {
         loop {
-            let msg = conn.stream.recv().await?;
-            match msg.format {
-                MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
-                MessageFormat::CopyDone => {
-                    let _ = msg.decode::<CopyDone>()?;
-                    conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+            match conn.stream.recv().await {
+                Err(e) => {
                     conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
-                    return Ok(())
+                    return Err(e);
                 },
-                _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                Ok(msg) => match msg.format {
+                    MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
+                    MessageFormat::CopyDone => {
+                        let _ = msg.decode::<CopyDone>()?;
+                        conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+                        conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
+                        return Ok(())
+                    },
+                    _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                }
             }
         }
     };
