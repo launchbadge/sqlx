@@ -11,6 +11,21 @@ fn int_decode(value: PgValueRef<'_>) -> Result<i64, BoxDynError> {
         PgValueFormat::Text => value.as_str()?.parse()?,
         PgValueFormat::Binary => {
             let buf = value.as_bytes()?;
+
+            // Return error if buf is empty or is more than 8 bytes
+            match buf.len() {
+                0 => {
+                    return Err("Value Buffer found empty while decoding to integer type".into());
+                }
+                buf_len @ 9.. => {
+                    return Err(format!(
+                        "Value Buffer exceeds 8 bytes while decoding to integer type. Buffer size = {} bytes ", buf_len
+                    )
+                    .into());
+                }
+                _ => {}
+            }
+
             BigEndian::read_int(buf, buf.len())
         }
     })
