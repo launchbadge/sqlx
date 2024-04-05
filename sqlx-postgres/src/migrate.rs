@@ -216,7 +216,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
             // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
             // and update it once the actual transaction completed.
-            let _ = tx.execute(&*migration.sql).await?;
+            let _ = tx
+                .execute(&*migration.sql)
+                .await
+                .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
             // language=SQL
             let _ = query(
