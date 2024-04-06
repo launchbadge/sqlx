@@ -82,6 +82,7 @@ impl AnyRow {
     pub fn map_from<'a, R: Row>(
         row: &'a R,
         column_names: Arc<crate::HashMap<UStr, usize>>,
+        is_sqlite: bool,
     ) -> Result<Self, Error>
     where
         usize: ColumnIndex<R>,
@@ -120,6 +121,9 @@ impl AnyRow {
                 _ if value.is_null() => AnyValueKind::Null,
                 AnyTypeInfoKind::Null => AnyValueKind::Null,
                 AnyTypeInfoKind::Bool => AnyValueKind::Bool(decode(value)?),
+                AnyTypeInfoKind::SmallInt | AnyTypeInfoKind::Integer if is_sqlite => {
+                    AnyValueKind::BigInt(decode(value)?)
+                }
                 AnyTypeInfoKind::SmallInt => AnyValueKind::SmallInt(decode(value)?),
                 AnyTypeInfoKind::Integer => AnyValueKind::Integer(decode(value)?),
                 AnyTypeInfoKind::BigInt => AnyValueKind::BigInt(decode(value)?),

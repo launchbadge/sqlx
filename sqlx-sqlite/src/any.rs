@@ -179,7 +179,7 @@ impl<'a> TryFrom<&'a SqliteRow> for AnyRow {
     type Error = sqlx_core::Error;
 
     fn try_from(row: &'a SqliteRow) -> Result<Self, Self::Error> {
-        AnyRow::map_from(row, row.column_names.clone())
+        AnyRow::map_from(row, row.column_names.clone(), true)
     }
 }
 

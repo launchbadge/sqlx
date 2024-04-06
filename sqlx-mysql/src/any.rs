@@ -181,7 +181,7 @@ impl<'a> TryFrom<&'a MySqlRow> for AnyRow {
     type Error = sqlx_core::Error;
 
     fn try_from(row: &'a MySqlRow) -> Result<Self, Self::Error> {
-        AnyRow::map_from(row, row.column_names.clone())
+        AnyRow::map_from(row, row.column_names.clone(), false)
     }
 }
 

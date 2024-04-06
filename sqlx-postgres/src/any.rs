@@ -212,7 +212,7 @@ impl<'a> TryFrom<&'a PgRow> for AnyRow {
     type Error = sqlx_core::Error;
 
     fn try_from(row: &'a PgRow) -> Result<Self, Self::Error> {
-        AnyRow::map_from(row, row.metadata.column_names.clone())
+        AnyRow::map_from(row, row.metadata.column_names.clone(), false)
     }
 }
 
