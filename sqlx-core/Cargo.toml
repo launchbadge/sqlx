@@ -85,9 +85,9 @@ tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
 url = { version = "2.2.2", default-features = false }
 bstr = { version = "1.0", default-features = false, features = ["std"], optional = true }
-hashlink = "0.8.0"
+hashlink = "0.9.0"
 indexmap = "2.0"
-event-listener = "2.5.2"
+event-listener = "5.2.0"
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
