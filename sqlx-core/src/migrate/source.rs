@@ -97,7 +97,7 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
         let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
 
         if parts.len() != 2 || !parts[1].ends_with(".sql") {
-            // not of the format: <VERSION>_<DESCRIPTION>.sql; ignore
+            // not of the format: <VERSION>_<DESCRIPTION>.<REVERSIBLE_DIRECTION>.sql; ignore
             continue;
         }
 
@@ -108,9 +108,11 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             })?;
 
         let migration_type = MigrationType::from_filename(parts[1]);
+
         // remove the `.sql` and replace `_` with ` `
         let description = parts[1]
             .trim_end_matches(migration_type.suffix())
+            .trim_end_matches(".no_tx")
             .replace('_', " ")
             .to_owned();
 
@@ -122,12 +124,16 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             source: Some(e),
         })?;
 
+        // opt-out of migration transaction
+        let no_tx = sql.starts_with("-- no-transaction");
+
         migrations.push((
             Migration::new(
                 version,
                 Cow::Owned(description),
                 migration_type,
                 Cow::Owned(sql),
+                no_tx,
             ),
             entry_path,
         ));

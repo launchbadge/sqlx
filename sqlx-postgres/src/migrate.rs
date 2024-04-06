@@ -210,6 +210,8 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         Box::pin(async move {
             let mut tx = self.begin().await?;
             let start = Instant::now();
+            if !migration.no_tx {
+                let mut tx = self.begin().await?;
 
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
             // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -221,20 +223,35 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
-            // language=SQL
-            let _ = query(
-                r#"
+                // language=SQL
+                let _ = query(
+                    r#"
     INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
     VALUES ( $1, $2, TRUE, $3, -1 )
                 "#,
-            )
-            .bind(migration.version)
-            .bind(&*migration.description)
-            .bind(&*migration.checksum)
-            .execute(&mut *tx)
-            .await?;
+                )
+                .bind(migration.version)
+                .bind(&*migration.description)
+                .bind(&*migration.checksum)
+                .execute(&mut *tx)
+                .await?;
 
-            tx.commit().await?;
+                tx.commit().await?;
+            } else {
+                query(&migration.sql).execute(&mut *self).await?;
+                // language=SQL
+                let _ = query(
+                    r#"
+    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+    VALUES ( $1, $2, TRUE, $3, -1 )
+                "#,
+                )
+                .bind(migration.version)
+                .bind(&migration.description)
+                .bind(&*migration.checksum)
+                .execute(&mut *self)
+                .await?;
+            }
 
             // Update `elapsed_time`.
             // NOTE: The process may disconnect/die at this point, so the elapsed time value might be lost. We accept
