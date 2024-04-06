@@ -112,7 +112,6 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
         // remove the `.sql` and replace `_` with ` `
         let description = parts[1]
             .trim_end_matches(migration_type.suffix())
-            .trim_end_matches(".no_tx")
             .replace('_', " ")
             .to_owned();
 
