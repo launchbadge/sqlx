@@ -214,6 +214,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             if migration.no_tx {
                 execute_migration(self, migration).await?;
             } else {
+                // Use a single transaction for the actual migration script and the essential bookeeping so we never
+                // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+                // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+                // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+                // and update it once the actual transaction completed.
                 let mut tx = self.begin().await?;
                 execute_migration(&mut tx, migration).await?;
                 tx.commit().await?;
@@ -272,11 +277,6 @@ async fn execute_migration(
     conn: &mut PgConnection,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
-    // Use a single transaction for the actual migration script and the essential bookeeping so we never
-    // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
-    // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
-    // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
-    // and update it once the actual transaction completed.
     let _ = conn
         .execute(&*migration.sql)
         .await
