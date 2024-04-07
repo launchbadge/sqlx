@@ -209,53 +209,19 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let start = Instant::now();
-            if !migration.no_tx {
-                let mut tx = self.begin().await?;
 
-                // Use a single transaction for the actual migration script and the essential bookeeping so we never
-                // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
-                // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
-                // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
-                // and update it once the actual transaction completed.
-                let _ = tx
-                    .execute(&*migration.sql)
-                    .await
-                    .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
-
-                // language=SQL
-                let _ = query(
-                    r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( $1, $2, TRUE, $3, -1 )
-                "#,
-                )
-                .bind(migration.version)
-                .bind(&*migration.description)
-                .bind(&*migration.checksum)
-                .execute(&mut *tx)
-                .await?;
-
-                tx.commit().await?;
+            // execute migration queries
+            if migration.no_tx {
+                execute_migration(self, migration).await?;
             } else {
-                query(&migration.sql).execute(&mut *self).await?;
-                // language=SQL
-                let _ = query(
-                    r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( $1, $2, TRUE, $3, -1 )
-                "#,
-                )
-                .bind(migration.version)
-                .bind(&migration.description)
-                .bind(&*migration.checksum)
-                .execute(&mut *self)
-                .await?;
+                let mut tx = self.begin().await?;
+                execute_migration(&mut tx, migration).await?;
+                tx.commit().await?;
             }
 
             // Update `elapsed_time`.
             // NOTE: The process may disconnect/die at this point, so the elapsed time value might be lost. We accept
             //       this small risk since this value is not super important.
-
             let elapsed = start.elapsed();
 
             // language=SQL
@@ -300,6 +266,36 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+}
+
+async fn execute_migration(
+    conn: &mut PgConnection,
+    migration: &Migration,
+) -> Result<(), MigrateError> {
+    // Use a single transaction for the actual migration script and the essential bookeeping so we never
+    // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+    // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+    // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+    // and update it once the actual transaction completed.
+    let _ = conn
+        .execute(&*migration.sql)
+        .await
+        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+
+    // language=SQL
+    let _ = query(
+        r#"
+    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+    VALUES ( $1, $2, TRUE, $3, -1 )
+                "#,
+    )
+    .bind(migration.version)
+    .bind(&*migration.description)
+    .bind(&*migration.checksum)
+    .execute(conn)
+    .await?;
+
+    Ok(())
 }
 
 async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateError> {
