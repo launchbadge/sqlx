@@ -22,7 +22,7 @@ pub struct Migrator {
     #[doc(hidden)]
     pub locking: bool,
     #[doc(hidden)]
-    pub no_tx: bool
+    pub no_tx: bool,
 }
 
 fn validate_applied_migrations(
