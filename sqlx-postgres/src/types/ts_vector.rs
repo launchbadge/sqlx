@@ -6,16 +6,107 @@ use crate::{
     Postgres,
 };
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use core::fmt;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io::{BufRead, Cursor, Write};
-use std::num::ParseIntError;
+use std::num::{IntErrorKind, ParseIntError};
 use std::str;
 use std::str::FromStr;
+
+#[derive(Debug, Copy, Clone)]
+pub struct LexemeMeta {
+    position: u16,
+    weight: u16,
+}
+
+impl From<u16> for LexemeMeta {
+    fn from(value: u16) -> Self {
+        let weight = (value >> 14) & 0b11;
+        let position = value & 0x3fff;
+
+        Self { weight, position }
+    }
+}
+
+impl From<&LexemeMeta> for u16 {
+    fn from(LexemeMeta { weight, position }: &LexemeMeta) -> Self {
+        let mut lexeme_meta = 0u16;
+        lexeme_meta = (weight << 14) | (position & 0x3fff);
+        lexeme_meta = (position & 0xc00) | (weight & 0x3fff);
+
+        lexeme_meta
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseLexemeMetaError {
+    kind: IntErrorKind,
+}
+
+impl From<ParseIntError> for ParseLexemeMetaError {
+    fn from(value: ParseIntError) -> Self {
+        Self {
+            kind: value.kind().clone(),
+        }
+    }
+}
+
+impl Display for ParseLexemeMetaError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for ParseLexemeMetaError {
+    fn description(&self) -> &str {
+        match self.kind {
+            IntErrorKind::Empty => "cannot parse integer from empty string",
+            IntErrorKind::InvalidDigit => "invalid digit found in string",
+            IntErrorKind::PosOverflow => "number too large to fit in target type",
+            IntErrorKind::NegOverflow => "number too small to fit in target type",
+            IntErrorKind::Zero => "number would be zero for non-zero type",
+            _ => "unknown",
+        }
+    }
+}
+
+impl FromStr for LexemeMeta {
+    type Err = ParseLexemeMetaError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.ends_with(&['A', 'B', 'C', 'D']) {
+            let weight_char = s.chars().last().ok_or(ParseLexemeMetaError {
+                kind: IntErrorKind::Empty,
+            })?;
+            let weight = match weight_char {
+                'A' => 3,
+                'B' => 2,
+                'C' => 1,
+                'D' => 0,
+                _ => {
+                    return Err(ParseLexemeMetaError {
+                        kind: IntErrorKind::InvalidDigit,
+                    })
+                }
+            };
+
+            let position = s.strip_suffix(weight_char).unwrap_or(s).parse::<u16>()?;
+
+            Ok(Self { weight, position })
+        } else {
+            Ok(Self {
+                weight: 0,
+                position: s.parse()?,
+            })
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Lexeme {
     word: String,
-    positions: Vec<u16>,
+    positions: Vec<LexemeMeta>,
 }
 
 #[derive(Debug)]
@@ -29,16 +120,27 @@ impl Display for TsVector {
 
         let mut words = self.words.iter().peekable();
 
-        while let Some(word) = words.next() {
-            f.write_str(&format!(
-                "'{}':{}",
-                word.word,
-                word.positions
-                    .iter()
-                    .map(|pos| pos.to_string())
+        while let Some(Lexeme { positions, word }) = words.next() {
+            if positions.is_empty() {
+                f.write_str(&format!("'{}'", word))?;
+            } else {
+                let position = positions
+                    .into_iter()
+                    .map(|LexemeMeta { position, weight }| {
+                        match weight {
+                            3 => format!("{position}A"),
+                            2 => format!("{position}B"),
+                            1 => format!("{position}C"),
+                            // 'D' is the default value and does not need to be displayed
+                            _ => format!("{position}"),
+                        }
+                    })
                     .collect::<Vec<_>>()
-                    .join(",")
-            ))?;
+                    .join(",");
+
+                f.write_str(&format!("'{}':{}", word, position))?;
+            }
+
             if words.peek().is_some() {
                 f.write_char(' ')?;
             }
@@ -65,12 +167,12 @@ impl TryFrom<&[u8]> for TsVector {
             reader.read_until(b'\0', &mut lexeme)?;
 
             let num_positions = reader.read_u16::<BigEndian>()?;
-            let mut positions = Vec::<u16>::with_capacity(num_positions as usize);
+            let mut positions = Vec::<LexemeMeta>::with_capacity(num_positions as usize);
 
             if num_positions > 0 {
                 for _ in 0..num_positions {
                     let position = reader.read_u16::<BigEndian>()?;
-                    positions.push(position);
+                    positions.push(LexemeMeta::from(position));
                 }
             }
 
@@ -99,8 +201,8 @@ impl TryInto<Vec<u8>> for &TsVector {
             buf.write_u16::<BigEndian>(u16::try_from(lexeme.positions.len())?)?;
 
             if !lexeme.positions.is_empty() {
-                for position in &lexeme.positions {
-                    buf.write_u16::<BigEndian>(*position)?;
+                for lexeme_meta in &lexeme.positions {
+                    buf.write_u16::<BigEndian>(lexeme_meta.into())?;
                 }
             }
         }
@@ -112,7 +214,7 @@ impl TryInto<Vec<u8>> for &TsVector {
 }
 
 impl FromStr for TsVector {
-    type Err = ParseIntError;
+    type Err = ParseLexemeMetaError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut words: Vec<Lexeme> = vec![];
@@ -126,9 +228,17 @@ impl FromStr for TsVector {
                         .to_string(),
                     positions: positions
                         .split(',')
-                        .map(|value| value.parse())
+                        .map(|value| Ok::<LexemeMeta, ParseLexemeMetaError>(value.parse()?))
                         .collect::<Result<Vec<_>, _>>()?,
                 });
+            } else {
+                words.push(Lexeme {
+                    word: word
+                        .trim_start_matches('\'')
+                        .trim_end_matches('\'')
+                        .to_string(),
+                    positions: vec![],
+                })
             }
         }
 
