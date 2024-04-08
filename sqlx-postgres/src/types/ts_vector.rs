@@ -52,6 +52,7 @@ impl From<ParseIntError> for ParseLexemeMetaError {
     }
 }
 
+#[allow(deprecated)]
 impl Display for ParseLexemeMetaError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
