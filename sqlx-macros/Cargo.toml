@@ -32,6 +32,7 @@ sqlite = ["sqlx-macros-core/sqlite"]
 
 # type
 bigdecimal = ["sqlx-macros-core/bigdecimal"]
+cube = ["sqlx-macros-core/cube"]
 bit-vec = ["sqlx-macros-core/bit-vec"]
 chrono = ["sqlx-macros-core/chrono"]
 ipnetwork = ["sqlx-macros-core/ipnetwork"]

@@ -63,6 +63,7 @@ all-databases = ["mysql", "sqlite", "postgres", "any"]
 _unstable-all-types = [
     "bigdecimal",
     "rust_decimal",
+    "cube",
     "json",
     "time",
     "chrono",
@@ -105,6 +106,7 @@ sqlite = ["sqlx-sqlite", "sqlx-macros?/sqlite"]
 json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
 
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros?/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
+cube = ["sqlx-core/cube", "sqlx-postgres?/cube"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec", "sqlx-postgres?/bit-vec"]
 chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-mysql?/chrono", "sqlx-postgres?/chrono", "sqlx-sqlite?/chrono"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork", "sqlx-postgres?/ipnetwork"]
