@@ -477,6 +477,15 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
+#[cfg(feature = "cube")]
+test_type!(cube<sqlx::types::Cube>(Postgres,
+    "cube(2)" == sqlx::types::Cube::Point(2.).unwrap(),
+    "cube(2,3)" == sqlx::types::Cube::OneDimensionalInterval(2.,3.).unwrap(),
+    "cube(array[0.5,0.5,0.5])" == sqlx::types::Cube::ZeroVolume(vec![.5, .5, .5]).unwrap(),
+    "cube(array[2,3],array[4,5])" == sqlx::types::Cube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]).unwrap(),
+));
+
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
