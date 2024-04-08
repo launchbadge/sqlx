@@ -115,24 +115,24 @@ async fn test_query_scalar() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let id = sqlx::query_scalar!("select 1").fetch_one(&mut conn).await?;
-    assert_eq!(id, 1i32);
+    assert_eq!(id, 1i64);
 
     // invalid column names are ignored
     let id = sqlx::query_scalar!(r#"select 1 as "&foo""#)
         .fetch_one(&mut conn)
         .await?;
-    assert_eq!(id, 1i32);
+    assert_eq!(id, 1i64);
 
     let id = sqlx::query_scalar!(r#"select 1 as "foo!""#)
         .fetch_one(&mut conn)
         .await?;
-    assert_eq!(id, 1i32);
+    assert_eq!(id, 1i64);
 
     let id = sqlx::query_scalar!(r#"select 1 as "foo?""#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(id, Some(1i32));
+    assert_eq!(id, Some(1i64));
 
     let id = sqlx::query_scalar!(r#"select 1 as "foo: MyInt""#)
         .fetch_one(&mut conn)

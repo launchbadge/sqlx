@@ -11,19 +11,27 @@ pub(crate) use sqlx_core::type_info::*;
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum DataType {
+    // These variants should correspond to `SQLITE_*` type constants.
     Null,
-    Int,
+    /// Note: SQLite's type system has no notion of integer widths.
+    /// The `INTEGER` type affinity can store up to 8 byte integers,
+    /// making `i64` the only safe choice when mapping integer types to Rust.
+    Integer,
     Float,
     Text,
     Blob,
 
-    // TODO: Support NUMERIC
+    // Explicitly not supported: see documentation in `types/mod.rs`
     #[allow(dead_code)]
     Numeric,
 
-    // non-standard extensions
+    // non-standard extensions (chosen based on the column's declared type)
+    /// Chosen if the column's declared type is `BOOLEAN`.
     Bool,
-    Int64,
+    /// Chosen if the column's declared type is `INT4`;
+    /// instructs the macros to use `i32` instead of `i64`.
+    /// Legacy feature; no idea if this is actually used anywhere.
+    Int4,
     Date,
     Time,
     Datetime,
@@ -51,7 +59,7 @@ impl TypeInfo for SqliteTypeInfo {
             DataType::Text => "TEXT",
             DataType::Float => "REAL",
             DataType::Blob => "BLOB",
-            DataType::Int | DataType::Int64 => "INTEGER",
+            DataType::Int4 | DataType::Integer => "INTEGER",
             DataType::Numeric => "NUMERIC",
 
             // non-standard extensions
@@ -66,7 +74,7 @@ impl TypeInfo for SqliteTypeInfo {
 impl DataType {
     pub(crate) fn from_code(code: c_int) -> Self {
         match code {
-            SQLITE_INTEGER => DataType::Int,
+            SQLITE_INTEGER => DataType::Integer,
             SQLITE_FLOAT => DataType::Float,
             SQLITE_BLOB => DataType::Blob,
             SQLITE_NULL => DataType::Null,
@@ -87,15 +95,15 @@ impl FromStr for DataType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.to_ascii_lowercase();
         Ok(match &*s {
-            "int4" => DataType::Int,
-            "int8" => DataType::Int64,
+            "int4" => DataType::Int4,
+            "int8" => DataType::Integer,
             "boolean" | "bool" => DataType::Bool,
 
             "date" => DataType::Date,
             "time" => DataType::Time,
             "datetime" | "timestamp" => DataType::Datetime,
 
-            _ if s.contains("int") => DataType::Int64,
+            _ if s.contains("int") => DataType::Integer,
 
             _ if s.contains("char") || s.contains("clob") || s.contains("text") => DataType::Text,
 
@@ -120,16 +128,16 @@ impl FromStr for DataType {
 
 #[test]
 fn test_data_type_from_str() -> Result<(), BoxDynError> {
-    assert_eq!(DataType::Int, "INT4".parse()?);
+    assert_eq!(DataType::Int4, "INT4".parse()?);
 
-    assert_eq!(DataType::Int64, "INT".parse()?);
-    assert_eq!(DataType::Int64, "INTEGER".parse()?);
-    assert_eq!(DataType::Int64, "INTBIG".parse()?);
-    assert_eq!(DataType::Int64, "MEDIUMINT".parse()?);
+    assert_eq!(DataType::Integer, "INT".parse()?);
+    assert_eq!(DataType::Integer, "INTEGER".parse()?);
+    assert_eq!(DataType::Integer, "INTBIG".parse()?);
+    assert_eq!(DataType::Integer, "MEDIUMINT".parse()?);
 
-    assert_eq!(DataType::Int64, "BIGINT".parse()?);
-    assert_eq!(DataType::Int64, "UNSIGNED BIG INT".parse()?);
-    assert_eq!(DataType::Int64, "INT8".parse()?);
+    assert_eq!(DataType::Integer, "BIGINT".parse()?);
+    assert_eq!(DataType::Integer, "UNSIGNED BIG INT".parse()?);
+    assert_eq!(DataType::Integer, "INT8".parse()?);
 
     assert_eq!(DataType::Text, "CHARACTER(20)".parse()?);
     assert_eq!(DataType::Text, "NCHAR(55)".parse()?);

@@ -32,7 +32,11 @@ impl Type<Sqlite> for NaiveDateTime {
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int | DataType::Float
+            DataType::Datetime
+                | DataType::Text
+                | DataType::Integer
+                | DataType::Int4
+                | DataType::Float
         )
     }
 }
@@ -105,7 +109,7 @@ impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
+        DataType::Int4 | DataType::Integer => decode_datetime_from_int(value.int64()),
         DataType::Float => decode_datetime_from_float(value.double()),
 
         _ => None,

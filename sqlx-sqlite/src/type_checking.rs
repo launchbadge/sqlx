@@ -8,7 +8,12 @@ use crate::Sqlite;
 // For more info see: https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes
 impl_type_checking!(
     Sqlite {
+        // Note that since the macro checks `column_type_info == <T>::type_info()` first,
+        // we can list `bool` without it being automatically picked for all integer types
+        // due to its `TypeInfo::compatible()` impl.
         bool,
+        // Since it returns `DataType::Int4` for `type_info()`,
+        // `i32` should only be chosen IFF the column decltype is `INT4`
         i32,
         i64,
         f64,
