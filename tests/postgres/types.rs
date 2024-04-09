@@ -478,11 +478,11 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
 ));
 
 #[cfg(any(postgres_14, postgres_15))]
-test_type!(cube<sqlx::types::PgCube>(Postgres,
-    "cube(2)" == sqlx::types::PgCube::Point(2.).unwrap(),
-    "cube(2,3)" == sqlx::types::PgCube::OneDimensionalInterval(2.,3.).unwrap(),
-    "cube(array[0.5,0.5,0.5])" == sqlx::types::PgCube::ZeroVolume(vec![.5, .5, .5]).unwrap(),
-    "cube(array[2,3],array[4,5])" == sqlx::types::PgCube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]).unwrap(),
+test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
+    "cube(2)" == sqlx::postgres::types::PgCube::Point(2.).unwrap(),
+    "cube(2,3)" == sqlx::postgres::types::PgCube::OneDimensionalInterval(2.,3.).unwrap(),
+    "cube(array[0.5,0.5,0.5])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![.5, .5, .5]).unwrap(),
+    "cube(array[2,3],array[4,5])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]).unwrap(),
 ));
 
 #[cfg(feature = "rust_decimal")]
