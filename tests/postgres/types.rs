@@ -481,7 +481,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
 test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(2)" == sqlx::postgres::types::PgCube::Point(2.),
     "cube(2,3)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2.,3.),
-    "cube(array[0.5,0.5,0.5])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![5., 5., 5.]),
+    "cube(array[5,5,5])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![5., 5., 5.]),
     "cube(array[2,3],array[4,5])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]),
 ));
 
