@@ -20,6 +20,7 @@
 //! | [`PgLTree`]                           | LTREE                                                |
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
+//! | [`PgCube`]                            | CUBE                                                 |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
 //! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
@@ -213,7 +214,6 @@ mod time_tz;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
-#[cfg(feature = "cube")]
 mod cube;
 
 #[cfg(any(feature = "bigdecimal", feature = "rust_decimal"))]
@@ -245,6 +245,7 @@ mod bit_vec;
 
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
+pub use cube::PgCube;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;
