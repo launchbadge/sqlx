@@ -650,12 +650,7 @@ where
     DB: Database,
     A: IntoArguments<'q, DB>,
 {
-    Query {
-        database: PhantomData,
-        arguments: Some(Ok(arguments)),
-        statement: Either::Left(sql),
-        persistent: true,
-    }
+    query_with_result(sql, Ok(arguments))
 }
 
 /// Same as [`query_with`] but is initialized with a Result of arguments instead

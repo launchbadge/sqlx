@@ -10,9 +10,7 @@ use crate::encode::Encode;
 use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
-use crate::query::{
-    query, query_statement, query_statement_with, query_with, query_with_result, Query,
-};
+use crate::query::{query, query_statement, query_statement_with, query_with_result, Query};
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement, mapping results using [`FromRow`].
@@ -365,10 +363,7 @@ where
     A: IntoArguments<'q, DB>,
     O: for<'r> FromRow<'r, DB::Row>,
 {
-    QueryAs {
-        inner: query_with(sql, arguments),
-        output: PhantomData,
-    }
+    query_as_with_result(sql, Ok(arguments))
 }
 
 /// Same as [`query_as_with`] but takes arguments as a Result

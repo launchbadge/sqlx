@@ -9,8 +9,7 @@ use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
 use crate::query_as::{
-    query_as, query_as_with, query_as_with_result, query_statement_as, query_statement_as_with,
-    QueryAs,
+    query_as, query_as_with_result, query_statement_as, query_statement_as_with, QueryAs,
 };
 use crate::types::Type;
 
@@ -344,9 +343,7 @@ where
     A: IntoArguments<'q, DB>,
     (O,): for<'r> FromRow<'r, DB::Row>,
 {
-    QueryScalar {
-        inner: query_as_with(sql, arguments),
-    }
+    query_scalar_with_result(sql, Ok(arguments))
 }
 
 /// Same as [`query_scalar_with`] but takes arguments as Result
