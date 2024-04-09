@@ -7,7 +7,7 @@ use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
-use crate::error::Error;
+use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::statement::Statement;
 use crate::types::Type;
@@ -16,7 +16,7 @@ use crate::types::Type;
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
     pub(crate) statement: Either<&'q str, &'q DB::Statement<'q>>,
-    pub(crate) arguments: Option<A>,
+    pub(crate) arguments: Option<Result<A, BoxDynError>>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,
 }
@@ -60,7 +60,10 @@ where
 
     #[inline]
     fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        self.arguments.take().map(IntoArguments::into_arguments)
+        self.arguments
+            .take()
+            .map(|result| result.expect("Error encoding values"))
+            .map(IntoArguments::into_arguments)
     }
 
     #[inline]
@@ -79,8 +82,16 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
     pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
-        if let Some(arguments) = &mut self.arguments {
-            arguments.add(value).expect("Failed to add argument");
+        let Some(arguments_result) = self.arguments.as_mut() else {
+            return self;
+        };
+
+        let Ok(arguments) = arguments_result.as_mut() else {
+            return self;
+        };
+
+        if let Err(error) = arguments.add(value) {
+            *arguments_result = Err(error);
         }
 
         self
@@ -472,7 +483,7 @@ where
 {
     Query {
         database: PhantomData,
-        arguments: Some(Default::default()),
+        arguments: Some(Ok(Default::default())),
         statement: Either::Right(statement),
         persistent: true,
     }
@@ -489,7 +500,7 @@ where
 {
     Query {
         database: PhantomData,
-        arguments: Some(arguments),
+        arguments: Some(Ok(arguments)),
         statement: Either::Right(statement),
         persistent: true,
     }
@@ -625,7 +636,7 @@ where
 {
     Query {
         database: PhantomData,
-        arguments: Some(Default::default()),
+        arguments: Some(Ok(Default::default())),
         statement: Either::Left(sql),
         persistent: true,
     }
@@ -635,6 +646,23 @@ where
 ///
 /// See [`query()`][query] for details, such as supported syntax.
 pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
+    Query {
+        database: PhantomData,
+        arguments: Some(Ok(arguments)),
+        statement: Either::Left(sql),
+        persistent: true,
+    }
+}
+
+/// Same as [`query_with`] but is initialized with a Result of arguments instead
+pub fn query_with_result<'q, DB, A>(
+    sql: &'q str,
+    arguments: Result<A, BoxDynError>,
+) -> Query<'q, DB, A>
 where
     DB: Database,
     A: IntoArguments<'q, DB>,

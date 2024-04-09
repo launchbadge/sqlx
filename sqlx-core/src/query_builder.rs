@@ -450,7 +450,7 @@ where
 
         Query {
             statement: Either::Left(&self.query),
-            arguments: self.arguments.take(),
+            arguments: self.arguments.take().map(Ok),
             database: PhantomData,
             persistent: true,
         }
