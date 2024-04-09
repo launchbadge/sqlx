@@ -120,6 +120,11 @@ impl PgCube {
 
     fn deserialize(bytes: &[u8]) -> Result<Self, sqlx_core::Error> {
         let cube_type = bytes[0] as usize;
+        if bytes.len() < 4 {
+            return Err(sqlx_core::Error::Decode(
+                format!("Could not deserialise cube. Bytes: {:?}", bytes).into(),
+            ));
+        }
         let dimensionality = bytes[3] as usize;
         let start_index = 4;
 
