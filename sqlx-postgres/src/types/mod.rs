@@ -148,12 +148,6 @@
 //! Anonymous composite types are represented as tuples. Note that anonymous composites may only
 //! be returned and not sent to Postgres (this is a limitation of postgres).
 //!
-//! Requires the `cube` Cargo feature flag.
-//!
-//! | Rust type                             | Postgres type(s)                                        |
-//! |---------------------------------------|------------------------------------------------------|
-//! | `Cube`                                | cube                                              |
-//!
 //! # Arrays
 //!
 //! One-dimensional arrays are supported as `Vec<T>` or `&[T]` where `T` implements `Type`.
