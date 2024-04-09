@@ -337,6 +337,7 @@ where
                 use ::sqlx::Arguments as _;
 
                 #args_tokens
+                let query_args = query_args.expect("Encoding query arguments failed");
 
                 #output
             }
