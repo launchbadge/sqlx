@@ -53,12 +53,26 @@ impl Encode<'_, Postgres> for i8 {
 
 impl Decode<'_, Postgres> for i8 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        // note: in the TEXT encoding, a value of "0" here is encoded as an empty string
-        if (value.format() == PgValueFormat::Text) && (value.as_bytes()?.is_empty()) {
-            return Ok(Default::default());
-        }
+        // note: decoding here is for the `"char"` type as Postgres does not have a native 1-byte integer type.
+        // https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/char.c#L58-L60
+        match value.format() {
+            PgValueFormat::Binary => int_decode(value)?.try_into().map_err(Into::into),
+            PgValueFormat::Text => {
+                let text = value.as_str()?;
 
-        int_decode(value)?.try_into().map_err(Into::into)
+                // A value of 0 is represented with the empty string.
+                if text.is_empty() {
+                    return Ok(0);
+                }
+
+                if text.starts_with('\\') {
+                    // For values between 0x80 and 0xFF, it's encoded in octal.
+                    return Ok(i8::from_str_radix(text.trim_start_matches('\\'), 8)?);
+                }
+
+                Ok(text.as_bytes()[0] as i8)
+            }
+        }
     }
 }
 
