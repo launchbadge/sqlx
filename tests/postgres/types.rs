@@ -485,7 +485,6 @@ test_type!(cube<sqlx::types::Cube>(Postgres,
     "cube(array[2,3],array[4,5])" == sqlx::types::Cube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]).unwrap(),
 ));
 
-
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
