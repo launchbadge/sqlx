@@ -146,8 +146,8 @@ impl PgCube {
             )?)),
             (flag, dimension) => Err(sqlx_core::Error::Decode(
                 format!(
-                    "Could not deserialise cube with flag {} and dimension {}",
-                    flag, dimension,
+                    "Could not deserialise cube with flag {} and dimension {}. Bytes: {:?}",
+                    flag, dimension, bytes
                 )
                 .into(),
             )),
