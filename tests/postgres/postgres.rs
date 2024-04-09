@@ -6,7 +6,7 @@ use sqlx::postgres::{
     PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
-use sqlx_core::bytes::Bytes;
+use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
 use std::pin::Pin;
@@ -1124,7 +1124,7 @@ CREATE TABLE heating_bills (
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, BoxDynError> {
             <i16 as sqlx::Encode<Postgres>>::encode(self.0, buf)
         }
     }
@@ -1162,12 +1162,12 @@ CREATE TABLE heating_bills (
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
             let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
             encoder.encode(self.year);
             encoder.encode(self.month);
             encoder.finish();
-            sqlx::encode::IsNull::No
+            Ok(sqlx::encode::IsNull::No)
         }
     }
     let mut conn = new::<Postgres>().await?;
@@ -1484,7 +1484,7 @@ CREATE TYPE another.some_enum_type AS ENUM ('d', 'e', 'f');
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, BoxDynError> {
             <String as sqlx::Encode<Postgres>>::encode_by_ref(&self.0, buf)
         }
     }
@@ -1673,7 +1673,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
             }
         }
 
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
             match self {
                 Value::String(s) => <String as Encode<'_, Postgres>>::encode_by_ref(s, buf),
                 Value::Number(n) => <i32 as Encode<'_, Postgres>>::encode_by_ref(n, buf),

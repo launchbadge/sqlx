@@ -14,10 +14,13 @@ impl Type<Sqlite> for str {
 }
 
 impl<'q> Encode<'q, Sqlite> for &'q str {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Borrowed(*self)));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -34,18 +37,21 @@ impl Type<Sqlite> for Box<str> {
 }
 
 impl Encode<'_, Sqlite> for Box<str> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self.into_string())));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'_>>,
+    ) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Owned(
             self.clone().into_string(),
         )));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -62,16 +68,19 @@ impl Type<Sqlite> for String {
 }
 
 impl<'q> Encode<'q, Sqlite> for String {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -92,16 +101,19 @@ impl Type<Sqlite> for Cow<'_, str> {
 }
 
 impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(self));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(self.clone()));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

@@ -134,7 +134,7 @@ impl PgArgumentBuffer {
         self.extend(&[0; 4]);
 
         // encode the value into our buffer
-        let len = if let IsNull::No = value.encode(self) {
+        let len = if let IsNull::No = value.encode(self).expect("Encoding value failed") {
             (self.len() - offset - 4) as i32
         } else {
             // Write a -1 to indicate NULL

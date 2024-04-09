@@ -14,9 +14,9 @@ impl Type<Any> for f32 {
 }
 
 impl<'q> Encode<'q, Any> for f32 {
-    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Real(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -38,9 +38,12 @@ impl Type<Any> for f64 {
 }
 
 impl<'q> Encode<'q, Any> for f64 {
-    fn encode_by_ref(&self, buf: &mut <Any as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Double(*self));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

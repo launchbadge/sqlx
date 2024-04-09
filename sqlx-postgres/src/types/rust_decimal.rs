@@ -144,12 +144,12 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
 }
 
 impl Encode<'_, Postgres> for Decimal {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         PgNumeric::try_from(self)
             .expect("BUG: `Decimal` to `PgNumeric` conversion should be infallible")
             .encode(buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

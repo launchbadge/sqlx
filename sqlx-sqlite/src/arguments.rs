@@ -28,7 +28,10 @@ impl<'q> SqliteArguments<'q> {
     where
         T: Encode<'q, Sqlite>,
     {
-        if let IsNull::Yes = value.encode(&mut self.values) {
+        if let IsNull::Yes = value
+            .encode(&mut self.values)
+            .expect("Encoding value failed")
+        {
             self.values.push(SqliteArgumentValue::Null);
         }
     }

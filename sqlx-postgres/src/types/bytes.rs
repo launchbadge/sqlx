@@ -35,27 +35,27 @@ impl<const N: usize> PgHasArrayType for [u8; N] {
 }
 
 impl Encode<'_, Postgres> for &'_ [u8] {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend_from_slice(self);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, Postgres> for Box<[u8]> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
     }
 }
 
 impl Encode<'_, Postgres> for Vec<u8> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<Postgres>>::encode(self, buf)
     }
 }
 
 impl<const N: usize> Encode<'_, Postgres> for [u8; N] {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<Postgres>>::encode(self.as_slice(), buf)
     }
 }
