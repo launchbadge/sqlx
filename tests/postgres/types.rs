@@ -477,7 +477,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
-#[cfg(feature = "cube")]
+#[cfg(any(postgres_14, postgres_15))]
 test_type!(cube<sqlx::types::Cube>(Postgres,
     "cube(2)" == sqlx::types::Cube::Point(2.).unwrap(),
     "cube(2,3)" == sqlx::types::Cube::OneDimensionalInterval(2.,3.).unwrap(),

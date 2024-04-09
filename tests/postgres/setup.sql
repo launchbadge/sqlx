@@ -1,6 +1,9 @@
 -- https://www.postgresql.org/docs/current/ltree.html
 CREATE EXTENSION IF NOT EXISTS ltree;
 
+-- https://www.postgresql.org/docs/current/cube.html
+CREATE EXTENSION IF NOT EXISTS cube;
+
 -- https://www.postgresql.org/docs/current/citext.html
 CREATE EXTENSION IF NOT EXISTS citext;
 
