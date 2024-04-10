@@ -72,8 +72,8 @@ impl<S: Socket> Socket for RustlsSocket<S> {
 
         futures_util::ready!(self.poll_complete_io(cx))?;
 
-        // Server closes socket as soon as it receives 'X',
-        // we shouldn't expect it to stick around for the TLS session to close cleanly.
+        // Server can close socket as soon as it receives the connection shutdown request.
+        // We shouldn't expect it to stick around for the TLS session to close cleanly.
         // https://security.stackexchange.com/a/82034
         let _ = futures_util::ready!(self.inner.socket.poll_shutdown(cx));
 
