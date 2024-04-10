@@ -7,7 +7,7 @@ use crate::{
     types::Type,
     Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
 };
-use time::format_description::{well_known::Rfc3339, FormatItem};
+use time::format_description::{BorrowedFormatItem, well_known::Rfc3339};
 use time::macros::format_description as fd;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -177,11 +177,11 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
     }
 
     let formats = [
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
+        BorrowedFormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
+        BorrowedFormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
     ];
 
-    if let Ok(dt) = PrimitiveDateTime::parse(value, &FormatItem::First(&formats)) {
+    if let Ok(dt) = PrimitiveDateTime::parse(value, &BorrowedFormatItem::First(&formats)) {
         return Some(dt);
     }
 
@@ -189,9 +189,10 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
 }
 
 mod formats {
-    use time::format_description::{modifier, Component::*, FormatItem, FormatItem::*};
+    use time::format_description::{modifier, Component::*, BorrowedFormatItem};
+    use time::format_description::BorrowedFormatItem::{Component, Literal, Optional};
 
-    const YEAR: FormatItem<'_> = Component(Year({
+    const YEAR: BorrowedFormatItem<'_> = Component(Year({
         let mut value = modifier::Year::default();
         value.padding = modifier::Padding::Zero;
         value.repr = modifier::YearRepr::Full;
@@ -200,7 +201,7 @@ mod formats {
         value
     }));
 
-    const MONTH: FormatItem<'_> = Component(Month({
+    const MONTH: BorrowedFormatItem<'_> = Component(Month({
         let mut value = modifier::Month::default();
         value.padding = modifier::Padding::Zero;
         value.repr = modifier::MonthRepr::Numerical;
@@ -208,51 +209,51 @@ mod formats {
         value
     }));
 
-    const DAY: FormatItem<'_> = Component(Day({
+    const DAY: BorrowedFormatItem<'_> = Component(Day({
         let mut value = modifier::Day::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const HOUR: FormatItem<'_> = Component(Hour({
+    const HOUR: BorrowedFormatItem<'_> = Component(Hour({
         let mut value = modifier::Hour::default();
         value.padding = modifier::Padding::Zero;
         value.is_12_hour_clock = false;
         value
     }));
 
-    const MINUTE: FormatItem<'_> = Component(Minute({
+    const MINUTE: BorrowedFormatItem<'_> = Component(Minute({
         let mut value = modifier::Minute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const SECOND: FormatItem<'_> = Component(Second({
+    const SECOND: BorrowedFormatItem<'_> = Component(Second({
         let mut value = modifier::Second::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const SUBSECOND: FormatItem<'_> = Component(Subsecond({
+    const SUBSECOND: BorrowedFormatItem<'_> = Component(Subsecond({
         let mut value = modifier::Subsecond::default();
         value.digits = modifier::SubsecondDigits::OneOrMore;
         value
     }));
 
-    const OFFSET_HOUR: FormatItem<'_> = Component(OffsetHour({
+    const OFFSET_HOUR: BorrowedFormatItem<'_> = Component(OffsetHour({
         let mut value = modifier::OffsetHour::default();
         value.sign_is_mandatory = true;
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const OFFSET_MINUTE: FormatItem<'_> = Component(OffsetMinute({
+    const OFFSET_MINUTE: BorrowedFormatItem<'_> = Component(OffsetMinute({
         let mut value = modifier::OffsetMinute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    pub(super) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
+    pub(super) const OFFSET_DATE_TIME: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -274,7 +275,7 @@ mod formats {
         ]
     };
 
-    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -293,7 +294,7 @@ mod formats {
         ]
     };
 
-    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
