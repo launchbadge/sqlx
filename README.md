@@ -193,8 +193,6 @@ be removed in the future.
 
 -   `rust_decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
 
--   `cube`: Add support for `cube`.
-
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
