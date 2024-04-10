@@ -480,6 +480,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
 #[cfg(any(postgres_14, postgres_15))]
 test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(2)" == sqlx::postgres::types::PgCube::Point(2.),
+    "cube(2.1)" == sqlx::postgres::types::PgCube::Point(2.1),
     "cube(2,3)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2., 3.),
     "cube(2.2,-3.4)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4),
     "cube(array[2,3])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![2., 3.]),
