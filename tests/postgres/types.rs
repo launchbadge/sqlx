@@ -484,7 +484,7 @@ test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(2.2,-3.4)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4),
     "cube(array[2,3])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![2., 3.]),
     "cube(array[2,3],array[4,5])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]),
-    "cube(array[2,3,4],array[4,5,6])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.,4],vec![4.,5.,6]]),
+    "cube(array[2,3,4],array[4,5,6])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.,4.],vec![4.,5.,6.]]),
 ));
 
 #[cfg(feature = "rust_decimal")]
