@@ -3,11 +3,12 @@ use crate::{
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{TryFutureExt, TryStreamExt};
+use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::{Execute, Executor};
 use sqlx_core::Either;
+use std::future;
 
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
@@ -21,7 +22,10 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         E: Execute<'q, Self::Database>,
     {
         let sql = query.sql();
-        let arguments = query.take_arguments();
+        let arguments = match query.take_arguments().map_err(Error::Encode) {
+            Ok(arguments) => arguments,
+            Err(error) => return stream::once(future::ready(Err(error))).boxed(),
+        };
         let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(
@@ -41,7 +45,10 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         E: Execute<'q, Self::Database>,
     {
         let sql = query.sql();
-        let arguments = query.take_arguments();
+        let arguments = match query.take_arguments().map_err(Error::Encode) {
+            Ok(arguments) => arguments,
+            Err(error) => return future::ready(Err(error)).boxed(),
+        };
         let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(async move {

@@ -59,11 +59,11 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
         self.arguments
             .take()
-            .map(|result| result.expect("Error encoding values"))
-            .map(IntoArguments::into_arguments)
+            .transpose()
+            .map(|option| option.map(IntoArguments::into_arguments))
     }
 
     #[inline]
@@ -81,20 +81,28 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     ///
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
+    ///
+    /// If encoding the value fails, the error is stored and later surfaced when executing the query.
     pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
-        let Some(arguments_result) = self.arguments.as_mut() else {
-            return self;
-        };
-
-        let Ok(arguments) = arguments_result.as_mut() else {
-            return self;
-        };
-
-        if let Err(error) = arguments.add(value) {
-            *arguments_result = Err(error);
+        if let Err(error) = self.try_bind(value) {
+            self.arguments = Some(Err(error));
         }
 
         self
+    }
+
+    /// Like [`Query::try_bind`] but immediately returns an error if encoding the value failed.
+    pub fn try_bind<T: 'q + Encode<'q, DB> + Type<DB>>(
+        &mut self,
+        value: T,
+    ) -> Result<(), BoxDynError> {
+        let Some(Ok(arguments)) = self.arguments.as_mut().map(Result::as_mut) else {
+            return Err("A previous call to Query::bind produced an error"
+                .to_owned()
+                .into());
+        };
+
+        arguments.add(value)
     }
 }
 
@@ -291,7 +299,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
         self.inner.take_arguments()
     }
 

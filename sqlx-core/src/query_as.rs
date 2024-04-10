@@ -37,7 +37,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
         self.inner.take_arguments()
     }
 
