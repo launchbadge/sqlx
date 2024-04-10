@@ -123,7 +123,9 @@ impl PgCube {
     }
 
     fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
-        s.parse().map_err(|_| Error::Decode(error_msg.into()))
+        s.trim()
+            .parse()
+            .map_err(|_| Error::Decode(error_msg.into()))
     }
 
     fn parse_point(str: &str) -> Result<PgCube, Error> {
@@ -161,7 +163,7 @@ impl PgCube {
                     .split(',')
                     .map(|point| {
                         Self::parse_float_from_str(
-                            &Self::remove_parentheses(point.trim()),
+                            &Self::remove_parentheses(point),
                             "Failed to parse into multi-dimension cube",
                         )
                     })
