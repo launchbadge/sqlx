@@ -103,8 +103,10 @@ impl AnyConnectionBackend for MySqlConnection {
             let stream = self.run(query, args, persistent).await?;
             futures_util::pin_mut!(stream);
 
-            if let Some(Either::Right(row)) = stream.try_next().await? {
-                return Ok(Some(AnyRow::try_from(&row)?));
+            while let Some(result) = stream.try_next().await? {
+                if let Either::Right(row) = result {
+                    return Ok(Some(AnyRow::try_from(&row)?));
+                }
             }
 
             Ok(None)
