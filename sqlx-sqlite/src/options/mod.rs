@@ -206,6 +206,10 @@ impl SqliteConnectOptions {
     }
 
     /// Sets the name of the database file.
+    ///
+    /// This is a low-level API, and SQLx will apply no special treatment for the `:memory:` as an
+    /// in-memory database. Using [SqliteConnectOptions::from_str] may be preferred for most use
+    /// cases.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = Cow::Owned(filename.as_ref().to_owned());
         self
