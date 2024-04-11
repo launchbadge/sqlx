@@ -136,7 +136,7 @@ chrono = { version = "0.4.22", default-features = false }
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
 rust_decimal = "1.26.1"
-time = { version = "0.3.35", features = ["formatting", "parsing", "macros"] }
+time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
