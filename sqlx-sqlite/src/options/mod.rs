@@ -208,7 +208,6 @@ impl SqliteConnectOptions {
     /// Sets the name of the database file.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = Cow::Owned(filename.as_ref().to_owned());
-        self.in_memory = filename.as_ref() == Path::new(":memory:");
         self
     }
 
@@ -223,6 +222,14 @@ impl SqliteConnectOptions {
     /// compared to other database flavors.
     pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
+    }
+
+    /// Set the [`SQLITE_OPEN_MEMORY` flag](https://sqlite.org/c3ref/open.html).
+    ///
+    /// By default, this is disabled.
+    pub fn in_memory(mut self, in_memory: bool) -> Self {
+        self.in_memory = in_memory;
+        self
     }
 
     /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
