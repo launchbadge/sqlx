@@ -16,9 +16,13 @@ use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
 use url::Url;
+use crate::query::metadata::Metadata;
 
 mod args;
+mod config;
 mod data;
+mod metadata;
+
 mod input;
 mod output;
 
@@ -68,107 +72,26 @@ impl<'a> QueryDataSource<'a> {
     }
 }
 
-struct Metadata {
-    #[allow(unused)]
-    manifest_dir: PathBuf,
-    offline: bool,
-    database_url: Option<String>,
-    workspace_root: Arc<Mutex<Option<PathBuf>>>,
-}
-
-impl Metadata {
-    pub fn workspace_root(&self) -> PathBuf {
-        let mut root = self.workspace_root.lock().unwrap();
-        if root.is_none() {
-            use serde::Deserialize;
-            use std::process::Command;
-
-            let cargo = env("CARGO").expect("`CARGO` must be set");
-
-            let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1", "--no-deps"])
-                .current_dir(&self.manifest_dir)
-                .env_remove("__CARGO_FIX_PLZ")
-                .output()
-                .expect("Could not fetch metadata");
-
-            #[derive(Deserialize)]
-            struct CargoMetadata {
-                workspace_root: PathBuf,
-            }
-
-            let metadata: CargoMetadata =
-                serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-            *root = Some(metadata.workspace_root);
-        }
-        root.clone().unwrap()
-    }
-}
-
-// If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
-// reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static METADATA: Lazy<Metadata> = Lazy::new(|| {
-    let manifest_dir: PathBuf = env("CARGO_MANIFEST_DIR")
-        .expect("`CARGO_MANIFEST_DIR` must be set")
-        .into();
-
-    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
-    // otherwise fallback to default dotenv behaviour.
-    let env_path = manifest_dir.join(".env");
-
-    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
-    let env_path = if env_path.exists() {
-        let res = dotenvy::from_path(&env_path);
-        if let Err(e) = res {
-            panic!("failed to load environment from {env_path:?}, {e}");
-        }
-
-        Some(env_path)
-    } else {
-        dotenvy::dotenv().ok()
-    };
-
-    // tell the compiler to watch the `.env` for changes, if applicable
-    #[cfg(procmacro2_semver_exempt)]
-    if let Some(env_path) = env_path.as_ref().and_then(|path| path.to_str()) {
-        proc_macro::tracked_path::path(env_path);
-    }
-
-    let offline = env("SQLX_OFFLINE")
-        .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
-        .unwrap_or(false);
-
-    let database_url = env("DATABASE_URL").ok();
-
-    Metadata {
-        manifest_dir,
-        offline,
-        database_url,
-        workspace_root: Arc::new(Mutex::new(None)),
-    }
-});
-
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let data_source = match &*METADATA {
+    let data_source = match Metadata::get()? {
         Metadata {
             offline: false,
             database_url: Some(db_url),
             ..
         } => QueryDataSource::live(db_url)?,
 
-        Metadata { offline, .. } => {
+        meta@ Metadata { offline, manifest_dir, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
             let dirs = [
                 || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
-                || Some(METADATA.manifest_dir.join(".sqlx")),
-                || Some(METADATA.workspace_root().join(".sqlx")),
+                || Some(manifest_dir.join(".sqlx")),
+                || Some(meta.workspace_root().expect("failed to find workspace root").join(".sqlx")),
             ];
             let Some(data_file_path) = dirs
                 .iter()
@@ -178,10 +101,10 @@ pub fn expand_input<'a>(
             else {
                 return Err(
                     if *offline {
-                        "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` to update the query cache or unset `SQLX_OFFLINE`"
+                        "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` (with `sqlx-cli` installed) to update the query cache or unset `SQLX_OFFLINE`".into()
                     } else {
-                        "set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache"
-                    }.into()
+                        format!("set `{}` to use query macros online, or run `cargo sqlx prepare` (with `sqlx-cli` installed) to update the query cache", meta.url_var()).into()
+                    }
                 );
             };
 
