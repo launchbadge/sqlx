@@ -141,8 +141,8 @@ impl<'a> TryFrom<&'a SqliteTypeInfo> for AnyTypeInfo {
         Ok(AnyTypeInfo {
             kind: match &sqlite_type.0 {
                 DataType::Null => AnyTypeInfoKind::Null,
-                DataType::Int => AnyTypeInfoKind::Integer,
-                DataType::Int64 => AnyTypeInfoKind::BigInt,
+                DataType::Int4 => AnyTypeInfoKind::Integer,
+                DataType::Integer => AnyTypeInfoKind::BigInt,
                 DataType::Float => AnyTypeInfoKind::Double,
                 DataType::Blob => AnyTypeInfoKind::Blob,
                 DataType::Text => AnyTypeInfoKind::Text,

@@ -181,7 +181,7 @@ impl RegDataType {
     fn map_to_datatype(&self) -> DataType {
         match self {
             RegDataType::Single(d) => d.map_to_datatype(),
-            RegDataType::Int(_) => DataType::Int,
+            RegDataType::Int(_) => DataType::Integer,
         }
     }
     fn map_to_nullable(&self) -> Option<bool> {
@@ -194,7 +194,7 @@ impl RegDataType {
         match self {
             RegDataType::Single(d) => d.clone(),
             RegDataType::Int(_) => ColumnType::Single {
-                datatype: DataType::Int,
+                datatype: DataType::Integer,
                 nullable: Some(false),
             },
         }
@@ -311,7 +311,7 @@ impl CursorDataType {
 fn affinity_to_type(affinity: u8) -> DataType {
     match affinity {
         SQLITE_AFF_BLOB => DataType::Blob,
-        SQLITE_AFF_INTEGER => DataType::Int64,
+        SQLITE_AFF_INTEGER => DataType::Integer,
         SQLITE_AFF_NUMERIC => DataType::Numeric,
         SQLITE_AFF_REAL => DataType::Float,
         SQLITE_AFF_TEXT => DataType::Text,
@@ -326,7 +326,7 @@ fn opcode_to_type(op: &str) -> DataType {
         OP_REAL => DataType::Float,
         OP_BLOB => DataType::Blob,
         OP_AND | OP_OR => DataType::Bool,
-        OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Int64,
+        OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Integer,
         OP_STRING8 => DataType::Text,
         OP_COLUMN | _ => DataType::Null,
     }
@@ -649,7 +649,7 @@ pub(super) fn explain(
                             state.mem.r.insert(
                                 p1,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(false),
                                 }),
                             );
@@ -843,7 +843,7 @@ pub(super) fn explain(
                     state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
-                            datatype: DataType::Int64,
+                            datatype: DataType::Integer,
                             nullable: Some(false),
                         }),
                     );
@@ -999,7 +999,7 @@ pub(super) fn explain(
                             state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(false),
                                 }),
                             );
@@ -1029,7 +1029,7 @@ pub(super) fn explain(
                             state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(p2 != 0), //never a null result if no argument provided
                                 }),
                             );
@@ -1073,7 +1073,7 @@ pub(super) fn explain(
                         state.mem.r.insert(
                             p3,
                             RegDataType::Single(ColumnType::Single {
-                                datatype: DataType::Int64,
+                                datatype: DataType::Integer,
                                 nullable: Some(false),
                             }),
                         );
@@ -1089,9 +1089,10 @@ pub(super) fn explain(
                     } else if p4.starts_with("sum(") {
                         if let Some(r_p2) = state.mem.r.get(&p2) {
                             let datatype = match r_p2.map_to_datatype() {
-                                DataType::Int64 => DataType::Int64,
-                                DataType::Int => DataType::Int,
-                                DataType::Bool => DataType::Int,
+                                // The result of a `SUM()` can be arbitrarily large
+                                DataType::Integer | DataType::Int4 | DataType::Bool => {
+                                    DataType::Integer
+                                }
                                 _ => DataType::Float,
                             };
                             let nullable = r_p2.map_to_nullable();
@@ -1130,7 +1131,7 @@ pub(super) fn explain(
                         state.mem.r.insert(
                             p1,
                             RegDataType::Single(ColumnType::Single {
-                                datatype: DataType::Int64,
+                                datatype: DataType::Integer,
                                 nullable: Some(false),
                             }),
                         );
@@ -1275,7 +1276,7 @@ pub(super) fn explain(
                     state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
-                            datatype: DataType::Int64,
+                            datatype: DataType::Integer,
                             nullable: Some(false),
                         }),
                     );
@@ -1471,7 +1472,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1496,7 +1497,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["i1"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1514,7 +1515,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["i2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1532,7 +1533,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]
@@ -1557,7 +1558,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2i1"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]
@@ -1575,7 +1576,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2i2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]

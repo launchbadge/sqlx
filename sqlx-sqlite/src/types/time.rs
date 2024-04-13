@@ -29,7 +29,7 @@ impl Type<Sqlite> for PrimitiveDateTime {
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int
+            DataType::Datetime | DataType::Text | DataType::Integer | DataType::Int4
         )
     }
 }
@@ -122,7 +122,7 @@ impl<'r> Decode<'r, Sqlite> for Time {
 fn decode_offset_datetime(value: SqliteValueRef<'_>) -> Result<OffsetDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_offset_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        DataType::Int4 | DataType::Integer => {
             Some(OffsetDateTime::from_unix_timestamp(value.int64())?)
         }
 
@@ -155,7 +155,7 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<PrimitiveDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        DataType::Int4 | DataType::Integer => {
             let parsed = OffsetDateTime::from_unix_timestamp(value.int64()).unwrap();
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }
