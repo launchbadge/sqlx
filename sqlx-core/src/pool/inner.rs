@@ -594,7 +594,7 @@ impl<DB: Database> DecrementSizeGuard<DB> {
 
     pub fn from_permit(pool: Arc<PoolInner<DB>>, permit: AsyncSemaphoreReleaser<'_>) -> Self {
         // here we effectively take ownership of the permit
-        permit.disarm();
+        permit.consume();
         Self::new_permit(pool)
     }
 

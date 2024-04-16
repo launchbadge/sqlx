@@ -2,11 +2,11 @@ use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
 
-use either::Either;
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use std::fmt::Debug;
+use std::marker::PhantomData;
+use crate::query_string::QueryString;
+use crate::result_set::ResultSet;
 
 /// A type that contains or can provide a database
 /// connection to use for executing queries against the database.
@@ -32,110 +32,19 @@ use std::fmt::Debug;
 ///
 pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
+    type ResultSet: ResultSet<
+        Database = Self::Database,
+        Row = <Self::Database as Database>::Row
+    >;
 
-    /// Execute the query and return the total number of rows affected.
-    fn execute<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::QueryResult, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>,
-    {
-        self.execute_many(query).try_collect().boxed()
-    }
+    /// Execute a query as an implicitly prepared statement.
+    async fn execute_prepared(&mut self, params: ExecutePrepared<'_, Self::Database>) -> Self::ResultSet;
 
-    /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<'e, Result<<Self::Database as Database>::QueryResult, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>,
-    {
-        self.fetch_many(query)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(rows) => Some(rows),
-                    Either::Right(_) => None,
-                })
-            })
-            .boxed()
-    }
-
-    /// Execute the query and return the generated results as a stream.
-    fn fetch<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<'e, Result<<Self::Database as Database>::Row, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>,
-    {
-        self.fetch_many(query)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(_) => None,
-                    Either::Right(row) => Some(row),
-                })
-            })
-            .boxed()
-    }
-
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<
-        'e,
-        Result<
-            Either<<Self::Database as Database>::QueryResult, <Self::Database as Database>::Row>,
-            Error,
-        >,
-    >
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>;
-
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Vec<<Self::Database as Database>::Row>, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>,
-    {
-        self.fetch(query).try_collect().boxed()
-    }
-
-    /// Execute the query and returns exactly one row.
-    fn fetch_one<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Row, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>,
-    {
-        self.fetch_optional(query)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
-            })
-            .boxed()
-    }
-
-    /// Execute the query and returns at most one row.
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
-    where
-        'c: 'e,
-        E: Execute<'q, Self::Database>;
+    /// Execute raw SQL without creating a prepared statement.
+    ///
+    /// The SQL string may contain multiple statements separated by semicolons (`;`)
+    /// as well as DDL (`CREATE TABLE`, `ALTER TABLE`, etc.).
+    async fn execute_raw(&mut self, params: ExecuteRaw<'_, Self::Database>) -> Self::ResultSet;
 
     /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.
@@ -146,14 +55,14 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This explicit API is provided to allow access to the statement metadata available after
     /// it prepared but before the first row is returned.
     #[inline]
-    fn prepare<'e, 'q: 'e>(
+    async fn prepare<'e, 'q: 'e>(
         self,
         query: &'q str,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
+    ) -> Result<<Self::Database as Database>::Statement<'q>, Error>
     where
         'c: 'e,
     {
-        self.prepare_with(query, &[])
+        self.prepare_with(query, &[]).await
     }
 
     /// Prepare the SQL query, with parameter type information, to inspect the
@@ -161,11 +70,11 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ///
     /// Only some database drivers (PostgreSQL, MSSQL) can take advantage of
     /// this extra information to influence parameter type inference.
-    fn prepare_with<'e, 'q: 'e>(
+    async fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
+    ) -> Result<<Self::Database as Database>::Statement<'q>, Error>
     where
         'c: 'e;
 
@@ -183,73 +92,42 @@ pub trait Executor<'c>: Send + Debug + Sized {
         'c: 'e;
 }
 
-/// A type that may be executed against a database connection.
-///
-/// Implemented for the following:
-///
-///  * [`&str`](std::str)
-///  * [`Query`](super::query::Query)
-///
-pub trait Execute<'q, DB: Database>: Send + Sized {
-    /// Gets the SQL that will be executed.
-    fn sql(&self) -> &'q str;
-
-    /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&DB::Statement<'q>>;
-
-    /// Returns the arguments to be bound against the query string.
+/// Arguments struct for [`Executor::execute_prepared()`].
+pub struct ExecutePrepared<'q, DB: Database> {
+    /// The SQL string to execute.
+    pub query: QueryString<'_>,
+    /// The bind arguments for the query string; must match the number of placeholders.
+    pub arguments: <DB as Database>::Arguments<'q>,
+    /// The maximum number of rows to return.
     ///
-    /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
-    /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
-    /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>>;
-
-    /// Returns `true` if the statement should be cached.
-    fn persistent(&self) -> bool;
+    /// Set to `Some(0)` to just get the result.
+    pub limit: Option<u64>,
+    /// The number of rows to request from the database at a time.
+    ///
+    /// This is the maximum number of rows that will be buffered in-memory.
+    ///
+    /// This will also be the maximum number of rows that need to be read and discarded should the
+    /// [`ResultSet`] be dropped early.
+    pub buffer: Option<usize>,
+    /// If `true`, prepare the statement with a name and cache it for later re-use.
+    pub persistent: bool,
+    _db: PhantomData<DB>
 }
 
-// NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
-//       involved to write `conn.execute(format!("SELECT {val}"))`
-impl<'q, DB: Database> Execute<'q, DB> for &'q str {
-    #[inline]
-    fn sql(&self) -> &'q str {
-        self
-    }
-
-    #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
-        None
-    }
-
-    #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        None
-    }
-
-    #[inline]
-    fn persistent(&self) -> bool {
-        true
-    }
-}
-
-impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as Database>::Arguments<'q>>) {
-    #[inline]
-    fn sql(&self) -> &'q str {
-        self.0
-    }
-
-    #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
-        None
-    }
-
-    #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        self.1.take()
-    }
-
-    #[inline]
-    fn persistent(&self) -> bool {
-        true
-    }
+/// Arguments struct for [`Executor::execute_raw()`].
+pub struct ExecuteRaw<'q, DB: Database> {
+    /// The SQL string to execute.
+    pub query: QueryString<'_>,
+    /// The maximum number of rows to return.
+    ///
+    /// Set to `Some(0)` to just get the result.
+    pub limit: Option<u64>,
+    /// The number of rows to request from the database at a time.
+    ///
+    /// This is the maximum number of rows that will be buffered in-memory.
+    ///
+    /// This will also be the maximum number of rows that need to be read and discarded should the
+    /// [`ResultSet`] be dropped early.
+    pub buffer: Option<usize>,
+    _db: PhantomData<DB>
 }

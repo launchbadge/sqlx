@@ -58,6 +58,7 @@ use std::fmt::Debug;
 use crate::arguments::Arguments;
 use crate::column::Column;
 use crate::connection::Connection;
+use crate::result_set::ResultSet;
 use crate::row::Row;
 
 use crate::statement::Statement;
@@ -81,6 +82,8 @@ pub trait Database: 'static + Sized + Send + Debug {
 
     /// The concrete `QueryResult` implementation for this database.
     type QueryResult: 'static + Sized + Send + Sync + Default + Extend<Self::QueryResult>;
+
+    type ResultSet: ResultSet;
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;

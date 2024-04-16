@@ -5,6 +5,7 @@ use std::mem;
 use crate::database::Database;
 
 /// The return type of [Encode::encode].
+#[must_use = "NULL values may write no data to the argument buffer"]
 pub enum IsNull {
     /// The value is null; no data was written.
     Yes,
@@ -17,20 +18,10 @@ pub enum IsNull {
 
 /// Encode a single value to be sent to the database.
 pub trait Encode<'q, DB: Database> {
-    /// Writes the value of `self` into `buf` in the expected format for the database.
-    #[must_use]
-    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull
-    where
-        Self: Sized,
-    {
-        self.encode_by_ref(buf)
-    }
-
     /// Writes the value of `self` into `buf` without moving `self`.
     ///
     /// Where possible, make use of `encode` instead as it can take advantage of re-using
     /// memory.
-    #[must_use]
     fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> IsNull;
 
     fn produces(&self) -> Option<DB::TypeInfo> {

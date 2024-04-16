@@ -9,13 +9,14 @@ use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::query_string::QueryString;
 use crate::statement::Statement;
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement. Returned by [`query()`].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
-    pub(crate) statement: Either<&'q str, &'q DB::Statement<'q>>,
+    pub(crate) statement: Either<QueryString<'q>, &'q DB::Statement<'q>>,
     pub(crate) arguments: Option<A>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,

@@ -1,15 +1,12 @@
+use std::ops::{Deref, DerefMut};
+
+pub mod spsc;
+
 // For types with identical signatures that don't require runtime support,
 // we can just arbitrarily pick one to use based on what's enabled.
 //
 // We'll generally lean towards Tokio's types as those are more featureful
 // (including `tokio-console` support) and more widely deployed.
-
-#[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-pub use async_std::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(feature = "_rt-tokio")]
-pub use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
 pub struct AsyncSemaphore {
     // We use the semaphore from futures-intrusive as the one from async-std
     // is missing the ability to add arbitrary permits, and is not guaranteed to be fair:
@@ -125,7 +122,7 @@ pub struct AsyncSemaphoreReleaser<'a> {
 }
 
 impl AsyncSemaphoreReleaser<'_> {
-    pub fn disarm(self) {
+    pub fn consume(self) {
         #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
         {
             let mut this = self;
@@ -141,5 +138,67 @@ impl AsyncSemaphoreReleaser<'_> {
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
         crate::rt::missing_rt(())
+    }
+}
+
+pub struct AsyncMutex<T> {
+    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
+    inner: async_std::sync::Mutex<T>,
+
+    #[cfg(feature = "_rt-tokio")]
+    inner: tokio::sync::Mutex<T>,
+}
+
+pub struct AsyncMutexGuard<'a, T> {
+    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
+    inner: async_std::sync::MutexGuard<'a, T>,
+
+    #[cfg(feature = "_rt-tokio")]
+    inner: tokio::sync::MutexGuard<'a, T>,
+}
+
+impl<T> AsyncMutex<T> {
+    pub fn new(value: T) -> Self {
+        if cfg!(not(any(feature = "_rt-async-std", feature = "_rt-tokio"))) {
+            crate::rt::missing_rt(value);
+        }
+
+        AsyncMutex {
+            #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
+            inner: async_std::sync::Mutex::new(value),
+
+            #[cfg(feature = "_rt-tokio")]
+            inner: tokio::sync::Mutex::new(value),
+        }
+    }
+
+    pub async fn lock(&self) -> AsyncMutexGuard<'_, T> {
+        AsyncMutexGuard {
+            inner: self.inner.lock().await,
+        }
+    }
+
+    pub fn try_lock(&self) -> Option<AsyncMutexGuard<'_, T>> {
+        Some(AsyncMutexGuard {
+            #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
+            inner: self.inner.try_lock()?,
+
+            #[cfg(feature = "_rt-tokio")]
+            inner: self.inner.try_lock().ok()?,
+        })
+    }
+}
+
+impl<T> Deref for AsyncMutexGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for AsyncMutexGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
