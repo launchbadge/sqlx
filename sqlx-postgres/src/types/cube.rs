@@ -44,7 +44,9 @@ const BYTE_WIDTH: usize = 8;
 fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
     bytes
         .get(start..start + BYTE_WIDTH)
-        .ok_or(Error::Decode("Could not decode cube bytes".into()))?
+        .ok_or(Error::Decode(
+            format!("Could not decode cube bytes: {:?}", bytes).into(),
+        ))?
         .try_into()
         .map(f64::from_be_bytes)
         .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
@@ -100,19 +102,15 @@ fn parse_zero_volume(content: &str) -> Result<PgCube, Error> {
 
 fn parse_one_dimensional_interval(point_vecs: Vec<&str>) -> Result<PgCube, Error> {
     let x = parse_float_from_str(
-        &remove_parentheses(
-            point_vecs
-                .get(0)
-                .ok_or(Error::Decode("Could not decode cube bytes".into()))?,
-        ),
+        &remove_parentheses(point_vecs.get(0).ok_or(Error::Decode(
+            format!("Could not decode cube interval x: {:?}", point_vecs).into(),
+        ))?),
         "Failed to parse X in one-dimensional interval",
     )?;
     let y = parse_float_from_str(
-        &remove_parentheses(
-            point_vecs
-                .get(1)
-                .ok_or(Error::Decode("Could not decode cube bytes".into()))?,
-        ),
+        &remove_parentheses(point_vecs.get(1).ok_or(Error::Decode(
+            format!("Could not decode cube interval y: {:?}", point_vecs).into(),
+        ))?),
         "Failed to parse Y in one-dimensional interval",
     )?;
     Ok(PgCube::OneDimensionInterval(x, y))
@@ -144,9 +142,9 @@ impl TryFrom<&str> for PgCube {
     type Error = Error;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
-        let content = &input
-            .get(1..input.len() - 1)
-            .ok_or(Error::Decode("Could not decode cube bytes".into()))?;
+        let content = &input.get(1..input.len() - 1).ok_or(Error::Decode(
+            format!("Could not decode cube string: {}", input).into(),
+        ))?;
 
         if !content.contains('(') && !content.contains(',') {
             return parse_point(content);
@@ -172,12 +170,16 @@ impl TryFrom<&[u8]> for PgCube {
         let cube_type = bytes
             .get(0)
             .map(|&byte| byte as usize)
-            .ok_or(Error::Decode("Could not decode cube bytes".into()))?;
+            .ok_or(Error::Decode(
+                format!("Could not decode cube bytes: {:?}", bytes).into(),
+            ))?;
 
         let dimensionality = bytes
             .get(3)
             .map(|&byte| byte as usize)
-            .ok_or(Error::Decode("Could not decode cube bytes".into()))?;
+            .ok_or(Error::Decode(
+                format!("Could not decode cube bytes: {:?}", bytes).into(),
+            ))?;
 
         let start_index = 4;
 
@@ -201,8 +203,8 @@ impl TryFrom<&[u8]> for PgCube {
             )?)),
             (flag, dimension) => Err(Error::Decode(
                 format!(
-                    "Could not deserialise cube with flag {} and dimension {}",
-                    flag, dimension,
+                    "Could not deserialise cube with flag {} and dimension {}: {:?}",
+                    flag, dimension, bytes
                 )
                 .into(),
             )),
