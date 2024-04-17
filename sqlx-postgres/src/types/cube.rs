@@ -5,6 +5,11 @@ use crate::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::Error;
 
 const BYTE_WIDTH: usize = 8;
+const CUBE_TYPE_ZERO_VOLUME: usize = 128;
+const CUBE_TYPE_DEFAULT: usize = 0;
+const CUBE_DIMENSION_ONE: usize = 1;
+const DIMENSIONALITY_POSITION: usize = 3;
+const START_INDEX: usize = 4;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PgCube {
@@ -78,30 +83,30 @@ impl TryFrom<&[u8]> for PgCube {
             ))?;
 
         let dimensionality = bytes
-            .get(3)
+            .get(DIMENSIONALITY_POSITION)
             .map(|&byte| byte as usize)
             .ok_or(Error::Decode(
                 format!("Could not decode cube bytes: {:?}", bytes).into(),
             ))?;
 
-        let start_index = 4;
-
         match (cube_type, dimensionality) {
-            (128, 1) => {
+            (CUBE_TYPE_ZERO_VOLUME, CUBE_DIMENSION_ONE) => {
                 let point = get_f64_from_bytes(&bytes, 4)?;
                 Ok(PgCube::Point(point))
             }
-            (128, _) => Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, start_index)?)),
-            (0, 1) => {
+            (CUBE_TYPE_ZERO_VOLUME, _) => {
+                Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, START_INDEX)?))
+            }
+            (CUBE_TYPE_DEFAULT, CUBE_DIMENSION_ONE) => {
                 let x_start = 4;
                 let y_start = x_start + BYTE_WIDTH;
                 let x = get_f64_from_bytes(&bytes, x_start)?;
                 let y = get_f64_from_bytes(&bytes, y_start)?;
                 Ok(PgCube::OneDimensionInterval(x, y))
             }
-            (0, dim) => Ok(PgCube::MultiDimension(deserialize_matrix(
+            (CUBE_TYPE_DEFAULT, dim) => Ok(PgCube::MultiDimension(deserialize_matrix(
                 &bytes,
-                start_index,
+                START_INDEX,
                 dim,
             )?)),
             (flag, dimension) => Err(Error::Decode(
