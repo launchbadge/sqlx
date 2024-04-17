@@ -125,12 +125,17 @@ impl PgCube {
         let mut buff: Vec<u8> = vec![];
         match self {
             PgCube::Point(value) => {
-                buff.extend_from_slice(&[128, 0, 0, 1]);
+                buff.extend_from_slice(&[
+                    CUBE_TYPE_ZERO_VOLUME as u8,
+                    0,
+                    0,
+                    CUBE_DIMENSION_ONE as u8,
+                ]);
                 buff.extend_from_slice(&value.to_be_bytes());
             }
             PgCube::ZeroVolume(values) => {
                 let dimension = values.len() as u8;
-                buff.extend_from_slice(&[128, 0, 0]);
+                buff.extend_from_slice(&[CUBE_TYPE_ZERO_VOLUME as u8, 0, 0]);
                 buff.extend_from_slice(&dimension.to_be_bytes());
                 let bytes = values
                     .into_iter()
@@ -139,7 +144,7 @@ impl PgCube {
                 buff.extend_from_slice(&bytes);
             }
             PgCube::OneDimensionInterval(x, y) => {
-                buff.extend_from_slice(&[0, 0, 0, 1]);
+                buff.extend_from_slice(&[0, 0, 0, CUBE_DIMENSION_ONE as u8]);
                 buff.extend_from_slice(&x.to_be_bytes());
                 buff.extend_from_slice(&y.to_be_bytes());
             }
