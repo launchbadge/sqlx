@@ -51,7 +51,7 @@ fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
         .map(f64::from_be_bytes)
         .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
 }
-// Helper to deserialize a vector of f64 values
+
 fn deserialize_vector(bytes: &[u8], start_index: usize) -> Result<Vec<f64>, Error> {
     let steps = (bytes.len() - start_index) / BYTE_WIDTH;
     (0..steps)
@@ -59,7 +59,6 @@ fn deserialize_vector(bytes: &[u8], start_index: usize) -> Result<Vec<f64>, Erro
         .collect()
 }
 
-// Helper to deserialize a matrix of f64 values
 fn deserialize_matrix(
     bytes: &[u8],
     start_index: usize,
@@ -190,8 +189,8 @@ impl TryFrom<&[u8]> for PgCube {
             }
             (128, _) => Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, start_index)?)),
             (0, 1) => {
-                let x_start = 4; // 16 bytes per dimension (2 coordinates)
-                let y_start = x_start + BYTE_WIDTH; // Upper right follows lower left
+                let x_start = 4;
+                let y_start = x_start + BYTE_WIDTH;
                 let x = get_f64_from_bytes(&bytes, x_start)?;
                 let y = get_f64_from_bytes(&bytes, y_start)?;
                 Ok(PgCube::OneDimensionInterval(x, y))
