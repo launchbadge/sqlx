@@ -63,6 +63,18 @@ fn add_client_attributes(attr: &mut BTreeMap<&str, &str>) {
     attr.insert("_client_version", env!("CARGO_PKG_VERSION"));
 }
 
+#[cfg(test)]
+#[macro_export]
+macro_rules! u8_slice {
+    ($($data:expr),*) => {{
+        let mut r: Vec<u8> = Vec::new();
+        $(match &stringify!($data)[..1] {
+                "\"" => { r.extend(stringify!($data).trim_matches('"').as_bytes()) }
+                _ => { r.push(stringify!($data).parse::<u8>().unwrap()) }
+        })* r
+    }};
+}
+
 #[test]
 fn test_attributes_not_supported() {
     let capabilities = Capabilities::empty();
@@ -82,23 +94,48 @@ fn test_attribute_encoding() {
         ("attrib3".into(), "456".into()),
     ]));
 
-    macro_rules! u8_slice {
-        ($($data:expr),*) => {
-            vec![ $( $data as u8 ),* ]
-        };
-    }
+    let mut buffer = vec![];
+    client_default.encode_with(&mut buffer, capabilities);
+
+    #[rustfmt::skip]
+    let mut encoded = u8_slice!(
+        7,  "attrib1",
+        4,  "0123",
+
+        13, "attrib2_empty",
+        0,
+
+        7,  "attrib3",
+        3,  "456"
+    );
+
+    // Prefix length (<251) as 1 byte
+    encoded.insert(0, encoded.len() as u8);
+
+    assert_eq!(encoded, buffer.as_slice());
+}
+
+#[test]
+fn test_custom_attributes_override_client_default() {
+    let capabilities = Capabilities::CONNECT_ATTRS;
+    let client_default = Attributes::ClientDefaultAndCustom(BTreeMap::from([
+        ("_client_version".into(), "overwrite1".into()),
+        ("newattrib".into(), "123".into()),
+    ]));
 
     let mut buffer = vec![];
     client_default.encode_with(&mut buffer, capabilities);
 
     #[rustfmt::skip]
     let mut encoded = u8_slice!(
-        7,  'a', 't', 't', 'r', 'i', 'b', '1',
-        4,  '0', '1', '2', '3',
-        13, 'a', 't', 't', 'r', 'i', 'b', '2', '_', 'e', 'm', 'p', 't', 'y',
-        0,
-        7,  'a', 't', 't', 'r', 'i', 'b', '3',
-        3,  '4', '5', '6'
+        12, "_client_name",
+        10, "sqlx-mysql",
+
+        15, "_client_version",
+        10, "overwrite1",
+
+        9,  "newattrib",
+        3,  "123"
     );
 
     // Prefix length (<251) as 1 byte
