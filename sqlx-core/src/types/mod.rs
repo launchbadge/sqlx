@@ -18,7 +18,7 @@
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
 //!
 
-use crate::database::Database;
+use crate::{database::Database, type_info::TypeInfo};
 
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
@@ -234,6 +234,6 @@ impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        <T as Type<DB>>::compatible(ty)
+        ty.is_null() || <T as Type<DB>>::compatible(ty)
     }
 }
