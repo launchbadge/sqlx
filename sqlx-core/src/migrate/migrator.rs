@@ -21,6 +21,8 @@ pub struct Migrator {
     pub ignore_missing: bool,
     #[doc(hidden)]
     pub locking: bool,
+    #[doc(hidden)]
+    pub no_tx: bool,
 }
 
 fn validate_applied_migrations(
@@ -47,6 +49,7 @@ impl Migrator {
     pub const DEFAULT: Migrator = Migrator {
         migrations: Cow::Borrowed(&[]),
         ignore_missing: false,
+        no_tx: false,
         locking: true,
     };
 
