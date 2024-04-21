@@ -84,8 +84,16 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     ///
     /// If encoding the value fails, the error is stored and later surfaced when executing the query.
     pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
-        if let Err(error) = self.try_bind(value) {
-            self.arguments = Some(Err(error));
+        let Ok(arguments) = self.get_arguments() else {
+            return self;
+        };
+
+        let argument_number = arguments.len() + 1;
+        if let Err(error) = arguments.add(value) {
+            self.arguments = Some(Err(format!(
+                "Encoding argument ${argument_number} failed: {error}"
+            )
+            .into()));
         }
 
         self
@@ -96,13 +104,19 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
         &mut self,
         value: T,
     ) -> Result<(), BoxDynError> {
+        let arguments = self.get_arguments()?;
+
+        arguments.add(value)
+    }
+
+    fn get_arguments(&mut self) -> Result<&mut DB::Arguments<'q>, BoxDynError> {
         let Some(Ok(arguments)) = self.arguments.as_mut().map(Result::as_mut) else {
             return Err("A previous call to Query::bind produced an error"
                 .to_owned()
                 .into());
         };
 
-        arguments.add(value)
+        Ok(arguments)
     }
 }
 
