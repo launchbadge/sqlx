@@ -19,6 +19,9 @@ pub trait Arguments<'q>: Send + Sized + Default {
     where
         T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
 
+    /// The number of arguments that were already added.
+    fn len(&self) -> usize;
+
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         writer.write_str("?")
     }

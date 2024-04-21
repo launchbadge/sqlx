@@ -24,6 +24,10 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
         let _: IsNull = value.encode(&mut self.values)?;
         Ok(())
     }
+
+    fn len(&self) -> usize {
+        self.values.0.len()
+    }
 }
 
 pub struct AnyArgumentBuffer<'q>(#[doc(hidden)] pub Vec<AnyValueKind<'q>>);

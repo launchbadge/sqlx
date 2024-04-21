@@ -125,6 +125,10 @@ impl<'q> Arguments<'q> for PgArguments {
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         write!(writer, "${}", self.buffer.count)
     }
+
+    fn len(&self) -> usize {
+        self.buffer.count
+    }
 }
 
 impl PgArgumentBuffer {

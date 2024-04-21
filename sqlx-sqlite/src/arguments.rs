@@ -60,6 +60,10 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
     {
         self.add(value)
     }
+
+    fn len(&self) -> usize {
+        self.values.len()
+    }
 }
 
 impl SqliteArguments<'_> {

@@ -29,11 +29,6 @@ impl MySqlArguments {
 
         Ok(())
     }
-
-    #[doc(hidden)]
-    pub fn len(&self) -> usize {
-        self.types.len()
-    }
 }
 
 impl<'q> Arguments<'q> for MySqlArguments {
@@ -49,5 +44,9 @@ impl<'q> Arguments<'q> for MySqlArguments {
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
         self.add(value)
+    }
+
+    fn len(&self) -> usize {
+        self.types.len()
     }
 }
