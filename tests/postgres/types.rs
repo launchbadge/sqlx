@@ -481,10 +481,13 @@ mod full_text_search {
 
         // with no positions
         let row = conn.fetch_one("SELECT 'text'::tsvector").await?;
-
         let value: TsVector = row.try_get(0)?;
 
         assert_eq!(value.to_string(), "'text'");
+
+        let row = conn.fetch_one(r#"SELECT $$'    A'$$::tsvector;"#).await?;
+        let value = row.get::<TsVector, _>(0).to_string();
+        assert_eq!(value, "'    A'");
 
         Ok(())
     }

@@ -214,13 +214,25 @@ impl TryInto<Vec<u8>> for &TsVector {
     }
 }
 
+fn split_into_ts_vector_words(input: &str) -> impl Iterator<Item = &str> {
+    let mut wrapped = false;
+
+    input.split(move |character: char| {
+        if character == '\'' {
+            wrapped = !wrapped;
+        }
+
+        character.is_whitespace() && !wrapped
+    })
+}
+
 impl FromStr for TsVector {
     type Err = ParseLexemeMetaError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut words: Vec<Lexeme> = vec![];
 
-        for word in s.split(' ') {
+        for word in split_into_ts_vector_words(s) {
             if let Some((word, positions)) = word.rsplit_once(':') {
                 words.push(Lexeme {
                     word: word
