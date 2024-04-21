@@ -234,7 +234,6 @@ mod mac_address;
 #[cfg(feature = "bit-vec")]
 mod bit_vec;
 
-mod ts_query;
 mod ts_vector;
 
 pub use array::PgHasArrayType;
@@ -254,7 +253,6 @@ pub use range::PgRange;
 #[cfg(any(feature = "chrono", feature = "time"))]
 pub use time_tz::PgTimeTz;
 
-pub use ts_query::TsQuery;
 pub use ts_vector::TsVector;
 
 // used in derive(Type) for `struct`
