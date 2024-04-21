@@ -1912,31 +1912,24 @@ async fn test_issue_3052() {
 
     let mut conn = new::<Postgres>().await.unwrap();
 
-    let too_small_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+    let too_small_error = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
         .bind(&too_small)
         .fetch_one(&mut conn)
-        .await;
+        .await
+        .expect_err("Too small number should have failed");
+    assert!(
+        matches!(&too_small_error, sqlx::Error::Encode(_)),
+        "expected encode error, got {too_small_error:?}"
+    );
 
-    match too_small_res {
-        Err(sqlx::Error::Database(dbe)) => {
-            let dbe = dbe.downcast::<PgDatabaseError>();
-
-            assert_eq!(dbe.code(), "22P03");
-        }
-        other => panic!("expected Err(DatabaseError), got {other:?}"),
-    }
-
-    let too_large_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+    let too_large_error = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
         .bind(&too_large)
         .fetch_one(&mut conn)
-        .await;
+        .await
+        .expect_err("Too large number should have failed");
 
-    match too_large_res {
-        Err(sqlx::Error::Database(dbe)) => {
-            let dbe = dbe.downcast::<PgDatabaseError>();
-
-            assert_eq!(dbe.code(), "22P03");
-        }
-        other => panic!("expected Err(DatabaseError), got {other:?}"),
-    }
+    assert!(
+        matches!(&too_large_error, sqlx::Error::Encode(_)),
+        "expected encode error, got {too_large_error:?}",
+    );
 }
