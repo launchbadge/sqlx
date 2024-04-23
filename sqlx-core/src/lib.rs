@@ -72,6 +72,7 @@ pub mod net;
 pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
+pub mod sql_str;
 
 pub mod raw_sql;
 pub mod row;

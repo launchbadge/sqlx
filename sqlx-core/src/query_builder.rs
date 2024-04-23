@@ -3,7 +3,7 @@
 use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
-
+use std::sync::Arc;
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::Database;
 use crate::encode::Encode;
@@ -13,6 +13,7 @@ use crate::query_as::QueryAs;
 use crate::query_scalar::QueryScalar;
 use crate::types::Type;
 use crate::Either;
+use crate::sql_str::AssertSqlSafe;
 
 /// A builder type for constructing queries at runtime.
 ///
@@ -25,7 +26,9 @@ pub struct QueryBuilder<'args, DB>
 where
     DB: Database,
 {
-    query: String,
+    // Using `Arc` allows us to share the query string allocation with the database driver.
+    // It's only copied if the driver retains ownership after execution.
+    query: Arc<String>,
     init_len: usize,
     arguments: Option<<DB as Database>::Arguments<'args>>,
 }
@@ -85,6 +88,16 @@ where
             "QueryBuilder must be reset before reuse after `.build()`"
         );
     }
+    
+    fn query_mut(&mut self) -> &mut String {
+        assert!(
+            self.arguments.is_some(),
+            "QueryBuilder must be reset before reuse after `.build()`"
+        );
+
+        Arc::get_mut(&mut self.query)
+            .expect("BUG: query must not be shared at this point in time")
+    }
 
     /// Append a SQL fragment to the query.
     ///
@@ -116,7 +129,7 @@ where
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
         self.sanity_check();
 
-        write!(self.query, "{sql}").expect("error formatting `sql`");
+        write!(self.query_mut(), "{sql}").expect("error formatting `sql`");
 
         self
     }
@@ -158,7 +171,7 @@ where
         arguments.add(value).expect("Failed to add argument");
 
         arguments
-            .format_placeholder(&mut self.query)
+            .format_placeholder(self.query_mut())
             .expect("error in format_placeholder");
 
         self
@@ -453,12 +466,10 @@ where
     pub fn build(&mut self) -> Query<'_, DB, <DB as Database>::Arguments<'args>> {
         self.sanity_check();
 
-        Query {
-            statement: Either::Left(&self.query),
-            arguments: self.arguments.take().map(Ok),
-            database: PhantomData,
-            persistent: true,
-        }
+        crate::query::query_with(
+            AssertSqlSafe(&self.query),
+            self.arguments.take().expect("BUG: just ran sanity_check")
+        )
     }
 
     /// Produce an executable query from this builder.
