@@ -8,15 +8,16 @@ use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::{BoxDynError, Error};
-use crate::executor::{Execute, Executor};
+use crate::executor::{Executor};
+use crate::sql_str::{SqlSafeStr, SqlStr};
 use crate::statement::Statement;
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement. Returned by [`query()`].
 #[must_use = "query must be executed to affect database"]
-pub struct Query<'q, DB: Database, A> {
-    pub(crate) statement: Either<&'q str, &'q DB::Statement<'q>>,
-    pub(crate) arguments: Option<Result<A, BoxDynError>>,
+pub struct Query<'q, 'a, DB: Database> {
+    pub(crate) statement: Either<SqlStr, &'q DB::Statement<'q>>,
+    pub(crate) arguments: Option<Result<DB::Arguments<'a>, BoxDynError>>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,
 }
@@ -33,46 +34,32 @@ pub struct Query<'q, DB: Database, A> {
 /// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, DB: Database, F, A> {
-    inner: Query<'q, DB, A>,
+pub struct Map<'q, 'a, DB: Database, F> {
+    inner: Query<'q, 'a, DB>,
     mapper: F,
 }
 
-impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
+impl<'q, 'a, DB> Query<'q, 'a, DB>
 where
-    DB: Database,
-    A: Send + IntoArguments<'q, DB>,
+    DB: Database + HasStatementCache,
 {
-    #[inline]
-    fn sql(&self) -> &'q str {
-        match self.statement {
-            Either::Right(statement) => statement.sql(),
-            Either::Left(sql) => sql,
-        }
-    }
-
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
-        match self.statement {
-            Either::Right(statement) => Some(statement),
-            Either::Left(_) => None,
-        }
-    }
-
-    #[inline]
-    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
-        self.arguments
-            .take()
-            .transpose()
-            .map(|option| option.map(IntoArguments::into_arguments))
-    }
-
-    #[inline]
-    fn persistent(&self) -> bool {
-        self.persistent
+    /// If `true`, the statement will get prepared once and cached to the
+    /// connection's statement cache.
+    ///
+    /// If queried once with the flag set to `true`, all subsequent queries
+    /// matching the one with the flag will use the cached statement until the
+    /// cache is cleared.
+    ///
+    /// If `false`, the prepared statement will be closed after execution.
+    ///
+    /// Default: `true`.
+    pub fn persistent(mut self, value: bool) -> Self {
+        self.persistent = value;
+        self
     }
 }
 
-impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
+impl<'q, 'a, DB: Database> Query<'q, 'a, DB> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that
@@ -120,31 +107,10 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, A> Query<'q, DB, A>
-where
-    DB: Database + HasStatementCache,
-{
-    /// If `true`, the statement will get prepared once and cached to the
-    /// connection's statement cache.
-    ///
-    /// If queried once with the flag set to `true`, all subsequent queries
-    /// matching the one with the flag will use the cached statement until the
-    /// cache is cleared.
-    ///
-    /// If `false`, the prepared statement will be closed after execution.
-    ///
-    /// Default: `true`.
-    pub fn persistent(mut self, value: bool) -> Self {
-        self.persistent = value;
-        self
-    }
-}
-
-impl<'q, DB, A: Send> Query<'q, DB, A>
-where
-    DB: Database,
-    A: 'q + IntoArguments<'q, DB>,
-{
+impl<'q, 'a, DB> Query<'q, 'a, DB>
+    where
+        DB: Database,
+    {
     /// Map each row in the result to another type.
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
@@ -155,7 +121,7 @@ where
     pub fn map<F, O>(
         self,
         mut f: F,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send, A>
+    ) -> Map<'q, 'a, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send>
     where
         F: FnMut(DB::Row) -> O + Send,
         O: Unpin,
@@ -168,7 +134,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
+    pub fn try_map<F, O>(self, f: F) -> Map<'q, 'a, DB, F>
     where
         F: FnMut(DB::Row) -> Result<O, Error> + Send,
         O: Unpin,
@@ -184,25 +150,10 @@ where
     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
     where
         'q: 'e,
-        A: 'e,
+        'a: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.execute(self).await
-    }
-
-    /// Execute multiple queries and return the rows affected from each query, in a stream.
-    #[inline]
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead. See https://github.com/launchbadge/sqlx/issues/3108 for discussion."]
-    pub async fn execute_many<'e, 'c: 'e, E>(
-        self,
-        executor: E,
-    ) -> BoxStream<'e, Result<DB::QueryResult, Error>>
-    where
-        'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
-    {
-        executor.execute_many(self)
     }
 
     /// Execute the query and return the generated results as a stream.
@@ -210,7 +161,6 @@ where
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<DB::Row, Error>>
     where
         'q: 'e,
-        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch(self)
@@ -229,7 +179,6 @@ where
     ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
     where
         'q: 'e,
-        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_many(self)
@@ -246,7 +195,6 @@ where
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
     where
         'q: 'e,
-        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_all(self).await
@@ -268,7 +216,6 @@ where
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
     where
         'q: 'e,
-        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_one(self).await
@@ -290,45 +237,51 @@ where
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
     where
         'q: 'e,
-        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_optional(self).await
     }
 }
 
-impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
+#[doc(hidden)]
+impl<'q, 'a, DB> Query<'q, 'a, DB>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
-        self.inner.sql()
+        match &self.statement {
+            Either::Right(statement) => statement.sql(),
+            Either::Left(sql) => sql.as_str(),
+        }
     }
 
-    #[inline]
     fn statement(&self) -> Option<&DB::Statement<'q>> {
-        self.inner.statement()
+        match self.statement {
+            Either::Right(statement) => Some(statement),
+            Either::Left(_) => None,
+        }
     }
 
     #[inline]
     fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
-        self.inner.take_arguments()
+        self.arguments
+            .take()
+            .transpose()
+            .map(|option| option.map(IntoArguments::into_arguments))
     }
 
     #[inline]
-    fn persistent(&self) -> bool {
-        self.inner.arguments.is_some()
+    fn is_persistent(&self) -> bool {
+        self.persistent
     }
 }
 
-impl<'q, DB, F, O, A> Map<'q, DB, F, A>
+impl<'q, 'a, DB, F, O> Map<'q, 'a, DB, F>
 where
     DB: Database,
     F: FnMut(DB::Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q, DB>,
 {
     /// Map each row in the result to another type.
     ///
@@ -340,7 +293,7 @@ where
     pub fn map<G, P>(
         self,
         mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    ) -> Map<'q, 'a, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send>
     where
         G: FnMut(O) -> P + Send,
         P: Unpin,
@@ -356,7 +309,7 @@ where
     pub fn try_map<G, P>(
         self,
         mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    ) -> Map<'q, 'a, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
         P: Unpin,
@@ -497,9 +450,9 @@ where
 }
 
 /// Execute a single SQL query as a prepared statement (explicitly created).
-pub fn query_statement<'q, DB>(
+pub fn query_statement<'q, 'a, DB>(
     statement: &'q DB::Statement<'q>,
-) -> Query<'q, DB, <DB as Database>::Arguments<'_>>
+) -> Query<'q, 'a, DB>
 where
     DB: Database,
 {
@@ -512,17 +465,17 @@ where
 }
 
 /// Execute a single SQL query as a prepared statement (explicitly created), with the given arguments.
-pub fn query_statement_with<'q, DB, A>(
+pub fn query_statement_with<'q, 'a, DB, A>(
     statement: &'q DB::Statement<'q>,
     arguments: A,
-) -> Query<'q, DB, A>
+) -> Query<'q, 'a, DB>
 where
     DB: Database,
     A: IntoArguments<'q, DB>,
 {
     Query {
         database: PhantomData,
-        arguments: Some(Ok(arguments)),
+        arguments: Some(Ok(arguments.into_arguments())),
         statement: Either::Right(statement),
         persistent: true,
     }
@@ -652,14 +605,15 @@ where
 ///
 /// As an additional benefit, query parameters are usually sent in a compact binary encoding instead of a human-readable
 /// text encoding, which saves bandwidth.
-pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as Database>::Arguments<'_>>
+pub fn query<'a, DB, SQL>(sql: SQL) -> Query<'static, 'a, DB>
 where
     DB: Database,
+    SQL: SqlSafeStr,
 {
     Query {
         database: PhantomData,
         arguments: Some(Ok(Default::default())),
-        statement: Either::Left(sql),
+        statement: Either::Left(sql.into_sql_str()),
         persistent: true,
     }
 }
@@ -667,27 +621,27 @@ where
 /// Execute a SQL query as a prepared statement (transparently cached), with the given arguments.
 ///
 /// See [`query()`][query] for details, such as supported syntax.
-pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
+pub fn query_with<'a, DB, SQL, A>(sql: SQL, arguments: A) -> Query<'static, 'a, DB>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: IntoArguments<'a, DB>,
 {
     query_with_result(sql, Ok(arguments))
 }
 
 /// Same as [`query_with`] but is initialized with a Result of arguments instead
-pub fn query_with_result<'q, DB, A>(
-    sql: &'q str,
-    arguments: Result<A, BoxDynError>,
-) -> Query<'q, DB, A>
+pub fn query_with_result<'a, DB, SQL>(
+    sql: SQL,
+    arguments: Result<DB::Arguments<'a>, BoxDynError>,
+) -> Query<'static, 'a, DB>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    SQL: SqlSafeStr,
 {
     Query {
         database: PhantomData,
         arguments: Some(arguments),
-        statement: Either::Left(sql),
+        statement: Either::Left(sql.into_sql_str()),
         persistent: true,
     }
 }
