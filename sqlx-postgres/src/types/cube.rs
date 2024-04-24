@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::types::Type;
@@ -28,7 +30,7 @@ impl Type<Postgres> for PgCube {
 impl<'r> Decode<'r, Postgres> for PgCube {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
-            PgValueFormat::Text => Ok(PgCube::try_from(value.as_str()?)?),
+            PgValueFormat::Text => Ok(PgCube::from_str(value.as_str()?)?),
             PgValueFormat::Binary => Ok(PgCube::try_from(value.as_bytes()?)?),
         }
     }
@@ -40,18 +42,18 @@ impl<'q> Encode<'q, Postgres> for PgCube {
     }
 
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        buf.extend_from_slice(&self.serialize());
+        &self.serialize(buf);
 
         IsNull::No
     }
 }
 
-impl TryFrom<&str> for PgCube {
-    type Error = Error;
+impl FromStr for PgCube {
+    type Err = Error;
 
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
-        let content = &input.get(1..input.len() - 1).ok_or(Error::Decode(
-            format!("Could not decode cube string: {}", input).into(),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let content = &s.get(1..s.len() - 1).ok_or(Error::Decode(
+            format!("Could not decode cube string: {}", s).into(),
         ))?;
 
         if !content.contains('(') && !content.contains(',') {
@@ -121,16 +123,10 @@ impl TryFrom<&[u8]> for PgCube {
 }
 
 impl PgCube {
-    fn serialize(&self) -> Vec<u8> {
-        let mut buff: Vec<u8> = vec![];
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         match self {
             PgCube::Point(value) => {
-                buff.extend_from_slice(&[
-                    CUBE_TYPE_ZERO_VOLUME as u8,
-                    0,
-                    0,
-                    CUBE_DIMENSION_ONE as u8,
-                ]);
+                buff.extend(&[CUBE_TYPE_ZERO_VOLUME as u8, 0, 0, CUBE_DIMENSION_ONE as u8]);
                 buff.extend_from_slice(&value.to_be_bytes());
             }
             PgCube::ZeroVolume(values) => {
@@ -163,7 +159,14 @@ impl PgCube {
                 buff.extend_from_slice(&bytes);
             }
         };
-        buff
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn serialize_to_vec(&self) -> Vec<u8> {
+        let mut buff = PgArgumentBuffer::default();
+        self.serialize(&mut buff).unwrap();
+        buff.to_vec()
     }
 }
 
@@ -265,6 +268,9 @@ fn remove_parentheses(s: &str) -> String {
 
 #[cfg(test)]
 mod cube_tests {
+
+    use std::str::FromStr;
+
     use crate::types::PgCube;
 
     const POINT_BYTES: &[u8] = &[128, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0];
@@ -291,13 +297,13 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_point_type_str() {
-        let cube = PgCube::try_from("(2)").unwrap();
+        let cube = PgCube::from_str("(2)").unwrap();
         assert_eq!(cube, PgCube::Point(2.))
     }
 
     #[test]
     fn can_serialise_point_type() {
-        assert_eq!(PgCube::Point(2.).serialize(), POINT_BYTES,)
+        assert_eq!(PgCube::Point(2.).serialize_to_vec(), POINT_BYTES,)
     }
     #[test]
     fn can_deserialise_zero_volume_bytes() {
@@ -307,14 +313,14 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_zero_volume_string() {
-        let cube = PgCube::try_from("(2,3,4)").unwrap();
+        let cube = PgCube::from_str("(2,3,4)").unwrap();
         assert_eq!(cube, PgCube::ZeroVolume(vec![2., 3., 4.]));
     }
 
     #[test]
     fn can_serialise_zero_volume() {
         assert_eq!(
-            PgCube::ZeroVolume(vec![2., 3.]).serialize(),
+            PgCube::ZeroVolume(vec![2., 3.]).serialize_to_vec(),
             ZERO_VOLUME_BYTES
         );
     }
@@ -327,14 +333,14 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_one_dimension_interval_string() {
-        let cube = PgCube::try_from("((7),(8))").unwrap();
+        let cube = PgCube::from_str("((7),(8))").unwrap();
         assert_eq!(cube, PgCube::OneDimensionInterval(7., 8.))
     }
 
     #[test]
     fn can_serialise_one_dimension_interval() {
         assert_eq!(
-            PgCube::OneDimensionInterval(7., 8.).serialize(),
+            PgCube::OneDimensionInterval(7., 8.).serialize_to_vec(),
             ONE_DIMENSIONAL_INTERVAL_BYTES
         )
     }
@@ -350,7 +356,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_multi_dimension_2_dimension_string() {
-        let cube = PgCube::try_from("((1,2),(3,4))").unwrap();
+        let cube = PgCube::from_str("((1,2),(3,4))").unwrap();
         assert_eq!(
             cube,
             PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
@@ -360,7 +366,7 @@ mod cube_tests {
     #[test]
     fn can_serialise_multi_dimension_2_dimension() {
         assert_eq!(
-            PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]]).serialize(),
+            PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]]).serialize_to_vec(),
             MULTI_DIMENSION_2_DIM_BYTES
         )
     }
@@ -376,7 +382,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_multi_dimension_3_dimension_string() {
-        let cube = PgCube::try_from("((2,3,4),(5,6,7))").unwrap();
+        let cube = PgCube::from_str("((2,3,4),(5,6,7))").unwrap();
         assert_eq!(
             cube,
             PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]])
@@ -386,7 +392,7 @@ mod cube_tests {
     #[test]
     fn can_serialise_multi_dimension_3_dimension() {
         assert_eq!(
-            PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]]).serialize(),
+            PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]]).serialize_to_vec(),
             MULTI_DIMENSION_3_DIM_BYTES
         )
     }
