@@ -58,7 +58,7 @@ impl FromStr for PgCube {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let content = if s.contains("((") && s.contains("))") {
+        let content = if s.starts_with("(") {
             &s.get(1..s.len() - 1).ok_or(Error::Decode(
                 format!("Could not decode cube string: {}", s).into(),
             ))?
