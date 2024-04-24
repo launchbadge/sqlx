@@ -368,9 +368,19 @@ mod cube_tests {
             cube_1,
             PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
         );
-        let cube_2 = PgCube::from_str("(1,2),(3,4)").unwrap();
+        let cube_2 = PgCube::from_str("((1, 2), (3, 4))").unwrap();
         assert_eq!(
             cube_2,
+            PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
+        );
+        let cube_3 = PgCube::from_str("(1,2),(3,4)").unwrap();
+        assert_eq!(
+            cube_3,
+            PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
+        );
+        let cube_4 = PgCube::from_str("(1, 2), (3, 4)").unwrap();
+        assert_eq!(
+            cube_4,
             PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
         )
     }
