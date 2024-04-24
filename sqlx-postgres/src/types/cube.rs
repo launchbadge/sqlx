@@ -58,14 +58,17 @@ impl FromStr for PgCube {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let content = s.trim_start_matches("(").trim_end_matches(")");
+        let content = s
+            .trim_start_matches("(")
+            .trim_end_matches(")")
+            .replace(" ", "");
 
         if !content.contains('(') && !content.contains(',') {
-            return parse_point(content);
+            return parse_point(&content);
         }
 
         if !content.contains("),(") {
-            return parse_zero_volume(content);
+            return parse_zero_volume(&content);
         }
 
         let point_vecs = content.split("),(").collect::<Vec<&str>>();
@@ -208,9 +211,7 @@ fn deserialize_matrix(
 }
 
 fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
-    s.trim()
-        .parse()
-        .map_err(|_| Error::Decode(error_msg.into()))
+    s.parse().map_err(|_| Error::Decode(error_msg.into()))
 }
 
 fn parse_point(str: &str) -> Result<PgCube, Error> {
