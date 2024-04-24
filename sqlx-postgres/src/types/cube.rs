@@ -37,7 +37,7 @@ impl<'r> Decode<'r, Postgres> for PgCube {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
             PgValueFormat::Text => Ok(PgCube::from_str(value.as_str()?)?),
-            PgValueFormat::Binary => Ok(PgCube::try_from(value.as_bytes()?)?),
+            PgValueFormat::Binary => Ok(pg_cube_from_bytes(value.as_bytes()?)?),
         }
     }
 }
@@ -79,52 +79,48 @@ impl FromStr for PgCube {
     }
 }
 
-impl TryFrom<&[u8]> for PgCube {
-    type Error = Error;
+fn pg_cube_from_bytes(bytes: &[u8]) -> Result<PgCube, Error> {
+    let cube_type = bytes
+        .get(0)
+        .map(|&byte| byte as usize)
+        .ok_or(Error::Decode(
+            format!("Could not decode cube bytes: {:?}", bytes).into(),
+        ))?;
 
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let cube_type = bytes
-            .get(0)
-            .map(|&byte| byte as usize)
-            .ok_or(Error::Decode(
-                format!("Could not decode cube bytes: {:?}", bytes).into(),
-            ))?;
+    let dimensionality = bytes
+        .get(DIMENSIONALITY_POSITION)
+        .map(|&byte| byte as usize)
+        .ok_or(Error::Decode(
+            format!("Could not decode cube bytes: {:?}", bytes).into(),
+        ))?;
 
-        let dimensionality = bytes
-            .get(DIMENSIONALITY_POSITION)
-            .map(|&byte| byte as usize)
-            .ok_or(Error::Decode(
-                format!("Could not decode cube bytes: {:?}", bytes).into(),
-            ))?;
-
-        match (cube_type, dimensionality) {
-            (CUBE_TYPE_ZERO_VOLUME, CUBE_DIMENSION_ONE) => {
-                let point = get_f64_from_bytes(&bytes, 4)?;
-                Ok(PgCube::Point(point))
-            }
-            (CUBE_TYPE_ZERO_VOLUME, _) => {
-                Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, START_INDEX)?))
-            }
-            (CUBE_TYPE_DEFAULT, CUBE_DIMENSION_ONE) => {
-                let x_start = 4;
-                let y_start = x_start + BYTE_WIDTH;
-                let x = get_f64_from_bytes(&bytes, x_start)?;
-                let y = get_f64_from_bytes(&bytes, y_start)?;
-                Ok(PgCube::OneDimensionInterval(x, y))
-            }
-            (CUBE_TYPE_DEFAULT, dim) => Ok(PgCube::MultiDimension(deserialize_matrix(
-                &bytes,
-                START_INDEX,
-                dim,
-            )?)),
-            (flag, dimension) => Err(Error::Decode(
-                format!(
-                    "Could not deserialise cube with flag {} and dimension {}: {:?}",
-                    flag, dimension, bytes
-                )
-                .into(),
-            )),
+    match (cube_type, dimensionality) {
+        (CUBE_TYPE_ZERO_VOLUME, CUBE_DIMENSION_ONE) => {
+            let point = get_f64_from_bytes(&bytes, 4)?;
+            Ok(PgCube::Point(point))
         }
+        (CUBE_TYPE_ZERO_VOLUME, _) => {
+            Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, START_INDEX)?))
+        }
+        (CUBE_TYPE_DEFAULT, CUBE_DIMENSION_ONE) => {
+            let x_start = 4;
+            let y_start = x_start + BYTE_WIDTH;
+            let x = get_f64_from_bytes(&bytes, x_start)?;
+            let y = get_f64_from_bytes(&bytes, y_start)?;
+            Ok(PgCube::OneDimensionInterval(x, y))
+        }
+        (CUBE_TYPE_DEFAULT, dim) => Ok(PgCube::MultiDimension(deserialize_matrix(
+            &bytes,
+            START_INDEX,
+            dim,
+        )?)),
+        (flag, dimension) => Err(Error::Decode(
+            format!(
+                "Could not deserialise cube with flag {} and dimension {}: {:?}",
+                flag, dimension, bytes
+            )
+            .into(),
+        )),
     }
 }
 
@@ -277,7 +273,7 @@ mod cube_tests {
 
     use std::str::FromStr;
 
-    use crate::types::PgCube;
+    use crate::types::{cube::pg_cube_from_bytes, PgCube};
 
     const POINT_BYTES: &[u8] = &[128, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0];
     const ZERO_VOLUME_BYTES: &[u8] = &[
@@ -297,7 +293,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_point_type_byes() {
-        let cube = PgCube::try_from(POINT_BYTES).unwrap();
+        let cube = pg_cube_from_bytes(POINT_BYTES).unwrap();
         assert_eq!(cube, PgCube::Point(2.))
     }
 
@@ -313,7 +309,7 @@ mod cube_tests {
     }
     #[test]
     fn can_deserialise_zero_volume_bytes() {
-        let cube = PgCube::try_from(ZERO_VOLUME_BYTES).unwrap();
+        let cube = pg_cube_from_bytes(ZERO_VOLUME_BYTES).unwrap();
         assert_eq!(cube, PgCube::ZeroVolume(vec![2., 3.]));
     }
 
@@ -333,7 +329,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_one_dimension_interval_bytes() {
-        let cube = PgCube::try_from(ONE_DIMENSIONAL_INTERVAL_BYTES).unwrap();
+        let cube = pg_cube_from_bytes(ONE_DIMENSIONAL_INTERVAL_BYTES).unwrap();
         assert_eq!(cube, PgCube::OneDimensionInterval(7., 8.))
     }
 
@@ -353,7 +349,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_multi_dimension_2_dimension_byte() {
-        let cube = PgCube::try_from(MULTI_DIMENSION_2_DIM_BYTES).unwrap();
+        let cube = pg_cube_from_bytes(MULTI_DIMENSION_2_DIM_BYTES).unwrap();
         assert_eq!(
             cube,
             PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
@@ -379,7 +375,7 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_multi_dimension_3_dimension_bytes() {
-        let cube = PgCube::try_from(MULTI_DIMENSION_3_DIM_BYTES).unwrap();
+        let cube = pg_cube_from_bytes(MULTI_DIMENSION_3_DIM_BYTES).unwrap();
         assert_eq!(
             cube,
             PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]])
