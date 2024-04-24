@@ -491,6 +491,7 @@ test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
 #[cfg(any(postgres_14, postgres_15))]
 test_type!(_cube<Vec<sqlx::postgres::types::PgCube>>(Postgres,
     "array[cube(2),cube(2)]" == vec![sqlx::postgres::types::PgCube::Point(2.), sqlx::postgres::types::PgCube::Point(2.)],
+    "array[cube(2.2,-3.4)]" == vec![sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4)],
 ));
 
 #[cfg(feature = "rust_decimal")]
