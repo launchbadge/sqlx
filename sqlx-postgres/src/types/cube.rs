@@ -59,6 +59,7 @@ impl FromStr for PgCube {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let content = s.trim_start_matches("(").trim_end_matches(")");
+
         if !content.contains('(') && !content.contains(',') {
             return parse_point(content);
         }
