@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::types::Type;
-use crate::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::Error;
 
 const BYTE_WIDTH: usize = 8;
@@ -24,6 +24,12 @@ pub enum PgCube {
 impl Type<Postgres> for PgCube {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name("cube")
+    }
+}
+
+impl PgHasArrayType for PgCube {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::with_name("_cube")
     }
 }
 

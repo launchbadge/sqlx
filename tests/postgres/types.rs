@@ -488,6 +488,11 @@ test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(array[2,3,4],array[4,5,6])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.,4.],vec![4.,5.,6.]]),
 ));
 
+#[cfg(any(postgres_14, postgres_15))]
+test_type!(_cube<sqlx::postgres::types::PgCube>(Postgres,
+    "ARRAY[cube(2),cube(2)]" == vec![sqlx::postgres::types::PgCube::Point(2.), sqlx::postgres::types::PgCube::Point(2.)],
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
