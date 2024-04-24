@@ -58,9 +58,13 @@ impl FromStr for PgCube {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let content = &s.get(1..s.len() - 1).ok_or(Error::Decode(
-            format!("Could not decode cube string: {}", s).into(),
-        ))?;
+        let content = if s.contains("((") && s.contains("))") {
+            &s.get(1..s.len() - 1).ok_or(Error::Decode(
+                format!("Could not decode cube string: {}", s).into(),
+            ))?
+        } else {
+            s
+        };
 
         if !content.contains('(') && !content.contains(',') {
             return parse_point(content);
@@ -299,8 +303,10 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_point_type_str() {
-        let cube = PgCube::from_str("(2)").unwrap();
-        assert_eq!(cube, PgCube::Point(2.))
+        let cube_1 = PgCube::from_str("(2)").unwrap();
+        assert_eq!(cube_1, PgCube::Point(2.));
+        let cube_2 = PgCube::from_str("2").unwrap();
+        assert_eq!(cube_2, PgCube::Point(2.));
     }
 
     #[test]
@@ -315,8 +321,10 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_zero_volume_string() {
-        let cube = PgCube::from_str("(2,3,4)").unwrap();
-        assert_eq!(cube, PgCube::ZeroVolume(vec![2., 3., 4.]));
+        let cube_1 = PgCube::from_str("(2,3,4)").unwrap();
+        assert_eq!(cube_1, PgCube::ZeroVolume(vec![2., 3., 4.]));
+        let cube_2 = PgCube::from_str("2,3,4").unwrap();
+        assert_eq!(cube_2, PgCube::ZeroVolume(vec![2., 3., 4.]));
     }
 
     #[test]
@@ -335,8 +343,10 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_one_dimension_interval_string() {
-        let cube = PgCube::from_str("((7),(8))").unwrap();
-        assert_eq!(cube, PgCube::OneDimensionInterval(7., 8.))
+        let cube_1 = PgCube::from_str("((7),(8))").unwrap();
+        assert_eq!(cube_1, PgCube::OneDimensionInterval(7., 8.));
+        let cube_2 = PgCube::from_str("(7),(8)").unwrap();
+        assert_eq!(cube_2, PgCube::OneDimensionInterval(7., 8.));
     }
 
     #[test]
@@ -358,9 +368,14 @@ mod cube_tests {
 
     #[test]
     fn can_deserialise_multi_dimension_2_dimension_string() {
-        let cube = PgCube::from_str("((1,2),(3,4))").unwrap();
+        let cube_1 = PgCube::from_str("((1,2),(3,4))").unwrap();
         assert_eq!(
-            cube,
+            cube_1,
+            PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
+        );
+        let cube_2 = PgCube::from_str("(1,2),(3,4)").unwrap();
+        assert_eq!(
+            cube_2,
             PgCube::MultiDimension(vec![vec![1., 2.], vec![3., 4.]])
         )
     }
@@ -388,7 +403,12 @@ mod cube_tests {
         assert_eq!(
             cube,
             PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]])
-        )
+        );
+        let cube_2 = PgCube::from_str("(2,3,4),(5,6,7)").unwrap();
+        assert_eq!(
+            cube_2,
+            PgCube::MultiDimension(vec![vec![2., 3., 4.], vec![5., 6., 7.]])
+        );
     }
 
     #[test]
