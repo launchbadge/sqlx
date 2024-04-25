@@ -60,7 +60,9 @@ impl FromStr for PgCube {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let content = s
             .trim_start_matches("(")
+            .trim_start_matches("[")
             .trim_end_matches(")")
+            .trim_end_matches("]")
             .replace(" ", "");
 
         if !content.contains('(') && !content.contains(',') {
