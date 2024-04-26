@@ -20,9 +20,17 @@ impl MySqlArguments {
     {
         let ty = value.produces().unwrap_or_else(T::type_info);
 
-        self.types.push(ty);
+        let value_length_before_encoding = self.values.len();
+        let is_null = match value.encode(&mut self.values) {
+            Ok(is_null) => is_null,
+            Err(error) => {
+                // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+                self.values.truncate(value_length_before_encoding);
+                return Err(error);
+            }
+        };
 
-        let is_null = value.encode(&mut self.values)?;
+        self.types.push(ty);
         self.null_bitmap.push(is_null);
 
         Ok(())
