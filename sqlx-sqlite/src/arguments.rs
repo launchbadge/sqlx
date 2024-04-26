@@ -29,9 +29,17 @@ impl<'q> SqliteArguments<'q> {
     where
         T: Encode<'q, Sqlite>,
     {
-        if let IsNull::Yes = value.encode(&mut self.values)? {
-            self.values.push(SqliteArgumentValue::Null);
-        }
+        let value_length_before_encoding = self.values.len();
+
+        match value.encode(&mut self.values) {
+            Ok(IsNull::Yes) => self.values.push(SqliteArgumentValue::Null),
+            Ok(IsNull::No) => {}
+            Err(error) => {
+                // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+                self.values.truncate(value_length_before_encoding);
+                return Err(error);
+            }
+        };
 
         Ok(())
     }
