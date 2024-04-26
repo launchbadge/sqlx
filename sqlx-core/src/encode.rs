@@ -17,6 +17,12 @@ pub enum IsNull {
     No,
 }
 
+impl IsNull {
+    pub fn is_null(&self) -> bool {
+        matches!(self, IsNull::Yes)
+    }
+}
+
 /// Encode a single value to be sent to the database.
 pub trait Encode<'q, DB: Database> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
