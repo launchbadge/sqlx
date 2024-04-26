@@ -3,13 +3,14 @@ use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo};
 pub(crate) use sqlx_core::arguments::*;
 use sqlx_core::error::BoxDynError;
+use std::ops::Deref;
 
 /// Implementation of [`Arguments`] for MySQL.
 #[derive(Debug, Default, Clone)]
 pub struct MySqlArguments {
     pub(crate) values: Vec<u8>,
     pub(crate) types: Vec<MySqlTypeInfo>,
-    pub(crate) null_bitmap: Vec<u8>,
+    pub(crate) null_bitmap: NullBitMap,
 }
 
 impl MySqlArguments {
@@ -18,14 +19,11 @@ impl MySqlArguments {
         T: Encode<'q, MySql> + Type<MySql>,
     {
         let ty = value.produces().unwrap_or_else(T::type_info);
-        let index = self.types.len();
 
         self.types.push(ty);
-        self.null_bitmap.resize((index / 8) + 1, 0);
 
-        if let IsNull::Yes = value.encode(&mut self.values)? {
-            self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
-        }
+        let is_null = value.encode(&mut self.values)?;
+        self.null_bitmap.push(is_null);
 
         Ok(())
     }
@@ -48,5 +46,55 @@ impl<'q> Arguments<'q> for MySqlArguments {
 
     fn len(&self) -> usize {
         self.types.len()
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub(crate) struct NullBitMap {
+    bytes: Vec<u8>,
+    length: usize,
+}
+
+impl NullBitMap {
+    fn push(&mut self, is_null: IsNull) {
+        let byte_index = self.length / (u8::BITS as usize);
+        let bit_offset = self.length % (u8::BITS as usize);
+
+        if bit_offset == 0 {
+            self.bytes.push(0);
+        }
+
+        self.bytes[byte_index] |= u8::from(is_null.is_null()) << bit_offset;
+        self.length += 1;
+    }
+}
+
+impl Deref for NullBitMap {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn null_bit_map_should_push_is_null() {
+        let mut bit_map = NullBitMap::default();
+
+        bit_map.push(IsNull::Yes);
+        bit_map.push(IsNull::No);
+        bit_map.push(IsNull::Yes);
+        bit_map.push(IsNull::No);
+        bit_map.push(IsNull::Yes);
+        bit_map.push(IsNull::No);
+        bit_map.push(IsNull::Yes);
+        bit_map.push(IsNull::No);
+        bit_map.push(IsNull::Yes);
+
+        assert_eq!([0b01010101, 0b1].as_slice(), bit_map.deref());
     }
 }
