@@ -447,6 +447,7 @@ mod full_text_search {
     use sqlx::postgres::types::TsVector;
     use sqlx::postgres::PgRow;
     use sqlx::{Executor, Row};
+    use sqlx_core::statement::Statement;
     use sqlx_test::new;
 
     #[sqlx_macros::test]
@@ -488,6 +489,23 @@ mod full_text_search {
         let row = conn.fetch_one(r#"SELECT $$'    A'$$::tsvector;"#).await?;
         let value = row.get::<TsVector, _>(0).to_string();
         assert_eq!(value, "'    A'");
+
+        let row = conn
+            .fetch_one(r#"SELECT $$'Joe''s' cat$$::tsvector;"#)
+            .await?;
+        let value = row.get::<TsVector, _>(0).to_string();
+        assert_eq!(value, "'Joe''s' 'cat'");
+
+        let sql = r#"SELECT $$'Joe''s' cat$$::tsvector;"#;
+        let row = conn.fetch_one(sql).await.unwrap();
+        let cell = row.get::<TsVector, _>(0);
+        assert_eq!(cell.words()[0].word(), "Joe's");
+
+        let sql = r#"SELECT $$'Joe''s' cat$$::tsvector;"#;
+        let statement = conn.prepare(sql).await.unwrap();
+        let row = statement.query().fetch_one(&mut conn).await.unwrap();
+        let cell = row.get::<TsVector, _>(0);
+        assert_eq!(cell.to_string(), "'Joe''s' 'cat'");
 
         Ok(())
     }

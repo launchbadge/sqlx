@@ -110,9 +110,21 @@ pub struct Lexeme {
     positions: Vec<LexemeMeta>,
 }
 
+impl Lexeme {
+    pub fn word(&self) -> &str {
+        self.word.as_str()
+    }
+}
+
 #[derive(Debug)]
 pub struct TsVector {
     words: Vec<Lexeme>,
+}
+
+impl TsVector {
+    pub fn words(&self) -> &Vec<Lexeme> {
+        &self.words
+    }
 }
 
 impl Display for TsVector {
@@ -122,6 +134,9 @@ impl Display for TsVector {
         let mut words = self.words.iter().peekable();
 
         while let Some(Lexeme { positions, word }) = words.next() {
+            // Add escaping for any single quotes within the word.
+            let word = word.replace("'", "''");
+
             if positions.is_empty() {
                 f.write_str(&format!("'{}'", word))?;
             } else {
@@ -214,16 +229,45 @@ impl TryInto<Vec<u8>> for &TsVector {
     }
 }
 
-fn split_into_ts_vector_words(input: &str) -> impl Iterator<Item = &str> {
+fn split_into_ts_vector_words(input: &str) -> Vec<String> {
     let mut wrapped = false;
+    let mut words = vec![];
+    let mut current_word = String::new();
+    let mut escaped = false;
 
-    input.split(move |character: char| {
-        if character == '\'' {
-            wrapped = !wrapped;
+    let mut chars = input.chars().peekable();
+
+    while let Some(token) = chars.next() {
+        match token {
+            '\'' => {
+                if !escaped {
+                    if chars.peek().is_some_and(|item| *item == '\'') {
+                        escaped = true;
+                        current_word += "'";
+                    } else {
+                        wrapped = !wrapped;
+                    }
+                } else {
+                    escaped = false;
+                }
+            }
+            char => {
+                if char.is_whitespace() && !wrapped {
+                    words.push(current_word);
+                    current_word = String::new();
+                } else {
+                    current_word += &char.to_string();
+                }
+            }
         }
+    }
 
-        character.is_whitespace() && !wrapped
-    })
+    if !current_word.is_empty() {
+        words.push(current_word);
+        current_word = String::new();
+    }
+
+    words
 }
 
 impl FromStr for TsVector {
