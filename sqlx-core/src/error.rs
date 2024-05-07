@@ -6,6 +6,10 @@ use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
 
+// use rustls::server::VerifierBuilderError;
+#[cfg(feature = "_tls-rustls")]
+use rustls::server::VerifierBuilderError;
+
 use crate::database::Database;
 
 use crate::type_info::TypeInfo;
@@ -107,6 +111,10 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    #[cfg(feature = "_tls-rustls")]
+    #[error("Error building server verifier: {0}")]
+    VerifierBuilder(#[from] VerifierBuilderError)
 }
 
 impl StdError for Box<dyn DatabaseError> {}
