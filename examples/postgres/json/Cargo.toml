@@ -1,5 +1,5 @@
 [package]
-name = "json"
+name = "sqlx-example-postgres-json"
 version = "0.1.0"
 edition = "2021"
 workspace = "../../../"
@@ -10,6 +10,6 @@ dotenvy = "0.15.0"
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { path = "../../../", features = ["postgres", "json"] }
+sqlx = { path = "../../../", features = ["runtime-tokio", "postgres", "json"] }
 structopt = "0.3"
-tokio = { version = "1.20.0", features = ["macros"]}
+tokio = { version = "1.20.0", features = ["rt", "macros"]}

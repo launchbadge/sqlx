@@ -1,5 +1,5 @@
 [package]
-name = "files"
+name = "sqlx-example-postgres-files"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 sqlx = { path = "../../../", features = ["postgres", "runtime-tokio-native-tls"] }
-tokio = { version = "1.20.0", features = ["macros"]}
+tokio = { version = "1.20.0", features = ["rt", "macros"]}
 dotenvy = "0.15.0"

@@ -14,8 +14,8 @@ pub struct AuthSwitchRequest {
     pub data: Bytes,
 }
 
-impl Decode<'_> for AuthSwitchRequest {
-    fn decode_with(mut buf: Bytes, _: ()) -> Result<Self, Error> {
+impl Decode<'_, bool> for AuthSwitchRequest {
+    fn decode_with(mut buf: Bytes, enable_cleartext_plugin: bool) -> Result<Self, Error> {
         let header = buf.get_u8();
         if header != 0xfe {
             return Err(err_protocol!(
@@ -25,6 +25,21 @@ impl Decode<'_> for AuthSwitchRequest {
         }
 
         let plugin = buf.get_str_nul()?.parse()?;
+
+        if matches!(plugin, AuthPlugin::MySqlClearPassword) && !enable_cleartext_plugin {
+            return Err(err_protocol!("mysql_cleartext_plugin disabled"));
+        }
+
+        if matches!(plugin, AuthPlugin::MySqlClearPassword) && buf.is_empty() {
+            // Contrary to the MySQL protocol, AWS Aurora with IAM sends
+            // no data. That is fine because the mysql_clear_password says to
+            // ignore any data sent.
+            // See: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_authentication_methods_clear_text_password.html
+            return Ok(Self {
+                plugin,
+                data: Bytes::new(),
+            });
+        }
 
         // See: https://github.com/mysql/mysql-server/blob/ea7d2e2d16ac03afdd9cb72a972a95981107bf51/sql/auth/sha2_password.cc#L942
         if buf.len() != 21 {
@@ -47,4 +62,36 @@ impl Encode<'_, Capabilities> for AuthSwitchResponse {
     fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) {
         buf.extend_from_slice(&self.0);
     }
+}
+
+#[test]
+fn test_decode_auth_switch_packet_data() {
+    const AUTH_SWITCH_NO_DATA: &[u8] = b"\xfecaching_sha2_password\x00abcdefghijabcdefghij\x00";
+
+    let p = AuthSwitchRequest::decode_with(AUTH_SWITCH_NO_DATA.into(), true).unwrap();
+
+    assert!(matches!(p.plugin, AuthPlugin::CachingSha2Password));
+    assert_eq!(p.data, &b"abcdefghijabcdefghij"[..]);
+}
+
+#[test]
+fn test_decode_auth_switch_cleartext_disabled() {
+    const AUTH_SWITCH_CLEARTEXT: &[u8] = b"\xfemysql_clear_password\x00abcdefghijabcdefghij\x00";
+
+    let e = AuthSwitchRequest::decode_with(AUTH_SWITCH_CLEARTEXT.into(), false).unwrap_err();
+
+    assert_eq!(
+        e.to_string(),
+        "encountered unexpected or invalid data: mysql_cleartext_plugin disabled"
+    );
+}
+
+#[test]
+fn test_decode_auth_switch_packet_no_data() {
+    const AUTH_SWITCH_NO_DATA: &[u8] = b"\xfemysql_clear_password\x00";
+
+    let p = AuthSwitchRequest::decode_with(AUTH_SWITCH_NO_DATA.into(), true).unwrap();
+
+    assert!(matches!(p.plugin, AuthPlugin::MySqlClearPassword));
+    assert_eq!(p.data, Bytes::new());
 }

@@ -32,6 +32,15 @@ impl MigrateDatabase for Any {
                 .await
         })
     }
+
+    fn force_drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async {
+            driver::from_url_str(url)?
+                .get_migrate_database()?
+                .force_drop_database(url)
+                .await
+        })
+    }
 }
 
 impl Migrate for AnyConnection {

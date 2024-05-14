@@ -55,6 +55,8 @@ jobs:
             --manifest-path sqlx-core/Cargo.toml
             --no-default-features
             --features json,offline,migrate,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
+        env:
+          RUSTFLAGS: -D warnings
 
       - uses: actions-rs/cargo@v1
         with:
@@ -62,6 +64,8 @@ jobs:
           args: >
             --no-default-features
             --features all-databases,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
+        env:
+          RUSTFLAGS: -D warnings
 
   test:
     name: Unit Test
@@ -89,6 +93,28 @@ jobs:
           args: >
             --manifest-path sqlx-core/Cargo.toml
             --features json,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
+
+  cli-test:
+    name: CLI Unit Test
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          key: ${{ runner.os }}-test
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --manifest-path sqlx-cli/Cargo.toml
 
   cli:
     name: CLI Binaries
@@ -172,7 +198,7 @@ jobs:
         env:
           DATABASE_URL: sqlite:tests/sqlite/sqlite.db
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg sqlite_ipaddr
+          RUSTFLAGS: --cfg sqlite_ipaddr --cfg sqlite_test_sqlcipher
           LD_LIBRARY_PATH: /tmp/sqlite3-lib
 
       # Remove test artifacts
@@ -189,7 +215,7 @@ jobs:
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg sqlite_ipaddr
+          RUSTFLAGS: -D warnings --cfg sqlite_ipaddr
           LD_LIBRARY_PATH: /tmp/sqlite3-lib
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
@@ -233,14 +259,14 @@ jobs:
         env:
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: -D warnings --cfg postgres_${{ matrix.postgres }}
         with:
           command: build
           args: >
             --features postgres,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: |
-          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
+          docker compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
           docker exec postgres_${{ matrix.postgres }} bash -c "until pg_isready; do sleep 1; done"
 
       # Create data dir for offline mode
@@ -289,7 +315,7 @@ jobs:
           SQLX_OFFLINE_DIR: .sqlx
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: -D warnings --cfg postgres_${{ matrix.postgres }}
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
       - uses: actions-rs/cargo@v1
@@ -311,7 +337,7 @@ jobs:
 
       - run: |
           docker stop postgres_${{ matrix.postgres }}
-          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }}_client_ssl postgres_${{ matrix.postgres }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }}_client_ssl postgres_${{ matrix.postgres }}_client_ssl
           docker exec postgres_${{ matrix.postgres }}_client_ssl bash -c "until pg_isready; do sleep 1; done"
 
       - uses: actions-rs/cargo@v1
@@ -355,7 +381,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }} mysql_${{ matrix.mysql }}
+      - run: docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }} mysql_${{ matrix.mysql }}
       - run: sleep 60
 
       # Create data dir for offline mode
@@ -399,7 +425,7 @@ jobs:
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
+          RUSTFLAGS: -D warnings --cfg mysql_${{ matrix.mysql }}
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
       # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
@@ -421,7 +447,7 @@ jobs:
 
       - run: |
           docker stop mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
       # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
@@ -441,9 +467,13 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [10_6, 10_3]
+        mariadb: [verylatest, 10_11, 10_4]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
+        exclude:
+          # FIXME: `rustls` cannot accept MariaDB's new self-signed certificates: https://github.com/launchbadge/sqlx/issues/3091
+          - mariadb: verylatest
+            tls: rustls
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -464,7 +494,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }} mariadb_${{ matrix.mariadb }}
+      - run: docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }} mariadb_${{ matrix.mariadb }}
       - run: sleep 30
 
       # Create data dir for offline mode
@@ -495,7 +525,7 @@ jobs:
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+          RUSTFLAGS: -D warnings --cfg mariadb_${{ matrix.mariadb }}
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
       - uses: actions-rs/cargo@v1
@@ -515,7 +545,7 @@ jobs:
 
       - run: |
           docker stop mariadb_${{ matrix.mariadb }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
+          docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
       - uses: actions-rs/cargo@v1

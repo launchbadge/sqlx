@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
+use std::io::Write as _;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -14,7 +15,7 @@ use sqlx_core::describe::Describe;
 use crate::database::DatabaseExt;
 
 #[derive(serde::Serialize)]
-#[serde(bound(serialize = "Describe<DB>: serde::Serialize",))]
+#[serde(bound(serialize = "Describe<DB>: serde::Serialize"))]
 #[derive(Debug)]
 pub struct QueryData<DB: Database> {
     db_name: SerializeDbName<DB>,
@@ -149,24 +150,41 @@ where
         }
     }
 
-    pub(super) fn save_in(
-        &self,
-        dir: impl AsRef<Path>,
-        tmp_dir: impl AsRef<Path>,
-    ) -> crate::Result<()> {
-        // Output to a temporary file first, then move it atomically to avoid clobbering
-        // other invocations trying to write to the same path.
+    pub(super) fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+        use std::io::ErrorKind;
 
-        // Use a temp directory inside the workspace to avoid potential issues
-        // with persisting the file across filesystems.
-        let mut tmp_file = tempfile::NamedTempFile::new_in(tmp_dir)
-            .map_err(|err| format!("failed to create query file: {:?}", err))?;
-        serde_json::to_writer_pretty(tmp_file.as_file_mut(), self)
-            .map_err(|err| format!("failed to serialize query data to file: {:?}", err))?;
+        let path = dir.as_ref().join(format!("query-{}.json", self.hash));
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    ErrorKind::NotFound | ErrorKind::PermissionDenied,
+                ) => {}
+            Err(err) => return Err(format!("failed to delete {path:?}: {err:?}").into()),
+        }
+        let mut file = match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(file) => file,
+            // We overlapped with a concurrent invocation and the other one succeeded.
+            Err(err) if matches!(err.kind(), ErrorKind::AlreadyExists) => return Ok(()),
+            Err(err) => {
+                return Err(format!("failed to exclusively create {path:?}: {err:?}").into())
+            }
+        };
 
-        tmp_file
-            .persist(dir.as_ref().join(format!("query-{}.json", self.hash)))
-            .map_err(|err| format!("failed to move query file: {:?}", err))?;
+        let data = serde_json::to_string_pretty(self)
+            .map_err(|err| format!("failed to serialize query data: {err:?}"))?;
+        file.write_all(data.as_bytes())
+            .map_err(|err| format!("failed to write query data to file: {err:?}"))?;
+
+        // Ensure there is a newline at the end of the JSON file to avoid
+        // accidental modification by IDE and make github diff tool happier.
+        file.write_all(b"\n")
+            .map_err(|err| format!("failed to append a newline to file: {err:?}"))?;
 
         Ok(())
     }

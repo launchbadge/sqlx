@@ -13,6 +13,10 @@ impl ConnectOptions for PgConnectOptions {
         Self::parse_from_url(url)
     }
 
+    fn to_url_lossy(&self) -> Url {
+        self.build_url()
+    }
+
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
     where
         Self::Connection: Sized,

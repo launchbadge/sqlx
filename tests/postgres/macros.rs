@@ -114,7 +114,7 @@ async fn test_query_file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // keep trailing comma as a test
-    let account = sqlx::query_file!("tests/postgres/test-query.sql",)
+    let account = sqlx::query_file!("tests/postgres/test-query.sql")
         .fetch_one(&mut conn)
         .await?;
 
@@ -146,7 +146,7 @@ async fn test_query_as() -> anyhow::Result<()> {
     assert_eq!(1, account.id);
     assert_eq!(None, account.name);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -171,7 +171,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     assert_eq!(None, account.name);
     assert_eq!(1, account.r#type);
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -180,11 +180,11 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_file_as() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let account = sqlx::query_file_as!(Account, "tests/postgres/test-query.sql",)
+    let account = sqlx::query_file_as!(Account, "tests/postgres/test-query.sql")
         .fetch_one(&mut conn)
         .await?;
 
-    println!("{:?}", account);
+    println!("{account:?}");
 
     Ok(())
 }
@@ -338,7 +338,7 @@ async fn test_nullable_err() -> anyhow::Result<()> {
         }
     }
 
-    panic!("expected `UnexpectedNullError`, got {}", err)
+    panic!("expected `UnexpectedNullError`, got {err}")
 }
 
 #[sqlx_macros::test]
@@ -608,6 +608,31 @@ async fn test_bind_arg_override_wildcard() -> anyhow::Result<()> {
     .await?;
 
     assert_eq!(record.id, Some(1i32));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_to_from_citext() -> anyhow::Result<()> {
+    // Ensure that the macros consider `CITEXT` to be compatible with `String` and friends
+
+    let mut conn = new::<Postgres>().await?;
+
+    let mut tx = conn.begin().await?;
+
+    let foo_in = "Hello, world!";
+
+    sqlx::query!("insert into test_citext(foo) values ($1)", foo_in)
+        .execute(&mut *tx)
+        .await?;
+
+    let foo_out: String = sqlx::query_scalar!("select foo from test_citext")
+        .fetch_one(&mut *tx)
+        .await?;
+
+    assert_eq!(foo_in, foo_out);
+
+    tx.rollback().await?;
 
     Ok(())
 }

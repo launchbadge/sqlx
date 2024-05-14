@@ -25,16 +25,10 @@ use futures_util::{pin_mut, TryStreamExt};
 use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
-    async fn get_or_prepare<'c>(
+    async fn prepare_statement<'c>(
         &mut self,
         sql: &str,
-        persistent: bool,
     ) -> Result<(u32, MySqlStatementMetadata), Error> {
-        if let Some(statement) = self.cache_statement.get_mut(sql) {
-            // <MySqlStatementMetadata> is internally reference-counted
-            return Ok((*statement).clone());
-        }
-
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare.html
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare-response.html#packet-COM_STMT_PREPARE_OK
 
@@ -72,11 +66,23 @@ impl MySqlConnection {
             column_names: Arc::new(column_names),
         };
 
-        if persistent && self.cache_statement.is_enabled() {
-            // in case of the cache being full, close the least recently used statement
-            if let Some((id, _)) = self.cache_statement.insert(sql, (id, metadata.clone())) {
-                self.stream.send_packet(StmtClose { statement: id }).await?;
-            }
+        Ok((id, metadata))
+    }
+
+    async fn get_or_prepare_statement<'c>(
+        &mut self,
+        sql: &str,
+    ) -> Result<(u32, MySqlStatementMetadata), Error> {
+        if let Some(statement) = self.cache_statement.get_mut(sql) {
+            // <MySqlStatementMetadata> is internally reference-counted
+            return Ok((*statement).clone());
+        }
+
+        let (id, metadata) = self.prepare_statement(sql).await?;
+
+        // in case of the cache being full, close the least recently used statement
+        if let Some((id, _)) = self.cache_statement.insert(sql, (id, metadata.clone())) {
+            self.stream.send_packet(StmtClose { statement: id }).await?;
         }
 
         Ok((id, metadata))
@@ -102,21 +108,37 @@ impl MySqlConnection {
             let mut columns = Arc::new(Vec::new());
 
             let (mut column_names, format, mut needs_metadata) = if let Some(arguments) = arguments {
-                let (id, metadata) = self.get_or_prepare(
-                    sql,
-                    persistent,
-                )
-                .await?;
+                if persistent && self.cache_statement.is_enabled() {
+                    let (id, metadata) = self
+                        .get_or_prepare_statement(sql)
+                        .await?;
 
-                // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
-                self.stream
-                    .send_packet(StatementExecute {
-                        statement: id,
-                        arguments: &arguments,
-                    })
-                    .await?;
+                    // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
+                    self.stream
+                        .send_packet(StatementExecute {
+                            statement: id,
+                            arguments: &arguments,
+                        })
+                        .await?;
 
-                (metadata.column_names, MySqlValueFormat::Binary, false)
+                    (metadata.column_names, MySqlValueFormat::Binary, false)
+                } else {
+                    let (id, metadata) = self
+                        .prepare_statement(sql)
+                        .await?;
+
+                    // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
+                    self.stream
+                        .send_packet(StatementExecute {
+                            statement: id,
+                            arguments: &arguments,
+                        })
+                        .await?;
+
+                    self.stream.send_packet(StmtClose { statement: id }).await?;
+
+                    (metadata.column_names, MySqlValueFormat::Binary, false)
+                }
             } else {
                 // https://dev.mysql.com/doc/internals/en/com-query.html
                 self.stream.send_packet(Query(sql)).await?;
@@ -269,7 +291,15 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         Box::pin(async move {
             self.stream.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, true).await?;
+            let metadata = if self.cache_statement.is_enabled() {
+                self.get_or_prepare_statement(sql).await?.1
+            } else {
+                let (id, metadata) = self.prepare_statement(sql).await?;
+
+                self.stream.send_packet(StmtClose { statement: id }).await?;
+
+                metadata
+            };
 
             Ok(MySqlStatement {
                 sql: Cow::Borrowed(sql),
@@ -287,7 +317,9 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         Box::pin(async move {
             self.stream.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, false).await?;
+            let (id, metadata) = self.prepare_statement(sql).await?;
+
+            self.stream.send_packet(StmtClose { statement: id }).await?;
 
             let columns = (&*metadata.columns).clone();
 

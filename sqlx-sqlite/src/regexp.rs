@@ -157,7 +157,7 @@ unsafe fn get_text_from_arg<'a>(
         match std::str::from_utf8(slice) {
             Ok(result) => Some(result),
             Err(e) => {
-                log::error!("Incoming text is not valid UTF8: {e:?}",);
+                log::error!("Incoming text is not valid UTF8: {e:?}");
                 ffi::sqlite3_result_error_code(ctx, ffi::SQLITE_CONSTRAINT_FUNCTION);
                 None
             }
@@ -190,7 +190,7 @@ mod tests {
             .unwrap();
         for i in 0..10 {
             sqlx::query("INSERT INTO test VALUES (?)")
-                .bind(format!("value {}", i))
+                .bind(format!("value {i}"))
                 .execute(&mut conn)
                 .await
                 .unwrap();

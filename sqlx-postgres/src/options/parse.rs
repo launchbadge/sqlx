@@ -1,6 +1,6 @@
 use crate::error::Error;
-use crate::PgConnectOptions;
-use sqlx_core::percent_encoding::percent_decode_str;
+use crate::{PgConnectOptions, PgSslMode};
+use sqlx_core::percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use sqlx_core::Url;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -107,6 +107,62 @@ impl PgConnectOptions {
         let options = options.apply_pgpass();
 
         Ok(options)
+    }
+
+    pub(crate) fn build_url(&self) -> Url {
+        let host = match &self.socket {
+            Some(socket) => {
+                utf8_percent_encode(&*socket.to_string_lossy(), NON_ALPHANUMERIC).to_string()
+            }
+            None => self.host.to_owned(),
+        };
+
+        let mut url = Url::parse(&format!(
+            "postgres://{}@{}:{}",
+            self.username, host, self.port
+        ))
+        .expect("BUG: generated un-parseable URL");
+
+        if let Some(password) = &self.password {
+            let password = utf8_percent_encode(&password, NON_ALPHANUMERIC).to_string();
+            let _ = url.set_password(Some(&password));
+        }
+
+        if let Some(database) = &self.database {
+            url.set_path(&database);
+        }
+
+        let ssl_mode = match self.ssl_mode {
+            PgSslMode::Allow => "ALLOW",
+            PgSslMode::Disable => "DISABLED",
+            PgSslMode::Prefer => "PREFERRED",
+            PgSslMode::Require => "REQUIRED",
+            PgSslMode::VerifyCa => "VERIFY_CA",
+            PgSslMode::VerifyFull => "VERIFY_FULL",
+        };
+        url.query_pairs_mut().append_pair("ssl-mode", ssl_mode);
+
+        if let Some(ssl_root_cert) = &self.ssl_root_cert {
+            url.query_pairs_mut()
+                .append_pair("ssl-root-cert", &ssl_root_cert.to_string());
+        }
+
+        if let Some(ssl_client_cert) = &self.ssl_client_cert {
+            url.query_pairs_mut()
+                .append_pair("ssl-cert", &ssl_client_cert.to_string());
+        }
+
+        if let Some(ssl_client_key) = &self.ssl_client_key {
+            url.query_pairs_mut()
+                .append_pair("ssl-key", &ssl_client_key.to_string());
+        }
+
+        url.query_pairs_mut().append_pair(
+            "statement-cache-capacity",
+            &self.statement_cache_capacity.to_string(),
+        );
+
+        url
     }
 }
 
@@ -241,4 +297,32 @@ fn it_parses_sqlx_options_correctly() {
         Some("-c synchronous_commit=off -c search_path=postgres".into()),
         opts.options
     );
+}
+
+#[test]
+fn it_returns_the_parsed_url_when_socket() {
+    let url = "postgres://username@%2Fvar%2Flib%2Fpostgres/database";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    let mut expected_url = Url::parse(url).unwrap();
+    // PgConnectOptions defaults
+    let query_string = "ssl-mode=PREFERRED&statement-cache-capacity=100";
+    let port = 5432;
+    expected_url.set_query(Some(query_string));
+    let _ = expected_url.set_port(Some(port));
+
+    assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn it_returns_the_parsed_url_when_host() {
+    let url = "postgres://username:p@ssw0rd@hostname:5432/database";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    let mut expected_url = Url::parse(url).unwrap();
+    // PgConnectOptions defaults
+    let query_string = "ssl-mode=PREFERRED&statement-cache-capacity=100";
+    expected_url.set_query(Some(query_string));
+
+    assert_eq!(expected_url, opts.build_url());
 }

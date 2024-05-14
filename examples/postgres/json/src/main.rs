@@ -30,7 +30,7 @@ struct Row {
     person: Json<Person>,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let args = Args::from_args_safe()?;
     let pool = PgPool::connect(&dotenvy::var("DATABASE_URL")?).await?;
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
             );
 
             let person_id = add_person(&pool, person).await?;
-            println!("Added new person with ID {}", person_id);
+            println!("Added new person with ID {person_id}");
         }
         None => {
             println!("Printing all people");

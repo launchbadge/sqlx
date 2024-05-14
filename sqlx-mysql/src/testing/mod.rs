@@ -43,7 +43,7 @@ impl TestSupport for MySql {
 
             let db_id = db_id(db_name);
 
-            conn.execute(&format!("drop database if exists {};", db_name)[..])
+            conn.execute(&format!("drop database if exists {db_name};")[..])
                 .await?;
 
             query("delete from _sqlx_test_databases where db_id = ?")
@@ -152,10 +152,10 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 
     let new_db_name = db_name(new_db_id);
 
-    conn.execute(&format!("create database {}", new_db_name)[..])
+    conn.execute(&format!("create database {new_db_name}")[..])
         .await?;
 
-    eprintln!("created database {}", new_db_name);
+    eprintln!("created database {new_db_name}");
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
@@ -176,11 +176,13 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 }
 
 async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Result<usize, Error> {
+    // since SystemTime is not monotonic we added a little margin here to avoid race conditions with other threads
+    let created_before_as_secs = created_before.as_secs() - 2;
     let delete_db_ids: Vec<u64> = query_scalar(
         "select db_id from _sqlx_test_databases \
-            where created_at < (cast(from_unixtime($1) as timestamp))",
+            where created_at < from_unixtime(?)",
     )
-    .bind(&created_before.as_secs())
+    .bind(&created_before_as_secs)
     .fetch_all(&mut *conn)
     .await?;
 
@@ -197,14 +199,14 @@ async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Res
 
         let db_name = db_name(db_id);
 
-        writeln!(command, "drop database if exists {}", db_name).ok();
+        writeln!(command, "drop database if exists {db_name}").ok();
         match conn.execute(&*command).await {
             Ok(_deleted) => {
                 deleted_db_ids.push(db_id);
             }
             // Assume a database error just means the DB is still in use.
             Err(Error::Database(dbe)) => {
-                eprintln!("could not clean test database {:?}: {}", db_id, dbe)
+                eprintln!("could not clean test database {db_id:?}: {dbe}")
             }
             // Bubble up other errors
             Err(e) => return Err(e),
@@ -227,13 +229,13 @@ async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Res
 }
 
 fn db_name(id: u64) -> String {
-    format!("_sqlx_test_database_{}", id)
+    format!("_sqlx_test_database_{id}")
 }
 
 fn db_id(name: &str) -> u64 {
     name.trim_start_matches("_sqlx_test_database_")
         .parse()
-        .unwrap_or_else(|_1| panic!("failed to parse ID from database name {:?}", name))
+        .unwrap_or_else(|_1| panic!("failed to parse ID from database name {name:?}"))
 }
 
 #[test]

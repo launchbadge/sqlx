@@ -121,7 +121,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
     let env_path = if env_path.exists() {
         let res = dotenvy::from_path(&env_path);
         if let Err(e) = res {
-            panic!("failed to load environment from {:?}, {}", env_path, e);
+            panic!("failed to load environment from {env_path:?}, {e}");
         }
 
         Some(env_path)
@@ -160,33 +160,28 @@ pub fn expand_input<'a>(
             ..
         } => QueryDataSource::live(db_url)?,
 
-        _ => {
+        Metadata { offline, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
-            let data_file_path = if let Some(sqlx_offline_dir_path) = env("SQLX_OFFLINE_DIR")
-                .ok()
-                .map(PathBuf::from)
+            let dirs = [
+                || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
+                || Some(METADATA.manifest_dir.join(".sqlx")),
+                || Some(METADATA.workspace_root().join(".sqlx")),
+            ];
+            let Some(data_file_path) = dirs
+                .iter()
+                .filter_map(|path| path())
                 .map(|path| path.join(&filename))
-                .filter(|path| path.exists())
-            {
-                sqlx_offline_dir_path
-            } else if let Some(local_path) =
-                Some(METADATA.manifest_dir.join(".sqlx").join(&filename))
-                    .filter(|path| path.exists())
-            {
-                local_path
-            } else if let Some(workspace_path) =
-                Some(METADATA.workspace_root().join(".sqlx").join(&filename))
-                    .filter(|path| path.exists())
-            {
-                workspace_path
-            } else {
+                .find(|path| path.exists())
+            else {
                 return Err(
-                    "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
-                     and .sqlx must exist, to use query macros"
-                        .into(),
+                    if *offline {
+                        "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` to update the query cache or unset `SQLX_OFFLINE`"
+                    } else {
+                        "set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache"
+                    }.into()
                 );
             };
 
@@ -356,39 +351,25 @@ where
         if let Ok(dir) = env("SQLX_OFFLINE_DIR") {
             let path = PathBuf::from(&dir);
 
-            // Prefer SQLX_TMP if set explicitly.
-            // Otherwise fallback to CARGO_TARGET_DIR and then the standard target directory.
-            let tmp_dir = if let Ok(tmp_dir) = env("SQLX_TMP") {
-                PathBuf::from(tmp_dir)
-            } else if let Ok(target_dir) = env("CARGO_TARGET_DIR") {
-                PathBuf::from(target_dir)
-            } else {
-                let tmp_target = PathBuf::from("./target/sqlx");
-                fs::create_dir_all(&tmp_target)
-                    .map_err(|e| format!("Error creating cache directory: {e:?}"))?;
-                tmp_target
-            };
-
             match fs::metadata(&path) {
                 Err(e) => {
                     if e.kind() != io::ErrorKind::NotFound {
                         // Can't obtain information about .sqlx
-                        return Err(format!("{}: {}", e, dir).into());
+                        return Err(format!("{e}: {dir}").into());
                     }
                     // .sqlx doesn't exist.
-                    return Err(format!("sqlx offline path does not exist: {}", dir).into());
+                    return Err(format!("sqlx offline path does not exist: {dir}").into());
                 }
                 Ok(meta) => {
                     if !meta.is_dir() {
                         return Err(format!(
-                            "sqlx offline path exists, but is not a directory: {}",
-                            dir
+                            "sqlx offline path exists, but is not a directory: {dir}"
                         )
                         .into());
                     }
 
                     // .sqlx exists and is a directory, store data.
-                    data.save_in(path, tmp_dir)?;
+                    data.save_in(path)?;
                 }
             }
         }

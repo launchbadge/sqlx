@@ -9,15 +9,20 @@ use libsqlite3_sys::{
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
+use percent_encoding::NON_ALPHANUMERIC;
 use sqlx_core::IndexMap;
+use std::collections::BTreeMap;
 use std::ffi::{c_void, CStr, CString};
 use std::io;
 use std::os::raw::c_int;
 use std::ptr::{addr_of_mut, null, null_mut};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-static THREAD_ID: AtomicU64 = AtomicU64::new(0);
+// This was originally `AtomicU64` but that's not supported on MIPS (or PowerPC):
+// https://github.com/launchbadge/sqlx/issues/2859
+// https://doc.rust-lang.org/stable/std/sync/atomic/index.html#portability
+static THREAD_ID: AtomicUsize = AtomicUsize::new(0);
 
 enum SqliteLoadExtensionMode {
     /// Enables only the C-API, leaving the SQL function disabled.
@@ -89,18 +94,22 @@ impl EstablishParams {
             SQLITE_OPEN_PRIVATECACHE
         };
 
-        let mut query_params: Vec<String> = vec![];
+        let mut query_params = BTreeMap::new();
 
         if options.immutable {
-            query_params.push("immutable=true".into())
+            query_params.insert("immutable", "true");
         }
 
-        if let Some(vfs) = &options.vfs {
-            query_params.push(format!("vfs={}", vfs))
+        if let Some(vfs) = options.vfs.as_deref() {
+            query_params.insert("vfs", &vfs);
         }
 
         if !query_params.is_empty() {
-            filename = format!("file:{}?{}", filename, query_params.join("&"));
+            filename = format!(
+                "file:{}?{}",
+                percent_encoding::percent_encode(filename.as_bytes(), &NON_ALPHANUMERIC),
+                serde_urlencoded::to_string(&query_params).unwrap()
+            );
             flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
 
@@ -138,6 +147,8 @@ impl EstablishParams {
             })
             .collect::<Result<IndexMap<CString, Option<CString>>, io::Error>>()?;
 
+        let thread_id = THREAD_ID.fetch_add(1, Ordering::AcqRel);
+
         Ok(Self {
             filename,
             open_flags: flags,
@@ -145,7 +156,7 @@ impl EstablishParams {
             statement_cache_capacity: options.statement_cache_capacity,
             log_settings: options.log_settings.clone(),
             extensions,
-            thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
+            thread_name: (options.thread_name)(thread_id as u64),
             command_channel_size: options.command_channel_size,
             #[cfg(feature = "regexp")]
             register_regexp_function: options.register_regexp_function,

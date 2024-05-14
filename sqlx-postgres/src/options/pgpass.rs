@@ -55,7 +55,7 @@ fn load_password_from_file(
         if mode & 0o77 != 0 {
             tracing::warn!(
                 path = %path.to_string_lossy(),
-                permissions = format!("{:o}", mode),
+                permissions = format!("{mode:o}"),
                 "Ignoring path. Permissions are not strict enough",
             );
             return None;

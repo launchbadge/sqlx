@@ -48,7 +48,7 @@ use std::{
 /// https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/cash.c#L114-L123
 ///
 /// [`MONEY`]: https://www.postgresql.org/docs/current/datatype-money.html
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct PgMoney(
     /// The raw integer value sent over the wire; for locales with `frac_digits=2` (i.e. most
     /// of them), this will be the value in whole cents.
@@ -81,7 +81,7 @@ impl PgMoney {
     /// See the type-level docs for an explanation of `locale_frac_digits`.
     ///
     /// [`Decimal`]: crate::types::Decimal
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     pub fn to_decimal(self, locale_frac_digits: u32) -> rust_decimal::Decimal {
         rust_decimal::Decimal::new(self.0, locale_frac_digits)
     }
@@ -94,7 +94,7 @@ impl PgMoney {
     /// If the value is larger than 63 bits it will be truncated.
     ///
     /// [`Decimal`]: crate::types::Decimal
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     pub fn from_decimal(mut decimal: rust_decimal::Decimal, locale_frac_digits: u32) -> Self {
         // this is all we need to convert to our expected locale's `frac_digits`
         decimal.rescale(locale_frac_digits);
@@ -279,6 +279,13 @@ mod tests {
     }
 
     #[test]
+    fn default_value() {
+        let money = PgMoney::default();
+
+        assert_eq!(money, PgMoney(0));
+    }
+
+    #[test]
     #[should_panic]
     fn add_overflow_panics() {
         let _ = PgMoney(i64::MAX) + PgMoney(1);
@@ -316,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     fn conversion_to_decimal_works() {
         assert_eq!(
             rust_decimal::Decimal::new(12345, 2),
@@ -325,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "decimal")]
+    #[cfg(feature = "rust_decimal")]
     fn conversion_from_decimal_works() {
         assert_eq!(
             PgMoney(12345),

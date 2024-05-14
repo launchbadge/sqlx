@@ -1,9 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Comma;
-use syn::{Attribute, DeriveInput, Field, Lit, Meta, MetaNameValue, NestedMeta, Type, Variant};
+use syn::{
+    punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type,
+    Variant,
+};
 
 macro_rules! assert_attribute {
     ($e:expr, $err:expr, $input:expr) => {
@@ -56,6 +56,8 @@ pub struct SqlxContainerAttributes {
     pub type_name: Option<TypeName>,
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
+    pub no_pg_array: bool,
+    pub default: bool,
 }
 
 pub struct SqlxChildAttributes {
@@ -64,6 +66,7 @@ pub struct SqlxChildAttributes {
     pub flatten: bool,
     pub try_from: Option<Type>,
     pub skip: bool,
+    pub json: bool,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -71,75 +74,56 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     let mut repr = None;
     let mut type_name = None;
     let mut rename_all = None;
+    let mut no_pg_array = None;
+    let mut default = None;
 
-    for attr in input
-        .iter()
-        .filter(|a| a.path.is_ident("sqlx") || a.path.is_ident("repr"))
-    {
-        let meta = attr
-            .parse_meta()
-            .map_err(|e| syn::Error::new_spanned(attr, e))?;
-        match meta {
-            Meta::List(list) if list.path.is_ident("sqlx") => {
-                for value in list.nested.iter() {
-                    match value {
-                        NestedMeta::Meta(meta) => match meta {
-                            Meta::Path(p) if p.is_ident("transparent") => {
-                                try_set!(transparent, true, value)
-                            }
+    for attr in input {
+        if attr.path().is_ident("sqlx") {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("transparent") {
+                    try_set!(transparent, true, attr);
+                } else if meta.path.is_ident("no_pg_array") {
+                    try_set!(no_pg_array, true, attr);
+                } else if meta.path.is_ident("default") {
+                    try_set!(default, true, attr);
+                } else if meta.path.is_ident("rename_all") {
+                    meta.input.parse::<Token![=]>()?;
+                    let lit: LitStr = meta.input.parse()?;
 
-                            Meta::NameValue(MetaNameValue {
-                                path,
-                                lit: Lit::Str(val),
-                                ..
-                            }) if path.is_ident("rename_all") => {
-                                let val = match &*val.value() {
-                                    "lowercase" => RenameAll::LowerCase,
-                                    "snake_case" => RenameAll::SnakeCase,
-                                    "UPPERCASE" => RenameAll::UpperCase,
-                                    "SCREAMING_SNAKE_CASE" => RenameAll::ScreamingSnakeCase,
-                                    "kebab-case" => RenameAll::KebabCase,
-                                    "camelCase" => RenameAll::CamelCase,
-                                    "PascalCase" => RenameAll::PascalCase,
-                                    _ => fail!(meta, "unexpected value for rename_all"),
-                                };
+                    let val = match lit.value().as_str() {
+                        "lowercase" => RenameAll::LowerCase,
+                        "snake_case" => RenameAll::SnakeCase,
+                        "UPPERCASE" => RenameAll::UpperCase,
+                        "SCREAMING_SNAKE_CASE" => RenameAll::ScreamingSnakeCase,
+                        "kebab-case" => RenameAll::KebabCase,
+                        "camelCase" => RenameAll::CamelCase,
+                        "PascalCase" => RenameAll::PascalCase,
+                        _ => fail!(lit, "unexpected value for rename_all"),
+                    };
 
-                                try_set!(rename_all, val, value)
-                            }
+                    try_set!(rename_all, val, lit)
+                } else if meta.path.is_ident("type_name") {
+                    meta.input.parse::<Token![=]>()?;
+                    let lit: LitStr = meta.input.parse()?;
+                    let name = TypeName {
+                        val: lit.value(),
+                        span: lit.span(),
+                    };
 
-                            Meta::NameValue(MetaNameValue {
-                                path,
-                                lit: Lit::Str(val),
-                                ..
-                            }) if path.is_ident("type_name") => {
-                                try_set!(
-                                    type_name,
-                                    TypeName {
-                                        val: val.value(),
-                                        span: value.span(),
-                                    },
-                                    value
-                                )
-                            }
-
-                            u => fail!(u, "unexpected attribute"),
-                        },
-                        u => fail!(u, "unexpected attribute"),
-                    }
+                    try_set!(type_name, name, lit)
+                } else {
+                    fail!(meta.path, "unexpected attribute")
                 }
+
+                Ok(())
+            })?;
+        } else if attr.path().is_ident("repr") {
+            let list: Punctuated<Meta, Token![,]> =
+                attr.parse_args_with(<Punctuated<Meta, Token![,]>>::parse_terminated)?;
+
+            if let Some(path) = list.iter().find_map(|f| f.require_path_only().ok()) {
+                try_set!(repr, path.get_ident().unwrap().clone(), list);
             }
-            Meta::List(list) if list.path.is_ident("repr") => {
-                if list.nested.len() != 1 {
-                    fail!(&list.nested, "expected one value")
-                }
-                match list.nested.first().unwrap() {
-                    NestedMeta::Meta(Meta::Path(p)) if p.get_ident().is_some() => {
-                        try_set!(repr, p.get_ident().unwrap().clone(), list);
-                    }
-                    u => fail!(u, "unexpected value"),
-                }
-            }
-            _ => {}
         }
     }
 
@@ -148,6 +132,8 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
         repr,
         type_name,
         rename_all,
+        no_pg_array: no_pg_array.unwrap_or(false),
+        default: default.unwrap_or(false),
     })
 }
 
@@ -157,34 +143,36 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
     let mut try_from = None;
     let mut flatten = false;
     let mut skip: bool = false;
+    let mut json = false;
 
-    for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
-        let meta = attr
-            .parse_meta()
-            .map_err(|e| syn::Error::new_spanned(attr, e))?;
-
-        if let Meta::List(list) = meta {
-            for value in list.nested.iter() {
-                match value {
-                    NestedMeta::Meta(meta) => match meta {
-                        Meta::NameValue(MetaNameValue {
-                            path,
-                            lit: Lit::Str(val),
-                            ..
-                        }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
-                        Meta::NameValue(MetaNameValue {
-                            path,
-                            lit: Lit::Str(val),
-                            ..
-                        }) if path.is_ident("try_from") => try_set!(try_from, val.parse()?, value),
-                        Meta::Path(path) if path.is_ident("default") => default = true,
-                        Meta::Path(path) if path.is_ident("flatten") => flatten = true,
-                        Meta::Path(path) if path.is_ident("skip") => skip = true,
-                        u => fail!(u, "unexpected attribute"),
-                    },
-                    u => fail!(u, "unexpected attribute"),
-                }
+    for attr in input.iter().filter(|a| a.path().is_ident("sqlx")) {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("rename") {
+                meta.input.parse::<Token![=]>()?;
+                let val: LitStr = meta.input.parse()?;
+                try_set!(rename, val.value(), val);
+            } else if meta.path.is_ident("try_from") {
+                meta.input.parse::<Token![=]>()?;
+                let val: LitStr = meta.input.parse()?;
+                try_set!(try_from, val.parse()?, val);
+            } else if meta.path.is_ident("default") {
+                default = true;
+            } else if meta.path.is_ident("flatten") {
+                flatten = true;
+            } else if meta.path.is_ident("skip") {
+                skip = true;
+            } else if meta.path.is_ident("json") {
+                json = true;
             }
+
+            return Ok(());
+        })?;
+
+        if json && flatten {
+            fail!(
+                attr,
+                "Cannot use `json` and `flatten` together on the same field"
+            );
         }
     }
 
@@ -194,6 +182,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         flatten,
         try_from,
         skip,
+        json,
     })
 }
 
@@ -226,6 +215,12 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAt
     assert_attribute!(
         !attributes.transparent,
         "unexpected #[sqlx(transparent)]",
+        input
+    );
+
+    assert_attribute!(
+        !attributes.no_pg_array,
+        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for enums",
         input
     );
 
@@ -285,6 +280,12 @@ pub fn check_struct_attributes<'a>(
     assert_attribute!(
         attributes.rename_all.is_none(),
         "unexpected #[sqlx(rename_all = ..)]",
+        input
+    );
+
+    assert_attribute!(
+        !attributes.no_pg_array,
+        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for custom structs",
         input
     );
 

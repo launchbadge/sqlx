@@ -11,7 +11,7 @@
 //! | `i64`                                 | BIGINT, BIGSERIAL, INT8                              |
 //! | `f32`                                 | REAL, FLOAT4                                         |
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
-//! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME                         |
+//! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME, CITEXT                 |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //! | `()`                                  | VOID                                                 |
 //! | [`PgInterval`]                        | INTERVAL                                             |
@@ -19,6 +19,11 @@
 //! | [`PgMoney`]                           | MONEY                                                |
 //! | [`PgLTree`]                           | LTREE                                                |
 //! | [`PgLQuery`]                          | LQUERY                                               |
+//! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
+//!
+//! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
+//! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
+//! does not consider to be compatible with `TEXT[]`.
 //!
 //! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
 //! Requires the `bigdecimal` Cargo feature flag.
@@ -27,12 +32,16 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | NUMERIC                                              |
 //!
+#![doc=include_str!("bigdecimal-range.md")]
+//!
 //! ### [`rust_decimal`](https://crates.io/crates/rust_decimal)
 //! Requires the `rust_decimal` Cargo feature flag.
 //!
 //! | Rust type                             | Postgres type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | NUMERIC                                              |
+//!
+#![doc=include_str!("rust_decimal-range.md")]
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
@@ -175,6 +184,7 @@ pub(crate) use sqlx_core::types::{Json, Type};
 mod array;
 mod bool;
 mod bytes;
+mod citext;
 mod float;
 mod int;
 mod interval;
@@ -187,6 +197,7 @@ mod oid;
 mod range;
 mod record;
 mod str;
+mod text;
 mod tuple;
 mod void;
 
@@ -196,7 +207,7 @@ mod time_tz;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
-#[cfg(any(feature = "bigdecimal", feature = "decimal"))]
+#[cfg(any(feature = "bigdecimal", feature = "rust_decimal"))]
 mod numeric;
 
 #[cfg(feature = "rust_decimal")]
@@ -224,6 +235,7 @@ mod mac_address;
 mod bit_vec;
 
 pub use array::PgHasArrayType;
+pub use citext::PgCiText;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;

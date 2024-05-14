@@ -35,7 +35,7 @@ impl FromStr for SqliteAutoVacuum {
 
             _ => {
                 return Err(Error::Configuration(
-                    format!("unknown value {:?} for `auto_vacuum`", s).into(),
+                    format!("unknown value {s:?} for `auto_vacuum`").into(),
                 ));
             }
         })

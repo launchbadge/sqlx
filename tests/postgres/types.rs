@@ -1,12 +1,14 @@
 extern crate time_ as time;
 
+use std::net::SocketAddr;
 use std::ops::Bound;
 
-use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
-use sqlx_test::{test_decode_type, test_prepared_type, test_type};
+use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
-#[cfg(any(postgres_14, postgres_15))]
+use sqlx_core::executor::Executor;
+use sqlx_core::types::Text;
 use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
@@ -65,6 +67,7 @@ test_type!(str<&str>(Postgres,
     "'identifier'::name" == "identifier",
     "'five'::char(4)" == "five",
     "'more text'::varchar" == "more text",
+    "'case insensitive searching'::citext" == "case insensitive searching",
 ));
 
 test_type!(string<String>(Postgres,
@@ -79,7 +82,7 @@ test_type!(string_vec<Vec<String>>(Postgres,
         == vec!["", "\""],
 
     "array['Hello, World', '', 'Goodbye']::text[]"
-        == vec!["Hello, World", "", "Goodbye"]
+        == vec!["Hello, World", "", "Goodbye"],
 ));
 
 test_type!(string_array<[String; 3]>(Postgres,
@@ -321,7 +324,8 @@ mod time_tests {
 
     test_type!(time_time<Time>(
         Postgres,
-        "TIME '05:10:20.115100'" == time!(5:10:20.115100)
+        "TIME '05:10:20.115100'" == time!(5:10:20.115100),
+        "TIME '05:10:20'" == time!(5:10:20)
     ));
 
     test_type!(time_date_time<PrimitiveDateTime>(
@@ -473,7 +477,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
     "1::numeric" == sqlx::types::Decimal::from_str("1").unwrap(),
@@ -482,9 +486,12 @@ test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
     "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
     "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+    // https://github.com/launchbadge/sqlx/issues/666#issuecomment-683872154
+    "17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("17.905625985174584660842500258").unwrap(),
+    "-17.905625985174584660842500258::numeric" == sqlx::types::Decimal::from_str("-17.905625985174584660842500258").unwrap(),
 ));
 
-#[cfg(feature = "decimal")]
+#[cfg(feature = "rust_decimal")]
 test_type!(numrange_decimal<PgRange<sqlx::types::Decimal>>(Postgres,
     "'(1.3,2.4)'::numrange" == PgRange::from(
         (Bound::Excluded(sqlx::types::Decimal::from_str("1.3").unwrap()),
@@ -549,6 +556,14 @@ test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
 ));
 
+test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
+    "array['one','two','three']::citext[]" == vec![
+        PgCiText("one".to_string()),
+        PgCiText("two".to_string()),
+        PgCiText("three".to_string()),
+    ],
+));
+
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
 #[cfg(any(postgres_14, postgres_15))]
@@ -567,3 +582,46 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+
+#[sqlx_macros::test]
+async fn test_text_adapter() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    struct Login {
+        user_id: i32,
+        socket_addr: Text<SocketAddr>,
+        #[cfg(feature = "time")]
+        login_at: time::OffsetDateTime,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE user_login (
+    user_id INT PRIMARY KEY,
+    socket_addr TEXT NOT NULL,
+    login_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+    "#,
+    )
+    .await?;
+
+    let user_id = 1234;
+    let socket_addr: SocketAddr = "198.51.100.47:31790".parse().unwrap();
+
+    sqlx::query("INSERT INTO user_login (user_id, socket_addr) VALUES ($1, $2)")
+        .bind(user_id)
+        .bind(Text(socket_addr))
+        .execute(&mut conn)
+        .await?;
+
+    let last_login: Login =
+        sqlx::query_as("SELECT * FROM user_login ORDER BY login_at DESC LIMIT 1")
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert_eq!(last_login.user_id, user_id);
+    assert_eq!(*last_login.socket_addr, socket_addr);
+
+    Ok(())
+}

@@ -30,16 +30,16 @@ internal management tasks.
 For securely communicating with SQL servers over an untrusted network connection such as the internet, 
 you can enable Transport Layer Security (TLS) by enabling one of the following features:
 
-* `tls-native`: Enables the [`native-tls`] backend which uses the OS-native TLS capabilities:
+* `tls-native-tls`: Enables the [`native-tls`] backend which uses the OS-native TLS capabilities:
   * SecureTransport on macOS.
   * SChannel on Windows.
   * OpenSSL on all other platforms.
 * `tls-rustls`: Enables the [RusTLS] backend, a crossplatform TLS library.
   * Only supports TLS revisions 1.2 and 1.3. 
   * If you get `HandshakeFailure` errors when using this feature, it likely means your database server does not support 
-    these newer revisions. This might be resolved by enabling or switching to the `tls-native` feature.
+    these newer revisions. This might be resolved by enabling or switching to the `tls-native-tls` feature.
     
-If more than one TLS feature is enabled, the `tls-native` feature takes precedent so that it is only necessary to enable
+If more than one TLS feature is enabled, the `tls-native-tls` feature takes precedent so that it is only necessary to enable
 it to see if it resolves the `HandshakeFailure` error without disabling `tls-rustls`.
 
 Consult the user manual for your database to find the TLS versions it supports.

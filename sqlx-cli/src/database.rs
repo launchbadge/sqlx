@@ -17,14 +17,14 @@ pub async fn create(connect_opts: &ConnectOpts) -> anyhow::Result<()> {
             std::sync::atomic::Ordering::Release,
         );
 
-        Any::create_database(&connect_opts.database_url).await?;
+        Any::create_database(connect_opts.required_db_url()?).await?;
     }
 
     Ok(())
 }
 
-pub async fn drop(connect_opts: &ConnectOpts, confirm: bool) -> anyhow::Result<()> {
-    if confirm && !ask_to_continue(connect_opts) {
+pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> anyhow::Result<()> {
+    if confirm && !ask_to_continue_drop(connect_opts.required_db_url()?) {
         return Ok(());
     }
 
@@ -33,7 +33,11 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool) -> anyhow::Result<(
     let exists = crate::retry_connect_errors(connect_opts, Any::database_exists).await?;
 
     if exists {
-        Any::drop_database(&connect_opts.database_url).await?;
+        if force {
+            Any::force_drop_database(connect_opts.required_db_url()?).await?;
+        } else {
+            Any::drop_database(connect_opts.required_db_url()?).await?;
+        }
     }
 
     Ok(())
@@ -43,22 +47,21 @@ pub async fn reset(
     migration_source: &str,
     connect_opts: &ConnectOpts,
     confirm: bool,
+    force: bool,
 ) -> anyhow::Result<()> {
-    drop(connect_opts, confirm).await?;
+    drop(connect_opts, confirm, force).await?;
     setup(migration_source, connect_opts).await
 }
 
 pub async fn setup(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     create(connect_opts).await?;
-    migrate::run(migration_source, connect_opts, false, false).await
+    migrate::run(migration_source, connect_opts, false, false, None).await
 }
 
-fn ask_to_continue(connect_opts: &ConnectOpts) -> bool {
+fn ask_to_continue_drop(db_url: &str) -> bool {
     loop {
-        let r: Result<String, ReadlineError> = prompt(format!(
-            "Drop database at {}? (y/n)",
-            style(&connect_opts.database_url).cyan()
-        ));
+        let r: Result<String, ReadlineError> =
+            prompt(format!("Drop database at {}? (y/n)", style(db_url).cyan()));
         match r {
             Ok(response) => {
                 if response == "n" || response == "N" {
@@ -73,7 +76,7 @@ fn ask_to_continue(connect_opts: &ConnectOpts) -> bool {
                 }
             }
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
                 return false;
             }
         }

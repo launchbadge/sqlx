@@ -1,3 +1,4 @@
+use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
 use crate::from_row::FromRow;
@@ -66,7 +67,7 @@ const OP_SEEK_GE: &str = "SeekGE";
 const OP_SEEK_GT: &str = "SeekGT";
 const OP_SEEK_LE: &str = "SeekLE";
 const OP_SEEK_LT: &str = "SeekLT";
-const OP_SEEK_ROW_ID: &str = "SeekRowId";
+const OP_SEEK_ROW_ID: &str = "SeekRowid";
 const OP_SEEK_SCAN: &str = "SeekScan";
 const OP_SEQUENCE: &str = "Sequence";
 const OP_SEQUENCE_TEST: &str = "SequenceTest";
@@ -84,6 +85,7 @@ const OP_COLUMN: &str = "Column";
 const OP_MAKE_RECORD: &str = "MakeRecord";
 const OP_INSERT: &str = "Insert";
 const OP_IDX_INSERT: &str = "IdxInsert";
+const OP_OPEN_DUP: &str = "OpenDup";
 const OP_OPEN_PSEUDO: &str = "OpenPseudo";
 const OP_OPEN_READ: &str = "OpenRead";
 const OP_OPEN_WRITE: &str = "OpenWrite";
@@ -136,7 +138,7 @@ enum ColumnType {
         datatype: DataType,
         nullable: Option<bool>,
     },
-    Record(Vec<ColumnType>),
+    Record(IntMap<ColumnType>),
 }
 
 impl Default for ColumnType {
@@ -179,7 +181,7 @@ impl RegDataType {
     fn map_to_datatype(&self) -> DataType {
         match self {
             RegDataType::Single(d) => d.map_to_datatype(),
-            RegDataType::Int(_) => DataType::Int,
+            RegDataType::Int(_) => DataType::Integer,
         }
     }
     fn map_to_nullable(&self) -> Option<bool> {
@@ -192,74 +194,114 @@ impl RegDataType {
         match self {
             RegDataType::Single(d) => d.clone(),
             RegDataType::Int(_) => ColumnType::Single {
-                datatype: DataType::Int,
+                datatype: DataType::Integer,
                 nullable: Some(false),
             },
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+impl Default for RegDataType {
+    fn default() -> Self {
+        Self::Single(ColumnType::default())
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct TableDataType {
+    cols: IntMap<ColumnType>,
+    is_empty: Option<bool>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum CursorDataType {
-    Normal {
-        cols: HashMap<i64, ColumnType>,
-        is_empty: Option<bool>,
-    },
+    Normal(i64),
     Pseudo(i64),
 }
 
 impl CursorDataType {
-    fn from_sparse_record(record: &HashMap<i64, ColumnType>, is_empty: Option<bool>) -> Self {
-        Self::Normal {
-            cols: record
-                .iter()
-                .map(|(colnum, datatype)| (*colnum, datatype.clone()))
-                .collect(),
-            is_empty,
-        }
-    }
-
-    fn from_dense_record(record: &Vec<ColumnType>, is_empty: Option<bool>) -> Self {
-        Self::Normal {
-            cols: (0..).zip(record.iter().cloned()).collect(),
-            is_empty,
-        }
-    }
-
-    fn map_to_dense_record(&self, registers: &HashMap<i64, RegDataType>) -> Vec<ColumnType> {
+    fn columns(
+        &self,
+        tables: &IntMap<TableDataType>,
+        registers: &IntMap<RegDataType>,
+    ) -> IntMap<ColumnType> {
         match self {
-            Self::Normal { cols, .. } => {
-                let mut rowdata = vec![ColumnType::default(); cols.len()];
-                for (idx, col) in cols.iter() {
-                    rowdata[*idx as usize] = col.clone();
-                }
-                rowdata
-            }
+            Self::Normal(i) => match tables.get(i) {
+                Some(tab) => tab.cols.clone(),
+                None => IntMap::new(),
+            },
             Self::Pseudo(i) => match registers.get(i) {
                 Some(RegDataType::Single(ColumnType::Record(r))) => r.clone(),
-                _ => Vec::new(),
+                _ => IntMap::new(),
             },
         }
     }
 
-    fn map_to_sparse_record(
-        &self,
-        registers: &HashMap<i64, RegDataType>,
-    ) -> HashMap<i64, ColumnType> {
+    fn columns_ref<'s, 'r, 'o>(
+        &'s self,
+        tables: &'r IntMap<TableDataType>,
+        registers: &'r IntMap<RegDataType>,
+    ) -> Option<&'o IntMap<ColumnType>>
+    where
+        's: 'o,
+        'r: 'o,
+    {
         match self {
-            Self::Normal { cols, .. } => cols.clone(),
+            Self::Normal(i) => match tables.get(i) {
+                Some(tab) => Some(&tab.cols),
+                None => None,
+            },
             Self::Pseudo(i) => match registers.get(i) {
-                Some(RegDataType::Single(ColumnType::Record(r))) => {
-                    (0..).zip(r.iter().cloned()).collect()
-                }
-                _ => HashMap::new(),
+                Some(RegDataType::Single(ColumnType::Record(r))) => Some(r),
+                _ => None,
             },
         }
     }
 
-    fn is_empty(&self) -> Option<bool> {
+    fn columns_mut<'s, 'r, 'o>(
+        &'s self,
+        tables: &'r mut IntMap<TableDataType>,
+        registers: &'r mut IntMap<RegDataType>,
+    ) -> Option<&'o mut IntMap<ColumnType>>
+    where
+        's: 'o,
+        'r: 'o,
+    {
         match self {
-            Self::Normal { is_empty, .. } => *is_empty,
+            Self::Normal(i) => match tables.get_mut(i) {
+                Some(tab) => Some(&mut tab.cols),
+                None => None,
+            },
+            Self::Pseudo(i) => match registers.get_mut(i) {
+                Some(RegDataType::Single(ColumnType::Record(r))) => Some(r),
+                _ => None,
+            },
+        }
+    }
+
+    fn table_mut<'s, 'r, 'o>(
+        &'s self,
+        tables: &'r mut IntMap<TableDataType>,
+    ) -> Option<&'o mut TableDataType>
+    where
+        's: 'o,
+        'r: 'o,
+    {
+        match self {
+            Self::Normal(i) => match tables.get_mut(i) {
+                Some(tab) => Some(tab),
+                None => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn is_empty(&self, tables: &IntMap<TableDataType>) -> Option<bool> {
+        match self {
+            Self::Normal(i) => match tables.get(i) {
+                Some(tab) => tab.is_empty,
+                None => Some(true),
+            },
             Self::Pseudo(_) => Some(false), //pseudo cursors have exactly one row
         }
     }
@@ -269,7 +311,7 @@ impl CursorDataType {
 fn affinity_to_type(affinity: u8) -> DataType {
     match affinity {
         SQLITE_AFF_BLOB => DataType::Blob,
-        SQLITE_AFF_INTEGER => DataType::Int64,
+        SQLITE_AFF_INTEGER => DataType::Integer,
         SQLITE_AFF_NUMERIC => DataType::Numeric,
         SQLITE_AFF_REAL => DataType::Float,
         SQLITE_AFF_TEXT => DataType::Text,
@@ -284,7 +326,7 @@ fn opcode_to_type(op: &str) -> DataType {
         OP_REAL => DataType::Float,
         OP_BLOB => DataType::Blob,
         OP_AND | OP_OR => DataType::Bool,
-        OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Int64,
+        OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Integer,
         OP_STRING8 => DataType::Text,
         OP_COLUMN | _ => DataType::Null,
     }
@@ -292,7 +334,7 @@ fn opcode_to_type(op: &str) -> DataType {
 
 fn root_block_columns(
     conn: &mut ConnectionState,
-) -> Result<HashMap<(i64, i64), HashMap<i64, ColumnType>>, Error> {
+) -> Result<HashMap<(i64, i64), IntMap<ColumnType>>, Error> {
     let table_block_columns: Vec<(i64, i64, i64, String, bool)> = execute::iter(
         conn,
         "SELECT s.dbnum, s.rootpage, col.cid as colnum, col.type, col.\"notnull\"
@@ -319,7 +361,7 @@ fn root_block_columns(
     .map(|row| FromRow::from_row(&row?))
     .collect::<Result<Vec<_>, Error>>()?;
 
-    let mut row_info: HashMap<(i64, i64), HashMap<i64, ColumnType>> = HashMap::new();
+    let mut row_info: HashMap<(i64, i64), IntMap<ColumnType>> = HashMap::new();
     for (dbnum, block, colnum, datatype, notnull) in table_block_columns {
         let row_info = row_info.entry((dbnum, block)).or_default();
         row_info.insert(
@@ -340,65 +382,44 @@ struct QueryState {
     pub visited: Vec<u8>,
     // A log of the order of execution of each instruction
     pub history: Vec<usize>,
-    // Registers
-    pub r: HashMap<i64, RegDataType>,
-    // Rows that pointers point to
-    pub p: HashMap<i64, CursorDataType>,
-    // Next instruction to execute
-    pub program_i: usize,
+    // State of the virtual machine
+    pub mem: MemoryState,
     // Results published by the execution
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct BranchStateHash {
-    instruction: usize,
-    //register index, data type
-    registers: Vec<(i64, RegDataType)>,
-    //cursor index, is_empty, pseudo register index
-    cursor_metadata: Vec<(i64, Option<bool>, Option<i64>)>,
-    //cursor index, column index, data type
-    cursors: Vec<(i64, i64, Option<ColumnType>)>,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct MemoryState {
+    // Next instruction to execute
+    pub program_i: usize,
+    // Registers
+    pub r: IntMap<RegDataType>,
+    // Rows that pointers point to
+    pub p: IntMap<CursorDataType>,
+    // Table definitions pointed to by pointers
+    pub t: IntMap<TableDataType>,
 }
 
-impl BranchStateHash {
-    pub fn from_query_state(st: &QueryState) -> Self {
-        let mut reg = vec![];
-        for (k, v) in &st.r {
-            reg.push((*k, v.clone()));
-        }
-        reg.sort_by_key(|v| v.0);
+struct BranchList {
+    states: Vec<QueryState>,
+    visited_branch_state: HashSet<MemoryState>,
+}
 
-        let mut cur = vec![];
-        let mut cur_meta = vec![];
-        for (k, v) in &st.p {
-            match v {
-                CursorDataType::Normal { cols, is_empty } => {
-                    cur_meta.push((*k, *is_empty, None));
-                    for (i, col) in cols {
-                        cur.push((*k, *i, Some(col.clone())));
-                    }
-                }
-                CursorDataType::Pseudo(i) => {
-                    cur_meta.push((*k, None, Some(*i)));
-                    //don't bother copying columns, they are in register i
-                }
-            }
-        }
-        cur_meta.sort_by(|a, b| a.0.cmp(&b.0));
-        cur.sort_by(|a, b| {
-            if a.0 == b.0 {
-                a.1.cmp(&b.1)
-            } else {
-                a.0.cmp(&b.0)
-            }
-        });
+impl BranchList {
+    pub fn new(state: QueryState) -> Self {
         Self {
-            instruction: st.program_i,
-            registers: reg,
-            cursor_metadata: cur_meta,
-            cursors: cur,
+            states: vec![state],
+            visited_branch_state: HashSet::new(),
         }
+    }
+    pub fn push(&mut self, state: QueryState) {
+        if !self.visited_branch_state.contains(&state.mem) {
+            self.visited_branch_state.insert(state.mem.clone());
+            self.states.push(state);
+        }
+    }
+    pub fn pop(&mut self) -> Option<QueryState> {
+        self.states.pop()
     }
 }
 
@@ -409,7 +430,7 @@ pub(super) fn explain(
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
     let root_block_cols = root_block_columns(conn)?;
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
-        execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
+        execute::iter(conn, &format!("EXPLAIN {query}"), None, false)?
             .filter_map(|res| res.map(|either| either.right()).transpose())
             .map(|row| FromRow::from_row(&row?))
             .collect::<Result<Vec<_>, Error>>()?;
@@ -418,24 +439,25 @@ pub(super) fn explain(
     let mut logger =
         crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
 
-    let mut states = vec![QueryState {
+    let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],
         history: Vec::new(),
-        r: HashMap::with_capacity(6),
-        p: HashMap::with_capacity(6),
-        program_i: 0,
         result: None,
-    }];
-
-    let mut visited_branch_state: HashSet<BranchStateHash> = HashSet::new();
+        mem: MemoryState {
+            program_i: 0,
+            r: IntMap::new(),
+            t: IntMap::new(),
+            p: IntMap::new(),
+        },
+    });
 
     let mut gas = MAX_TOTAL_INSTRUCTION_COUNT;
     let mut result_states = Vec::new();
 
     while let Some(mut state) = states.pop() {
-        while state.program_i < program_size {
-            let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
-            state.history.push(state.program_i);
+        while state.mem.program_i < program_size {
+            let (_, ref opcode, p1, p2, p3, ref p4) = program[state.mem.program_i];
+            state.history.push(state.mem.program_i);
 
             //limit the number of 'instructions' that can be evaluated
             if gas > 0 {
@@ -444,7 +466,7 @@ pub(super) fn explain(
                 break;
             }
 
-            if state.visited[state.program_i] > MAX_LOOP_COUNT {
+            if state.visited[state.mem.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {
                     let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
                         state.history.iter().map(|i| &program[*i]).collect();
@@ -455,32 +477,42 @@ pub(super) fn explain(
                 break;
             }
 
-            state.visited[state.program_i] += 1;
+            state.visited[state.mem.program_i] += 1;
 
             match &**opcode {
                 OP_INIT => {
                     // start at <p2>
-                    state.program_i = p2 as usize;
+                    state.mem.program_i = p2 as usize;
                     continue;
                 }
 
                 OP_GOTO => {
                     // goto <p2>
 
-                    state.program_i = p2 as usize;
+                    state.mem.program_i = p2 as usize;
                     continue;
                 }
 
                 OP_GO_SUB => {
                     // store current instruction in r[p1], goto <p2>
-                    state.r.insert(p1, RegDataType::Int(state.program_i as i64));
-                    state.program_i = p2 as usize;
+                    state
+                        .mem
+                        .r
+                        .insert(p1, RegDataType::Int(state.mem.program_i as i64));
+                    state.mem.program_i = p2 as usize;
                     continue;
                 }
 
-                OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FK_IF_ZERO | OP_FOUND
-                | OP_GE | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT | OP_IF_NO_HOPE
-                | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO | OP_IF_NULL_ROW | OP_IF_SMALLER
+                OP_FK_IF_ZERO => {
+                    // goto <p2> if no constraints are unsatisfied (assumed to be true)
+
+                    state.mem.program_i = p2 as usize;
+                    continue;
+                }
+
+                OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FOUND | OP_GE | OP_GT
+                | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT | OP_IF_NO_HOPE | OP_IF_NOT
+                | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO | OP_IF_NULL_ROW | OP_IF_SMALLER
                 | OP_INCR_VACUUM | OP_IS_NULL | OP_IS_NULL_OR_TYPE | OP_LE | OP_LT | OP_NE
                 | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_ONCE | OP_PREV | OP_PROGRAM
                 | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE
@@ -489,50 +521,42 @@ pub(super) fn explain(
                     // goto <p2> or next instruction (depending on actual values)
 
                     let mut branch_state = state.clone();
-                    branch_state.program_i = p2 as usize;
+                    branch_state.mem.program_i = p2 as usize;
+                    states.push(branch_state);
 
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
-
-                    state.program_i += 1;
+                    state.mem.program_i += 1;
                     continue;
                 }
 
                 OP_NOT_NULL => {
                     // goto <p2> or next instruction (depending on actual values)
 
-                    let might_branch = match state.r.get(&p1) {
+                    let might_branch = match state.mem.r.get(&p1) {
                         Some(r_p1) => !matches!(r_p1.map_to_datatype(), DataType::Null),
                         _ => false,
                     };
 
-                    let might_not_branch = match state.r.get(&p1) {
+                    let might_not_branch = match state.mem.r.get(&p1) {
                         Some(r_p1) => !matches!(r_p1.map_to_nullable(), Some(false)),
                         _ => false,
                     };
 
                     if might_branch {
                         let mut branch_state = state.clone();
-                        branch_state.program_i = p2 as usize;
+                        branch_state.mem.program_i = p2 as usize;
                         if let Some(RegDataType::Single(ColumnType::Single { nullable, .. })) =
-                            branch_state.r.get_mut(&p1)
+                            branch_state.mem.r.get_mut(&p1)
                         {
                             *nullable = Some(false);
                         }
 
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        states.push(branch_state);
                     }
 
                     if might_not_branch {
-                        state.program_i += 1;
+                        state.mem.program_i += 1;
                         state
+                            .mem
                             .r
                             .insert(p1, RegDataType::Single(ColumnType::default()));
                         continue;
@@ -548,50 +572,41 @@ pub(super) fn explain(
                     //don't bother checking actual types, just don't branch to instruction 0
                     if p2 != 0 {
                         let mut branch_state = state.clone();
-                        branch_state.program_i = p2 as usize;
-
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        branch_state.mem.program_i = p2 as usize;
+                        states.push(branch_state);
                     }
 
-                    state.program_i += 1;
+                    state.mem.program_i += 1;
                     continue;
                 }
 
                 OP_IF => {
                     // goto <p2> if r[p1] is true (1) or r[p1] is null and p3 is nonzero
 
-                    let might_branch = match state.r.get(&p1) {
+                    let might_branch = match state.mem.r.get(&p1) {
                         Some(RegDataType::Int(r_p1)) => *r_p1 != 0,
                         _ => true,
                     };
 
-                    let might_not_branch = match state.r.get(&p1) {
+                    let might_not_branch = match state.mem.r.get(&p1) {
                         Some(RegDataType::Int(r_p1)) => *r_p1 == 0,
                         _ => true,
                     };
 
                     if might_branch {
                         let mut branch_state = state.clone();
-                        branch_state.program_i = p2 as usize;
+                        branch_state.mem.program_i = p2 as usize;
                         if p3 == 0 {
-                            branch_state.r.insert(p1, RegDataType::Int(1));
+                            branch_state.mem.r.insert(p1, RegDataType::Int(1));
                         }
 
-                        let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                        if !visited_branch_state.contains(&bs_hash) {
-                            visited_branch_state.insert(bs_hash);
-                            states.push(branch_state);
-                        }
+                        states.push(branch_state);
                     }
 
                     if might_not_branch {
-                        state.program_i += 1;
+                        state.mem.program_i += 1;
                         if p3 == 0 {
-                            state.r.insert(p1, RegDataType::Int(0));
+                            state.mem.r.insert(p1, RegDataType::Int(0));
                         }
                         continue;
                     } else {
@@ -604,37 +619,37 @@ pub(super) fn explain(
 
                     // as a workaround for large offset clauses, both branches will be attempted after 1 loop
 
-                    let might_branch = match state.r.get(&p1) {
+                    let might_branch = match state.mem.r.get(&p1) {
                         Some(RegDataType::Int(r_p1)) => *r_p1 >= 1,
                         _ => true,
                     };
 
-                    let might_not_branch = match state.r.get(&p1) {
+                    let might_not_branch = match state.mem.r.get(&p1) {
                         Some(RegDataType::Int(r_p1)) => *r_p1 < 1,
                         _ => true,
                     };
 
-                    let loop_detected = state.visited[state.program_i] > 1;
+                    let loop_detected = state.visited[state.mem.program_i] > 1;
                     if might_branch || loop_detected {
                         let mut branch_state = state.clone();
-                        branch_state.program_i = p2 as usize;
-                        if let Some(RegDataType::Int(r_p1)) = branch_state.r.get_mut(&p1) {
+                        branch_state.mem.program_i = p2 as usize;
+                        if let Some(RegDataType::Int(r_p1)) = branch_state.mem.r.get_mut(&p1) {
                             *r_p1 -= 1;
                         }
                         states.push(branch_state);
                     }
 
                     if might_not_branch {
-                        state.program_i += 1;
+                        state.mem.program_i += 1;
                         continue;
                     } else if loop_detected {
-                        state.program_i += 1;
-                        if matches!(state.r.get_mut(&p1), Some(RegDataType::Int(..))) {
+                        state.mem.program_i += 1;
+                        if matches!(state.mem.r.get_mut(&p1), Some(RegDataType::Int(..))) {
                             //forget the exact value, in case some later cares
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p1,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(false),
                                 }),
                             );
@@ -649,28 +664,28 @@ pub(super) fn explain(
                     // goto <p2> if cursor p1 is empty and p2 != 0, else next instruction
 
                     if p2 == 0 {
-                        state.program_i += 1;
+                        state.mem.program_i += 1;
                         continue;
                     }
 
-                    if let Some(cursor) = state.p.get(&p1) {
-                        if matches!(cursor.is_empty(), None | Some(true)) {
+                    if let Some(cursor) = state.mem.p.get(&p1) {
+                        if matches!(cursor.is_empty(&state.mem.t), None | Some(true)) {
                             //only take this branch if the cursor is empty
 
                             let mut branch_state = state.clone();
-                            branch_state.program_i = p2 as usize;
+                            branch_state.mem.program_i = p2 as usize;
 
-                            if let Some(CursorDataType::Normal { is_empty, .. }) =
-                                branch_state.p.get_mut(&p1)
-                            {
-                                *is_empty = Some(true);
+                            if let Some(cur) = branch_state.mem.p.get(&p1) {
+                                if let Some(tab) = cur.table_mut(&mut branch_state.mem.t) {
+                                    tab.is_empty = Some(true);
+                                }
                             }
                             states.push(branch_state);
                         }
 
-                        if matches!(cursor.is_empty(), None | Some(false)) {
+                        if matches!(cursor.is_empty(&state.mem.t), None | Some(false)) {
                             //only take this branch if the cursor is non-empty
-                            state.program_i += 1;
+                            state.mem.program_i += 1;
                             continue;
                         } else {
                             break;
@@ -689,12 +704,12 @@ pub(super) fn explain(
                 OP_INIT_COROUTINE => {
                     // goto <p2> or next instruction (depending on actual values)
 
-                    state.r.insert(p1, RegDataType::Int(p3));
+                    state.mem.r.insert(p1, RegDataType::Int(p3));
 
                     if p2 != 0 {
-                        state.program_i = p2 as usize;
+                        state.mem.program_i = p2 as usize;
                     } else {
-                        state.program_i += 1;
+                        state.mem.program_i += 1;
                     }
                     continue;
                 }
@@ -702,13 +717,13 @@ pub(super) fn explain(
                 OP_END_COROUTINE => {
                     // jump to p2 of the yield instruction pointed at by register p1
 
-                    if let Some(RegDataType::Int(yield_i)) = state.r.get(&p1) {
+                    if let Some(RegDataType::Int(yield_i)) = state.mem.r.get(&p1) {
                         if let Some((_, yield_op, _, yield_p2, _, _)) =
                             program.get(*yield_i as usize)
                         {
                             if OP_YIELD == yield_op.as_str() {
-                                state.program_i = (*yield_p2) as usize;
-                                state.r.remove(&p1);
+                                state.mem.program_i = (*yield_p2) as usize;
+                                state.mem.r.remove(&p1);
                                 continue;
                             } else {
                                 if logger.log_enabled() {
@@ -746,9 +761,9 @@ pub(super) fn explain(
                 OP_RETURN => {
                     // jump to the instruction after the instruction pointed at by register p1
 
-                    if let Some(RegDataType::Int(return_i)) = state.r.get(&p1) {
-                        state.program_i = (*return_i + 1) as usize;
-                        state.r.remove(&p1);
+                    if let Some(RegDataType::Int(return_i)) = state.mem.r.get(&p1) {
+                        state.mem.program_i = (*return_i + 1) as usize;
+                        state.mem.r.remove(&p1);
                         continue;
                     } else {
                         if logger.log_enabled() {
@@ -763,8 +778,8 @@ pub(super) fn explain(
                 OP_YIELD => {
                     // jump to p2 of the yield instruction pointed at by register p1, store prior instruction in p1
 
-                    if let Some(RegDataType::Int(yield_i)) = state.r.get_mut(&p1) {
-                        let program_i: usize = state.program_i;
+                    if let Some(RegDataType::Int(yield_i)) = state.mem.r.get_mut(&p1) {
+                        let program_i: usize = state.mem.program_i;
 
                         //if yielding to a yield operation, go to the NEXT instruction after that instruction
                         if program
@@ -772,11 +787,11 @@ pub(super) fn explain(
                             .map(|(_, yield_op, _, _, _, _)| yield_op.as_str())
                             == Some(OP_YIELD)
                         {
-                            state.program_i = (*yield_i + 1) as usize;
+                            state.mem.program_i = (*yield_i + 1) as usize;
                             *yield_i = program_i as i64;
                             continue;
                         } else {
-                            state.program_i = *yield_i as usize;
+                            state.mem.program_i = *yield_i as usize;
                             *yield_i = program_i as i64;
                             continue;
                         }
@@ -794,57 +809,41 @@ pub(super) fn explain(
                     // goto one of <p1>, <p2>, or <p3> based on the result of a prior compare
 
                     let mut branch_state = state.clone();
-                    branch_state.program_i = p1 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    branch_state.mem.program_i = p1 as usize;
+                    states.push(branch_state);
 
                     let mut branch_state = state.clone();
-                    branch_state.program_i = p2 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    branch_state.mem.program_i = p2 as usize;
+                    states.push(branch_state);
 
                     let mut branch_state = state.clone();
-                    branch_state.program_i = p3 as usize;
-                    let bs_hash = BranchStateHash::from_query_state(&branch_state);
-                    if !visited_branch_state.contains(&bs_hash) {
-                        visited_branch_state.insert(bs_hash);
-                        states.push(branch_state);
-                    }
+                    branch_state.mem.program_i = p3 as usize;
+                    states.push(branch_state);
                 }
 
                 OP_COLUMN => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                    if let Some(record) = state.p.get(&p1).map(|c| c.map_to_sparse_record(&state.r))
-                    {
-                        if let Some(col) = record.get(&p2) {
-                            // insert into p3 the datatype of the col
-                            state.r.insert(p3, RegDataType::Single(col.clone()));
-                        } else {
-                            state
-                                .r
-                                .insert(p3, RegDataType::Single(ColumnType::default()));
-                        }
-                    } else {
-                        state
-                            .r
-                            .insert(p3, RegDataType::Single(ColumnType::default()));
-                    }
+                    let value: ColumnType = state
+                        .mem
+                        .p
+                        .get(&p1)
+                        .and_then(|c| c.columns_ref(&state.mem.t, &state.mem.r))
+                        .and_then(|cc| cc.get(&p2))
+                        .cloned()
+                        .unwrap_or_else(|| ColumnType::default());
+
+                    // insert into p3 the datatype of the col
+                    state.mem.r.insert(p3, RegDataType::Single(value));
                 }
 
                 OP_SEQUENCE => {
                     //Copy sequence number from cursor p1 to register p2, increment cursor p1 sequence number
 
                     //Cursor emulation doesn't sequence value, but it is an int
-                    state.r.insert(
+                    state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
-                            datatype: DataType::Int64,
+                            datatype: DataType::Integer,
                             nullable: Some(false),
                         }),
                     );
@@ -852,15 +851,21 @@ pub(super) fn explain(
 
                 OP_ROW_DATA | OP_SORTER_DATA => {
                     //Get entire row from cursor p1, store it into register p2
-                    if let Some(record) = state.p.get(&p1) {
-                        let rowdata = record.map_to_dense_record(&state.r);
+                    if let Some(record) = state
+                        .mem
+                        .p
+                        .get(&p1)
+                        .map(|c| c.columns(&state.mem.t, &state.mem.r))
+                    {
                         state
+                            .mem
                             .r
-                            .insert(p2, RegDataType::Single(ColumnType::Record(rowdata)));
+                            .insert(p2, RegDataType::Single(ColumnType::Record(record)));
                     } else {
                         state
+                            .mem
                             .r
-                            .insert(p2, RegDataType::Single(ColumnType::Record(Vec::new())));
+                            .insert(p2, RegDataType::Single(ColumnType::Record(IntMap::new())));
                     }
                 }
 
@@ -870,25 +875,31 @@ pub(super) fn explain(
                     for reg in p1..p1 + p2 {
                         record.push(
                             state
+                                .mem
                                 .r
                                 .get(&reg)
-                                .map(|d| d.clone().map_to_columntype())
+                                .map(|d| d.map_to_columntype())
                                 .unwrap_or(ColumnType::default()),
                         );
                     }
-                    state
-                        .r
-                        .insert(p3, RegDataType::Single(ColumnType::Record(record)));
+                    state.mem.r.insert(
+                        p3,
+                        RegDataType::Single(ColumnType::Record(IntMap::from_dense_record(&record))),
+                    );
                 }
 
                 OP_INSERT | OP_IDX_INSERT | OP_SORTER_INSERT => {
-                    if let Some(RegDataType::Single(ColumnType::Record(record))) = state.r.get(&p2)
+                    if let Some(RegDataType::Single(ColumnType::Record(record))) =
+                        state.mem.r.get(&p2)
                     {
-                        if let Some(CursorDataType::Normal { cols, is_empty }) =
-                            state.p.get_mut(&p1)
+                        if let Some(TableDataType { cols, is_empty }) = state
+                            .mem
+                            .p
+                            .get(&p1)
+                            .and_then(|cur| cur.table_mut(&mut state.mem.t))
                         {
                             // Insert the record into wherever pointer p1 is
-                            *cols = (0..).zip(record.iter().cloned()).collect();
+                            *cols = record.clone();
                             *is_empty = Some(false);
                         }
                     }
@@ -897,7 +908,12 @@ pub(super) fn explain(
 
                 OP_DELETE => {
                     // delete a record from cursor p1
-                    if let Some(CursorDataType::Normal { is_empty, .. }) = state.p.get_mut(&p1) {
+                    if let Some(TableDataType { is_empty, .. }) = state
+                        .mem
+                        .p
+                        .get(&p1)
+                        .and_then(|cur| cur.table_mut(&mut state.mem.t))
+                    {
                         if *is_empty == Some(false) {
                             *is_empty = None; //the cursor might be empty now
                         }
@@ -906,78 +922,91 @@ pub(super) fn explain(
 
                 OP_OPEN_PSEUDO => {
                     // Create a cursor p1 aliasing the record from register p2
-                    state.p.insert(p1, CursorDataType::Pseudo(p2));
+                    state.mem.p.insert(p1, CursorDataType::Pseudo(p2));
+                }
+
+                OP_OPEN_DUP => {
+                    if let Some(cur) = state.mem.p.get(&p2) {
+                        state.mem.p.insert(p1, cur.clone());
+                    }
                 }
 
                 OP_OPEN_READ | OP_OPEN_WRITE => {
                     //Create a new pointer which is referenced by p1, take column metadata from db schema if found
-                    if p3 == 0 || p3 == 1 {
+                    let table_info = if p3 == 0 || p3 == 1 {
                         if let Some(columns) = root_block_cols.get(&(p3, p2)) {
-                            state
-                                .p
-                                .insert(p1, CursorDataType::from_sparse_record(columns, None));
+                            TableDataType {
+                                cols: columns.clone(),
+                                is_empty: None,
+                            }
                         } else {
-                            state.p.insert(
-                                p1,
-                                CursorDataType::Normal {
-                                    cols: HashMap::with_capacity(6),
-                                    is_empty: None,
-                                },
-                            );
+                            TableDataType {
+                                cols: IntMap::new(),
+                                is_empty: None,
+                            }
                         }
                     } else {
-                        state.p.insert(
-                            p1,
-                            CursorDataType::Normal {
-                                cols: HashMap::with_capacity(6),
-                                is_empty: None,
-                            },
-                        );
-                    }
+                        TableDataType {
+                            cols: IntMap::new(),
+                            is_empty: None,
+                        }
+                    };
+
+                    state.mem.t.insert(state.mem.program_i as i64, table_info);
+                    state
+                        .mem
+                        .p
+                        .insert(p1, CursorDataType::Normal(state.mem.program_i as i64));
                 }
 
                 OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX | OP_SORTER_OPEN => {
                     //Create a new pointer which is referenced by p1
-                    state.p.insert(
-                        p1,
-                        CursorDataType::from_dense_record(
-                            &vec![ColumnType::null(); p2 as usize],
-                            Some(true),
-                        ),
-                    );
+                    let table_info = TableDataType {
+                        cols: IntMap::from_dense_record(&vec![ColumnType::null(); p2 as usize]),
+                        is_empty: Some(true),
+                    };
+
+                    state.mem.t.insert(state.mem.program_i as i64, table_info);
+                    state
+                        .mem
+                        .p
+                        .insert(p1, CursorDataType::Normal(state.mem.program_i as i64));
                 }
 
                 OP_VARIABLE => {
                     // r[p2] = <value of variable>
-                    state.r.insert(p2, RegDataType::Single(ColumnType::null()));
+                    state
+                        .mem
+                        .r
+                        .insert(p2, RegDataType::Single(ColumnType::null()));
                 }
 
                 // if there is a value in p3, and the query passes, then
                 // we know that it is not nullable
                 OP_HALT_IF_NULL => {
                     if let Some(RegDataType::Single(ColumnType::Single { nullable, .. })) =
-                        state.r.get_mut(&p3)
+                        state.mem.r.get_mut(&p3)
                     {
                         *nullable = Some(false);
                     }
                 }
 
                 OP_FUNCTION => {
-                    // r[p1] = func( _ )
+                    // r[p3] = func( _ ), registered function name is in p4
                     match from_utf8(p4).map_err(Error::protocol)? {
                         "last_insert_rowid(0)" => {
                             // last_insert_rowid() -> INTEGER
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(false),
                                 }),
                             );
                         }
                         "date(-1)" | "time(-1)" | "datetime(-1)" | "strftime(-1)" => {
                             // date|time|datetime|strftime(...) -> TEXT
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
                                     datatype: DataType::Text,
@@ -987,7 +1016,7 @@ pub(super) fn explain(
                         }
                         "julianday(-1)" => {
                             // julianday(...) -> REAL
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
                                     datatype: DataType::Float,
@@ -997,22 +1026,26 @@ pub(super) fn explain(
                         }
                         "unixepoch(-1)" => {
                             // unixepoch(p2...) -> INTEGER
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single {
-                                    datatype: DataType::Int64,
+                                    datatype: DataType::Integer,
                                     nullable: Some(p2 != 0), //never a null result if no argument provided
                                 }),
                             );
                         }
 
-                        _ => logger.add_unknown_operation(&program[state.program_i]),
+                        _ => logger.add_unknown_operation(&program[state.mem.program_i]),
                     }
                 }
 
                 OP_NULL_ROW => {
                     // all columns in cursor X are potentially nullable
-                    if let Some(CursorDataType::Normal { ref mut cols, .. }) = state.p.get_mut(&p1)
+                    if let Some(cols) = state
+                        .mem
+                        .p
+                        .get_mut(&p1)
+                        .and_then(|c| c.columns_mut(&mut state.mem.t, &mut state.mem.r))
                     {
                         for col in cols.values_mut() {
                             if let ColumnType::Single {
@@ -1037,30 +1070,51 @@ pub(super) fn explain(
                         || p4.starts_with("ntile(")
                     {
                         // count(_) -> INTEGER
-                        state.r.insert(
+                        state.mem.r.insert(
                             p3,
                             RegDataType::Single(ColumnType::Single {
-                                datatype: DataType::Int64,
+                                datatype: DataType::Integer,
+                                nullable: Some(false),
+                            }),
+                        );
+                    } else if p4.starts_with("percent_rank(") || p4.starts_with("cume_dist") {
+                        // percent_rank(_) -> REAL
+                        state.mem.r.insert(
+                            p3,
+                            RegDataType::Single(ColumnType::Single {
+                                datatype: DataType::Float,
                                 nullable: Some(false),
                             }),
                         );
                     } else if p4.starts_with("sum(") {
-                        if let Some(r_p2) = state.r.get(&p2) {
+                        if let Some(r_p2) = state.mem.r.get(&p2) {
                             let datatype = match r_p2.map_to_datatype() {
-                                DataType::Int64 => DataType::Int64,
-                                DataType::Int => DataType::Int,
-                                DataType::Bool => DataType::Int,
+                                // The result of a `SUM()` can be arbitrarily large
+                                DataType::Integer | DataType::Int4 | DataType::Bool => {
+                                    DataType::Integer
+                                }
                                 _ => DataType::Float,
                             };
                             let nullable = r_p2.map_to_nullable();
-                            state.r.insert(
+                            state.mem.r.insert(
                                 p3,
                                 RegDataType::Single(ColumnType::Single { datatype, nullable }),
                             );
                         }
-                    } else if let Some(v) = state.r.get(&p2).cloned() {
+                    } else if p4.starts_with("lead(") || p4.starts_with("lag(") {
+                        if let Some(r_p2) = state.mem.r.get(&p2) {
+                            let datatype = r_p2.map_to_datatype();
+                            state.mem.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype,
+                                    nullable: Some(true),
+                                }),
+                            );
+                        }
+                    } else if let Some(v) = state.mem.r.get(&p2).cloned() {
                         // r[p3] = AGG ( r[p2] )
-                        state.r.insert(p3, v);
+                        state.mem.r.insert(p3, v);
                     }
                 }
 
@@ -1074,19 +1128,39 @@ pub(super) fn explain(
                         || p4.starts_with("ntile(")
                     {
                         // count(_) -> INTEGER
-                        state.r.insert(
+                        state.mem.r.insert(
                             p1,
                             RegDataType::Single(ColumnType::Single {
-                                datatype: DataType::Int64,
+                                datatype: DataType::Integer,
                                 nullable: Some(false),
                             }),
                         );
+                    } else if p4.starts_with("percent_rank(") || p4.starts_with("cume_dist") {
+                        // percent_rank(_) -> REAL
+                        state.mem.r.insert(
+                            p3,
+                            RegDataType::Single(ColumnType::Single {
+                                datatype: DataType::Float,
+                                nullable: Some(false),
+                            }),
+                        );
+                    } else if p4.starts_with("lead(") || p4.starts_with("lag(") {
+                        if let Some(r_p2) = state.mem.r.get(&p2) {
+                            let datatype = r_p2.map_to_datatype();
+                            state.mem.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype,
+                                    nullable: Some(true),
+                                }),
+                            );
+                        }
                     }
                 }
 
                 OP_CAST => {
                     // affinity(r[p1])
-                    if let Some(v) = state.r.get_mut(&p1) {
+                    if let Some(v) = state.mem.r.get_mut(&p1) {
                         *v = RegDataType::Single(ColumnType::Single {
                             datatype: affinity_to_type(p2 as u8),
                             nullable: v.map_to_nullable(),
@@ -1096,8 +1170,8 @@ pub(super) fn explain(
 
                 OP_SCOPY | OP_INT_COPY => {
                     // r[p2] = r[p1]
-                    if let Some(v) = state.r.get(&p1).cloned() {
-                        state.r.insert(p2, v);
+                    if let Some(v) = state.mem.r.get(&p1).cloned() {
+                        state.mem.r.insert(p2, v);
                     }
                 }
 
@@ -1107,8 +1181,8 @@ pub(super) fn explain(
                         for i in 0..=p3 {
                             let src = p1 + i;
                             let dst = p2 + i;
-                            if let Some(v) = state.r.get(&src).cloned() {
-                                state.r.insert(dst, v);
+                            if let Some(v) = state.mem.r.get(&src).cloned() {
+                                state.mem.r.insert(dst, v);
                             }
                         }
                     }
@@ -1120,9 +1194,12 @@ pub(super) fn explain(
                         for i in 0..p3 {
                             let src = p1 + i;
                             let dst = p2 + i;
-                            if let Some(v) = state.r.get(&src).cloned() {
-                                state.r.insert(dst, v);
-                                state.r.insert(src, RegDataType::Single(ColumnType::null()));
+                            if let Some(v) = state.mem.r.get(&src).cloned() {
+                                state.mem.r.insert(dst, v);
+                                state
+                                    .mem
+                                    .r
+                                    .insert(src, RegDataType::Single(ColumnType::null()));
                             }
                         }
                     }
@@ -1130,12 +1207,12 @@ pub(super) fn explain(
 
                 OP_INTEGER => {
                     // r[p2] = p1
-                    state.r.insert(p2, RegDataType::Int(p1));
+                    state.mem.r.insert(p2, RegDataType::Int(p1));
                 }
 
                 OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_ROWID | OP_NEWROWID => {
                     // r[p2] = <value of constant>
-                    state.r.insert(
+                    state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
                             datatype: opcode_to_type(&opcode),
@@ -1146,8 +1223,8 @@ pub(super) fn explain(
 
                 OP_NOT => {
                     // r[p2] = NOT r[p1]
-                    if let Some(a) = state.r.get(&p1).cloned() {
-                        state.r.insert(p2, a);
+                    if let Some(a) = state.mem.r.get(&p1).cloned() {
+                        state.mem.r.insert(p2, a);
                     }
                 }
 
@@ -1156,63 +1233,50 @@ pub(super) fn explain(
                     let idx_range = if p2 < p3 { p2..=p3 } else { p2..=p2 };
 
                     for idx in idx_range {
-                        state.r.insert(idx, RegDataType::Single(ColumnType::null()));
+                        state
+                            .mem
+                            .r
+                            .insert(idx, RegDataType::Single(ColumnType::null()));
                     }
                 }
 
                 OP_OR | OP_AND | OP_BIT_AND | OP_BIT_OR | OP_SHIFT_LEFT | OP_SHIFT_RIGHT
                 | OP_ADD | OP_SUBTRACT | OP_MULTIPLY | OP_DIVIDE | OP_REMAINDER | OP_CONCAT => {
                     // r[p3] = r[p1] + r[p2]
-                    match (state.r.get(&p1).cloned(), state.r.get(&p2).cloned()) {
-                        (Some(a), Some(b)) => {
-                            state.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: if matches!(a.map_to_datatype(), DataType::Null) {
-                                        b.map_to_datatype()
-                                    } else {
-                                        a.map_to_datatype()
-                                    },
-                                    nullable: match (a.map_to_nullable(), b.map_to_nullable()) {
-                                        (Some(a_n), Some(b_n)) => Some(a_n | b_n),
-                                        (Some(a_n), None) => Some(a_n),
-                                        (None, Some(b_n)) => Some(b_n),
-                                        (None, None) => None,
-                                    },
-                                }),
-                            );
-                        }
+                    let value = match (state.mem.r.get(&p1), state.mem.r.get(&p2)) {
+                        (Some(a), Some(b)) => RegDataType::Single(ColumnType::Single {
+                            datatype: if matches!(a.map_to_datatype(), DataType::Null) {
+                                b.map_to_datatype()
+                            } else {
+                                a.map_to_datatype()
+                            },
+                            nullable: match (a.map_to_nullable(), b.map_to_nullable()) {
+                                (Some(a_n), Some(b_n)) => Some(a_n | b_n),
+                                (Some(a_n), None) => Some(a_n),
+                                (None, Some(b_n)) => Some(b_n),
+                                (None, None) => None,
+                            },
+                        }),
+                        (Some(v), None) => RegDataType::Single(ColumnType::Single {
+                            datatype: v.map_to_datatype(),
+                            nullable: None,
+                        }),
+                        (None, Some(v)) => RegDataType::Single(ColumnType::Single {
+                            datatype: v.map_to_datatype(),
+                            nullable: None,
+                        }),
+                        _ => RegDataType::default(),
+                    };
 
-                        (Some(v), None) => {
-                            state.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: v.map_to_datatype(),
-                                    nullable: None,
-                                }),
-                            );
-                        }
-
-                        (None, Some(v)) => {
-                            state.r.insert(
-                                p3,
-                                RegDataType::Single(ColumnType::Single {
-                                    datatype: v.map_to_datatype(),
-                                    nullable: None,
-                                }),
-                            );
-                        }
-
-                        _ => {}
-                    }
+                    state.mem.r.insert(p3, value);
                 }
 
                 OP_OFFSET_LIMIT => {
                     // r[p2] = if r[p2] < 0 { r[p1] } else if r[p1]<0 { -1 } else { r[p1] + r[p3] }
-                    state.r.insert(
+                    state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
-                            datatype: DataType::Int64,
+                            datatype: DataType::Integer,
                             nullable: Some(false),
                         }),
                     );
@@ -1224,7 +1288,7 @@ pub(super) fn explain(
                     state.result = Some(
                         (p1..p1 + p2)
                             .map(|i| {
-                                let coltype = state.r.get(&i);
+                                let coltype = state.mem.r.get(&i);
 
                                 let sqltype =
                                     coltype.map(|d| d.map_to_datatype()).map(SqliteTypeInfo);
@@ -1257,11 +1321,11 @@ pub(super) fn explain(
                 _ => {
                     // ignore unsupported operations
                     // if we fail to find an r later, we just give up
-                    logger.add_unknown_operation(&program[state.program_i]);
+                    logger.add_unknown_operation(&program[state.mem.program_i]);
                 }
             }
 
-            state.program_i += 1;
+            state.mem.program_i += 1;
         }
     }
 
@@ -1408,7 +1472,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1433,7 +1497,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["i1"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1451,7 +1515,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["i2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&table_db_block][&0]
@@ -1469,7 +1533,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]
@@ -1494,7 +1558,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2i1"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]
@@ -1512,7 +1576,7 @@ fn test_root_block_columns_has_types() {
         let table_db_block = table_block_nums["t2i2"];
         assert_eq!(
             ColumnType::Single {
-                datatype: DataType::Int64,
+                datatype: DataType::Integer,
                 nullable: Some(false)
             },
             root_block_cols[&table_db_block][&0]

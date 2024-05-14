@@ -83,7 +83,7 @@ impl Parse for QueryMacroInput {
                 let lit_bool = input.parse::<LitBool>()?;
                 checked = lit_bool.value;
             } else {
-                let message = format!("unexpected input key: {}", key);
+                let message = format!("unexpected input key: {key}");
                 return Err(syn::Error::new_spanned(key, message));
             }
 

@@ -402,13 +402,18 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
             let s = self.run(sql, arguments, 1, persistent, metadata).await?;
             pin_mut!(s);
 
-            while let Some(s) = s.try_next().await? {
-                if let Either::Right(r) = s {
-                    return Ok(Some(r));
+            // With deferred constraints we need to check all responses as we
+            // could get a OK response (with uncommitted data), only to get an
+            // error response after (when the deferred constraint is actually
+            // checked).
+            let mut ret = None;
+            while let Some(result) = s.try_next().await? {
+                match result {
+                    Either::Right(r) if ret.is_none() => ret = Some(r),
+                    _ => {}
                 }
             }
-
-            Ok(None)
+            Ok(ret)
         })
     }
 

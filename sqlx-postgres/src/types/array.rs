@@ -1,4 +1,5 @@
 use sqlx_core::bytes::Buf;
+use sqlx_core::types::Text;
 use std::borrow::Cow;
 
 use crate::decode::Decode;
@@ -9,10 +10,61 @@ use crate::types::Oid;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 
+/// Provides information necessary to encode and decode Postgres arrays as compatible Rust types.
+///
+/// Implementing this trait for some type `T` enables relevant `Type`,`Encode` and `Decode` impls
+/// for `Vec<T>`, `&[T]` (slices), `[T; N]` (arrays), etc.
+///
+/// ### Note: `#[derive(sqlx::Type)]`
+/// If you have the `postgres` feature enabled, `#[derive(sqlx::Type)]` will also generate
+/// an impl of this trait for your type if your wrapper is marked `#[sqlx(transparent)]`:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent)]
+/// struct UserId(i64);
+///
+/// let user_ids: Vec<UserId> = sqlx::query_scalar("select '{ 123, 456 }'::int8[]")
+///    .fetch(&mut pg_connection)
+///    .await?;
+/// ```
+///
+/// However, this may cause an error if the type being wrapped does not implement `PgHasArrayType`,
+/// e.g. `Vec` itself, because we don't currently support multidimensional arrays:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)] // ERROR: `Vec<i64>` does not implement `PgHasArrayType`
+/// #[sqlx(transparent)]
+/// struct UserIds(Vec<i64>);
+/// ```
+///
+/// To remedy this, add `#[sqlx(no_pg_array)]`, which disables the generation
+/// of the `PgHasArrayType` impl:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent, no_pg_array)]
+/// struct UserIds(Vec<i64>);
+/// ```
+///
+/// See [the documentation of `Type`][Type] for more details.
 pub trait PgHasArrayType {
     fn array_type_info() -> PgTypeInfo;
     fn array_compatible(ty: &PgTypeInfo) -> bool {
         *ty == Self::array_type_info()
+    }
+}
+
+impl<T> PgHasArrayType for &T
+where
+    T: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
     }
 }
 
@@ -26,6 +78,16 @@ where
 
     fn array_compatible(ty: &PgTypeInfo) -> bool {
         T::array_compatible(ty)
+    }
+}
+
+impl<T> PgHasArrayType for Text<T> {
+    fn array_type_info() -> PgTypeInfo {
+        String::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        String::array_compatible(ty)
     }
 }
 
@@ -158,7 +220,7 @@ where
                 }
 
                 if ndim != 1 {
-                    return Err(format!("encountered an array of {} dimensions; only one-dimensional arrays are supported", ndim).into());
+                    return Err(format!("encountered an array of {ndim} dimensions; only one-dimensional arrays are supported").into());
                 }
 
                 // appears to have been used in the past to communicate potential NULLS
@@ -184,7 +246,7 @@ where
                 let lower = buf.get_i32();
 
                 if lower != 1 {
-                    return Err(format!("encountered an array with a lower bound of {} in the first dimension; only arrays starting at one are supported", lower).into());
+                    return Err(format!("encountered an array with a lower bound of {lower} in the first dimension; only arrays starting at one are supported").into());
                 }
 
                 let mut elements = Vec::with_capacity(len as usize);

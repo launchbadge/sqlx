@@ -50,7 +50,7 @@ pub(crate) async fn authenticate(
     }
 
     // channel-binding = "c=" base64
-    let mut channel_binding = format!("{}=", CHANNEL_ATTR);
+    let mut channel_binding = format!("{CHANNEL_ATTR}=");
     BASE64_STANDARD.encode_string(GS2_HEADER, &mut channel_binding);
 
     // "n=" saslname ;; Usernames are prepared using SASLprep.
@@ -65,14 +65,9 @@ pub(crate) async fn authenticate(
     let nonce = gen_nonce();
 
     // client-first-message-bare = [reserved-mext ","] username "," nonce ["," extensions]
-    let client_first_message_bare =
-        format!("{username},{nonce}", username = username, nonce = nonce);
+    let client_first_message_bare = format!("{username},{nonce}");
 
-    let client_first_message = format!(
-        "{gs2_header}{client_first_message_bare}",
-        gs2_header = GS2_HEADER,
-        client_first_message_bare = client_first_message_bare
-    );
+    let client_first_message = format!("{GS2_HEADER}{client_first_message_bare}");
 
     stream
         .send(SaslInitialResponse {
@@ -147,11 +142,7 @@ pub(crate) async fn authenticate(
     mac.update(&auth_message.as_bytes());
 
     // client-final-message = client-final-message-without-proof "," proof
-    let mut client_final_message = format!(
-        "{client_final_message_wo_proof},{client_proof_attr}=",
-        client_final_message_wo_proof = client_final_message_wo_proof,
-        client_proof_attr = CLIENT_PROOF_ATTR,
-    );
+    let mut client_final_message = format!("{client_final_message_wo_proof},{CLIENT_PROOF_ATTR}=");
     BASE64_STANDARD.encode_string(client_proof, &mut client_final_message);
 
     stream.send(SaslResponse(&client_final_message)).await?;
@@ -194,7 +185,7 @@ fn gen_nonce() -> String {
         .collect();
 
     rng.gen_range(32..128);
-    format!("{}={}", NONCE_ATTR, nonce)
+    format!("{NONCE_ATTR}={nonce}")
 }
 
 // Hi(str, salt, i):
@@ -204,15 +195,33 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
     mac.update(&salt);
     mac.update(&1u32.to_be_bytes());
 
-    let mut u = mac.finalize().into_bytes();
+    let mut u = mac.finalize_reset().into_bytes();
     let mut hi = u;
 
     for _ in 1..iter_count {
-        let mut mac = Hmac::<Sha256>::new_from_slice(s.as_bytes()).map_err(Error::protocol)?;
         mac.update(u.as_slice());
-        u = mac.finalize().into_bytes();
+        u = mac.finalize_reset().into_bytes();
         hi = hi.iter().zip(u.iter()).map(|(&a, &b)| a ^ b).collect();
     }
 
     Ok(hi.into())
+}
+
+#[cfg(all(test, not(debug_assertions)))]
+#[bench]
+fn bench_sasl_hi(b: &mut test::Bencher) {
+    use test::black_box;
+
+    let mut rng = rand::thread_rng();
+    let nonce: Vec<u8> = std::iter::repeat(())
+        .map(|()| rng.sample(rand::distributions::Alphanumeric))
+        .take(64)
+        .collect();
+    b.iter(|| {
+        let _ = hi(
+            test::black_box("secret_password"),
+            test::black_box(&nonce),
+            test::black_box(4096),
+        );
+    });
 }

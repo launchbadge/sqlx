@@ -1,6 +1,6 @@
 //! TODO: automatic test fixture capture
 
-use crate::database::{Database, HasArguments};
+use crate::database::Database;
 
 use crate::query_builder::QueryBuilder;
 
@@ -111,7 +111,7 @@ impl<DB: Database> FixtureSnapshot<DB> {
 /// which appends to an internal string.
 impl<DB: Database> ToString for Fixture<DB>
 where
-    for<'a> <DB as HasArguments<'a>>::Arguments: Default,
+    for<'a> <DB as Database>::Arguments<'a>: Default,
 {
     fn to_string(&self) -> String {
         let mut query = QueryBuilder::<DB>::new("");
@@ -128,7 +128,7 @@ where
                         continue;
                     }
 
-                    query.push(format_args!("INSERT INTO {} (", table));
+                    query.push(format_args!("INSERT INTO {table} ("));
 
                     let mut separated = query.separated(", ");
 

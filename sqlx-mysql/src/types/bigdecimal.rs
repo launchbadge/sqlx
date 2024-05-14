@@ -12,6 +12,10 @@ impl Type<MySql> for BigDecimal {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::NewDecimal)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        matches!(ty.r#type, ColumnType::Decimal | ColumnType::NewDecimal)
+    }
 }
 
 impl Encode<'_, MySql> for BigDecimal {

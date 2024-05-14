@@ -150,9 +150,9 @@ impl Display for PgLTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut iter = self.labels.iter();
         if let Some(label) = iter.next() {
-            write!(f, "{}", label)?;
+            write!(f, "{label}")?;
             for label in iter {
-                write!(f, ".{}", label)?;
+                write!(f, ".{label}")?;
             }
         }
         Ok(())
@@ -183,7 +183,7 @@ impl PgHasArrayType for PgLTree {
 impl Encode<'_, Postgres> for PgLTree {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend(1i8.to_le_bytes());
-        write!(buf, "{}", self)
+        write!(buf, "{self}")
             .expect("Display implementation panicked while writing to PgArgumentBuffer");
 
         IsNull::No

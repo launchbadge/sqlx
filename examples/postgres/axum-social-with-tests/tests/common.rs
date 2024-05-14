@@ -53,14 +53,14 @@ pub async fn response_json(resp: &mut Response<BoxBody>) -> serde_json::Value {
 pub fn expect_string(value: &serde_json::Value) -> &str {
     value
         .as_str()
-        .unwrap_or_else(|| panic!("expected string, got {:?}", value))
+        .unwrap_or_else(|| panic!("expected string, got {value:?}"))
 }
 
 #[track_caller]
 pub fn expect_uuid(value: &serde_json::Value) -> Uuid {
     expect_string(value)
         .parse::<Uuid>()
-        .unwrap_or_else(|e| panic!("failed to parse UUID from {:?}: {}", value, e))
+        .unwrap_or_else(|e| panic!("failed to parse UUID from {value:?}: {e}"))
 }
 
 #[track_caller]
@@ -68,5 +68,5 @@ pub fn expect_rfc3339_timestamp(value: &serde_json::Value) -> OffsetDateTime {
     let s = expect_string(value);
 
     OffsetDateTime::parse(s, &Rfc3339)
-        .unwrap_or_else(|e| panic!("failed to parse RFC-3339 timestamp from {:?}: {}", value, e))
+        .unwrap_or_else(|e| panic!("failed to parse RFC-3339 timestamp from {value:?}: {e}"))
 }

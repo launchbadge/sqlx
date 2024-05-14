@@ -1,6 +1,8 @@
 use std::ops::{Deref, Not};
 
 use clap::{Args, Parser};
+#[cfg(feature = "completions")]
+use clap_complete::Shell;
 
 #[derive(Parser, Debug)]
 #[clap(version, about, author)]
@@ -46,6 +48,10 @@ pub enum Command {
 
     #[clap(alias = "mig")]
     Migrate(MigrateOpt),
+
+    #[cfg(feature = "completions")]
+    /// Generate shell completions for the specified shell
+    Completions { shell: Shell },
 }
 
 /// Group of commands for creating and dropping your database.
@@ -70,6 +76,10 @@ pub enum DatabaseCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// PostgreSQL only: force drops the database.
+        #[clap(long, short, default_value = "false")]
+        force: bool,
     },
 
     /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
@@ -82,6 +92,10 @@ pub enum DatabaseCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// PostgreSQL only: force drops the database.
+        #[clap(long, short, default_value = "false")]
+        force: bool,
     },
 
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
@@ -103,8 +117,22 @@ pub struct MigrateOpt {
 
 #[derive(Parser, Debug)]
 pub enum MigrateCommand {
-    /// Create a new migration with the given description,
-    /// and the current time as the version.
+    /// Create a new migration with the given description.
+    ///
+    /// A version number will be automatically assigned to the migration.
+    ///
+    /// For convenience, this command will attempt to detect if sequential versioning is in use,
+    /// and if so, continue the sequence.
+    ///
+    /// Sequential versioning is inferred if:
+    ///
+    /// * The version numbers of the last two migrations differ by exactly 1, or:
+    ///
+    /// * only one migration exists and its version number is either 0 or 1.
+    ///
+    /// Otherwise timestamp versioning is assumed.
+    ///
+    /// This behavior can overridden by `--sequential` or `--timestamp`, respectively.
     Add {
         description: String,
 
@@ -115,6 +143,14 @@ pub enum MigrateCommand {
         /// else creates a single sql file
         #[clap(short)]
         reversible: bool,
+
+        /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
+        #[clap(short, long)]
+        timestamp: bool,
+
+        /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
+        #[clap(short, long, conflicts_with = "timestamp")]
+        sequential: bool,
     },
 
     /// Run all pending migrations.
@@ -131,6 +167,11 @@ pub enum MigrateCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// Apply migrations up to the specified version. If unspecified, apply all
+        /// pending migrations. If already at the target version, then no-op.
+        #[clap(long)]
+        target_version: Option<i64>,
     },
 
     /// Revert the latest migration with a down file.
@@ -147,6 +188,12 @@ pub enum MigrateCommand {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        /// Revert migrations down to the specified version. If unspecified, revert
+        /// only the last migration. Set to 0 to revert all migrations. If already
+        /// at the target version, then no-op.
+        #[clap(long)]
+        target_version: Option<i64>,
     },
 
     /// List all available migrations.
@@ -190,9 +237,9 @@ impl Deref for Source {
 /// Argument for the database URL.
 #[derive(Args, Debug)]
 pub struct ConnectOpts {
-    /// Location of the DB, by default will be read from the DATABASE_URL env var
+    /// Location of the DB, by default will be read from the DATABASE_URL env var or `.env` files.
     #[clap(long, short = 'D', env)]
-    pub database_url: String,
+    pub database_url: Option<String>,
 
     /// The maximum time, in seconds, to try connecting to the database server before
     /// returning an error.
@@ -210,6 +257,18 @@ pub struct ConnectOpts {
     #[cfg(feature = "sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
+}
+
+impl ConnectOpts {
+    /// Require a database URL to be provided, otherwise
+    /// return an error.
+    pub fn required_db_url(&self) -> anyhow::Result<&str> {
+        self.database_url.as_deref().ok_or_else(
+            || anyhow::anyhow!(
+                "the `--database-url` option the or `DATABASE_URL` environment variable must be provided"
+            )
+        )
+    }
 }
 
 /// Argument for automatic confirmation.

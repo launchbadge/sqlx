@@ -49,7 +49,7 @@ impl IntoResponse for Error {
 
         // Normally you wouldn't just print this, but it's useful for debugging without
         // using a logging framework.
-        println!("API error: {:?}", self);
+        println!("API error: {self:?}");
 
         (
             self.status_code(),

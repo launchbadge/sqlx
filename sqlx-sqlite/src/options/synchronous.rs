@@ -41,7 +41,7 @@ impl FromStr for SqliteSynchronous {
 
             _ => {
                 return Err(Error::Configuration(
-                    format!("unknown value {:?} for `synchronous`", s).into(),
+                    format!("unknown value {s:?} for `synchronous`").into(),
                 ));
             }
         })

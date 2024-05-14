@@ -221,15 +221,11 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
         }
 
         let conn: &mut PgConnection = self.conn.as_deref_mut().expect("copy_from: conn taken");
-
-        // flush any existing messages in the buffer and clear it
-        conn.stream.flush().await?;
-
         loop {
             let buf = conn.stream.write_buffer_mut();
 
             // CopyData format code and reserved space for length
-            buf.put_slice(b"d\0\0\0\0");
+            buf.put_slice(b"d\0\0\0\x04");
 
             let read = match () {
                 // Tokio lets us read into the buffer without zeroing first
@@ -346,16 +342,21 @@ async fn pg_begin_copy_out<'c, C: DerefMut<Target = PgConnection> + Send + 'c>(
 
     let stream: TryAsyncStream<'c, Bytes> = try_stream! {
         loop {
-            let msg = conn.stream.recv().await?;
-            match msg.format {
-                MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
-                MessageFormat::CopyDone => {
-                    let _ = msg.decode::<CopyDone>()?;
-                    conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+            match conn.stream.recv().await {
+                Err(e) => {
                     conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
-                    return Ok(())
+                    return Err(e);
                 },
-                _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                Ok(msg) => match msg.format {
+                    MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
+                    MessageFormat::CopyDone => {
+                        let _ = msg.decode::<CopyDone>()?;
+                        conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+                        conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
+                        return Ok(())
+                    },
+                    _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                }
             }
         }
     };

@@ -10,6 +10,7 @@ use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
+use smallvec::SmallVec;
 use std::fmt::Write;
 use std::sync::Arc;
 
@@ -447,16 +448,18 @@ WHERE rngtypid = $1
             explain += ")";
         }
 
-        let (Json([explain]),): (Json<[Explain; 1]>,) = query_as(&explain).fetch_one(self).await?;
+        let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
+            query_as(&explain).fetch_one(self).await?;
 
         let mut nullables = Vec::new();
 
-        if let Explain::Plan(
-            plan @ Plan {
-                output: Some(outputs),
-                ..
-            },
-        ) = &explain
+        if let Some(Explain::Plan {
+            plan:
+                plan @ Plan {
+                    output: Some(ref outputs),
+                    ..
+                },
+        }) = explains.first()
         {
             nullables.resize(outputs.len(), None);
             visit_plan(&plan, outputs, &mut nullables);
@@ -491,17 +494,30 @@ fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
+#[serde(untagged)]
 enum Explain {
-    /// {"Plan": ...} -- returned for most statements
-    Plan(Plan),
-    /// The string "Utility Statement" -- returned for
-    /// a CALL statement
-    #[serde(rename = "Utility Statement")]
-    UtilityStatement,
+    // NOTE: the returned JSON may not contain a `plan` field, for example, with `CALL` statements:
+    // https://github.com/launchbadge/sqlx/issues/1449
+    //
+    // In this case, we should just fall back to assuming all is nullable.
+    //
+    // It may also contain additional fields we don't care about, which should not break parsing:
+    // https://github.com/launchbadge/sqlx/issues/2587
+    // https://github.com/launchbadge/sqlx/issues/2622
+    Plan {
+        #[serde(rename = "Plan")]
+        plan: Plan,
+    },
+
+    // This ensures that parsing never technically fails.
+    //
+    // We don't want to specifically expect `"Utility Statement"` because there might be other cases
+    // and we don't care unless it contains a query plan anyway.
+    Other(serde::de::IgnoredAny),
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 struct Plan {
     #[serde(rename = "Join Type")]
     join_type: Option<String>,
@@ -511,4 +527,61 @@ struct Plan {
     output: Option<Vec<String>>,
     #[serde(rename = "Plans")]
     plans: Option<Vec<Plan>>,
+}
+
+#[test]
+fn explain_parsing() {
+    let normal_plan = r#"[
+   {
+     "Plan": {
+       "Node Type": "Result",
+       "Parallel Aware": false,
+       "Async Capable": false,
+       "Startup Cost": 0.00,
+       "Total Cost": 0.01,
+       "Plan Rows": 1,
+       "Plan Width": 4,
+       "Output": ["1"]
+     }
+   }
+]"#;
+
+    // https://github.com/launchbadge/sqlx/issues/2622
+    let extra_field = r#"[
+   {                                        
+     "Plan": {                              
+       "Node Type": "Result",               
+       "Parallel Aware": false,             
+       "Async Capable": false,              
+       "Startup Cost": 0.00,                
+       "Total Cost": 0.01,                  
+       "Plan Rows": 1,                      
+       "Plan Width": 4,                     
+       "Output": ["1"]                      
+     },                                     
+     "Query Identifier": 1147616880456321454
+   }                                        
+]"#;
+
+    // https://github.com/launchbadge/sqlx/issues/1449
+    let utility_statement = r#"["Utility Statement"]"#;
+
+    let normal_plan_parsed = serde_json::from_str::<[Explain; 1]>(normal_plan).unwrap();
+    let extra_field_parsed = serde_json::from_str::<[Explain; 1]>(extra_field).unwrap();
+    let utility_statement_parsed = serde_json::from_str::<[Explain; 1]>(utility_statement).unwrap();
+
+    assert!(
+        matches!(normal_plan_parsed, [Explain::Plan { plan: Plan { .. } }]),
+        "unexpected parse from {normal_plan:?}: {normal_plan_parsed:?}"
+    );
+
+    assert!(
+        matches!(extra_field_parsed, [Explain::Plan { plan: Plan { .. } }]),
+        "unexpected parse from {extra_field:?}: {extra_field_parsed:?}"
+    );
+
+    assert!(
+        matches!(utility_statement_parsed, [Explain::Other(_)]),
+        "unexpected parse from {utility_statement:?}: {utility_statement_parsed:?}"
+    )
 }

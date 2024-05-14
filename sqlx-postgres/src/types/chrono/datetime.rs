@@ -38,7 +38,7 @@ impl Encode<'_, Postgres> for NaiveDateTime {
         // TIMESTAMP is encoded as the microseconds since the epoch
         let us = (*self - postgres_epoch_datetime())
             .num_microseconds()
-            .unwrap_or_else(|| panic!("NaiveDateTime out of range for Postgres: {:?}", self));
+            .unwrap_or_else(|| panic!("NaiveDateTime out of range for Postgres: {self:?}"));
 
         Encode::<Postgres>::encode(&us, buf)
     }

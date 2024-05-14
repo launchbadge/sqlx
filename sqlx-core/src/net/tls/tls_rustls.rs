@@ -6,7 +6,8 @@ use std::time::SystemTime;
 
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, WebPkiVerifier},
-    ClientConfig, ClientConnection, Error as TlsError, OwnedTrustAnchor, RootCertStore, ServerName,
+    CertificateError, ClientConfig, ClientConnection, Error as TlsError, OwnedTrustAnchor,
+    RootCertStore, ServerName,
 };
 
 use crate::error::Error;
@@ -70,7 +71,13 @@ impl<S: Socket> Socket for RustlsSocket<S> {
         }
 
         futures_util::ready!(self.poll_complete_io(cx))?;
-        self.inner.socket.poll_shutdown(cx)
+
+        // Server can close socket as soon as it receives the connection shutdown request.
+        // We shouldn't expect it to stick around for the TLS session to close cleanly.
+        // https://security.stackexchange.com/a/82034
+        let _ = futures_util::ready!(self.inner.socket.poll_shutdown(cx));
+
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -99,7 +106,7 @@ where
         if let Some(user_auth) = user_auth {
             config
                 .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier))
-                .with_single_cert(user_auth.0, user_auth.1)
+                .with_client_auth_cert(user_auth.0, user_auth.1)
                 .map_err(Error::tls)?
         } else {
             config
@@ -108,7 +115,7 @@ where
         }
     } else {
         let mut cert_store = RootCertStore::empty();
-        cert_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
+        cert_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
             OwnedTrustAnchor::from_subject_spki_name_constraints(
                 ta.subject,
                 ta.spki,
@@ -135,7 +142,7 @@ where
             if let Some(user_auth) = user_auth {
                 config
                     .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
-                    .with_single_cert(user_auth.0, user_auth.1)
+                    .with_client_auth_cert(user_auth.0, user_auth.1)
                     .map_err(Error::tls)?
             } else {
                 config
@@ -145,7 +152,7 @@ where
         } else if let Some(user_auth) = user_auth {
             config
                 .with_root_certificates(cert_store)
-                .with_single_cert(user_auth.0, user_auth.1)
+                .with_client_auth_cert(user_auth.0, user_auth.1)
                 .map_err(Error::tls)?
         } else {
             config
@@ -234,8 +241,8 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             ocsp_response,
             now,
         ) {
-            Err(TlsError::InvalidCertificateData(reason))
-                if reason.contains("CertNotValidForName") =>
+            Err(TlsError::InvalidCertificate(reason))
+                if reason == CertificateError::NotValidForName =>
             {
                 Ok(ServerCertVerified::assertion())
             }

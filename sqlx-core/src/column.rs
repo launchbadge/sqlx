@@ -4,7 +4,7 @@ use crate::error::Error;
 use std::fmt::Debug;
 
 pub trait Column: 'static + Send + Sync + Debug {
-    type Database: Database;
+    type Database: Database<Column = Self>;
 
     /// Gets the column ordinal.
     ///
@@ -27,8 +27,6 @@ pub trait Column: 'static + Send + Sync + Debug {
 /// The [`get`] and [`try_get`] methods of [`Row`] accept any type that implements `ColumnIndex`.
 /// This trait is implemented for strings which are used to look up a column by name, and for
 /// `usize` which is used as a positional index into the row.
-///
-/// This trait is sealed and cannot be implemented for types outside of SQLx.
 ///
 /// [`Row`]: crate::row::Row
 /// [`Statement`]: crate::statement::Statement

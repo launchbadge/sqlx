@@ -69,7 +69,7 @@ impl PgNumericSign {
 
             SIGN_NAN => unreachable!("sign value for NaN passed to PgNumericSign"),
 
-            _ => Err(format!("invalid value for PgNumericSign: {:#04X}", val).into()),
+            _ => Err(format!("invalid value for PgNumericSign: {val:#04X}").into()),
         }
     }
 }

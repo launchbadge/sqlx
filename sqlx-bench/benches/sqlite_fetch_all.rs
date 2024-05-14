@@ -37,7 +37,7 @@ fn main() -> sqlx::Result<()> {
             );
 
             let elapsed = chrono::Utc::now() - start;
-            println!("elapsed {}", elapsed);
+            println!("elapsed {elapsed}");
         }
 
         Ok(())

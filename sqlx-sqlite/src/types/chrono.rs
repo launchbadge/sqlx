@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::value::ValueRef;
 use crate::{
     decode::Decode,
@@ -7,7 +9,6 @@ use crate::{
     types::Type,
     Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
 };
-use bitflags::_core::fmt::Display;
 use chrono::FixedOffset;
 use chrono::{
     DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
@@ -31,7 +32,11 @@ impl Type<Sqlite> for NaiveDateTime {
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int | DataType::Float
+            DataType::Datetime
+                | DataType::Text
+                | DataType::Integer
+                | DataType::Int4
+                | DataType::Float
         )
     }
 }
@@ -104,7 +109,7 @@ impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
+        DataType::Int4 | DataType::Integer => decode_datetime_from_int(value.int64()),
         DataType::Float => decode_datetime_from_float(value.double()),
 
         _ => None,
@@ -155,7 +160,7 @@ fn decode_datetime_from_text(value: &str) -> Option<DateTime<FixedOffset>> {
 }
 
 fn decode_datetime_from_int(value: i64) -> Option<DateTime<FixedOffset>> {
-    NaiveDateTime::from_timestamp_opt(value, 0).map(|dt| Utc.fix().from_utc_datetime(&dt))
+    Utc.fix().timestamp_opt(value, 0).single()
 }
 
 fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
@@ -165,7 +170,7 @@ fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
     let seconds = timestamp as i64;
     let nanos = (timestamp.fract() * 1E9) as u32;
 
-    NaiveDateTime::from_timestamp_opt(seconds, nanos).map(|dt| Utc.fix().from_utc_datetime(&dt))
+    Utc.fix().timestamp_opt(seconds, nanos).single()
 }
 
 impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
@@ -200,6 +205,6 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
             }
         }
 
-        Err(format!("invalid time: {}", value).into())
+        Err(format!("invalid time: {value}").into())
     }
 }

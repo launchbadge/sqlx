@@ -12,6 +12,8 @@ mod database;
 mod metadata;
 // mod migration;
 // mod migrator;
+#[cfg(feature = "completions")]
+mod completions;
 mod migrate;
 mod opt;
 mod prepare;
@@ -25,19 +27,41 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 description,
                 reversible,
-            } => migrate::add(&source, &description, reversible).await?,
+                sequential,
+                timestamp,
+            } => migrate::add(&source, &description, reversible, sequential, timestamp).await?,
             MigrateCommand::Run {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::run(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::run(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Revert {
                 source,
                 dry_run,
                 ignore_missing,
                 connect_opts,
-            } => migrate::revert(&source, &connect_opts, dry_run, *ignore_missing).await?,
+                target_version,
+            } => {
+                migrate::revert(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                )
+                .await?
+            }
             MigrateCommand::Info {
                 source,
                 connect_opts,
@@ -50,12 +74,14 @@ pub async fn run(opt: Opt) -> Result<()> {
             DatabaseCommand::Drop {
                 confirmation,
                 connect_opts,
-            } => database::drop(&connect_opts, !confirmation.yes).await?,
+                force,
+            } => database::drop(&connect_opts, !confirmation.yes, force).await?,
             DatabaseCommand::Reset {
                 confirmation,
                 source,
                 connect_opts,
-            } => database::reset(&source, &connect_opts, !confirmation.yes).await?,
+                force,
+            } => database::reset(&source, &connect_opts, !confirmation.yes, force).await?,
             DatabaseCommand::Setup {
                 source,
                 connect_opts,
@@ -68,13 +94,16 @@ pub async fn run(opt: Opt) -> Result<()> {
             connect_opts,
             args,
         } => prepare::run(check, workspace, connect_opts, args).await?,
+
+        #[cfg(feature = "completions")]
+        Command::Completions { shell } => completions::run(shell),
     };
 
     Ok(())
 }
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
-async fn connect(opts: &ConnectOpts) -> sqlx::Result<AnyConnection> {
+async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
     retry_connect_errors(opts, AnyConnection::connect).await
 }
 
@@ -85,32 +114,34 @@ async fn connect(opts: &ConnectOpts) -> sqlx::Result<AnyConnection> {
 async fn retry_connect_errors<'a, F, Fut, T>(
     opts: &'a ConnectOpts,
     mut connect: F,
-) -> sqlx::Result<T>
+) -> anyhow::Result<T>
 where
     F: FnMut(&'a str) -> Fut,
     Fut: Future<Output = sqlx::Result<T>> + 'a,
 {
     sqlx::any::install_default_drivers();
 
+    let db_url = opts.required_db_url()?;
+
     backoff::future::retry(
         backoff::ExponentialBackoffBuilder::new()
             .with_max_elapsed_time(Some(Duration::from_secs(opts.connect_timeout)))
             .build(),
         || {
-            connect(&opts.database_url).map_err(|e| -> backoff::Error<sqlx::Error> {
+            connect(db_url).map_err(|e| -> backoff::Error<anyhow::Error> {
                 match e {
                     sqlx::Error::Io(ref ioe) => match ioe.kind() {
                         io::ErrorKind::ConnectionRefused
                         | io::ErrorKind::ConnectionReset
                         | io::ErrorKind::ConnectionAborted => {
-                            return backoff::Error::transient(e);
+                            return backoff::Error::transient(e.into());
                         }
                         _ => (),
                     },
                     _ => (),
                 }
 
-                backoff::Error::permanent(e)
+                backoff::Error::permanent(e.into())
             })
         },
     )

@@ -12,7 +12,7 @@ fn bench_pgpool_acquire(c: &mut Criterion) {
             let fairness = if fair { "(fair)" } else { "(unfair)" };
 
             group.bench_with_input(
-                format!("{} concurrent {}", concurrent, fairness),
+                format!("{concurrent} concurrent {fairness}"),
                 &(concurrent, fair),
                 |b, &(concurrent, fair)| do_bench_acquire(b, concurrent, fair),
             );
@@ -47,7 +47,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
                     let conn = match pool.acquire().await {
                         Ok(conn) => conn,
                         Err(sqlx::Error::PoolClosed) => break,
-                        Err(e) => panic!("failed to acquire concurrent connection: {}", e),
+                        Err(e) => panic!("failed to acquire concurrent connection: {e}"),
                     };
 
                     // pretend we're using the connection

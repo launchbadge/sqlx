@@ -11,7 +11,7 @@ impl Type<Sqlite> for bool {
     }
 
     fn compatible(ty: &SqliteTypeInfo) -> bool {
-        matches!(ty.0, DataType::Bool | DataType::Int | DataType::Int64)
+        matches!(ty.0, DataType::Bool | DataType::Int4 | DataType::Integer)
     }
 }
 
@@ -25,6 +25,6 @@ impl<'q> Encode<'q, Sqlite> for bool {
 
 impl<'r> Decode<'r, Sqlite> for bool {
     fn decode(value: SqliteValueRef<'r>) -> Result<bool, BoxDynError> {
-        Ok(value.int() != 0)
+        Ok(value.int64() != 0)
     }
 }

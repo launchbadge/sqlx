@@ -34,7 +34,7 @@ impl Decode<'_, Postgres> for bool {
                 "f" => false,
 
                 s => {
-                    return Err(format!("unexpected value {:?} for boolean", s).into());
+                    return Err(format!("unexpected value {s:?} for boolean").into());
                 }
             },
         })

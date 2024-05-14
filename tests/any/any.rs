@@ -106,7 +106,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
 
         // now try and use the connection
         let val: i32 = conn
-            .fetch_one(&*format!("SELECT {}", i))
+            .fetch_one(&*format!("SELECT {i}"))
             .await?
             .get_unchecked(0);
 
@@ -132,7 +132,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 
         // now try and use the connection
         let val: i32 = pool
-            .fetch_one(&*format!("SELECT {}", i))
+            .fetch_one(&*format!("SELECT {i}"))
             .await?
             .get_unchecked(0);
 

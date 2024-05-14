@@ -70,6 +70,7 @@ impl AnyDriver {
                 create_database: DebugFn(DB::create_database),
                 database_exists: DebugFn(DB::database_exists),
                 drop_database: DebugFn(DB::drop_database),
+                force_drop_database: DebugFn(DB::force_drop_database),
             }),
             ..Self::without_migrate::<DB>()
         }
@@ -94,6 +95,7 @@ pub struct AnyMigrateDatabase {
     create_database: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<()>>>,
     database_exists: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<bool>>>,
     drop_database: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<()>>>,
+    force_drop_database: DebugFn<fn(&str) -> BoxFuture<'_, crate::Result<()>>>,
 }
 
 impl AnyMigrateDatabase {
@@ -107,6 +109,10 @@ impl AnyMigrateDatabase {
 
     pub fn drop_database<'a>(&self, url: &'a str) -> BoxFuture<'a, crate::Result<()>> {
         (self.drop_database)(url)
+    }
+
+    pub fn force_drop_database<'a>(&self, url: &'a str) -> BoxFuture<'a, crate::Result<()>> {
+        (self.force_drop_database)(url)
     }
 }
 
@@ -139,6 +145,6 @@ pub(crate) fn from_url(url: &Url) -> crate::Result<&'static AnyDriver> {
         .iter()
         .find(|driver| driver.url_schemes.contains(&url.scheme()))
         .ok_or_else(|| {
-            Error::Configuration(format!("no driver found for URL scheme {:?}", scheme).into())
+            Error::Configuration(format!("no driver found for URL scheme {scheme:?}").into())
         })
 }

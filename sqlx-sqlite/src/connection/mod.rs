@@ -1,27 +1,27 @@
-use futures_core::future::BoxFuture;
-use futures_intrusive::sync::MutexGuard;
-use futures_util::future;
-use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
-use sqlx_core::common::StatementCache;
-use sqlx_core::error::Error;
-use sqlx_core::transaction::Transaction;
 use std::cmp::Ordering;
+use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::os::raw::{c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr::NonNull;
+
+use futures_core::future::BoxFuture;
+use futures_intrusive::sync::MutexGuard;
+use futures_util::future;
+use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
+
+pub(crate) use handle::ConnectionHandle;
+use sqlx_core::common::StatementCache;
+pub(crate) use sqlx_core::connection::*;
+use sqlx_core::error::Error;
+use sqlx_core::executor::Executor;
+use sqlx_core::transaction::Transaction;
 
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
 use crate::statement::VirtualStatement;
 use crate::{Sqlite, SqliteConnectOptions};
-use sqlx_core::executor::Executor;
-use std::fmt::Write;
-
-pub(crate) use sqlx_core::connection::*;
-
-pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
 
 pub(crate) mod collation;
 pub(crate) mod describe;
@@ -30,6 +30,7 @@ pub(crate) mod execute;
 mod executor;
 mod explain;
 mod handle;
+mod intmap;
 
 mod worker;
 
@@ -132,7 +133,7 @@ impl Connection for SqliteConnection {
             if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
                 let mut pragma_string = String::new();
                 if let Some(limit) = analysis_limit {
-                    write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
+                    write!(pragma_string, "PRAGMA analysis_limit = {limit}; ").ok();
                 }
                 pragma_string.push_str("PRAGMA optimize;");
                 self.execute(&*pragma_string).await?;
@@ -257,7 +258,7 @@ impl LockedSqliteHandle<'_> {
     /// The progress handler callback must not do anything that will modify the database connection that invoked
     /// the progress handler. Note that sqlite3_prepare_v2() and sqlite3_step() both modify their database connections
     /// in this context.
-    pub fn set_progress_handler<F>(&mut self, num_ops: i32, mut callback: F)
+    pub fn set_progress_handler<F>(&mut self, num_ops: i32, callback: F)
     where
         F: FnMut() -> bool + Send + 'static,
     {

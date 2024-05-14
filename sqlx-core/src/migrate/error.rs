@@ -6,6 +6,9 @@ pub enum MigrateError {
     #[error("while executing migrations: {0}")]
     Execute(#[from] Error),
 
+    #[error("while executing migration {1}: {0}")]
+    ExecuteMigration(#[source] Error, i64),
+
     #[error("while resolving migrations: {0}")]
     Source(#[source] BoxDynError),
 
@@ -15,6 +18,19 @@ pub enum MigrateError {
     #[error("migration {0} was previously applied but has been modified")]
     VersionMismatch(i64),
 
+    #[error("migration {0} is not present in the migration source")]
+    VersionNotPresent(i64),
+
+    #[error("migration {0} is older than the latest applied migration {1}")]
+    VersionTooOld(i64, i64),
+
+    #[error("migration {0} is newer than the latest applied migration {1}")]
+    VersionTooNew(i64, i64),
+
+    #[error("database driver does not support force-dropping a database (Only PostgreSQL)")]
+    ForceNotSupported,
+
+    #[deprecated = "migration types are now inferred"]
     #[error("cannot mix reversible migrations with simple migrations. All migrations should be reversible or simple migrations")]
     InvalidMixReversibleAndSimple,
 

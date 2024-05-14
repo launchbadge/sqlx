@@ -11,12 +11,14 @@ async fn insert_and_verify(
         test_id,
         "test todo"
     )
-    .execute(&mut *transaction)
+    // In 0.7, `Transaction` can no longer implement `Executor` directly,
+    // so it must be dereferenced to the internal connection type.
+    .execute(&mut **transaction)
     .await?;
 
     // check that inserted todo can be fetched inside the uncommitted transaction
     let _ = query!(r#"SELECT FROM todos WHERE id = $1"#, test_id)
-        .fetch_one(transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(())

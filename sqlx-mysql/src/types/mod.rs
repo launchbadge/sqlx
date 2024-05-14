@@ -1,10 +1,10 @@
-//! Conversions between Rust and **MySQL** types.
+//! Conversions between Rust and **MySQL/MariaDB** types.
 //!
 //! # Types
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `bool`                                | TINYINT(1), BOOLEAN                                  |
+//! | `bool`                                | TINYINT(1), BOOLEAN, BOOL (see below)                |
 //! | `i8`                                  | TINYINT                                              |
 //! | `i16`                                 | SMALLINT                                             |
 //! | `i32`                                 | INT                                                  |
@@ -17,41 +17,95 @@
 //! | `f64`                                 | DOUBLE                                               |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR, TEXT                                  |
 //! | `&[u8]`, `Vec<u8>`                    | VARBINARY, BINARY, BLOB                              |
+//! | `IpAddr`                              | VARCHAR, TEXT                                        |
+//! | `Ipv4Addr`                            | INET4 (MariaDB-only), VARCHAR, TEXT                  |
+//! | `Ipv6Addr`                            | INET6 (MariaDB-only), VARCHAR, TEXT                  |
+//! | [`MySqlTime`]                         | TIME (encode and decode full range)                  |
+//! | [`Duration`]                          | TIME (for decoding positive values only)             |
+//!
+//! ##### Note: `BOOLEAN`/`BOOL` Type
+//! MySQL and MariaDB treat `BOOLEAN` as an alias of the `TINYINT` type:
+//!
+//! * [Using Data Types from Other Database Engines (MySQL)](https://dev.mysql.com/doc/refman/8.0/en/other-vendor-data-types.html)
+//! * [BOOLEAN (MariaDB)](https://mariadb.com/kb/en/boolean/)
+//!
+//! For the most part, you can simply use the Rust type `bool` when encoding or decoding a value
+//! using the dynamic query interface, or passing a boolean as a parameter to the query macros
+//! (`query!()` _et al._).
+//!
+//! However, because the MySQL wire protocol does not distinguish between `TINYINT` and `BOOLEAN`,
+//! the query macros cannot know that a `TINYINT` column is semantically a boolean.
+//! By default, they will map a `TINYINT` column as `i8` instead, as that is the safer assumption.
+//!
+//! Thus, you must use the type override syntax in the query to tell the macros you are expecting
+//! a `bool` column. See the docs for `query!()` and `query_as!()` for details on this syntax.
+//!
+//! ### NOTE: MySQL's `TIME` type is signed
+//! MySQL's `TIME` type can be used as either a time-of-day value, or a signed interval.
+//! Thus, it may take on negative values.
+//!
+//! Decoding a [`std::time::Duration`] returns an error if the `TIME` value is negative.
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
 //! Requires the `chrono` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `chrono::DateTime<Utc>`               | TIMESTAMP                                            |
 //! | `chrono::DateTime<Local>`             | TIMESTAMP                                            |
 //! | `chrono::NaiveDateTime`               | DATETIME                                             |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
-//! | `chrono::NaiveTime`                   | TIME                                                 |
+//! | `chrono::NaiveTime`                   | TIME (time-of-day only)                              |
+//! | `chrono::TimeDelta`                   | TIME (decodes full range; see note for encoding)     |
+//!
+//! ### NOTE: MySQL's `TIME` type is dual-purpose
+//! MySQL's `TIME` type can be used as either a time-of-day value, or an interval.
+//! However, `chrono::NaiveTime` is designed only to represent a time-of-day.
+//!
+//! Decoding a `TIME` value as `chrono::NaiveTime` will return an error if the value is out of range.
+//!
+//! The [`MySqlTime`] type supports the full range and it also implements `TryInto<chrono::NaiveTime>`.
+//!
+//! Decoding a `chrono::TimeDelta` also supports the full range.
+//!
+//! To encode a `chrono::TimeDelta`, convert it to [`MySqlTime`] first using `TryFrom`/`TryInto`.
 //!
 //! ### [`time`](https://crates.io/crates/time)
 //!
 //! Requires the `time` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `time::PrimitiveDateTime`             | DATETIME                                             |
 //! | `time::OffsetDateTime`                | TIMESTAMP                                            |
 //! | `time::Date`                          | DATE                                                 |
-//! | `time::Time`                          | TIME                                                 |
+//! | `time::Time`                          | TIME (time-of-day only)                              |
+//! | `time::Duration`                      | TIME (decodes full range; see note for encoding)     |
+//!
+//! ### NOTE: MySQL's `TIME` type is dual-purpose
+//! MySQL's `TIME` type can be used as either a time-of-day value, or an interval.
+//! However, `time::Time` is designed only to represent a time-of-day.
+//!
+//! Decoding a `TIME` value as `time::Time` will return an error if the value is out of range.
+//!
+//! The [`MySqlTime`] type supports the full range, and it also implements `TryInto<time::Time>`.
+//!
+//! Decoding a `time::Duration` also supports the full range.
+//!
+//! To encode a `time::Duration`, convert it to [`MySqlTime`] first using `TryFrom`/`TryInto`.
 //!
 //! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
 //! Requires the `bigdecimal` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
 //!
 //! ### [`decimal`](https://crates.io/crates/rust_decimal)
 //! Requires the `decimal` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | DECIMAL                                              |
 //!
@@ -59,17 +113,17 @@
 //!
 //! Requires the `uuid` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
-//! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
+//! | `uuid::Uuid`                          | BINARY(16), VARCHAR, CHAR, TEXT                      |
+//! | `uuid::fmt::Hyphenated`               | CHAR(36), UUID (MariaDB-only)                        |
 //! | `uuid::fmt::Simple`                   | CHAR(32)                                             |
 //!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
 //! Requires the `json` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
 //! | [`Json<T>`]                           | JSON                                                 |
 //! | `serde_json::JsonValue`               | JSON                                                 |
@@ -78,15 +132,20 @@
 //! # Nullable
 //!
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
-//! a potentially `NULL` value from MySQL.
+//! a potentially `NULL` value from MySQL/MariaDB.
 
 pub(crate) use sqlx_core::types::*;
+
+pub use mysql_time::{MySqlTime, MySqlTimeError, MySqlTimeSign};
 
 mod bool;
 mod bytes;
 mod float;
+mod inet;
 mod int;
+mod mysql_time;
 mod str;
+mod text;
 mod uint;
 
 #[cfg(feature = "json")]

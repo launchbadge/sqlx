@@ -141,18 +141,15 @@ impl<'a> TryFrom<&'a SqliteTypeInfo> for AnyTypeInfo {
         Ok(AnyTypeInfo {
             kind: match &sqlite_type.0 {
                 DataType::Null => AnyTypeInfoKind::Null,
-                DataType::Int => AnyTypeInfoKind::Integer,
-                DataType::Int64 => AnyTypeInfoKind::BigInt,
+                DataType::Int4 => AnyTypeInfoKind::Integer,
+                DataType::Integer => AnyTypeInfoKind::BigInt,
                 DataType::Float => AnyTypeInfoKind::Double,
                 DataType::Blob => AnyTypeInfoKind::Blob,
                 DataType::Text => AnyTypeInfoKind::Text,
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(
-                        format!(
-                            "Any driver does not support the SQLite type {:?}",
-                            sqlite_type
-                        )
-                        .into(),
+                        format!("Any driver does not support the SQLite type {sqlite_type:?}")
+                            .into(),
                     ))
                 }
             },
@@ -205,6 +202,7 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
             .into_iter()
             .map(|val| match val {
                 AnyValueKind::Null => SqliteArgumentValue::Null,
+                AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
                 AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
                 AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
                 AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
@@ -213,7 +211,7 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
                 AnyValueKind::Text(t) => SqliteArgumentValue::Text(t),
                 AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b),
                 // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
-                _ => unreachable!("BUG: missing mapping for {:?}", val),
+                _ => unreachable!("BUG: missing mapping for {val:?}"),
             })
             .collect(),
     }

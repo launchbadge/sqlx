@@ -1,12 +1,15 @@
-use futures::{StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
+
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
     PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx_core::bytes::Bytes;
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -49,7 +52,8 @@ async fn it_pings() -> anyhow::Result<()> {
 async fn it_pings_after_suspended_query() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    conn.execute("create temporary table processed_row(val int4 primary key)")
+    sqlx::raw_sql("create temporary table processed_row(val int4 primary key)")
+        .execute(&mut conn)
         .await?;
 
     // This query wants to return 50 rows but we only read the first one.
@@ -305,10 +309,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = conn
-            .fetch_one(&*format!("SELECT {}::int4", i))
-            .await?
-            .get(0);
+        let val: i32 = conn.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
 
         assert_eq!(val, i);
     }
@@ -329,10 +330,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = pool
-            .fetch_one(&*format!("SELECT {}::int4", i))
-            .await?
-            .get(0);
+        let val: i32 = pool.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
 
         assert_eq!(val, i);
     }
@@ -383,6 +381,67 @@ async fn it_can_query_all_scalar() -> anyhow::Result<()> {
         .fetch_all(&mut conn)
         .await?;
     assert_eq!(scalar, vec![Some(42), None]);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn copy_can_work_with_failed_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // We're using a (local) statement_timeout to simulate a runtime failure, as opposed to
+    // a parse/plan failure.
+    let mut tx = conn.begin().await?;
+    let _ = sqlx::query("SELECT pg_catalog.set_config($1, $2, true)")
+        .bind("statement_timeout")
+        .bind("1ms")
+        .execute(tx.as_mut())
+        .await?;
+
+    let mut copy_out: Pin<
+        Box<dyn Stream<Item = Result<Bytes, sqlx::Error>> + Send>,
+    > = (&mut tx)
+        .copy_out_raw("COPY (SELECT nspname FROM pg_catalog.pg_namespace WHERE pg_sleep(0.001) IS NULL) TO STDOUT")
+        .await?;
+
+    while copy_out.try_next().await.is_ok() {}
+    drop(copy_out);
+
+    tx.rollback().await?;
+
+    // conn should be usable again, as we explictly rolled back the transaction
+    let got: i32 = sqlx::query_scalar("SELECT 1")
+        .fetch_one(conn.as_mut())
+        .await?;
+    assert_eq!(1, got);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_work_with_failed_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // We're using a (local) statement_timeout to simulate a runtime failure, as opposed to
+    // a parse/plan failure.
+    let mut tx = conn.begin().await?;
+    let _ = sqlx::query("SELECT pg_catalog.set_config($1, $2, true)")
+        .bind("statement_timeout")
+        .bind("1ms")
+        .execute(tx.as_mut())
+        .await?;
+
+    assert!(sqlx::query("SELECT 1 WHERE pg_sleep(0.30) IS NULL")
+        .fetch_one(tx.as_mut())
+        .await
+        .is_err());
+    tx.rollback().await?;
+
+    // conn should be usable again, as we explictly rolled back the transaction
+    let got: i32 = sqlx::query_scalar("SELECT 1")
+        .fetch_one(conn.as_mut())
+        .await?;
+    assert_eq!(1, got);
 
     Ok(())
 }
@@ -558,9 +617,9 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     // normal error at termination of the test
                     if matches!(e, sqlx::Error::PoolClosed) {
-                        eprintln!("pool task {} exiting normally after {} iterations", i, j);
+                        eprintln!("pool task {i} exiting normally after {j} iterations");
                     } else {
-                        eprintln!("pool task {} dying due to {} after {} iterations", i, e, j);
+                        eprintln!("pool task {i} dying due to {e} after {j} iterations");
                     }
                     break;
                 }
@@ -739,7 +798,7 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
     let mut conn = PgConnection::connect_with(&options).await?;
 
     for i in 0..5 {
-        let row = sqlx::query(&*format!("SELECT {}::int4 AS val", i))
+        let row = sqlx::query(&*format!("SELECT {i}::int4 AS val"))
             .fetch_one(&mut conn)
             .await?;
 
@@ -822,7 +881,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         .connect(&std::env::var("DATABASE_URL").unwrap())
         .await?;
 
-    println!("pool state: {:?}", pool);
+    println!("pool state: {pool:?}");
 
     let mut handles = vec![];
 
@@ -850,7 +909,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
                         println!("{} acquire took {:?}", i, start.elapsed());
                         drop(conn);
                     }
-                    Err(e) => panic!("{} acquire returned error: {} pool state: {:?}", i, e, pool),
+                    Err(e) => panic!("{i} acquire returned error: {e} pool state: {pool:?}"),
                 }
             }
 
@@ -938,11 +997,7 @@ from (values (null)) vals(val)
 
 #[sqlx_macros::test]
 async fn test_listener_cleanup() -> anyhow::Result<()> {
-    #[cfg(feature = "_rt-tokio")]
-    use tokio::time::timeout;
-
-    #[cfg(feature = "_rt-async-std")]
-    use async_std::future::timeout;
+    use sqlx_core::rt::timeout;
 
     use sqlx::pool::PoolOptions;
     use sqlx::postgres::PgListener;
@@ -1782,7 +1837,7 @@ async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> 
     let mut conn = new::<Postgres>().await?;
     conn.execute("SET bytea_output = 'escape';").await?;
     for value in ["", "DEADBEEF"] {
-        let query = format!("SELECT '\\x{}'::bytea", value);
+        let query = format!("SELECT '\\x{value}'::bytea");
         let res: sqlx::Result<Vec<u8>> = conn.fetch_one(query.as_str()).await?.try_get(0usize);
         // Deserialization only supports hex format so this should error and definitely not panic.
         res.unwrap_err();
@@ -1818,4 +1873,70 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     assert_eq!(ret, 12345678i64);
 
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_error_handling_with_deferred_constraints() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint ( id INTEGER PRIMARY KEY )")
+        .execute(&mut conn)
+        .await?;
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS deferred_constraint_fk ( fk INTEGER CONSTRAINT deferred_fk REFERENCES deferred_constraint(id) DEFERRABLE INITIALLY DEFERRED )")
+            .execute(&mut conn)
+            .await?;
+
+    let result: sqlx::Result<i32> =
+        sqlx::query_scalar("INSERT INTO deferred_constraint_fk VALUES (1) RETURNING fk")
+            .fetch_one(&mut conn)
+            .await;
+
+    let err = result.unwrap_err();
+    let db_err = err.as_database_error().unwrap();
+    assert_eq!(db_err.constraint(), Some("deferred_fk"));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+#[cfg(feature = "bigdecimal")]
+async fn test_issue_3052() {
+    use sqlx::types::BigDecimal;
+
+    // https://github.com/launchbadge/sqlx/issues/3052
+    // Previously, attempting to bind a `BigDecimal` would panic if the value was out of range.
+    // Now, we rewrite it to a sentinel value so that Postgres will return a range error.
+    let too_small: BigDecimal = "1E-65536".parse().unwrap();
+    let too_large: BigDecimal = "1E262144".parse().unwrap();
+
+    let mut conn = new::<Postgres>().await.unwrap();
+
+    let too_small_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+        .bind(&too_small)
+        .fetch_one(&mut conn)
+        .await;
+
+    match too_small_res {
+        Err(sqlx::Error::Database(dbe)) => {
+            let dbe = dbe.downcast::<PgDatabaseError>();
+
+            assert_eq!(dbe.code(), "22P03");
+        }
+        other => panic!("expected Err(DatabaseError), got {other:?}"),
+    }
+
+    let too_large_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+        .bind(&too_large)
+        .fetch_one(&mut conn)
+        .await;
+
+    match too_large_res {
+        Err(sqlx::Error::Database(dbe)) => {
+            let dbe = dbe.downcast::<PgDatabaseError>();
+
+            assert_eq!(dbe.code(), "22P03");
+        }
+        other => panic!("expected Err(DatabaseError), got {other:?}"),
+    }
 }

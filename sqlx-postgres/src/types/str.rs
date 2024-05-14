@@ -18,12 +18,23 @@ impl Type<Postgres> for str {
             PgTypeInfo::BPCHAR,
             PgTypeInfo::VARCHAR,
             PgTypeInfo::UNKNOWN,
+            PgTypeInfo::with_name("citext"),
         ]
         .contains(ty)
     }
 }
 
 impl Type<Postgres> for Cow<'_, str> {
+    fn type_info() -> PgTypeInfo {
+        <&str as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <&str as Type<Postgres>>::compatible(ty)
+    }
+}
+
+impl Type<Postgres> for Box<str> {
     fn type_info() -> PgTypeInfo {
         <&str as Type<Postgres>>::type_info()
     }
@@ -63,6 +74,16 @@ impl PgHasArrayType for Cow<'_, str> {
     }
 }
 
+impl PgHasArrayType for Box<str> {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
+    }
+}
+
 impl PgHasArrayType for String {
     fn array_type_info() -> PgTypeInfo {
         <&str as PgHasArrayType>::array_type_info()
@@ -90,6 +111,12 @@ impl Encode<'_, Postgres> for Cow<'_, str> {
     }
 }
 
+impl Encode<'_, Postgres> for Box<str> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        <&str as Encode<Postgres>>::encode(&**self, buf)
+    }
+}
+
 impl Encode<'_, Postgres> for String {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         <&str as Encode<Postgres>>::encode(&**self, buf)
@@ -105,6 +132,12 @@ impl<'r> Decode<'r, Postgres> for &'r str {
 impl<'r> Decode<'r, Postgres> for Cow<'r, str> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Cow::Borrowed(value.as_str()?))
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for Box<str> {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Box::from(value.as_str()?))
     }
 }
 

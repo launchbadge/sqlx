@@ -40,7 +40,7 @@ impl TestSupport for Postgres {
                 .acquire()
                 .await?;
 
-            conn.execute(&format!("drop database if exists {0:?};", db_name)[..])
+            conn.execute(&format!("drop database if exists {db_name:?};")[..])
                 .await?;
 
             query("delete from _sqlx_test.databases where db_name = $1")
@@ -161,7 +161,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     .fetch_one(&mut *conn)
     .await?;
 
-    conn.execute(&format!("create database {:?}", new_db_name)[..])
+    conn.execute(&format!("create database {new_db_name:?}")[..])
         .await?;
 
     Ok(TestContext {
@@ -183,7 +183,8 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 }
 
 async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result<usize, Error> {
-    let created_before = i64::try_from(created_before.as_secs()).unwrap();
+    // since SystemTime is not monotonic we added a little margin here to avoid race conditions with other threads
+    let created_before = i64::try_from(created_before.as_secs()).unwrap() - 2;
 
     let delete_db_names: Vec<String> = query_scalar(
         "select db_name from _sqlx_test.databases \
@@ -204,14 +205,14 @@ async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result
 
     for db_name in delete_db_names {
         command.clear();
-        writeln!(command, "drop database if exists {:?};", db_name).ok();
+        writeln!(command, "drop database if exists {db_name:?};").ok();
         match conn.execute(&*command).await {
             Ok(_deleted) => {
                 deleted_db_names.push(db_name);
             }
             // Assume a database error just means the DB is still in use.
             Err(Error::Database(dbe)) => {
-                eprintln!("could not clean test database {:?}: {}", db_name, dbe)
+                eprintln!("could not clean test database {db_name:?}: {dbe}")
             }
             // Bubble up other errors
             Err(e) => return Err(e),

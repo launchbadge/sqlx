@@ -10,27 +10,20 @@
 <div align="center">
   <!-- Github Actions -->
   <a href="https://github.com/launchbadge/sqlx/actions/workflows/sqlx.yml?query=branch%3Amain">
-    <img src="https://img.shields.io/github/actions/workflow/status/launchbadge/sqlx/sqlx.yml?branch=main&style=flat-square"
-      alt="actions status" />
-  </a>
+    <img src="https://img.shields.io/github/actions/workflow/status/launchbadge/sqlx/sqlx.yml?branch=main&style=flat-square" alt="actions status" /></a>
   <!-- Version -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
-    alt="Crates.io version" />
-  </a>
+    alt="Crates.io version" /></a>
   <!-- Discord -->
   <a href="https://discord.gg/uuruzJ7">
-    <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
-  </a>
+  <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" /></a>
   <!-- Docs -->
   <a href="https://docs.rs/sqlx">
-    <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
-      alt="docs.rs docs" />
-  </a>
+  <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square" alt="docs.rs docs" /></a>
   <!-- Downloads -->
   <a href="https://crates.io/crates/sqlx">
-    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
-      alt="Download" />
+    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square" alt="Download" />
   </a>
 </div>
 
@@ -70,7 +63,8 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Compile-time checked queries** (if you want). See [SQLx is not an ORM](#sqlx-is-not-an-orm).
 
--   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
+-   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [MariaDB], [SQLite].
+    -   [MSSQL] was supported prior to version 0.7, but has been removed pending a full rewrite of the driver as part of our [SQLx Pro initiative].
 
 -   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
@@ -81,15 +75,17 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 † The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
 
-†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
-with C, those interactions are `unsafe`.
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. 
+The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which requires `unsafe`.
 
 </small></small>
 
 [postgresql]: http://postgresql.org/
 [sqlite]: https://sqlite.org/
 [mysql]: https://www.mysql.com/
+[mariadb]: https://www.mariadb.org/
 [mssql]: https://www.microsoft.com/en-us/sql-server
+[SQLx Pro initiative]: https://github.com/launchbadge/sqlx/discussions/1616
 
 ---
 
@@ -105,7 +101,7 @@ with C, those interactions are `unsafe`.
 -   Simple (unprepared) query execution including fetching results into the same `Row` types used by
     the high-level API. Supports batch execution and returns results from all statements.
 
--   Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
+-   Transport Layer Security (TLS) where supported ([MySQL], [MariaDB] and [PostgreSQL]).
 
 -   Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
 
@@ -116,9 +112,6 @@ with C, those interactions are `unsafe`.
 ## Install
 
 SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; and, the [`native-tls`] and [`rustls`] TLS backends. When adding the dependency, you must choose a runtime feature that is `runtime` + `tls`.
-
-NOTE: these examples are for the coming 0.7 release, which is currently in an alpha cycle.
-For the last stable release, 0.6.2, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
 
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
@@ -134,14 +127,14 @@ For the last stable release, 0.6.2, see [the previous version of this document](
 # tokio (no TLS)
 sqlx = { version = "0.7", features = [ "runtime-tokio" ] }
 # tokio + native-tls
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native-tls" ] }
 # tokio + rustls
 sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls" ] }
 
 # async-std (no TLS)
 sqlx = { version = "0.7", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native" ] }
+sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native-tls" ] }
 # async-std + rustls
 sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls" ] }
 ```
@@ -168,7 +161,7 @@ be removed in the future.
 
     - Actix-web is fully compatible with Tokio and so a separate runtime feature is no longer needed.
 
--   `tls-native`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
+-   `tls-native-tls`: Use the `native-tls` TLS backend (OpenSSL on *nix, SChannel on Windows, Secure Transport on macOS).
 
 -   `tls-rustls`: Use the `rustls` TLS backend (cross-platform backend, only supports TLS 1.2 and 1.3).
 
@@ -181,6 +174,8 @@ be removed in the future.
 -   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
+
+-   `derive`: Add support for the derive family macros, those are `FromRow`, `Type`, `Encode`, `Decode`.
 
 -   `macros`: Add support for the `query*!` macros, which allows compile-time checked queries.
 
@@ -196,7 +191,7 @@ be removed in the future.
 
 -   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
--   `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
+-   `rust_decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
 
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
@@ -230,27 +225,24 @@ See the `examples/` folder for more in-depth usage.
 
 ### Quickstart
 
-NOTE: these examples are for the coming 0.7.0 release, which is currently in an alpha cycle.
-For the last stable release, 0.6.2, see [the previous version of this document](https://github.com/launchbadge/sqlx/blob/v0.6.2/README.md).
-
 ```rust
 use sqlx::postgres::PgPoolOptions;
 // use sqlx::mysql::MySqlPoolOptions;
 // etc.
 
-#[async_std::main]
+#[async_std::main] // Requires the `attributes` feature of `async-std`
 // or #[tokio::main]
 // or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
-    //  for MySQL, use MySqlPoolOptions::new()
+    //  for MySQL/MariaDB, use MySqlPoolOptions::new()
     //  for SQLite, use SqlitePoolOptions::new()
     //  etc.
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:password@localhost/test").await?;
 
-    // Make a simple query to return the given parameter (use a question mark `?` instead of `$1` for MySQL)
+    // Make a simple query to return the given parameter (use a question mark `?` instead of `$1` for MySQL/MariaDB)
     let row: (i64,) = sqlx::query_as("SELECT $1")
         .bind(150_i64)
         .fetch_one(&pool).await?;
@@ -260,6 +252,7 @@ async fn main() -> Result<(), sqlx::Error> {
     Ok(())
 }
 ```
+
 
 ### Connecting
 

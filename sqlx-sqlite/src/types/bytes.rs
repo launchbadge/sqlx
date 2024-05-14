@@ -31,6 +31,38 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
     }
 }
 
+impl Type<Sqlite> for Box<[u8]> {
+    fn type_info() -> SqliteTypeInfo {
+        <&[u8] as Type<Sqlite>>::type_info()
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        <&[u8] as Type<Sqlite>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, Sqlite> for Box<[u8]> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.into_vec())));
+
+        IsNull::No
+    }
+
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        args.push(SqliteArgumentValue::Blob(Cow::Owned(
+            self.clone().into_vec(),
+        )));
+
+        IsNull::No
+    }
+}
+
+impl Decode<'_, Sqlite> for Box<[u8]> {
+    fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(Box::from(value.blob()))
+    }
+}
+
 impl Type<Sqlite> for Vec<u8> {
     fn type_info() -> SqliteTypeInfo {
         <&[u8] as Type<Sqlite>>::type_info()
