@@ -162,8 +162,10 @@ impl SqliteConnectOptions {
         // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory
         pragmas.insert("locking_mode".into(), None);
 
-        // The `auto_vacuum` pragma defaults to NONE, but needs to
-        // come before before `journal_mode`.
+        // `auto_vacuum` needs to be executed before `journal_mode`, if set.
+        //
+        // Otherwise, a change in the `journal_mode` setting appears to mark even an empty database as dirty,
+        // requiring a `vacuum` command to be executed to actually apply the new `auto_vacuum` setting.
         pragmas.insert("auto_vacuum".into(), None);
 
         // Don't set `journal_mode` unless the user requested it.
