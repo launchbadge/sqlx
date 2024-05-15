@@ -11,6 +11,7 @@ pub trait MySqlBufExt: Buf {
     fn get_uint_lenenc(&mut self) -> u64;
 
     // Read a length-encoded string.
+    #[allow(dead_code)]
     fn get_str_lenenc(&mut self) -> Result<String, Error>;
 
     // Read a length-encoded byte sequence.

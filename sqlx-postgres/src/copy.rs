@@ -211,20 +211,13 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     /// If both `runtime-async-std` and `runtime-tokio` features are enabled, the Tokio version
     /// takes precedent.
     pub async fn read_from(&mut self, mut source: impl AsyncRead + Unpin) -> Result<&mut Self> {
-        // this is a separate guard from WriteAndFlush so we can reuse the buffer without zeroing
-        struct BufGuard<'s>(&'s mut Vec<u8>);
-
-        impl Drop for BufGuard<'_> {
-            fn drop(&mut self) {
-                self.0.clear()
-            }
-        }
-
         let conn: &mut PgConnection = self.conn.as_deref_mut().expect("copy_from: conn taken");
         loop {
             let buf = conn.stream.write_buffer_mut();
 
-            // CopyData format code and reserved space for length
+            // Write the CopyData format code and reserve space for the length.
+            // This may end up sending an empty `CopyData` packet if, after this point, 
+            // we get canceled or read 0 bytes, but that should be fine.
             buf.put_slice(b"d\0\0\0\x04");
 
             let read = match () {
@@ -236,7 +229,6 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             };
 
             if read == 0 {
-                // This will end up sending an empty `CopyData` packet but that should be fine.
                 break;
             }
 
