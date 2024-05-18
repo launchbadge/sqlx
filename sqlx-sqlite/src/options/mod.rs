@@ -212,8 +212,8 @@ impl SqliteConnectOptions {
     }
 
     /// Gets the current name of the database file.
-    pub fn get_filename(self) -> Cow<'static, Path> {
-        self.filename
+    pub fn get_filename(&self) -> &Path {
+        &self.filename
     }
 
     /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
