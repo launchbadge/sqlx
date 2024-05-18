@@ -162,6 +162,12 @@ impl SqliteConnectOptions {
         // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory
         pragmas.insert("locking_mode".into(), None);
 
+        // `auto_vacuum` needs to be executed before `journal_mode`, if set.
+        //
+        // Otherwise, a change in the `journal_mode` setting appears to mark even an empty database as dirty,
+        // requiring a `vacuum` command to be executed to actually apply the new `auto_vacuum` setting.
+        pragmas.insert("auto_vacuum".into(), None);
+
         // Don't set `journal_mode` unless the user requested it.
         // WAL mode is a permanent setting for created databases and changing into or out of it
         // requires an exclusive lock that can't be waited on with `sqlite3_busy_timeout()`.
@@ -175,8 +181,6 @@ impl SqliteConnectOptions {
         // The `synchronous` pragma defaults to FULL
         // https://www.sqlite.org/compile.html#default_synchronous.
         pragmas.insert("synchronous".into(), None);
-
-        pragmas.insert("auto_vacuum".into(), None);
 
         // Soft limit on the number of rows that `ANALYZE` touches per index.
         pragmas.insert("analysis_limit".into(), None);
