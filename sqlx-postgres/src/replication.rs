@@ -2,11 +2,11 @@ use crate::{
     error::Error,
     io::Encode,
     message::{CopyData, CopyDone, CopyResponse, MessageFormat, Query},
-    PgConnectOptions, PgPool, PgPoolOptions, PgReplicationMode, Result,
+    PgConnectOptions, PgPool, PgPoolOptions, PgReplicationMode, Postgres, Result,
 };
 use futures_util::future::Either;
 use futures_util::stream::Stream;
-use sqlx_core::bytes::Bytes;
+use sqlx_core::{bytes::Bytes, pool::PoolConnection};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -30,6 +30,10 @@ impl PgReplicationPool {
             <PgConnectOptions as Clone>::clone(&pool.connect_options()).replication_mode(mode);
 
         Self(pool_options.parent(pool).connect_lazy_with(connect_options))
+    }
+
+    pub async fn acquire(&self) -> Result<PoolConnection<Postgres>, Error> {
+        self.0.acquire().await
     }
 
     /// Open a duplex connection allowing high-speed bulk data transfer to and from the server.
