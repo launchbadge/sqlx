@@ -4,8 +4,8 @@ use crate::{
     message::{CopyData, CopyDone, CopyResponse, MessageFormat, Query},
     PgConnectOptions, PgPool, PgPoolOptions, PgReplicationMode, Postgres, Result,
 };
-use futures_util::future::Either;
 use futures_util::stream::Stream;
+use futures_util::{future::Either, FutureExt as _};
 use sqlx_core::{bytes::Bytes, pool::PoolConnection};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -183,7 +183,14 @@ async fn copy_both_handler(
             }
             // This only errors if the consumer has been dropped.
             // There is no reason to continue.
-            Either::Right((command, _)) => Some(command.map_err(|_| Error::WorkerCrashed)?),
+            Either::Right((command, _truc)) => {
+                Some(command.or_else(|err| match err {
+                    flume::RecvError::Disconnected => {
+                        Ok(PgCopyBothCommand::CopyDone { from_client: true })
+                    }
+                    _ => Err(Error::WorkerCrashed),
+                })?)
+            }
         };
 
         if let Some(command) = command {
@@ -218,6 +225,15 @@ async fn copy_both_handler(
                     if from_client {
                         conn.stream.recv_expect(MessageFormat::CopyDone).await?;
                     }
+                    conn.stream
+                        .recv_expect(MessageFormat::CommandComplete)
+                        .await?; // Content: "START_REPLICATION"
+                    conn.stream
+                        .recv_expect(MessageFormat::CommandComplete)
+                        .await?; // Content: "COPY0/0"
+                    conn.stream
+                        .recv_expect(MessageFormat::ReadyForQuery)
+                        .await?;
                     break;
                 }
             }
