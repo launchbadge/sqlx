@@ -153,12 +153,25 @@ async fn copy_both_handler(
     loop {
         // Wait for either incoming data or a message to send.
         let command = match futures_util::future::select(
-            std::pin::pin!(conn.stream.recv()),
+            // send_rx.recv_async() should be the first parameter because select is biased,
+            // it only selects the first argument if it is always ready. If conn.stream.recv()
+            // was first we could fail to respond to keep alives.
             std::pin::pin!(send_rx.recv_async()),
+            std::pin::pin!(conn.stream.recv()),
         )
         .await
         {
-            Either::Left((data, _)) => {
+            Either::Left((command, _)) => {
+                Some(command.or_else(|err| match err {
+                    flume::RecvError::Disconnected => {
+                        // This only errors if the consumer has been dropped.
+                        // There is no reason to continue.
+                        Ok(PgCopyBothCommand::CopyDone { from_client: true })
+                    }
+                    _ => Err(Error::WorkerCrashed),
+                })?)
+            }
+            Either::Right((data, _)) => {
                 let message = data?;
                 match message.format {
                     MessageFormat::CopyData => {
@@ -180,16 +193,6 @@ async fn copy_both_handler(
                         ))
                     }
                 }
-            }
-            // This only errors if the consumer has been dropped.
-            // There is no reason to continue.
-            Either::Right((command, _truc)) => {
-                Some(command.or_else(|err| match err {
-                    flume::RecvError::Disconnected => {
-                        Ok(PgCopyBothCommand::CopyDone { from_client: true })
-                    }
-                    _ => Err(Error::WorkerCrashed),
-                })?)
             }
         };
 
