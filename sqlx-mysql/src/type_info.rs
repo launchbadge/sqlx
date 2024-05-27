@@ -31,6 +31,10 @@ impl MySqlTypeInfo {
         self.r#type
     }
 
+    pub fn column_flags(&self) -> ColumnFlags {
+        self.flags
+    }
+
     pub fn max_size(&self) -> Option<u32> {
         self.max_size
     }
