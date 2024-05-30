@@ -20,7 +20,7 @@
 use crate::database::Database;
 use crate::type_info::TypeInfo;
 
-pub mod non_zero;
+mod non_zero;
 
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
