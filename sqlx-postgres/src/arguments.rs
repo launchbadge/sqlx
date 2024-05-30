@@ -125,7 +125,7 @@ impl<'q> Arguments<'q> for PgArguments {
 }
 
 impl PgArgumentBuffer {
-    pub(crate) fn encode<'q, T>(&mut self, value: T)
+    pub fn encode<'q, T>(&mut self, value: T)
     where
         T: Encode<'q, Postgres>,
     {
@@ -148,8 +148,7 @@ impl PgArgumentBuffer {
     }
 
     // Adds a callback to be invoked later when we know the parameter type
-    #[allow(dead_code)]
-    pub(crate) fn patch<F>(&mut self, callback: F)
+    pub fn patch<F>(&mut self, callback: F)
     where
         F: Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync,
     {
@@ -161,7 +160,7 @@ impl PgArgumentBuffer {
 
     // Extends the inner buffer by enough space to have an OID
     // Remembers where the OID goes and type name for the OID
-    pub(crate) fn patch_type_by_name(&mut self, type_name: &UStr) {
+    pub fn patch_type_by_name(&mut self, type_name: &UStr) {
         let offset = self.len();
 
         self.extend_from_slice(&0_u32.to_be_bytes());
