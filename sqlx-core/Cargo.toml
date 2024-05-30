@@ -16,7 +16,6 @@ migrate = ["sha2", "crc"]
 
 any = []
 
-non-zero = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
