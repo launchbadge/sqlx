@@ -219,12 +219,6 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAt
         input
     );
 
-    assert_attribute!(
-        !attributes.no_pg_array,
-        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for enums",
-        input
-    );
-
     Ok(attributes)
 }
 
