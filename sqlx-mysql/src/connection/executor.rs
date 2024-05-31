@@ -244,10 +244,11 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         E: Execute<'q, Self::Database>,
     {
         let sql = query.sql();
-        let arguments = query.take_arguments();
+        let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
+            let arguments = arguments?;
             let s = self.run(sql, arguments, persistent).await?;
             pin_mut!(s);
 

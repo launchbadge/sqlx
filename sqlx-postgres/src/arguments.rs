@@ -8,6 +8,7 @@ use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::arguments::Arguments;
+use sqlx_core::error::BoxDynError;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
 // TODO: Extend the patch system to support dynamic lengths
@@ -59,19 +60,27 @@ pub struct PgArguments {
 }
 
 impl PgArguments {
-    pub(crate) fn add<'q, T>(&mut self, value: T)
+    pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres> + Type<Postgres>,
     {
-        // remember the type information for this value
-        self.types
-            .push(value.produces().unwrap_or_else(T::type_info));
+        let type_info = value.produces().unwrap_or_else(T::type_info);
+
+        let buffer_snapshot = self.buffer.snapshot();
 
         // encode the value into our buffer
-        self.buffer.encode(value);
+        if let Err(error) = self.buffer.encode(value) {
+            // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+            self.buffer.reset_to_snapshot(buffer_snapshot);
+            return Err(error);
+        };
 
+        // remember the type information for this value
+        self.types.push(type_info);
         // increment the number of arguments we are tracking
         self.buffer.count += 1;
+
+        Ok(())
     }
 
     // Apply patches
@@ -112,7 +121,7 @@ impl<'q> Arguments<'q> for PgArguments {
         self.buffer.reserve(size);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
@@ -122,10 +131,14 @@ impl<'q> Arguments<'q> for PgArguments {
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         write!(writer, "${}", self.buffer.count)
     }
+
+    fn len(&self) -> usize {
+        self.buffer.count
+    }
 }
 
 impl PgArgumentBuffer {
-    pub(crate) fn encode<'q, T>(&mut self, value: T)
+    pub(crate) fn encode<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres>,
     {
@@ -134,7 +147,7 @@ impl PgArgumentBuffer {
         self.extend(&[0; 4]);
 
         // encode the value into our buffer
-        let len = if let IsNull::No = value.encode(self) {
+        let len = if let IsNull::No = value.encode(self)? {
             (self.len() - offset - 4) as i32
         } else {
             // Write a -1 to indicate NULL
@@ -145,6 +158,8 @@ impl PgArgumentBuffer {
 
         // write the len to the beginning of the value
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+
+        Ok(())
     }
 
     // Adds a callback to be invoked later when we know the parameter type
@@ -167,6 +182,44 @@ impl PgArgumentBuffer {
         self.extend_from_slice(&0_u32.to_be_bytes());
         self.type_holes.push((offset, type_name.clone()));
     }
+
+    fn snapshot(&self) -> PgArgumentBufferSnapshot {
+        let Self {
+            buffer,
+            count,
+            patches,
+            type_holes,
+        } = self;
+
+        PgArgumentBufferSnapshot {
+            buffer_length: buffer.len(),
+            count: *count,
+            patches_length: patches.len(),
+            type_holes_length: type_holes.len(),
+        }
+    }
+
+    fn reset_to_snapshot(
+        &mut self,
+        PgArgumentBufferSnapshot {
+            buffer_length,
+            count,
+            patches_length,
+            type_holes_length,
+        }: PgArgumentBufferSnapshot,
+    ) {
+        self.buffer.truncate(buffer_length);
+        self.count = count;
+        self.patches.truncate(patches_length);
+        self.type_holes.truncate(type_holes_length);
+    }
+}
+
+struct PgArgumentBufferSnapshot {
+    buffer_length: usize,
+    count: usize,
+    patches_length: usize,
+    type_holes_length: usize,
 }
 
 impl Deref for PgArgumentBuffer {

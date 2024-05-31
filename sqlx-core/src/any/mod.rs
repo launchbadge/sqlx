@@ -67,12 +67,15 @@ impl<'q, T> Encode<'q, Any> for Option<T>
 where
     T: Encode<'q, Any> + 'q,
 {
-    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> crate::encode::IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut AnyArgumentBuffer<'q>,
+    ) -> Result<crate::encode::IsNull, crate::error::BoxDynError> {
         if let Some(value) = self {
             value.encode_by_ref(buf)
         } else {
             buf.0.push(AnyValueKind::Null);
-            crate::encode::IsNull::Yes
+            Ok(crate::encode::IsNull::Yes)
         }
     }
 }

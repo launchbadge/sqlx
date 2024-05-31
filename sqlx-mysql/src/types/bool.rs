@@ -32,7 +32,7 @@ impl Type<MySql> for bool {
 }
 
 impl Encode<'_, MySql> for bool {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <i8 as Encode<MySql>>::encode(*self as i8, buf)
     }
 }

@@ -4,7 +4,8 @@ use crate::{
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
+use std::future;
 
 pub use sqlx_core::any::*;
 
@@ -76,10 +77,15 @@ impl AnyConnectionBackend for PgConnection {
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
         let persistent = arguments.is_some();
-        let args = arguments.as_ref().map(AnyArguments::convert_to);
+        let arguments = match arguments.as_ref().map(AnyArguments::convert_to).transpose() {
+            Ok(arguments) => arguments,
+            Err(error) => {
+                return stream::once(future::ready(Err(sqlx_core::Error::Encode(error)))).boxed()
+            }
+        };
 
         Box::pin(
-            self.run(query, args, 0, persistent, None)
+            self.run(query, arguments, 0, persistent, None)
                 .try_flatten_stream()
                 .map(
                     move |res: sqlx_core::Result<Either<PgQueryResult, PgRow>>| match res? {
@@ -96,10 +102,15 @@ impl AnyConnectionBackend for PgConnection {
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
         let persistent = arguments.is_some();
-        let args = arguments.as_ref().map(AnyArguments::convert_to);
+        let arguments = arguments
+            .as_ref()
+            .map(AnyArguments::convert_to)
+            .transpose()
+            .map_err(sqlx_core::Error::Encode);
 
         Box::pin(async move {
-            let stream = self.run(query, args, 1, persistent, None).await?;
+            let arguments = arguments?;
+            let stream = self.run(query, arguments, 1, persistent, None).await?;
             futures_util::pin_mut!(stream);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {

@@ -370,10 +370,11 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     {
         let sql = query.sql();
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
-        let arguments = query.take_arguments();
+        let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
+            let arguments = arguments?;
             let s = self.run(sql, arguments, 0, persistent, metadata).await?;
             pin_mut!(s);
 
@@ -395,10 +396,11 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     {
         let sql = query.sql();
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
-        let arguments = query.take_arguments();
+        let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();
 
         Box::pin(async move {
+            let arguments = arguments?;
             let s = self.run(sql, arguments, 1, persistent, metadata).await?;
             pin_mut!(s);
 

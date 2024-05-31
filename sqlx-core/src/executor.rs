@@ -1,6 +1,6 @@
 use crate::database::Database;
 use crate::describe::Describe;
-use crate::error::Error;
+use crate::error::{BoxDynError, Error};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -199,10 +199,12 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
 
     /// Returns the arguments to be bound against the query string.
     ///
-    /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
-    /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
+    /// Returning `Ok(None)` for `Arguments` indicates to use a "simple" query protocol and to not
+    /// prepare the query. Returning `Ok(Some(Default::default()))` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>>;
+    ///
+    /// Returns `Err` if encoding any of the arguments failed.
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError>;
 
     /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
@@ -222,8 +224,8 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        None
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(None)
     }
 
     #[inline]
@@ -244,8 +246,8 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as Database>::Ar
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        self.1.take()
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(self.1.take())
     }
 
     #[inline]

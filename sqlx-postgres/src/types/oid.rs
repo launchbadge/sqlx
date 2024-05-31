@@ -36,10 +36,10 @@ impl PgHasArrayType for Oid {
 }
 
 impl Encode<'_, Postgres> for Oid {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.0.to_be_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

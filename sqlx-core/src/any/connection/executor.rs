@@ -5,6 +5,8 @@ use crate::executor::{Execute, Executor};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use futures_util::{stream, FutureExt, StreamExt};
+use std::future;
 
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;
@@ -17,7 +19,10 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         'c: 'e,
         E: Execute<'q, Any>,
     {
-        let arguments = query.take_arguments();
+        let arguments = match query.take_arguments().map_err(Error::Encode) {
+            Ok(arguments) => arguments,
+            Err(error) => return stream::once(future::ready(Err(error))).boxed(),
+        };
         self.backend.fetch_many(query.sql(), arguments)
     }
 
@@ -29,7 +34,10 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let arguments = query.take_arguments();
+        let arguments = match query.take_arguments().map_err(Error::Encode) {
+            Ok(arguments) => arguments,
+            Err(error) => return future::ready(Err(error)).boxed(),
+        };
         self.backend.fetch_optional(query.sql(), arguments)
     }
 

@@ -173,7 +173,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
     };
 
     quote! {
-        ::sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
+        ::sqlx::__query_with_result::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
             use ::sqlx::Row as _;
 
             #(#instantiations)*
@@ -216,7 +216,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     let query = &input.sql;
 
     Ok(quote! {
-        ::sqlx::query_scalar_with::<#db, #ty, _>(#query, #bind_args)
+        ::sqlx::__query_scalar_with_result::<#db, #ty, _>(#query, #bind_args)
     })
 }
 
