@@ -51,3 +51,7 @@ CREATE OR REPLACE PROCEDURE forty_two(INOUT forty_two INT = NULL)
 CREATE TABLE test_citext (
     foo CITEXT NOT NULL
 );
+
+CREATE SCHEMA IF NOT EXISTS foo;
+
+CREATE ENUM foo."Foo" ('Bar', 'Baz');
