@@ -216,7 +216,7 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             let buf = conn.stream.write_buffer_mut();
 
             // Write the CopyData format code and reserve space for the length.
-            // This may end up sending an empty `CopyData` packet if, after this point, 
+            // This may end up sending an empty `CopyData` packet if, after this point,
             // we get canceled or read 0 bytes, but that should be fine.
             buf.put_slice(b"d\0\0\0\x04");
 
