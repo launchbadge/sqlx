@@ -186,7 +186,14 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
+            let (name, typ_type, category, relation_id, element, base_type): (
+                String,
+                i8,
+                i8,
+                Oid,
+                Oid,
+                Oid,
+            ) = query_as(
                 // Converting the OID to `regtype` and then `text` will give us the name that
                 // the type will need to be found at by search_path.
                 "SELECT oid::regtype::text, \
