@@ -724,3 +724,29 @@ async fn test_skip() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_enum_with_schema() -> anyhow::Result<()> {
+    #[derive(Debug, PartialEq, Eq, sqlx::Type)]
+    #[sqlx(type_name = "foo.\"Foo\"")]
+    enum Foo {
+        Bar,
+        Baz,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Bar)
+        .fetch_one(&mut conn).await?;
+
+    assert_eq!(foo, Foo::Bar);
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Baz)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo, Foo::Baz);
+}
