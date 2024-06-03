@@ -65,8 +65,9 @@ impl Row for AnyRow {
 
 impl<'i> ColumnIndex<AnyRow> for &'i str {
     fn index(&self, row: &AnyRow) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         row.column_names
-            .get(*self)
+            .get(key.as_str())
             .copied()
             .ok_or_else(|| Error::ColumnNotFound(self.to_string()))
     }

@@ -43,8 +43,9 @@ impl Row for MySqlRow {
 
 impl ColumnIndex<MySqlRow> for &'_ str {
     fn index(&self, row: &MySqlRow) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         row.column_names
-            .get(*self)
+            .get(key.as_str())
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .map(|v| *v)
     }

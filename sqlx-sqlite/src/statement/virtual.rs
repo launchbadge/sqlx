@@ -106,7 +106,7 @@ impl VirtualStatement {
                         type_info,
                     });
 
-                    column_names.insert(name, i);
+                    column_names.insert(name.to_lowercase().into(), i);
                 }
 
                 self.handles.push(statement);

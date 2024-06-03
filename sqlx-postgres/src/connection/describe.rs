@@ -127,7 +127,7 @@ impl PgConnection {
             };
 
             columns.push(column);
-            column_names.insert(name, index);
+            column_names.insert(name.to_lowercase().into(), index);
         }
 
         Ok((columns, column_names))

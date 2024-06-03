@@ -396,7 +396,7 @@ async fn recv_result_metadata(
 
         let column = recv_next_result_column(&def, ordinal)?;
 
-        column_names.insert(column.name.clone(), ordinal);
+        column_names.insert(column.name.to_lowercase().into(), ordinal);
         columns.push(column);
     }
 

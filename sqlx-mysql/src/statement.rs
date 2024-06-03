@@ -50,10 +50,11 @@ impl<'q> Statement<'q> for MySqlStatement<'q> {
 
 impl ColumnIndex<MySqlStatement<'_>> for &'_ str {
     fn index(&self, statement: &MySqlStatement<'_>) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         statement
             .metadata
             .column_names
-            .get(*self)
+            .get(key.as_str())
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .map(|v| *v)
     }

@@ -43,9 +43,10 @@ impl Row for PgRow {
 
 impl ColumnIndex<PgRow> for &'_ str {
     fn index(&self, row: &PgRow) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         row.metadata
             .column_names
-            .get(*self)
+            .get(key.as_str())
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .map(|v| *v)
     }

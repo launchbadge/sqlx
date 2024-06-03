@@ -53,9 +53,10 @@ impl<'q> Statement<'q> for SqliteStatement<'q> {
 
 impl ColumnIndex<SqliteStatement<'_>> for &'_ str {
     fn index(&self, statement: &SqliteStatement<'_>) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         statement
             .column_names
-            .get(*self)
+            .get(key.as_str())
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .map(|v| *v)
     }

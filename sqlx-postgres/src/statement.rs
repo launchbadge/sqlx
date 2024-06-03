@@ -51,10 +51,11 @@ impl<'q> Statement<'q> for PgStatement<'q> {
 
 impl ColumnIndex<PgStatement<'_>> for &'_ str {
     fn index(&self, statement: &PgStatement<'_>) -> Result<usize, Error> {
+        let key = self.to_lowercase();
         statement
             .metadata
             .column_names
-            .get(*self)
+            .get(key.as_str())
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .map(|v| *v)
     }
