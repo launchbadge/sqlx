@@ -26,6 +26,12 @@ pub mod types;
 mod value;
 
 #[cfg(feature = "any")]
+// We are hiding the any module with its AnyConnectionBackend trait
+// so that IDEs don't show it in the autocompletion list
+// and end users don't accidentally use it. This can result in
+// nested transactions not behaving as expected.
+// For more information, see https://github.com/launchbadge/sqlx/pull/3254#issuecomment-2144043823
+#[doc(hidden)]
 pub mod any;
 
 #[cfg(feature = "migrate")]
