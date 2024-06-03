@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::ffi::CStr;
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::os::raw::{c_int, c_void};
@@ -8,7 +9,7 @@ use std::ptr::NonNull;
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
-use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
+use libsqlite3_sys::{sqlite3, sqlite3_progress_handler, sqlite3_update_hook};
 
 pub(crate) use handle::ConnectionHandle;
 use sqlx_core::common::StatementCache;
@@ -20,7 +21,7 @@ use sqlx_core::transaction::Transaction;
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
-use crate::statement::VirtualStatement;
+use crate::statement::{SqliteOperation, VirtualStatement};
 use crate::{Sqlite, SqliteConnectOptions};
 
 pub(crate) mod collation;
@@ -58,6 +59,11 @@ pub struct LockedSqliteHandle<'a> {
 pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send + 'static>);
 unsafe impl Send for Handler {}
 
+pub(crate) struct UpdateHandler(
+    NonNull<dyn FnMut(SqliteOperation, String, String, i64) + Send + 'static>,
+);
+unsafe impl Send for UpdateHandler {}
+
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
 
@@ -71,6 +77,8 @@ pub(crate) struct ConnectionState {
     /// Stores the progress handler set on the current connection. If the handler returns `false`,
     /// the query is interrupted.
     progress_handler_callback: Option<Handler>,
+
+    update_hook_callback: Option<UpdateHandler>,
 }
 
 impl ConnectionState {
@@ -78,7 +86,16 @@ impl ConnectionState {
     pub(crate) fn remove_progress_handler(&mut self) {
         if let Some(mut handler) = self.progress_handler_callback.take() {
             unsafe {
-                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, 0 as *mut _);
+                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
+                let _ = { Box::from_raw(handler.0.as_mut()) };
+            }
+        }
+    }
+
+    pub(crate) fn remove_update_hook(&mut self) {
+        if let Some(mut handler) = self.update_hook_callback.take() {
+            unsafe {
+                sqlite3_update_hook(self.handle.as_ptr(), None, std::ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -215,6 +232,31 @@ where
     }
 }
 
+extern "C" fn update_hook<F>(
+    callback: *mut c_void,
+    operation: c_int,
+    database: *const i8,
+    table: *const i8,
+    rowid: i64,
+) where
+    F: FnMut(SqliteOperation, String, String, i64),
+{
+    unsafe {
+        let r = catch_unwind(|| {
+            let callback: *mut F = callback.cast::<F>();
+            let database_str = CStr::from_ptr(database).to_str().unwrap();
+            let table_str = CStr::from_ptr(table).to_str().unwrap();
+            (*callback)(
+                operation.into(),
+                database_str.to_owned(),
+                table_str.to_owned(),
+                rowid,
+            )
+        });
+        r.unwrap_or_default()
+    }
+}
+
 impl LockedSqliteHandle<'_> {
     /// Returns the underlying sqlite3* connection handle.
     ///
@@ -279,9 +321,33 @@ impl LockedSqliteHandle<'_> {
         }
     }
 
+    pub fn set_update_hook<F>(&mut self, callback: F)
+    where
+        F: FnMut(SqliteOperation, String, String, i64) + Send + 'static,
+    {
+        unsafe {
+            let callback_boxed = Box::new(callback);
+            // SAFETY: `Box::into_raw()` always returns a non-null pointer.
+            let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
+            let handler = callback.as_ptr() as *mut _;
+            self.guard.remove_update_hook();
+            self.guard.update_hook_callback = Some(UpdateHandler(callback));
+
+            sqlite3_update_hook(
+                self.as_raw_handle().as_mut(),
+                Some(update_hook::<F>),
+                handler,
+            );
+        }
+    }
+
     /// Removes the progress handler on a database connection. The method does nothing if no handler was set.
     pub fn remove_progress_handler(&mut self) {
         self.guard.remove_progress_handler();
+    }
+
+    pub fn remove_update_hook(&mut self) {
+        self.guard.remove_update_hook();
     }
 }
 
@@ -290,6 +356,7 @@ impl Drop for ConnectionState {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
         self.remove_progress_handler();
+        self.remove_update_hook();
     }
 }
 

@@ -41,6 +41,7 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
+pub use statement::SqliteOperation;
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
