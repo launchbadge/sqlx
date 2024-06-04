@@ -9,7 +9,10 @@ use std::ptr::NonNull;
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
-use libsqlite3_sys::{sqlite3, sqlite3_progress_handler, sqlite3_update_hook};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_progress_handler, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT,
+    SQLITE_UPDATE,
+};
 
 pub(crate) use handle::ConnectionHandle;
 use sqlx_core::common::StatementCache;
@@ -21,7 +24,7 @@ use sqlx_core::transaction::Transaction;
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
-use crate::statement::{SqliteOperation, VirtualStatement};
+use crate::statement::VirtualStatement;
 use crate::{Sqlite, SqliteConnectOptions};
 
 pub(crate) mod collation;
@@ -59,10 +62,33 @@ pub struct LockedSqliteHandle<'a> {
 pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send + 'static>);
 unsafe impl Send for Handler {}
 
-pub(crate) struct UpdateHandler(
-    NonNull<dyn FnMut(SqliteOperation, String, String, i64) + Send + 'static>,
-);
-unsafe impl Send for UpdateHandler {}
+#[derive(Debug, PartialEq, Eq)]
+pub enum SqliteOperation {
+    Insert,
+    Update,
+    Delete,
+    Unknown(i32),
+}
+
+impl From<i32> for SqliteOperation {
+    fn from(value: i32) -> Self {
+        match value {
+            SQLITE_INSERT => SqliteOperation::Insert,
+            SQLITE_UPDATE => SqliteOperation::Update,
+            SQLITE_DELETE => SqliteOperation::Delete,
+            code => SqliteOperation::Unknown(code),
+        }
+    }
+}
+
+pub struct UpdateHookResult<'a> {
+    pub operation: SqliteOperation,
+    pub database: &'a str,
+    pub table: &'a str,
+    pub rowid: i64,
+}
+pub(crate) struct UpdateHookHandler(NonNull<dyn FnMut(UpdateHookResult) + Send + 'static>);
+unsafe impl Send for UpdateHookHandler {}
 
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
@@ -78,7 +104,7 @@ pub(crate) struct ConnectionState {
     /// the query is interrupted.
     progress_handler_callback: Option<Handler>,
 
-    update_hook_callback: Option<UpdateHandler>,
+    update_hook_callback: Option<UpdateHookHandler>,
 }
 
 impl ConnectionState {
@@ -234,26 +260,26 @@ where
 
 extern "C" fn update_hook<F>(
     callback: *mut c_void,
-    operation: c_int,
+    op_code: c_int,
     database: *const i8,
     table: *const i8,
     rowid: i64,
 ) where
-    F: FnMut(SqliteOperation, String, String, i64),
+    F: FnMut(UpdateHookResult),
 {
     unsafe {
-        let r = catch_unwind(|| {
+        let _ = catch_unwind(|| {
             let callback: *mut F = callback.cast::<F>();
-            let database_str = CStr::from_ptr(database).to_str().unwrap();
-            let table_str = CStr::from_ptr(table).to_str().unwrap();
-            (*callback)(
-                operation.into(),
-                database_str.to_owned(),
-                table_str.to_owned(),
+            let operation: SqliteOperation = op_code.into();
+            let database = CStr::from_ptr(database).to_str().unwrap_or_default();
+            let table = CStr::from_ptr(table).to_str().unwrap_or_default();
+            (*callback)(UpdateHookResult {
+                operation,
+                database,
+                table,
                 rowid,
-            )
+            })
         });
-        r.unwrap_or_default()
     }
 }
 
@@ -323,7 +349,7 @@ impl LockedSqliteHandle<'_> {
 
     pub fn set_update_hook<F>(&mut self, callback: F)
     where
-        F: FnMut(SqliteOperation, String, String, i64) + Send + 'static,
+        F: FnMut(UpdateHookResult) + Send + 'static,
     {
         unsafe {
             let callback_boxed = Box::new(callback);
@@ -331,7 +357,7 @@ impl LockedSqliteHandle<'_> {
             let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
             let handler = callback.as_ptr() as *mut _;
             self.guard.remove_update_hook();
-            self.guard.update_hook_callback = Some(UpdateHandler(callback));
+            self.guard.update_hook_callback = Some(UpdateHookHandler(callback));
 
             sqlite3_update_hook(
                 self.as_raw_handle().as_mut(),

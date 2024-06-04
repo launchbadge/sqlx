@@ -33,6 +33,7 @@ use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use column::SqliteColumn;
+pub use connection::SqliteOperation;
 pub use connection::{LockedSqliteHandle, SqliteConnection};
 pub use database::Sqlite;
 pub use error::SqliteError;
@@ -41,7 +42,6 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
-pub use statement::SqliteOperation;
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;

@@ -2,7 +2,6 @@ use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::{Sqlite, SqliteArguments, SqliteColumn, SqliteTypeInfo};
-use libsqlite3_sys::{SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE};
 use sqlx_core::{Either, HashMap};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -78,22 +77,3 @@ impl ColumnIndex<SqliteStatement<'_>> for &'_ str {
 //         }
 //     }
 // }
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum SqliteOperation {
-    Insert,
-    Update,
-    Delete,
-    Unknown,
-}
-
-impl From<i32> for SqliteOperation {
-    fn from(value: i32) -> Self {
-        match value {
-            SQLITE_INSERT => SqliteOperation::Insert,
-            SQLITE_UPDATE => SqliteOperation::Update,
-            SQLITE_DELETE => SqliteOperation::Delete,
-            _ => SqliteOperation::Unknown,
-        }
-    }
-}
