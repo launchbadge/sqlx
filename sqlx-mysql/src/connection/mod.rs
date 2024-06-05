@@ -23,6 +23,10 @@ const MAX_PACKET_SIZE: u32 = 1024;
 
 /// A connection to a MySQL database.
 pub struct MySqlConnection {
+    pub(crate) inner: Box<MySqlConnectionInner>,
+}
+
+pub(crate) struct MySqlConnectionInner {
     // underlying TCP stream,
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
@@ -50,8 +54,8 @@ impl Connection for MySqlConnection {
 
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
-            self.stream.send_packet(Quit).await?;
-            self.stream.shutdown().await?;
+            self.inner.stream.send_packet(Quit).await?;
+            self.inner.stream.shutdown().await?;
 
             Ok(())
         })
@@ -59,16 +63,16 @@ impl Connection for MySqlConnection {
 
     fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
-            self.stream.shutdown().await?;
+            self.inner.stream.shutdown().await?;
             Ok(())
         })
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            self.stream.wait_until_ready().await?;
-            self.stream.send_packet(Ping).await?;
-            self.stream.recv_ok().await?;
+            self.inner.stream.wait_until_ready().await?;
+            self.inner.stream.send_packet(Ping).await?;
+            self.inner.stream.recv_ok().await?;
 
             Ok(())
         })
@@ -76,17 +80,18 @@ impl Connection for MySqlConnection {
 
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.stream.wait_until_ready().boxed()
+        self.inner.stream.wait_until_ready().boxed()
     }
 
     fn cached_statements_size(&self) -> usize {
-        self.cache_statement.len()
+        self.inner.cache_statement.len()
     }
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            while let Some((statement_id, _)) = self.cache_statement.remove_lru() {
-                self.stream
+            while let Some((statement_id, _)) = self.inner.cache_statement.remove_lru() {
+                self.inner
+                    .stream
                     .send_packet(StmtClose {
                         statement: statement_id,
                     })
@@ -99,7 +104,7 @@ impl Connection for MySqlConnection {
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
-        !self.stream.write_buffer().is_empty()
+        !self.inner.stream.write_buffer().is_empty()
     }
 
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
@@ -110,6 +115,6 @@ impl Connection for MySqlConnection {
     }
 
     fn shrink_buffers(&mut self) {
-        self.stream.shrink_buffers();
+        self.inner.stream.shrink_buffers();
     }
 }
