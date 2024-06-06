@@ -47,10 +47,10 @@ impl<'q> Encode<'q, Postgres> for PgCube {
         Some(PgTypeInfo::with_name("cube"))
     }
 
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        let _ = &self.serialize(buf);
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+         &self.serialize(buf)?;
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
