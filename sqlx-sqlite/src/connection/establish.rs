@@ -294,6 +294,7 @@ impl EstablishParams {
             transaction_depth: 0,
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,
+            update_hook_callback: None
         })
     }
 }
