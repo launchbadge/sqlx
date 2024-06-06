@@ -22,7 +22,7 @@ impl MySqlConnectOptions {
         let username = url.username();
         if !username.is_empty() {
             options = options.username(
-                &*percent_decode_str(username)
+                &percent_decode_str(username)
                     .decode_utf8()
                     .map_err(Error::config)?,
             );
@@ -30,7 +30,7 @@ impl MySqlConnectOptions {
 
         if let Some(password) = url.password() {
             options = options.password(
-                &*percent_decode_str(password)
+                &percent_decode_str(password)
                     .decode_utf8()
                     .map_err(Error::config)?,
             );
@@ -52,11 +52,11 @@ impl MySqlConnectOptions {
                 }
 
                 "charset" => {
-                    options = options.charset(&*value);
+                    options = options.charset(&value);
                 }
 
                 "collation" => {
-                    options = options.collation(&*value);
+                    options = options.collation(&value);
                 }
 
                 "sslcert" | "ssl-cert" => options = options.ssl_client_cert(&*value),
@@ -87,12 +87,12 @@ impl MySqlConnectOptions {
         .expect("BUG: generated un-parseable URL");
 
         if let Some(password) = &self.password {
-            let password = utf8_percent_encode(&password, NON_ALPHANUMERIC).to_string();
+            let password = utf8_percent_encode(password, NON_ALPHANUMERIC).to_string();
             let _ = url.set_password(Some(&password));
         }
 
         if let Some(database) = &self.database {
-            url.set_path(&database);
+            url.set_path(database);
         }
 
         let ssl_mode = match self.ssl_mode {
@@ -112,7 +112,7 @@ impl MySqlConnectOptions {
         url.query_pairs_mut().append_pair("charset", &self.charset);
 
         if let Some(collation) = &self.collation {
-            url.query_pairs_mut().append_pair("charset", &collation);
+            url.query_pairs_mut().append_pair("charset", collation);
         }
 
         if let Some(ssl_client_cert) = &self.ssl_client_cert {

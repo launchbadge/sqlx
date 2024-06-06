@@ -129,16 +129,15 @@ where
             .build(),
         || {
             connect(db_url).map_err(|e| -> backoff::Error<anyhow::Error> {
-                match e {
-                    sqlx::Error::Io(ref ioe) => match ioe.kind() {
+                if let sqlx::Error::Io(ref ioe) = e {
+                    match ioe.kind() {
                         io::ErrorKind::ConnectionRefused
                         | io::ErrorKind::ConnectionReset
                         | io::ErrorKind::ConnectionAborted => {
                             return backoff::Error::transient(e.into());
                         }
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 }
 
                 backoff::Error::permanent(e.into())

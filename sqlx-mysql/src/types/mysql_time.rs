@@ -498,7 +498,7 @@ impl MySqlTimeSign {
         }
     }
 
-    fn to_byte(&self) -> u8 {
+    fn to_byte(self) -> u8 {
         match self {
             // We can't use `#[repr(u8)]` because this is opposite of the ordering we want from `Ord`
             Self::Negative => 1,
@@ -579,7 +579,7 @@ fn parse(text: &str) -> Result<MySqlTime, BoxDynError> {
         MySqlTimeSign::Positive
     };
 
-    let hours = hours.abs() as u32;
+    let hours = hours.unsigned_abs();
 
     let minutes: u8 = minutes
         .parse()

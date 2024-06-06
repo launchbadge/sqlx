@@ -15,6 +15,7 @@ use crate::SqliteError;
 #[derive(Clone)]
 pub struct Collation {
     name: Arc<str>,
+    #[allow(clippy::type_complexity)]
     collate: Arc<dyn Fn(&str, &str) -> Ordering + Send + Sync + 'static>,
     // SAFETY: these must match the concrete type of `collate`
     call: unsafe extern "C" fn(

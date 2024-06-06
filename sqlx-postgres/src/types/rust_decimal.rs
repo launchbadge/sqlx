@@ -103,9 +103,9 @@ impl From<&'_ Decimal> for PgNumeric {
         let groups_diff = scale % 4;
         if groups_diff > 0 {
             let remainder = 4 - groups_diff as u32;
-            let power = 10u32.pow(remainder as u32) as u128;
+            let power = 10u32.pow(remainder) as u128;
 
-            mantissa = mantissa * power;
+            mantissa *= power;
         }
 
         // Array to store max mantissa of Decimal in Postgres decimal format.
@@ -121,7 +121,7 @@ impl From<&'_ Decimal> for PgNumeric {
         digits.reverse();
 
         // Weight is number of digits on the left side of the decimal.
-        let digits_after_decimal = (scale + 3) as u16 / 4;
+        let digits_after_decimal = (scale + 3) / 4;
         let weight = digits.len() as i16 - digits_after_decimal as i16 - 1;
 
         // Remove non-significant zeroes.

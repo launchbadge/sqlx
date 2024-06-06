@@ -4,6 +4,7 @@ use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::os::raw::{c_int, c_void};
 use std::panic::catch_unwind;
+use std::ptr;
 use std::ptr::NonNull;
 
 use futures_core::future::BoxFuture;
@@ -112,7 +113,7 @@ impl ConnectionState {
     pub(crate) fn remove_progress_handler(&mut self) {
         if let Some(mut handler) = self.progress_handler_callback.take() {
             unsafe {
-                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
+                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -121,7 +122,7 @@ impl ConnectionState {
     pub(crate) fn remove_update_hook(&mut self) {
         if let Some(mut handler) = self.update_hook_callback.take() {
             unsafe {
-                sqlite3_update_hook(self.handle.as_ptr(), None, std::ptr::null_mut());
+                sqlite3_update_hook(self.handle.as_ptr(), None, ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }

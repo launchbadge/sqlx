@@ -34,6 +34,7 @@ jobs:
           rustup update
           rustup component add clippy
           rustup toolchain install beta
+          rustup component add --toolchain beta clippy
 
       - run: >
           cargo clippy

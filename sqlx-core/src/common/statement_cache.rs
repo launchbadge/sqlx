@@ -43,6 +43,10 @@ impl<T> StatementCache<T> {
         self.inner.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     /// Removes the least recently used item from the cache.
     pub fn remove_lru(&mut self) -> Option<T> {
         self.inner.remove_lru().map(|(_, v)| v)

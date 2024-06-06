@@ -95,7 +95,7 @@ fn expand_derive_decode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let attr = check_weak_enum_attributes(input, &variants)?;
+    let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
 
     let ident = &input.ident;
@@ -142,7 +142,7 @@ fn expand_derive_decode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let cattr = check_strong_enum_attributes(input, &variants)?;
+    let cattr = check_strong_enum_attributes(input, variants)?;
 
     let ident = &input.ident;
     let ident_s = ident.to_string();
@@ -154,7 +154,7 @@ fn expand_derive_decode_strong_enum(
         if let Some(rename) = attributes.rename {
             parse_quote!(#rename => ::std::result::Result::Ok(#ident :: #id),)
         } else if let Some(pattern) = cattr.rename_all {
-            let name = rename_all(&*id.to_string(), pattern);
+            let name = rename_all(&id.to_string(), pattern);
 
             parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         } else {

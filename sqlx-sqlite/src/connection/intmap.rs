@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::{fmt::Debug, hash::Hash};
 
 /// Simplistic map implementation built on a Vec of Options (index = key)
@@ -65,7 +66,7 @@ impl<V> IntMap<V> {
 
         let item = self.0.get_mut(idx);
         match item {
-            Some(content) => std::mem::replace(content, None),
+            Some(content) => content.take(),
             None => None,
         }
     }
@@ -100,7 +101,10 @@ impl<V: Default> IntMap<V> {
 }
 
 impl<V: Clone> IntMap<V> {
-    pub(crate) fn from_dense_record(record: &Vec<V>) -> Self {
+    pub(crate) fn from_elem(elem: V, len: usize) -> Self {
+        Self(vec![Some(elem); len])
+    }
+    pub(crate) fn from_dense_record(record: &[V]) -> Self {
         Self(record.iter().cloned().map(Some).collect())
     }
 }
@@ -139,21 +143,16 @@ impl<V: Hash> Hash for IntMap<V> {
 
 impl<V: PartialEq> PartialEq for IntMap<V> {
     fn eq(&self, other: &Self) -> bool {
-        if !self
-            .0
-            .iter()
-            .zip(other.0.iter())
-            .all(|(l, r)| PartialEq::eq(l, r))
-        {
-            return false;
-        }
-
-        if self.0.len() > other.0.len() {
-            self.0[other.0.len()..].iter().all(Option::is_none)
-        } else if self.0.len() < other.0.len() {
-            other.0[self.0.len()..].iter().all(Option::is_none)
-        } else {
-            true
+        match self.0.len().cmp(&other.0.len()) {
+            Ordering::Greater => {
+                self.0[..other.0.len()] == other.0
+                    && self.0[other.0.len()..].iter().all(Option::is_none)
+            }
+            Ordering::Less => {
+                other.0[..self.0.len()] == self.0
+                    && other.0[self.0.len()..].iter().all(Option::is_none)
+            }
+            Ordering::Equal => self.0 == other.0,
         }
     }
 }
