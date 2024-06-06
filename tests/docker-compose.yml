@@ -34,6 +34,7 @@ services:
 
     mysql_5_7:
         image: mysql:5.7
+        platform: linux/amd64 # image doesn't exist for other platforms
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
         ports:
@@ -44,6 +45,7 @@ services:
             MYSQL_DATABASE: sqlx
 
     mysql_5_7_client_ssl:
+        platform: linux/amd64 # image doesn't exist for other platforms
         build:
             context: .
             dockerfile: mysql/Dockerfile

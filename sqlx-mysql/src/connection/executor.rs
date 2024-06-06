@@ -127,6 +127,7 @@ impl MySqlConnection {
                     self.inner.stream
                         .send_packet(StatementExecute {
                             statement: id,
+                            metadata: &metadata,
                             arguments: &arguments,
                         })
                         .await?;
@@ -141,6 +142,7 @@ impl MySqlConnection {
                     self.inner.stream
                         .send_packet(StatementExecute {
                             statement: id,
+                            metadata: &metadata,
                             arguments: &arguments,
                         })
                         .await?;

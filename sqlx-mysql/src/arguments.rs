@@ -11,9 +11,33 @@ pub struct MySqlArguments {
     pub(crate) values: Vec<u8>,
     pub(crate) types: Vec<MySqlTypeInfo>,
     pub(crate) null_bitmap: NullBitMap,
+    pub(crate) is_bulk: bool,
 }
 
 impl MySqlArguments {
+    /// Create arguments for bulk operation.
+    ///
+    /// Allows reusing the same prepared statement for inserting various number of rows.
+    /// ```rust,no_run
+    /// # async fn example() -> sqlx_core::Result<()> {
+    /// # let mut conn: sqlx::mysql::MySqlConnection = unimplemented!();
+    /// let result = sqlx::query_with("INSERT INTO items (value) VALUES (?)", MySqlArguments::bulk())
+    ///     .bind(1)
+    ///     .bind(2)
+    ///     .bind(3)
+    ///     .execute(&mut conn)
+    ///     .await?;
+    /// assert_eq!(result.rows_affected(), 3);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn bulk() -> Self {
+        Self {
+            is_bulk: true,
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, MySql> + Type<MySql>,
@@ -21,6 +45,11 @@ impl MySqlArguments {
         let ty = value.produces().unwrap_or_else(T::type_info);
 
         let value_length_before_encoding = self.values.len();
+
+        if self.is_bulk {
+            self.values.push(0); // parameter indicator = NONE (value follow)
+        }
+
         let is_null = match value.encode(&mut self.values) {
             Ok(is_null) => is_null,
             Err(error) => {
@@ -31,7 +60,15 @@ impl MySqlArguments {
         };
 
         self.types.push(ty);
-        self.null_bitmap.push(is_null);
+
+        if self.is_bulk {
+            if is_null.is_null() {
+                self.values.truncate(value_length_before_encoding);
+                self.values.push(1); // parameter indicator = NULL
+            }
+        } else {
+            self.null_bitmap.push(is_null);
+        }
 
         Ok(())
     }

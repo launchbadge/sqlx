@@ -1,6 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx_mysql::MySqlArguments;
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 
@@ -577,4 +578,41 @@ async fn select_statement_count(conn: &mut MySqlConnection) -> Result<i64, sqlx:
     )
     .fetch_one(conn)
     .await
+}
+
+#[sqlx_macros::test]
+async fn it_can_bulk_execute() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute("CREATE TEMPORARY TABLE items (value int, name text)")
+        .await?;
+
+    let result = sqlx::query_with(
+        "INSERT INTO items (value, name) VALUES (?, ?)",
+        MySqlArguments::bulk(),
+    )
+    .bind(123_i32)
+    .bind(None::<&str>)
+    .bind(256_i32)
+    .bind("row with 256")
+    .bind(None::<i32>)
+    .bind("row with null int")
+    .execute(&mut conn)
+    .await?;
+    assert_eq!(result.rows_affected(), 3);
+
+    let rows: Vec<(Option<i32>, Option<String>)> =
+        sqlx::query_as("SELECT value, name FROM items ORDER BY value")
+            .fetch_all(&mut conn)
+            .await?;
+    assert_eq!(
+        rows,
+        &[
+            (None, Some(String::from("row with null int"))),
+            (Some(123), None),
+            (Some(256), Some(String::from("row with 256"))),
+        ]
+    );
+
+    Ok(())
 }
