@@ -1,10 +1,10 @@
-use std::str::FromStr;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::Error;
+use std::str::FromStr;
 
 const BYTE_WIDTH: usize = 8;
 const CUBE_TYPE_ZERO_VOLUME: usize = 128;
