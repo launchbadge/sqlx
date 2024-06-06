@@ -48,7 +48,7 @@ impl<'q> Encode<'q, Postgres> for PgCube {
     }
 
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-         &self.serialize(buf)?;
+        &self.serialize(buf)?;
 
         Ok(IsNull::No)
     }
