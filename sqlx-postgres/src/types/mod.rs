@@ -261,7 +261,7 @@ fn array_compatible<E: Type<Postgres> + ?Sized>(ty: &PgTypeInfo) -> bool {
     // we require the declared type to be an _array_ with an
     // element type that is acceptable
     if let PgTypeKind::Array(element) = &ty.kind() {
-        return E::compatible(&element);
+        return E::compatible(element);
     }
 
     false

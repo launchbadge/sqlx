@@ -24,7 +24,7 @@ impl PgConnectOptions {
         let username = url.username();
         if !username.is_empty() {
             options = options.username(
-                &*percent_decode_str(username)
+                &percent_decode_str(username)
                     .decode_utf8()
                     .map_err(Error::config)?,
             );
@@ -32,7 +32,7 @@ impl PgConnectOptions {
 
         if let Some(password) = url.password() {
             options = options.password(
-                &*percent_decode_str(password)
+                &percent_decode_str(password)
                     .decode_utf8()
                     .map_err(Error::config)?,
             );
@@ -63,32 +63,32 @@ impl PgConnectOptions {
                 }
 
                 "host" => {
-                    if value.starts_with("/") {
+                    if value.starts_with('/') {
                         options = options.socket(&*value);
                     } else {
-                        options = options.host(&*value);
+                        options = options.host(&value);
                     }
                 }
 
                 "hostaddr" => {
                     value.parse::<IpAddr>().map_err(Error::config)?;
-                    options = options.host(&*value)
+                    options = options.host(&value)
                 }
 
                 "port" => options = options.port(value.parse().map_err(Error::config)?),
 
-                "dbname" => options = options.database(&*value),
+                "dbname" => options = options.database(&value),
 
-                "user" => options = options.username(&*value),
+                "user" => options = options.username(&value),
 
-                "password" => options = options.password(&*value),
+                "password" => options = options.password(&value),
 
-                "application_name" => options = options.application_name(&*value),
+                "application_name" => options = options.application_name(&value),
 
                 "options" => {
                     if let Some(options) = options.options.as_mut() {
                         options.push(' ');
-                        options.push_str(&*value);
+                        options.push_str(&value);
                     } else {
                         options.options = Some(value.to_string());
                     }
@@ -112,7 +112,7 @@ impl PgConnectOptions {
     pub(crate) fn build_url(&self) -> Url {
         let host = match &self.socket {
             Some(socket) => {
-                utf8_percent_encode(&*socket.to_string_lossy(), NON_ALPHANUMERIC).to_string()
+                utf8_percent_encode(&socket.to_string_lossy(), NON_ALPHANUMERIC).to_string()
             }
             None => self.host.to_owned(),
         };
@@ -124,12 +124,12 @@ impl PgConnectOptions {
         .expect("BUG: generated un-parseable URL");
 
         if let Some(password) = &self.password {
-            let password = utf8_percent_encode(&password, NON_ALPHANUMERIC).to_string();
+            let password = utf8_percent_encode(password, NON_ALPHANUMERIC).to_string();
             let _ = url.set_password(Some(&password));
         }
 
         if let Some(database) = &self.database {
-            url.set_path(&database);
+            url.set_path(database);
         }
 
         let ssl_mode = match self.ssl_mode {

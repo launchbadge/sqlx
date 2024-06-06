@@ -41,7 +41,14 @@ fn load_password_from_file(
     username: &str,
     database: Option<&str>,
 ) -> Option<String> {
-    let file = File::open(&path).ok()?;
+    let file = File::open(&path)
+        .map_err(|e| {
+            tracing::warn!(
+                path = %path.display(),
+                "Failed to open `.pgpass` file: {e:?}",
+            );
+        })
+        .ok()?;
 
     #[cfg(target_os = "linux")]
     {
@@ -54,7 +61,7 @@ fn load_password_from_file(
         let mode = permissions.mode();
         if mode & 0o77 != 0 {
             tracing::warn!(
-                path = %path.to_string_lossy(),
+                path = %path.display(),
                 permissions = format!("{mode:o}"),
                 "Ignoring path. Permissions are not strict enough",
             );
@@ -184,7 +191,7 @@ fn find_next_field<'a>(line: &mut &'a str) -> Option<Cow<'a, str>> {
         }
     }
 
-    return None;
+    None
 }
 
 #[cfg(test)]

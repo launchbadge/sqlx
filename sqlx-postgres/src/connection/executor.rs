@@ -48,7 +48,7 @@ async fn prepare(
 
     // next we send the PARSE command to the server
     conn.stream.write(Parse {
-        param_types: &*param_types,
+        param_types: &param_types,
         query: sql,
         statement: id,
     });
@@ -63,8 +63,7 @@ async fn prepare(
     conn.stream.flush().await?;
 
     // indicates that the SQL query string is now successfully parsed and has semantic validity
-    let _ = conn
-        .stream
+    conn.stream
         .recv_expect(MessageFormat::ParseComplete)
         .await?;
 
@@ -227,7 +226,7 @@ impl PgConnection {
                 statement,
                 formats: &[PgValueFormat::Binary],
                 num_params: arguments.types.len() as i16,
-                params: &*arguments.buffer,
+                params: &arguments.buffer,
                 result_formats: &[PgValueFormat::Binary],
             });
 
@@ -360,15 +359,19 @@ impl PgConnection {
 impl<'c> Executor<'c> for &'c mut PgConnection {
     type Database = Postgres;
 
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q, E>(
         self,
         mut query: E,
     ) -> BoxStream<'e, Result<Either<PgQueryResult, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         let sql = query.sql();
+        // False positive: https://github.com/rust-lang/rust-clippy/issues/12560
+        #[allow(clippy::map_clone)]
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
         let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();
@@ -386,15 +389,16 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
-        self,
-        mut query: E,
-    ) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
+    fn fetch_optional<'e, 'q, E>(self, mut query: E) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         let sql = query.sql();
+        // False positive: https://github.com/rust-lang/rust-clippy/issues/12560
+        #[allow(clippy::map_clone)]
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
         let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();

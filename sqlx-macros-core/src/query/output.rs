@@ -86,7 +86,7 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
     let column = &describe.columns()[i];
 
     // add raw prefix to all identifiers
-    let decl = ColumnDecl::parse(&column.name())
+    let decl = ColumnDecl::parse(column.name())
         .map_err(|e| format!("column name {:?} is invalid: {}", column.name(), e))?;
 
     let ColumnOverride { nullability, type_ } = decl.r#override;
@@ -133,10 +133,8 @@ pub fn quote_query_as<DB: DatabaseExt>(
     let instantiations = columns.iter().enumerate().map(
         |(
             i,
-            &RustColumn {
-                ref var_name,
-                ref type_,
-                ..
+            RustColumn {
+                var_name, type_, ..
             },
         )| {
             match (input.checked, type_) {
@@ -221,19 +219,19 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
 }
 
 fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
-    let type_info = &*column.type_info();
+    let type_info = column.type_info();
 
-    <DB as TypeChecking>::return_type_for_id(&type_info).map_or_else(
+    <DB as TypeChecking>::return_type_for_id(type_info).map_or_else(
         || {
             let message =
-                if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(&type_info) {
+                if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
                     format!(
                         "optional sqlx feature `{feat}` required for type {ty} of {col}",
                         ty = &type_info,
                         feat = feature_gate,
                         col = DisplayColumn {
                             idx: i,
-                            name: &*column.name()
+                            name: column.name()
                         }
                     )
                 } else {
@@ -242,7 +240,7 @@ fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStrea
                         ty = type_info,
                         col = DisplayColumn {
                             idx: i,
-                            name: &*column.name()
+                            name: column.name()
                         }
                     )
                 };

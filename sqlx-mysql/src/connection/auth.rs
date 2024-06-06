@@ -87,7 +87,7 @@ fn scramble_sha1(
 
     let mut pw_hash = ctx.finalize_reset();
 
-    ctx.update(&pw_hash);
+    ctx.update(pw_hash);
 
     let pw_hash_hash = ctx.finalize_reset();
 
@@ -114,7 +114,7 @@ fn scramble_sha256(
 
     let mut pw_hash = ctx.finalize_reset();
 
-    ctx.update(&pw_hash);
+    ctx.update(pw_hash);
 
     let pw_hash_hash = ctx.finalize_reset();
 
@@ -155,10 +155,10 @@ async fn encrypt_rsa<'s>(
 
     let (a, b) = (nonce.first_ref(), nonce.last_ref());
     let mut nonce = Vec::with_capacity(a.len() + b.len());
-    nonce.extend_from_slice(&*a);
-    nonce.extend_from_slice(&*b);
+    nonce.extend_from_slice(a);
+    nonce.extend_from_slice(b);
 
-    xor_eq(&mut pass, &*nonce);
+    xor_eq(&mut pass, &nonce);
 
     // client sends an RSA encrypted password
     let pkey = parse_rsa_pub_key(rsa_pub_key)?;
@@ -193,5 +193,5 @@ fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL
 
-    RsaPublicKey::from_public_key_pem(&pem).map_err(Error::protocol)
+    RsaPublicKey::from_public_key_pem(pem).map_err(Error::protocol)
 }

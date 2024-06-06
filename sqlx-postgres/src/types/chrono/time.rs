@@ -21,11 +21,11 @@ impl PgHasArrayType for NaiveTime {
 impl Encode<'_, Postgres> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // TIME is encoded as the microseconds since midnight
-        let us = (*self - NaiveTime::default())
+        let micros = (*self - NaiveTime::default())
             .num_microseconds()
             .ok_or_else(|| format!("Time out of range for PostgreSQL: {self}"))?;
 
-        Encode::<Postgres>::encode(&us, buf)
+        Encode::<Postgres>::encode(micros, buf)
     }
 
     fn size_hint(&self) -> usize {

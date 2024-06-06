@@ -4,12 +4,13 @@ use std::str::FromStr;
 /// Refer to [SQLite documentation] for the meaning of the database journaling mode.
 ///
 /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SqliteJournalMode {
     Delete,
     Truncate,
     Persist,
     Memory,
+    #[default]
     Wal,
     Off,
 }
@@ -24,12 +25,6 @@ impl SqliteJournalMode {
             SqliteJournalMode::Wal => "WAL",
             SqliteJournalMode::Off => "OFF",
         }
-    }
-}
-
-impl Default for SqliteJournalMode {
-    fn default() -> Self {
-        SqliteJournalMode::Wal
     }
 }
 

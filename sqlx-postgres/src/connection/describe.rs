@@ -463,7 +463,7 @@ WHERE rngtypid = $1
         }) = explains.first()
         {
             nullables.resize(outputs.len(), None);
-            visit_plan(&plan, outputs, &mut nullables);
+            visit_plan(plan, outputs, &mut nullables);
         }
 
         Ok(nullables)

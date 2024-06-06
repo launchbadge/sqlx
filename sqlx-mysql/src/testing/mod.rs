@@ -27,10 +27,7 @@ static DO_CLEANUP: AtomicBool = AtomicBool::new(true);
 
 impl TestSupport for MySql {
     fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move {
-            let res = test_context(args).await;
-            res
-        })
+        Box::pin(async move { test_context(args).await })
     }
 
     fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
@@ -47,7 +44,7 @@ impl TestSupport for MySql {
                 .await?;
 
             query("delete from _sqlx_test_databases where db_id = ?")
-                .bind(&db_id)
+                .bind(db_id)
                 .execute(&mut *conn)
                 .await?;
 
@@ -141,7 +138,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
     }
 
     query("insert into _sqlx_test_databases(test_path) values (?)")
-        .bind(&args.test_path)
+        .bind(args.test_path)
         .execute(&mut *conn)
         .await?;
 
@@ -182,7 +179,7 @@ async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Res
         "select db_id from _sqlx_test_databases \
             where created_at < from_unixtime(?)",
     )
-    .bind(&created_before_as_secs)
+    .bind(created_before_as_secs)
     .fetch_all(&mut *conn)
     .await?;
 
@@ -220,8 +217,6 @@ async fn do_cleanup(conn: &mut MySqlConnection, created_before: Duration) -> Res
     for db_id in &deleted_db_ids {
         separated.push_bind(db_id);
     }
-
-    drop(separated);
 
     query.push(")").build().execute(&mut *conn).await?;
 

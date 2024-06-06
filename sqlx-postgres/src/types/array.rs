@@ -156,7 +156,7 @@ where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let type_info = if self.len() < 1 {
+        let type_info = if self.is_empty() {
             T::type_info()
         } else {
             self[0].produces().unwrap_or_else(T::type_info)

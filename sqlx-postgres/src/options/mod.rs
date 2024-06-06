@@ -201,7 +201,7 @@ impl PgConnectOptions {
     ///     .host("localhost");
     /// ```
     pub fn host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+        host.clone_into(&mut self.host);
         self
     }
 
@@ -243,7 +243,7 @@ impl PgConnectOptions {
     ///     .username("postgres");
     /// ```
     pub fn username(mut self, username: &str) -> Self {
-        self.username = username.to_owned();
+        username.clone_into(&mut self.username);
         self
     }
 

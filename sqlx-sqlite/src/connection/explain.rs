@@ -160,7 +160,7 @@ impl ColumnType {
     }
     fn map_to_datatype(&self) -> DataType {
         match self {
-            Self::Single { datatype, .. } => datatype.clone(),
+            Self::Single { datatype, .. } => *datatype,
             Self::Record(_) => DataType::Null, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
         }
     }
@@ -188,7 +188,7 @@ impl core::fmt::Debug for ColumnType {
                 let mut column_iter = columns.iter();
                 if let Some(item) = column_iter.next() {
                     write!(f, "{:?}", item)?;
-                    while let Some(item) = column_iter.next() {
+                    for item in column_iter {
                         write!(f, ", {:?}", item)?;
                     }
                 }
@@ -400,7 +400,7 @@ fn root_block_columns(
         );
     }
 
-    return Ok(row_info);
+    Ok(row_info)
 }
 
 struct Sequence(i64);
@@ -544,7 +544,7 @@ impl BranchList {
             std::collections::hash_map::Entry::Occupied(entry) => {
                 //already saw a state identical to this one, so no point in processing it
                 state.mem = entry.key().clone(); //replace state.mem since .entry() moved it
-                logger.add_result(state, BranchResult::Dedup(entry.get().clone()));
+                logger.add_result(state, BranchResult::Dedup(*entry.get()));
             }
         }
     }
@@ -974,7 +974,7 @@ pub(super) fn explain(
                         .and_then(|c| c.columns_ref(&state.mem.t, &state.mem.r))
                         .and_then(|cc| cc.get(&p2))
                         .cloned()
-                        .unwrap_or_else(|| ColumnType::default());
+                        .unwrap_or_default();
 
                     // insert into p3 the datatype of the col
                     state.mem.r.insert(p3, RegDataType::Single(value));
@@ -1123,7 +1123,7 @@ pub(super) fn explain(
                 OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX | OP_SORTER_OPEN => {
                     //Create a new pointer which is referenced by p1
                     let table_info = TableDataType {
-                        cols: IntMap::from_dense_record(&vec![ColumnType::null(); p2 as usize]),
+                        cols: IntMap::from_elem(ColumnType::null(), p2 as usize),
                         is_empty: Some(true),
                     };
 
@@ -1376,7 +1376,7 @@ pub(super) fn explain(
                     state.mem.r.insert(
                         p2,
                         RegDataType::Single(ColumnType::Single {
-                            datatype: opcode_to_type(&opcode),
+                            datatype: opcode_to_type(opcode),
                             nullable: Some(false),
                         }),
                     );
@@ -1490,8 +1490,7 @@ pub(super) fn explain(
 
     while let Some(result) = result_states.pop() {
         // find the datatype info from each ResultRow execution
-        let mut idx = 0;
-        for this_col in result {
+        for (idx, this_col) in result.into_iter().enumerate() {
             let this_type = this_col.map_to_datatype();
             let this_nullable = this_col.map_to_nullable();
             if output.len() == idx {
@@ -1513,7 +1512,6 @@ pub(super) fn explain(
             } else {
                 nullable[idx] = this_nullable;
             }
-            idx += 1;
         }
     }
 
