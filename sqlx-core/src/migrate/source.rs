@@ -2,6 +2,7 @@ use crate::error::BoxDynError;
 use crate::migrate::{Migration, MigrationType};
 use futures_core::future::BoxFuture;
 
+use futures_util::future;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::fs;
@@ -41,6 +42,24 @@ impl<'s> MigrationSource<'s> for &'s Path {
 impl MigrationSource<'static> for PathBuf {
     fn resolve(self) -> BoxFuture<'static, Result<Vec<Migration>, BoxDynError>> {
         Box::pin(async move { self.as_path().resolve().await })
+    }
+}
+
+impl<'s, S: MigrationSource<'s> + Send + 's> MigrationSource<'s> for Vec<S> {
+    fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>> {
+        Box::pin(async move {
+            let migration_sets: Vec<_> =
+                future::join_all(self.into_iter().map(MigrationSource::resolve))
+                    .await
+                    .into_iter()
+                    .collect::<Result<_, _>>()?;
+
+            // Merge migration sets by version in ascending order
+            let mut migrations: Vec<_> = migration_sets.into_iter().flatten().collect();
+            migrations.sort_by_key(|migration| migration.version);
+
+            Ok(migrations)
+        })
     }
 }
 

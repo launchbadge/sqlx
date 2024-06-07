@@ -88,7 +88,7 @@ pub enum DatabaseCommand {
         confirmation: Confirmation,
 
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -101,7 +101,7 @@ pub enum DatabaseCommand {
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
     Setup {
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -156,7 +156,7 @@ pub enum MigrateCommand {
     /// Run all pending migrations.
     Run {
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         /// List all the migrations to be run without applying
         #[clap(long)]
@@ -177,7 +177,7 @@ pub enum MigrateCommand {
     /// Revert the latest migration with a down file.
     Revert {
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -199,7 +199,7 @@ pub enum MigrateCommand {
     /// List all available migrations.
     Info {
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -210,7 +210,7 @@ pub enum MigrateCommand {
     /// Must be run in a Cargo project root.
     BuildScript {
         #[clap(flatten)]
-        source: Source,
+        source: Sources,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -228,6 +228,22 @@ pub struct Source {
 
 impl Deref for Source {
     type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.source
+    }
+}
+
+/// Argument for the migration scripts sources.
+#[derive(Args, Debug)]
+pub struct Sources {
+    /// Paths to folders containing migrations.
+    #[clap(long, default_values_t = vec!["migrations".to_owned()])]
+    source: Vec<String>,
+}
+
+impl Deref for Sources {
+    type Target = Vec<String>;
 
     fn deref(&self) -> &Self::Target {
         &self.source
