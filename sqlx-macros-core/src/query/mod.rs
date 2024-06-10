@@ -190,11 +190,13 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         .unwrap_or(false);
 
     let database_urls = vec![
-        env("DATABASE_URL").ok(),
         env("DATABASE_URL_POSTGRES").ok(),
         env("DATABASE_URL_MARIADB").ok(),
         env("DATABASE_URL_MYSQL").ok(),
         env("DATABASE_URL_SQLITE").ok(),
+
+        // Generic one last as a fallback
+        env("DATABASE_URL").ok(),
     ].into_iter().flatten().collect();
 
     Metadata {
