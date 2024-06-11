@@ -209,7 +209,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
-    drivers: impl IntoIterator<Item = &'a QueryDriver> + Iterator<Item = &'a QueryDriver>,
+    drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
     let data_source = match &*METADATA {
         Metadata {
