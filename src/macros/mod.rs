@@ -316,6 +316,9 @@ macro_rules! query (
     ($query:expr) => ({
         $crate::sqlx_macros::expand_query!(source = $query)
     });
+    ($driver:expr, $query:expr) => ({
+        $crate::sqlx_macros::expand_query!(source = $query, driver = $driver)
+    });
     // RFC: this semantically should be `$($args:expr),*` (with `$(,)?` to allow trailing comma)
     // but that doesn't work in 1.45 because `expr` fragments get wrapped in a way that changes
     // their hygiene, which is fixed in 1.46 so this is technically just a temp. workaround.
@@ -326,6 +329,9 @@ macro_rules! query (
     // not like it makes them magically understandable at-a-glance.
     ($query:expr, $($args:tt)*) => ({
         $crate::sqlx_macros::expand_query!(source = $query, args = [$($args)*])
+    });
+    ($driver:expr, $query:expr, $($args:tt)*) => ({
+        $crate::sqlx_macros::expand_query!(source = $query, args = [$($args)*], driver = $driver)
     })
 );
 

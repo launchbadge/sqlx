@@ -209,7 +209,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
-    drivers: impl IntoIterator<Item = &'a QueryDriver>,
+    drivers: impl IntoIterator<Item = &'a QueryDriver> + Iterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
     let data_source = match &*METADATA {
         Metadata {
@@ -249,9 +249,26 @@ pub fn expand_input<'a>(
         }
     };
 
+    // If the driver was explicitly set, use it directly.
+    if let Some(input_driver) = input.driver.clone() {
+        for driver in drivers {
+            if driver.db_name == input_driver {
+                let result = (driver.expand)(input, data_source);
+                return result;
+            }
+        }
+
+        return Err(format!(
+            "no database driver found matching {:?}; the corresponding Cargo feature may need to be enabled",
+            input_driver
+        ).into());
+    }
+    
+    // If no driver was set, try to find a matching driver for the data source.
     for driver in drivers {
-        if data_source.matches_driver(&driver) {
-            return (driver.expand)(input, data_source);
+        if data_source.matches_driver(driver) {
+            let result = (driver.expand)(input, data_source);
+            return result;
         }
     }
 
