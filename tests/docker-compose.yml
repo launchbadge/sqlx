@@ -63,6 +63,30 @@ services:
     # https://mariadb.org/about/#maintenance-policy
     #
 
+    mariadb_11_4:
+        image: mariadb:11.4
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        ports:
+            - 3306
+        environment:
+            MARIADB_ROOT_PASSWORD: password
+            MARIADB_DATABASE: sqlx
+
+    mariadb_11_4_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:11.4
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+
     mariadb_10_11:
         image: mariadb:10.11
         volumes:
