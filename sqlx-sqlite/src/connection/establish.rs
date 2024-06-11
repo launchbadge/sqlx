@@ -87,6 +87,7 @@ impl EstablishParams {
 
         if options.in_memory {
             flags |= SQLITE_OPEN_MEMORY;
+            flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
 
         flags |= if options.shared_cache {
