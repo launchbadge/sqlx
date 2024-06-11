@@ -71,6 +71,9 @@ impl MySqlConnectOptions {
                 "socket" => {
                     options = options.socket(&*value);
                 }
+                "useServerPrepStmts" => {
+                    options = options.use_server_prep_stmts(value.parse().map_err(Error::config)?);
+                }
 
                 _ => {}
             }
@@ -175,4 +178,11 @@ fn it_returns_the_parsed_url() {
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn it_parses_use_server_prep_stmts() {
+    let url = "mysql://username:p@ssw0rd@hostname:5432/database?useServerPrepStmts=false";
+    let opts = MySqlConnectOptions::from_str(url).unwrap();
+    assert_eq!(false, opts.use_server_prep_stmts);
 }

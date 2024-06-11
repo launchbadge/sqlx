@@ -39,6 +39,9 @@ pub(crate) struct MySqlConnectionInner {
     cache_statement: StatementCache<(u32, MySqlStatementMetadata)>,
 
     log_settings: LogSettings,
+
+    // Sets the flag that enables or disables the `useServerPrepStmts` connection setting
+    pub(crate) use_server_prep_stmts: bool,
 }
 
 impl Debug for MySqlConnection {

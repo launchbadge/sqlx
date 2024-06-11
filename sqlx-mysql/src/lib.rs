@@ -1,5 +1,4 @@
 //! **MySQL** database driver.
-
 #[macro_use]
 extern crate sqlx_core;
 
