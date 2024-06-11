@@ -153,7 +153,7 @@ jobs:
 
       # Build the macros-test in offline mode (omit DATABASE_URL)
       - run: >
-          cargo test
+          cargo build
           --no-default-features
           --test sqlite-macros
           --features any,macros,sqlite,_unstable-all-types,runtime-${{ matrix.runtime }}
@@ -325,7 +325,7 @@ jobs:
 
       # Build the macros-test in offline mode (omit DATABASE_URL)
       - run: >
-          cargo test
+          cargo build
           --no-default-features
           --test mysql-macros
           --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
