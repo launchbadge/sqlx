@@ -281,7 +281,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        mysql: [8, 5_7]
+        mysql: [8]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
     needs: check
