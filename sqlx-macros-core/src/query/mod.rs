@@ -189,20 +189,10 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_urls = vec![
-        env("DATABASE_URL_POSTGRES").ok(),
-        env("DATABASE_URL_MARIADB").ok(),
-        env("DATABASE_URL_MYSQL").ok(),
-        env("DATABASE_URL_SQLITE").ok(),
-
-        // Generic one last as a fallback
-        env("DATABASE_URL").ok(),
-    ].into_iter().flatten().collect();
-
     Metadata {
         manifest_dir,
         offline,
-        database_urls,
+        database_urls: env_db_urls(),
         workspace_root: Arc::new(Mutex::new(None)),
     }
 });
@@ -464,4 +454,8 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+fn env_db_urls() -> Vec<String> {
+    std::env::vars().filter(|(k, _)| k.starts_with("DATABASE_URL")).map(|(_, v)| v).collect()
 }
