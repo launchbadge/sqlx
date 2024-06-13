@@ -18,6 +18,8 @@
     any(sqlx_macros_unstable, procmacro2_semver_exempt),
     feature(track_path)
 )]
+#![feature(const_type_name)]
+#![feature(const_type_id)]
 
 #[cfg(feature = "macros")]
 use crate::query::QueryDriver;

@@ -7,6 +7,7 @@ use syn::{Expr, LitBool, LitStr, Token};
 use syn::{ExprArray, Type};
 
 /// Macro input shared by `query!()` and `query_file!()`
+#[derive(Clone)]
 pub struct QueryMacroInput {
     pub(super) sql: String,
 
@@ -21,7 +22,7 @@ pub struct QueryMacroInput {
     pub(super) file_path: Option<String>,
 
     // TODO: This should be some type and not a string
-    pub(super) driver: Option<String>,
+    pub(super) driver: Option<Type>,
 }
 
 enum QuerySrc {
@@ -29,6 +30,7 @@ enum QuerySrc {
     File(String),
 }
 
+#[derive(Clone)]
 pub enum RecordType {
     Given(Type),
     Scalar,
@@ -88,7 +90,7 @@ impl Parse for QueryMacroInput {
                 checked = lit_bool.value;
             } else if key == "driver" {
                 // TODO: This should be some actual type and not a string
-                driver = Some(input.parse::<LitStr>()?.value());
+                driver = Some(input.parse::<Type>()?);
             } else {
                 let message = format!("unexpected input key: {key}");
                 return Err(syn::Error::new_spanned(key, message));
