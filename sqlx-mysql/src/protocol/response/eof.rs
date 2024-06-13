@@ -13,6 +13,7 @@ use crate::protocol::Capabilities;
 /// prior MySQL versions.
 #[derive(Debug)]
 pub struct EofPacket {
+    #[allow(dead_code)]
     pub warnings: u16,
     pub status: Status,
 }

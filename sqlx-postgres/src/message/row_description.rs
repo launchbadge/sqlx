@@ -27,13 +27,16 @@ pub struct Field {
 
     /// The data type size (see pg_type.typlen). Note that negative values denote
     /// variable-width types.
+    #[allow(dead_code)]
     pub data_type_size: i16,
 
     /// The type modifier (see pg_attribute.atttypmod). The meaning of the
     /// modifier is type-specific.
+    #[allow(dead_code)]
     pub type_modifier: i32,
 
     /// The format code being used for the field.
+    #[allow(dead_code)]
     pub format: i16,
 }
 
