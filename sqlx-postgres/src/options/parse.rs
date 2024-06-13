@@ -133,28 +133,28 @@ impl PgConnectOptions {
         }
 
         let ssl_mode = match self.ssl_mode {
-            PgSslMode::Allow => "ALLOW",
-            PgSslMode::Disable => "DISABLED",
-            PgSslMode::Prefer => "PREFERRED",
-            PgSslMode::Require => "REQUIRED",
-            PgSslMode::VerifyCa => "VERIFY_CA",
-            PgSslMode::VerifyFull => "VERIFY_FULL",
+            PgSslMode::Allow => "allow",
+            PgSslMode::Disable => "disable",
+            PgSslMode::Prefer => "prefer",
+            PgSslMode::Require => "require",
+            PgSslMode::VerifyCa => "verify-ca",
+            PgSslMode::VerifyFull => "verify-full",
         };
-        url.query_pairs_mut().append_pair("ssl-mode", ssl_mode);
+        url.query_pairs_mut().append_pair("sslmode", ssl_mode);
 
         if let Some(ssl_root_cert) = &self.ssl_root_cert {
             url.query_pairs_mut()
-                .append_pair("ssl-root-cert", &ssl_root_cert.to_string());
+                .append_pair("sslrootcert", &ssl_root_cert.to_string());
         }
 
         if let Some(ssl_client_cert) = &self.ssl_client_cert {
             url.query_pairs_mut()
-                .append_pair("ssl-cert", &ssl_client_cert.to_string());
+                .append_pair("sslcert", &ssl_client_cert.to_string());
         }
 
         if let Some(ssl_client_key) = &self.ssl_client_key {
             url.query_pairs_mut()
-                .append_pair("ssl-key", &ssl_client_key.to_string());
+                .append_pair("sslkey", &ssl_client_key.to_string());
         }
 
         url.query_pairs_mut().append_pair(
@@ -306,7 +306,7 @@ fn it_returns_the_parsed_url_when_socket() {
 
     let mut expected_url = Url::parse(url).unwrap();
     // PgConnectOptions defaults
-    let query_string = "ssl-mode=PREFERRED&statement-cache-capacity=100";
+    let query_string = "sslmode=prefer&statement-cache-capacity=100";
     let port = 5432;
     expected_url.set_query(Some(query_string));
     let _ = expected_url.set_port(Some(port));
@@ -321,8 +321,18 @@ fn it_returns_the_parsed_url_when_host() {
 
     let mut expected_url = Url::parse(url).unwrap();
     // PgConnectOptions defaults
-    let query_string = "ssl-mode=PREFERRED&statement-cache-capacity=100";
+    let query_string = "sslmode=prefer&statement-cache-capacity=100";
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn built_url_can_be_parsed() {
+    let url = "postgres://username:p@ssw0rd@hostname:5432/database";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    let parsed = PgConnectOptions::from_str(&opts.build_url().to_string());
+
+    assert!(parsed.is_ok());
 }
