@@ -268,16 +268,24 @@ pub fn expand_input<'a>(
 
                 let expansions = working_drivers.iter().map(|driver| {
                     let driver_name = driver.db_type_name;
+                    let driver_type: Type = syn::parse_str(driver_name).unwrap();
                     let expanded = (driver.expand)(input.clone(), data_source.clone()).unwrap();
                     quote! {
-                        #driver_name => {
-                            #expanded
+                        impl<'a> ProvideQuery<'a, #driver_type, _> for #driver_type {
+                            fn provide_query() -> Query<'a, #driver_type, _> {
+                                #expanded
+                            }
                         }
                     }
                 });
                 Ok(quote! {
-                    match std::any::type_name::<#input_driver>() {
-                        #(#expansions,)*
+                    {
+                        use sqlx::query::Query;
+                        trait ProvideQuery<'a, DB, A> {
+                            fn provide_query() -> Query<'a, DB, A>;
+                        }
+                        #(#expansions)*
+                        ProvideQuery::<#input_driver, _>::provide_query()
                     }
                 })
             }
