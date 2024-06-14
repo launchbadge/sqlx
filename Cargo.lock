@@ -3246,6 +3246,7 @@ dependencies = [
  "once_cell",
  "paste",
  "percent-encoding",
+ "rand",
  "regex",
  "rust_decimal",
  "rustls",

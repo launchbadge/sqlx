@@ -330,7 +330,7 @@ impl<DB: Database> PoolInner<DB> {
                     };
 
                     match res {
-                        Ok(()) => return Ok(Floating::new_live(raw, guard)),
+                        Ok(()) => return Ok(Floating::new_live(raw, guard, self.options.get_max_lifetime_with_jitter())),
                         Err(error) => {
                             tracing::error!(%error, "error returned from after_connect");
                             // The connection is broken, don't try to close nicely.
@@ -421,7 +421,7 @@ pub(super) fn is_beyond_max_lifetime<DB: Database>(
     live: &Live<DB>,
     options: &PoolOptions<DB>,
 ) -> bool {
-    options
+    live
         .max_lifetime
         .map_or(false, |max| live.created_at.elapsed() > max)
 }
