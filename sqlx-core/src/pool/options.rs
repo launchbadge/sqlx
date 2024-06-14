@@ -106,7 +106,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             max_lifetime: self.max_lifetime,
             idle_timeout: self.idle_timeout,
             fair: self.fair,
-            parent_pool: self.parent_pool.as_ref().map(Pool::clone),
+            parent_pool: self.parent_pool.clone(),
         }
     }
 }

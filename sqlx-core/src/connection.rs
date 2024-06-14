@@ -143,7 +143,7 @@ pub trait Connection: Send {
     {
         let options = url.parse();
 
-        Box::pin(async move { Ok(Self::connect_with(&options?).await?) })
+        Box::pin(async move { Self::connect_with(&options?).await })
     }
 
     /// Establish a new database connection with the provided options.

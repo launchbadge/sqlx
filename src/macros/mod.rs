@@ -724,6 +724,7 @@ macro_rules! query_file_scalar_unchecked (
     )
 );
 
+#[allow(clippy::needless_doctest_main)]
 /// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
 ///
 /// ```rust,ignore
@@ -767,7 +768,7 @@ macro_rules! query_file_scalar_unchecked (
 /// and have it print `cargo:rerun-if-changed=migrations`:
 ///
 /// `build.rs`
-/// ```
+/// ```no_run
 /// fn main() {
 ///     println!("cargo:rerun-if-changed=migrations");
 /// }

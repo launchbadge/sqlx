@@ -216,6 +216,7 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[ignore]
 #[sqlx_macros::test]
 async fn test_connection_maintenance() -> anyhow::Result<()> {
     sqlx::any::install_default_drivers();

@@ -30,7 +30,7 @@ impl Decode<'_, Capabilities> for ErrPacket {
 
         if capabilities.contains(Capabilities::PROTOCOL_41) {
             // If the next byte is '#' then we have a SQL STATE
-            if buf.get(0) == Some(&0x23) {
+            if buf.starts_with(b"#") {
                 buf.advance(1);
                 sql_state = Some(buf.get_str(5)?);
             }

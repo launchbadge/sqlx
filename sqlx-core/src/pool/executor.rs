@@ -15,12 +15,12 @@ where
 {
     type Database = DB;
 
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
     where
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         let pool = self.clone();
 
@@ -36,12 +36,12 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+    fn fetch_optional<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<Option<DB::Row>, Error>>
     where
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         let pool = self.clone();
 

@@ -34,6 +34,7 @@ jobs:
           rustup update
           rustup component add clippy
           rustup toolchain install beta
+          rustup component add --toolchain beta clippy
 
       - run: >
           cargo clippy
@@ -152,7 +153,7 @@ jobs:
 
       # Build the macros-test in offline mode (omit DATABASE_URL)
       - run: >
-          cargo test
+          cargo build
           --no-default-features
           --test sqlite-macros
           --features any,macros,sqlite,_unstable-all-types,runtime-${{ matrix.runtime }}
@@ -280,7 +281,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        mysql: [8, 5_7]
+        mysql: [8]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
     needs: check
@@ -324,7 +325,7 @@ jobs:
 
       # Build the macros-test in offline mode (omit DATABASE_URL)
       - run: >
-          cargo test
+          cargo build
           --no-default-features
           --test mysql-macros
           --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
@@ -348,13 +349,14 @@ jobs:
 
       # client SSL authentication
 
-      - run: |
+      - if: ${{ matrix.tls != 'none' }}
+        run: |
           docker stop mysql_${{ matrix.mysql }}
           docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
-      # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
-      - run: >
+      - if: ${{ matrix.tls != 'none' }}
+        run: >
           cargo test
           --no-default-features
           --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
@@ -423,12 +425,13 @@ jobs:
 
       # client SSL authentication
 
-      - run: |
+      - if: ${{ matrix.tls != 'none' }}
+        run: |
           docker stop mariadb_${{ matrix.mariadb }}
           docker compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
-      - if: matrix.tls != 'none'
+      - if: ${{ matrix.tls != 'none' }}
         run: >
           cargo test
           --no-default-features

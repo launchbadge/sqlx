@@ -167,7 +167,7 @@ impl TryFrom<chrono::Duration> for PgInterval {
                 Ok(Self {
                     months: 0,
                     days: 0,
-                    microseconds: microseconds,
+                    microseconds,
                 })
             },
         )

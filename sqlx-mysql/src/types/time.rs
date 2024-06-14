@@ -27,7 +27,7 @@ impl Encode<'_, MySql> for OffsetDateTime {
         let utc_dt = self.to_offset(UtcOffset::UTC);
         let primitive_dt = PrimitiveDateTime::new(utc_dt.date(), utc_dt.time());
 
-        Encode::<MySql>::encode(&primitive_dt, buf)
+        Encode::<MySql>::encode(primitive_dt, buf)
     }
 }
 
@@ -287,8 +287,8 @@ fn decode_date(buf: &[u8]) -> Result<Option<Date>, BoxDynError> {
 
     Date::from_calendar_date(
         LittleEndian::read_u16(buf) as i32,
-        time::Month::try_from(buf[2] as u8)?,
-        buf[3] as u8,
+        time::Month::try_from(buf[2])?,
+        buf[3],
     )
     .map_err(Into::into)
     .map(Some)
@@ -300,7 +300,7 @@ fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
     buf.push(time.second());
 
     if include_micros {
-        buf.extend(&((time.nanosecond() / 1000) as u32).to_le_bytes());
+        buf.extend(&(time.nanosecond() / 1000).to_le_bytes());
     }
 }
 

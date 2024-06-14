@@ -137,7 +137,7 @@ impl SqliteConnectOptions {
             .append_pair("immutable", &self.immutable.to_string());
 
         if let Some(vfs) = &self.vfs {
-            url.query_pairs_mut().append_pair("vfs", &vfs);
+            url.query_pairs_mut().append_pair("vfs", vfs);
         }
 
         url

@@ -111,7 +111,7 @@ where
     DB: Database,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        (self.fmt)(&self.value, f)
+        (self.fmt)(self.value, f)
     }
 }
 
