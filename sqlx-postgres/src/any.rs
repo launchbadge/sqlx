@@ -182,6 +182,7 @@ impl<'a> TryFrom<&'a PgTypeInfo> for AnyTypeInfo {
     fn try_from(pg_type: &'a PgTypeInfo) -> Result<Self, Self::Error> {
         Ok(AnyTypeInfo {
             kind: match &pg_type.0 {
+                PgType::Bool => AnyTypeInfoKind::Bool,
                 PgType::Void => AnyTypeInfoKind::Null,
                 PgType::Int2 => AnyTypeInfoKind::SmallInt,
                 PgType::Int4 => AnyTypeInfoKind::Integer,
