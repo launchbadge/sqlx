@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -89,21 +89,15 @@ impl<T> AsMut<T> for Json<T> {
     }
 }
 
-const JSON_SERIALIZE_ERR: &str = "failed to encode value as JSON; the most likely cause is \
-                                  attempting to serialize a map with a non-string key type";
-
 // UNSTABLE: for driver use only!
 #[doc(hidden)]
 impl<T: Serialize> Json<T> {
-    pub fn encode_to_string(&self) -> String {
-        // Encoding is supposed to be infallible so we don't have much choice but to panic here.
-        // However, I believe that's the right thing to do anyway as an object being unable
-        // to serialize to JSON is likely due to a bug or a malformed datastructure.
-        serde_json::to_string(self).expect(JSON_SERIALIZE_ERR)
+    pub fn encode_to_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
     }
 
-    pub fn encode_to(&self, buf: &mut Vec<u8>) {
-        serde_json::to_writer(buf, self).expect(JSON_SERIALIZE_ERR)
+    pub fn encode_to(&self, buf: &mut Vec<u8>) -> Result<(), serde_json::Error> {
+        serde_json::to_writer(buf, self)
     }
 }
 
@@ -141,7 +135,10 @@ where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
 }
@@ -151,7 +148,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }
@@ -177,7 +174,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }

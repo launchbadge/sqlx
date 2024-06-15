@@ -115,7 +115,7 @@ where
     String: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
         self.0.to_string().encode(buf)
     }
 }
@@ -127,7 +127,7 @@ where
     &'r str: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Text(<&'r str as Decode<'r, DB>>::decode(value)?.parse()?))
     }
 }

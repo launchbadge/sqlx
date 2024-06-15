@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.4"
+version = "0.8.0-alpha.0"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -53,7 +53,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["any", "macros", "migrate", "json"]
-macros = ["sqlx-macros"]
+
+derive = ["sqlx-macros/derive"]
+macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
 
 # intended mainly for CI and docs
@@ -114,27 +116,27 @@ regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.7.4", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.7.4", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.7.4", path = "sqlx-macros" }
+sqlx-core = { version = "=0.8.0-alpha.0", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.8.0-alpha.0", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.8.0-alpha.0", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.7.4", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.7.4", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.7.4", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.8.0-alpha.0", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.8.0-alpha.0", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.8.0-alpha.0", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.7.4", path = ".", default-features = false }
+sqlx = { version = "=0.8.0-alpha.0", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
-bigdecimal = "0.3.0"
+bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.22", default-features = false }
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
 rust_decimal = "1.26.1"
-time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
+time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
@@ -181,7 +183,7 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 # even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
 [target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]
 # Enable testing with SQLCipher if specifically requested.
-libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.28", features = ["bundled-sqlcipher"] }
 
 #
 # Any

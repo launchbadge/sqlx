@@ -278,6 +278,26 @@ async fn it_describes_update_with_returning() -> anyhow::Result<()> {
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
+    let d = conn
+        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING *")
+        .await?;
+
+    assert_eq!(d.columns().len(), 3);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.column(1).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(1), Some(false));
+    assert_eq!(d.column(2).type_info().name(), "BOOLEAN");
+    //assert_eq!(d.nullable(2), Some(false)); //query analysis is allowed to notice that it is always set to true by the update
+
+    let d = conn
+        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING id")
+        .await?;
+
+    assert_eq!(d.columns().len(), 1);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
     Ok(())
 }
 
@@ -588,6 +608,42 @@ async fn it_describes_union() -> anyhow::Result<()> {
         ",
     )
     .await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_having_group_by() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe(
+            r#"
+        WITH tweet_reply_unq as ( --tweets with a single response
+          SELECT tweet_id id
+          FROM tweet_reply
+          GROUP BY tweet_id
+          HAVING COUNT(1) = 1
+        ) 
+        SELECT 
+          (
+    		  SELECT COUNT(*) 
+    		  FROM (
+    		    SELECT NULL
+    			FROM tweet
+    			JOIN tweet_reply_unq
+    			  USING (id)
+                WHERE tweet.owner_id = accounts.id
+              )
+          ) single_reply_count
+        FROM accounts
+        WHERE id = ?1
+        "#,
+        )
+        .await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
 
     Ok(())
 }

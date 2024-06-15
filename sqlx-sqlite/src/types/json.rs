@@ -20,8 +20,8 @@ impl<T> Encode<'_, Sqlite> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.encode_to_string(), buf)
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+        Encode::<Sqlite>::encode(self.encode_to_string()?, buf)
     }
 }
 

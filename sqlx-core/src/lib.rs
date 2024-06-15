@@ -79,6 +79,7 @@ pub mod raw_sql;
 pub mod row;
 pub mod rt;
 pub mod sync;
+pub mod type_checking;
 pub mod type_info;
 pub mod value;
 

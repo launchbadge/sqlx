@@ -11,20 +11,23 @@ impl Type<Sqlite> for bool {
     }
 
     fn compatible(ty: &SqliteTypeInfo) -> bool {
-        matches!(ty.0, DataType::Bool | DataType::Int | DataType::Int64)
+        matches!(ty.0, DataType::Bool | DataType::Int4 | DataType::Integer)
     }
 }
 
 impl<'q> Encode<'q, Sqlite> for bool {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Int((*self).into()));
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for bool {
     fn decode(value: SqliteValueRef<'r>) -> Result<bool, BoxDynError> {
-        Ok(value.int() != 0)
+        Ok(value.int64() != 0)
     }
 }

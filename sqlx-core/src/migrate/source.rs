@@ -31,7 +31,7 @@ impl<'s> MigrationSource<'s> for &'s Path {
         Box::pin(async move {
             let canonical = self.canonicalize()?;
             let migrations_with_paths =
-                crate::rt::spawn_blocking(move || resolve_blocking(canonical)).await?;
+                crate::rt::spawn_blocking(move || resolve_blocking(&canonical)).await?;
 
             Ok(migrations_with_paths.into_iter().map(|(m, _p)| m).collect())
         })
@@ -54,8 +54,8 @@ pub struct ResolveError {
 
 // FIXME: paths should just be part of `Migration` but we can't add a field backwards compatibly
 // since it's `#[non_exhaustive]`.
-pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
-    let mut s = fs::read_dir(&path).map_err(|e| ResolveError {
+pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
+    let mut s = fs::read_dir(path).map_err(|e| ResolveError {
         message: format!("error reading migration directory {}: {e}", path.display()),
         source: Some(e),
     })?;
@@ -97,7 +97,7 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
         let parts = file_name.splitn(2, '_').collect::<Vec<_>>();
 
         if parts.len() != 2 || !parts[1].ends_with(".sql") {
-            // not of the format: <VERSION>_<DESCRIPTION>.sql; ignore
+            // not of the format: <VERSION>_<DESCRIPTION>.<REVERSIBLE_DIRECTION>.sql; ignore
             continue;
         }
 
@@ -108,6 +108,7 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             })?;
 
         let migration_type = MigrationType::from_filename(parts[1]);
+
         // remove the `.sql` and replace `_` with ` `
         let description = parts[1]
             .trim_end_matches(migration_type.suffix())
@@ -122,12 +123,16 @@ pub fn resolve_blocking(path: PathBuf) -> Result<Vec<(Migration, PathBuf)>, Reso
             source: Some(e),
         })?;
 
+        // opt-out of migration transaction
+        let no_tx = sql.starts_with("-- no-transaction");
+
         migrations.push((
             Migration::new(
                 version,
                 Cow::Owned(description),
                 migration_type,
                 Cow::Owned(sql),
+                no_tx,
             ),
             entry_path,
         ));

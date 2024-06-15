@@ -1,8 +1,10 @@
-use crate::database::{Database, HasArguments, HasStatement};
-use crate::executor::{Execute, Executor};
-use crate::Error;
 use either::Either;
 use futures_core::stream::BoxStream;
+
+use crate::database::Database;
+use crate::error::BoxDynError;
+use crate::executor::{Execute, Executor};
+use crate::Error;
 
 // AUTHOR'S NOTE: I was just going to call this API `sql()` and `Sql`, respectively,
 // but realized that would be extremely annoying to deal with as a SQLite user
@@ -121,12 +123,12 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
         self.0
     }
 
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&<DB as Database>::Statement<'q>> {
         None
     }
 
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
-        None
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(None)
     }
 
     fn persistent(&self) -> bool {

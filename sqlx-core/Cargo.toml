@@ -36,7 +36,7 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.21.7", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
+rustls = { version = "0.21.11", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
 webpki-roots = { version = "0.25", optional = true }
 
@@ -85,9 +85,9 @@ tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
 url = { version = "2.2.2", default-features = false }
 bstr = { version = "1.0", default-features = false, features = ["std"], optional = true }
-hashlink = "0.8.0"
+hashlink = "0.9.0"
 indexmap = "2.0"
-event-listener = "2.5.2"
+event-listener = "5.2.0"
 
 rand = "0.8"
 

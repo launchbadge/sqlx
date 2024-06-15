@@ -32,7 +32,11 @@ impl Type<Sqlite> for NaiveDateTime {
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int | DataType::Float
+            DataType::Datetime
+                | DataType::Text
+                | DataType::Integer
+                | DataType::Int4
+                | DataType::Float
         )
     }
 }
@@ -61,25 +65,25 @@ impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
 where
     Tz::Offset: Display,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveDate {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%F").to_string(), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%T%.f").to_string(), buf)
     }
 }
@@ -105,7 +109,7 @@ impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
+        DataType::Int4 | DataType::Integer => decode_datetime_from_int(value.int64()),
         DataType::Float => decode_datetime_from_float(value.double()),
 
         _ => None,

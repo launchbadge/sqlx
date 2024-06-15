@@ -7,7 +7,7 @@ use crate::{
     types::Type,
     Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
 };
-use time::format_description::{well_known::Rfc3339, FormatItem};
+use time::format_description::{well_known::Rfc3339, BorrowedFormatItem};
 use time::macros::format_description as fd;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -29,7 +29,7 @@ impl Type<Sqlite> for PrimitiveDateTime {
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int
+            DataType::Datetime | DataType::Text | DataType::Integer | DataType::Int4
         )
     }
 }
@@ -55,29 +55,29 @@ impl Type<Sqlite> for Time {
 }
 
 impl Encode<'_, Sqlite> for OffsetDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format(&Rfc3339).unwrap(), buf)
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+        Encode::<Sqlite>::encode(self.format(&Rfc3339)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for PrimitiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        Encode::<Sqlite>::encode(self.format(&format).unwrap(), buf)
+        Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for Date {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         let format = fd!("[year]-[month]-[day]");
-        Encode::<Sqlite>::encode(self.format(&format).unwrap(), buf)
+        Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for Time {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        Encode::<Sqlite>::encode(self.format(&format).unwrap(), buf)
+        Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }
 }
 
@@ -122,7 +122,7 @@ impl<'r> Decode<'r, Sqlite> for Time {
 fn decode_offset_datetime(value: SqliteValueRef<'_>) -> Result<OffsetDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_offset_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        DataType::Int4 | DataType::Integer => {
             Some(OffsetDateTime::from_unix_timestamp(value.int64())?)
         }
 
@@ -155,7 +155,7 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<PrimitiveDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        DataType::Int4 | DataType::Integer => {
             let parsed = OffsetDateTime::from_unix_timestamp(value.int64()).unwrap();
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }
@@ -177,11 +177,11 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
     }
 
     let formats = [
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
+        BorrowedFormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
+        BorrowedFormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
     ];
 
-    if let Ok(dt) = PrimitiveDateTime::parse(value, &FormatItem::First(&formats)) {
+    if let Ok(dt) = PrimitiveDateTime::parse(value, &BorrowedFormatItem::First(&formats)) {
         return Some(dt);
     }
 
@@ -189,9 +189,10 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
 }
 
 mod formats {
-    use time::format_description::{modifier, Component::*, FormatItem, FormatItem::*};
+    use time::format_description::BorrowedFormatItem::{Component, Literal, Optional};
+    use time::format_description::{modifier, BorrowedFormatItem, Component::*};
 
-    const YEAR: FormatItem<'_> = Component(Year({
+    const YEAR: BorrowedFormatItem<'_> = Component(Year({
         let mut value = modifier::Year::default();
         value.padding = modifier::Padding::Zero;
         value.repr = modifier::YearRepr::Full;
@@ -200,7 +201,7 @@ mod formats {
         value
     }));
 
-    const MONTH: FormatItem<'_> = Component(Month({
+    const MONTH: BorrowedFormatItem<'_> = Component(Month({
         let mut value = modifier::Month::default();
         value.padding = modifier::Padding::Zero;
         value.repr = modifier::MonthRepr::Numerical;
@@ -208,51 +209,51 @@ mod formats {
         value
     }));
 
-    const DAY: FormatItem<'_> = Component(Day({
+    const DAY: BorrowedFormatItem<'_> = Component(Day({
         let mut value = modifier::Day::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const HOUR: FormatItem<'_> = Component(Hour({
+    const HOUR: BorrowedFormatItem<'_> = Component(Hour({
         let mut value = modifier::Hour::default();
         value.padding = modifier::Padding::Zero;
         value.is_12_hour_clock = false;
         value
     }));
 
-    const MINUTE: FormatItem<'_> = Component(Minute({
+    const MINUTE: BorrowedFormatItem<'_> = Component(Minute({
         let mut value = modifier::Minute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const SECOND: FormatItem<'_> = Component(Second({
+    const SECOND: BorrowedFormatItem<'_> = Component(Second({
         let mut value = modifier::Second::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const SUBSECOND: FormatItem<'_> = Component(Subsecond({
+    const SUBSECOND: BorrowedFormatItem<'_> = Component(Subsecond({
         let mut value = modifier::Subsecond::default();
         value.digits = modifier::SubsecondDigits::OneOrMore;
         value
     }));
 
-    const OFFSET_HOUR: FormatItem<'_> = Component(OffsetHour({
+    const OFFSET_HOUR: BorrowedFormatItem<'_> = Component(OffsetHour({
         let mut value = modifier::OffsetHour::default();
         value.sign_is_mandatory = true;
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    const OFFSET_MINUTE: FormatItem<'_> = Component(OffsetMinute({
+    const OFFSET_MINUTE: BorrowedFormatItem<'_> = Component(OffsetMinute({
         let mut value = modifier::OffsetMinute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
-    pub(super) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
+    pub(super) const OFFSET_DATE_TIME: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -274,7 +275,7 @@ mod formats {
         ]
     };
 
-    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -293,7 +294,7 @@ mod formats {
         ]
     };
 
-    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[BorrowedFormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),

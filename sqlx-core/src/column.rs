@@ -4,7 +4,7 @@ use crate::error::Error;
 use std::fmt::Debug;
 
 pub trait Column: 'static + Send + Sync + Debug {
-    type Database: Database;
+    type Database: Database<Column = Self>;
 
     /// Gets the column ordinal.
     ///

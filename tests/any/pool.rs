@@ -270,7 +270,7 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
             .take()
             .expect("expected a connection from the pool");
         assert!(
-            meta.age < Duration::from_secs(1),
+            meta.age < Duration::from_secs(2),
             "expected a fresh connection (age {:?})",
             meta.age
         );

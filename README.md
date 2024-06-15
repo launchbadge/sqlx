@@ -175,6 +175,8 @@ be removed in the future.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
+-   `derive`: Add support for the derive family macros, those are `FromRow`, `Type`, `Encode`, `Decode`.
+
 -   `macros`: Add support for the `query*!` macros, which allows compile-time checked queries.
 
 -   `migrate`: Add support for the migration management and `migrate!` macro, which allow compile-time embedded migrations.

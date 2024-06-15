@@ -164,10 +164,6 @@
 /// Using `expr as _` simply signals to the macro to not type-check that bind expression,
 /// and then that syntax is stripped from the expression so as to not trigger type errors.
 ///
-/// **NOTE:** type ascription syntax (`expr: _`) is deprecated and will be removed in a
-/// future release. This is due to Rust's [RFC 3307](https://github.com/rust-lang/rfcs/pull/3307)
-/// officially dropping support for the syntax.
-///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
 /// for arbitrary text in column names:
@@ -310,9 +306,9 @@
 /// See [the README for `sqlx-cli`](https://crates.io/crates/sqlx-cli) for more information.
 ///
 /// ## See Also
-/// * [query_as!] if you want to use a struct you can name,
-/// * [query_file!] if you want to define the SQL query out-of-line,
-/// * [query_file_as!] if you want both of the above.
+/// * [`query_as!`][`crate::query_as!`] if you want to use a struct you can name,
+/// * [`query_file!`][`crate::query_file!`] if you want to define the SQL query out-of-line,
+/// * [`query_file_as!`][`crate::query_file_as!`] if you want both of the above.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query (
@@ -333,7 +329,7 @@ macro_rules! query (
     })
 );
 
-/// A variant of [query!] which does not check the input or output types. This still does parse
+/// A variant of [`query!`][`crate::query!`] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
@@ -346,12 +342,12 @@ macro_rules! query_unchecked (
     })
 );
 
-/// A variant of [query!] where the SQL query is stored in a separate file.
+/// A variant of [`query!`][`crate::query!`] where the SQL query is stored in a separate file.
 ///
 /// Useful for large queries and potentially cleaner than multiline strings.
 ///
-/// The syntax and requirements (see [query!]) are the same except the SQL string is replaced by a
-/// file path.
+/// The syntax and requirements (see [`query!`][`crate::query!`]) are the same except the SQL
+/// string is replaced by a file path.
 ///
 /// The file must be relative to the project root (the directory containing `Cargo.toml`),
 /// unlike `include_str!()` which uses compiler internals to get the path of the file where it
@@ -399,8 +395,9 @@ macro_rules! query_file (
     })
 );
 
-/// A variant of [query_file!] which does not check the input or output types. This still does parse
-/// the query to ensure it's syntactically and semantically valid for the current database.
+/// A variant of [`query_file!`][`crate::query_file!`] which does not check the input or output
+/// types. This still does parse the query to ensure it's syntactically and semantically valid
+/// for the current database.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_unchecked (
@@ -412,7 +409,8 @@ macro_rules! query_file_unchecked (
     })
 );
 
-/// A variant of [query!] which takes a path to an explicitly defined struct as the output type.
+/// A variant of [`query!`][`crate::query!`] which takes a path to an explicitly defined struct
+/// as the output type.
 ///
 /// This lets you return the struct from a function or add your own trait implementations.
 ///
@@ -487,7 +485,8 @@ macro_rules! query_file_unchecked (
 /// (`.execute()` is omitted as this macro requires at least one column to be returned.)
 ///
 /// ### Column Type Override: Infer from Struct Field
-/// In addition to the column type overrides supported by [query!], `query_as!()` supports an
+/// In addition to the column type overrides supported by [`query!`][`crate::query!`],
+/// [`query_as!()`][`crate::query_as!`] supports an
 /// additional override option:
 ///
 /// If you select a column `foo as "foo: _"` (Postgres/SQLite) or `` foo as `foo: _` `` (MySQL)
@@ -562,7 +561,8 @@ macro_rules! query_file_unchecked (
 /// `select id as "id!"` to override the inferred nullability because we know in practice
 /// that column will never be `NULL` and it will fix the error.
 ///
-/// Nullability inference and type overrides are discussed in detail in the docs for [query!].
+/// Nullability inference and type overrides are discussed in detail in the docs for
+/// [`query!`][`crate::query!`].
 ///
 /// It unfortunately doesn't appear to be possible right now to make the error specifically mention
 /// the field; this probably requires the `const-panic` feature (still unstable as of Rust 1.45).
@@ -577,7 +577,7 @@ macro_rules! query_as (
     })
 );
 
-/// Combines the syntaxes of [query_as!] and [query_file!].
+/// Combines the syntaxes of [`query_as!`][`crate::query_as!`] and [`query_file!`][`crate::query_file!`].
 ///
 /// Enforces requirements of both macros; see them for details.
 ///
@@ -621,7 +621,7 @@ macro_rules! query_file_as (
     })
 );
 
-/// A variant of [query_as!] which does not check the input or output types. This still does parse
+/// A variant of [`query_as!`][`crate::query_as!`] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
@@ -635,7 +635,7 @@ macro_rules! query_as_unchecked (
     })
 );
 
-/// A variant of [query_file_as!] which does not check the input or output types. This
+/// A variant of [`query_file_as!`][`crate::query_file_as!`] which does not check the input or output types. This
 /// still does parse the query to ensure it's syntactically and semantically valid
 /// for the current database.
 #[macro_export]
@@ -650,7 +650,7 @@ macro_rules! query_file_as_unchecked (
     })
 );
 
-/// A variant of [query!] which expects a single column from the query and evaluates to an
+/// A variant of [`query!`][`crate::query!`] which expects a single column from the query and evaluates to an
 /// instance of [QueryScalar][crate::query::QueryScalar].
 ///
 /// The name of the column is not required to be a valid Rust identifier, however you can still
@@ -660,10 +660,10 @@ macro_rules! query_file_as_unchecked (
 /// getting a different type than expected, please check to see if your override syntax is correct
 /// before opening an issue.**
 ///
-/// Wildcard overrides like in [query_as!] are also allowed, in which case the output type
+/// Wildcard overrides like in [`query_as!`][`crate::query_as!`] are also allowed, in which case the output type
 /// is left up to inference.
 ///
-/// See [query!] for more information.
+/// See [`query!`][`crate::query!`] for more information.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_scalar (
@@ -675,7 +675,8 @@ macro_rules! query_scalar (
     )
 );
 
-/// A variant of [query_scalar!] which takes a file path like [query_file!].
+/// A variant of [`query_scalar!`][`crate::query_scalar!`] which takes a file path like
+/// [`query_file!`][`crate::query_file!`].
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_scalar (
@@ -687,8 +688,9 @@ macro_rules! query_file_scalar (
     )
 );
 
-/// A variant of [query_scalar!] which does not typecheck bind parameters and leaves the output type
-/// to inference. The query itself is still checked that it is syntactically and semantically
+/// A variant of [`query_scalar!`][`crate::query_scalar!`] which does not typecheck bind parameters
+/// and leaves the output type to inference.
+/// The query itself is still checked that it is syntactically and semantically
 /// valid for the database, that it only produces one column and that the number of bind parameters
 /// is correct.
 ///
@@ -704,8 +706,9 @@ macro_rules! query_scalar_unchecked (
     )
 );
 
-/// A variant of [query_file_scalar!] which does not typecheck bind parameters and leaves the output
-/// type to inference. The query itself is still checked that it is syntactically and
+/// A variant of [`query_file_scalar!`][`crate::query_file_scalar!`] which does not typecheck bind
+/// parameters and leaves the output type to inference.
+/// The query itself is still checked that it is syntactically and
 /// semantically valid for the database, that it only produces one column and that the number of
 /// bind parameters is correct.
 ///

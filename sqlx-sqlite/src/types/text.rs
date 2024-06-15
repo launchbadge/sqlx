@@ -20,7 +20,7 @@ impl<'q, T> Encode<'q, Sqlite> for Text<T>
 where
     T: Display,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.0.to_string(), buf)
     }
 }

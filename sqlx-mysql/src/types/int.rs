@@ -59,34 +59,34 @@ impl Type<MySql> for i64 {
 }
 
 impl Encode<'_, MySql> for i8 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, MySql> for i16 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, MySql> for i32 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, MySql> for i64 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -95,6 +95,20 @@ fn int_decode(value: MySqlValueRef<'_>) -> Result<i64, BoxDynError> {
         MySqlValueFormat::Text => value.as_str()?.parse()?,
         MySqlValueFormat::Binary => {
             let buf = value.as_bytes()?;
+
+            // Check conditions that could cause `read_int()` to panic.
+            if buf.is_empty() {
+                return Err("empty buffer".into());
+            }
+
+            if buf.len() > 8 {
+                return Err(format!(
+                    "expected no more than 8 bytes for integer value, got {}",
+                    buf.len()
+                )
+                .into());
+            }
+
             LittleEndian::read_int(buf, buf.len())
         }
     })

@@ -1,6 +1,6 @@
 use crate::any::types::str;
 use crate::any::{Any, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind};
-use crate::database::{HasArguments, HasValueRef};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -16,21 +16,24 @@ impl Type<Any> for str {
 }
 
 impl<'a> Encode<'a, Any> for &'a str {
-    fn encode(self, buf: &mut <Any as HasArguments<'a>>::ArgumentBuffer) -> IsNull
+    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer<'a>) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
         buf.0.push(AnyValueKind::Text(self.into()));
-        IsNull::No
+        Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, buf: &mut <Any as HasArguments<'a>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'a>,
+    ) -> Result<IsNull, BoxDynError> {
         (*self).encode(buf)
     }
 }
 
 impl<'a> Decode<'a, Any> for &'a str {
-    fn decode(value: <Any as HasValueRef<'a>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <Any as Database>::ValueRef<'a>) -> Result<Self, BoxDynError> {
         match value.kind {
             AnyValueKind::Text(Cow::Borrowed(text)) => Ok(text),
             // This shouldn't happen in practice, it means the user got an `AnyValueRef`
@@ -50,14 +53,17 @@ impl Type<Any> for String {
 }
 
 impl<'q> Encode<'q, Any> for String {
-    fn encode_by_ref(&self, buf: &mut <Any as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Text(Cow::Owned(self.clone())));
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl<'r> Decode<'r, Any> for String {
-    fn decode(value: <Any as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <Any as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.kind {
             AnyValueKind::Text(text) => Ok(text.into_owned()),
             other => other.unexpected(),

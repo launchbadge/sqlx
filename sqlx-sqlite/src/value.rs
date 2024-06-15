@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use libsqlite3_sys::{
     sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
-    sqlite3_value_dup, sqlite3_value_free, sqlite3_value_int, sqlite3_value_int64,
-    sqlite3_value_type, SQLITE_NULL,
+    sqlite3_value_dup, sqlite3_value_free, sqlite3_value_int64, sqlite3_value_type, SQLITE_NULL,
 };
 
 pub(crate) use sqlx_core::value::{Value, ValueRef};
@@ -27,12 +26,10 @@ impl<'r> SqliteValueRef<'r> {
         Self(SqliteValueData::Value(value))
     }
 
-    pub(super) fn int(&self) -> i32 {
-        match self.0 {
-            SqliteValueData::Value(v) => v.int(),
-        }
-    }
-
+    // NOTE: `int()` is deliberately omitted because it will silently truncate a wider value,
+    // which is likely to cause bugs:
+    // https://github.com/launchbadge/sqlx/issues/3179
+    // (Similar bug in Postgres): https://github.com/launchbadge/sqlx/issues/3161
     pub(super) fn int64(&self) -> i64 {
         match self.0 {
             SqliteValueData::Value(v) => v.int64(),
@@ -112,10 +109,6 @@ impl SqliteValue {
         } else {
             Some(SqliteTypeInfo(dt))
         }
-    }
-
-    fn int(&self) -> i32 {
-        unsafe { sqlite3_value_int(self.handle.0.as_ptr()) }
     }
 
     fn int64(&self) -> i64 {

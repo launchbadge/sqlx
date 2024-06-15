@@ -1,4 +1,4 @@
-use crate::database::{Database, HasValueRef};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
 use crate::type_info::TypeInfo;
@@ -7,10 +7,10 @@ use std::borrow::Cow;
 
 /// An owned value from the database.
 pub trait Value {
-    type Database: Database;
+    type Database: Database<Value = Self>;
 
     /// Get this value as a reference.
-    fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef;
+    fn as_ref(&self) -> <Self::Database as Database>::ValueRef<'_>;
 
     /// Get the type information for this value.
     fn type_info(&self) -> Cow<'_, <Self::Database as Database>::TypeInfo>;

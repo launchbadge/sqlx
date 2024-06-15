@@ -276,7 +276,7 @@ where
         let sql = &input.sql;
 
         quote! {
-            ::sqlx::query_with::<#db_path, _>(#sql, #query_args)
+            ::sqlx::__query_with_result::<#db_path, _>(#sql, #query_args)
         }
     } else {
         match input.record_type {

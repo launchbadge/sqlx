@@ -20,11 +20,18 @@ mod query_result;
 mod row;
 mod statement;
 mod transaction;
+mod type_checking;
 mod type_info;
 pub mod types;
 mod value;
 
 #[cfg(feature = "any")]
+// We are hiding the any module with its AnyConnectionBackend trait
+// so that IDEs don't show it in the autocompletion list
+// and end users don't accidentally use it. This can result in
+// nested transactions not behaving as expected.
+// For more information, see https://github.com/launchbadge/sqlx/pull/3254#issuecomment-2144043823
+#[doc(hidden)]
 pub mod any;
 
 #[cfg(feature = "migrate")]
@@ -39,7 +46,7 @@ pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;
 pub use connection::PgConnection;
-pub use copy::PgCopyIn;
+pub use copy::{PgCopyIn, PgPoolCopyExt};
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};

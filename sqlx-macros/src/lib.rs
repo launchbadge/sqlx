@@ -4,6 +4,7 @@ use quote::quote;
 
 use sqlx_macros_core::*;
 
+#[cfg(feature = "macros")]
 #[proc_macro]
 pub fn expand_query(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as query::QueryMacroInput);
@@ -21,6 +22,7 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "derive")]
 #[proc_macro_derive(Encode, attributes(sqlx))]
 pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
@@ -30,6 +32,7 @@ pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "derive")]
 #[proc_macro_derive(Decode, attributes(sqlx))]
 pub fn derive_decode(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
@@ -39,6 +42,7 @@ pub fn derive_decode(tokenstream: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "derive")]
 #[proc_macro_derive(Type, attributes(sqlx))]
 pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
@@ -48,6 +52,7 @@ pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "derive")]
 #[proc_macro_derive(FromRow, attributes(sqlx))]
 pub fn derive_from_row(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -77,12 +82,12 @@ pub fn migrate(input: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "macros")]
 #[proc_macro_attribute]
 pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let input = syn::parse_macro_input!(input as syn::ItemFn);
 
-    match test_attr::expand(args, input) {
+    match test_attr::expand(args.into(), input) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {

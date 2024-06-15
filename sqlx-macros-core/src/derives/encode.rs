@@ -9,7 +9,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Lifetime, LifetimeDef, Stmt, Variant,
+    FieldsUnnamed, Lifetime, LifetimeParam, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -66,7 +66,7 @@ fn expand_derive_encode_transparent(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, LifetimeDef::new(lifetime.clone()).into());
+        .insert(0, LifetimeParam::new(lifetime.clone()).into());
 
     generics
         .params
@@ -84,8 +84,8 @@ fn expand_derive_encode_transparent(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
+                buf: &mut <DB as ::sqlx::database::Database>::ArgumentBuffer<#lifetime>,
+            ) -> ::std::result::Result<::sqlx::encode::IsNull, ::sqlx::error::BoxDynError> {
                 <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
             }
 
@@ -123,8 +123,8 @@ fn expand_derive_encode_weak_enum(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
+                buf: &mut <DB as ::sqlx::database::Database>::ArgumentBuffer<'q>,
+            ) -> ::std::result::Result<::sqlx::encode::IsNull, ::sqlx::error::BoxDynError> {
                 let value = match self {
                     #(#values)*
                 };
@@ -173,8 +173,8 @@ fn expand_derive_encode_strong_enum(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
+                buf: &mut <DB as ::sqlx::database::Database>::ArgumentBuffer<'q>,
+            ) -> ::std::result::Result<::sqlx::encode::IsNull, ::sqlx::error::BoxDynError> {
                 let val = match self {
                     #(#value_arms)*
                 };
@@ -205,30 +205,27 @@ fn expand_derive_encode_struct(
         let ident = &input.ident;
         let column_count = fields.len();
 
-        // extract type generics
-        let generics = &input.generics;
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+
+        let mut generics = input.generics.clone();
 
         // add db type for impl generics & where clause
-        let mut generics = generics.clone();
-
-        let predicates = &mut generics.make_where_clause().predicates;
-
-        for field in fields {
-            let ty = &field.ty;
-
-            predicates
-                .push(parse_quote!(#ty: for<'q> ::sqlx::encode::Encode<'q, ::sqlx::Postgres>));
-            predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
+        for type_param in &mut generics.type_params_mut() {
+            type_param.bounds.extend::<[TypeParamBound; 2]>([
+                parse_quote!(for<'encode> ::sqlx::encode::Encode<'encode, ::sqlx::Postgres>),
+                parse_quote!(::sqlx::types::Type<::sqlx::Postgres>),
+            ]);
         }
 
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        generics.params.push(parse_quote!('q));
+
+        let (impl_generics, _, _) = generics.split_for_impl();
 
         let writes = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;
 
             parse_quote!(
-                encoder.encode(&self. #id);
+                encoder.encode(&self. #id)?;
             )
         });
 
@@ -249,14 +246,14 @@ fn expand_derive_encode_struct(
                 fn encode_by_ref(
                     &self,
                     buf: &mut ::sqlx::postgres::PgArgumentBuffer,
-                ) -> ::sqlx::encode::IsNull {
+                ) -> ::std::result::Result<::sqlx::encode::IsNull, ::sqlx::error::BoxDynError> {
                     let mut encoder = ::sqlx::postgres::types::PgRecordEncoder::new(buf);
 
                     #(#writes)*
 
                     encoder.finish();
 
-                    ::sqlx::encode::IsNull::No
+                    ::std::result::Result::Ok(::sqlx::encode::IsNull::No)
                 }
 
                 fn size_hint(&self) -> ::std::primitive::usize {

@@ -9,6 +9,9 @@ use sqlx::{Executor, Row};
 
 use sqlx::types::Text;
 
+use sqlx::mysql::types::MySqlTime;
+use sqlx_mysql::types::MySqlTimeSign;
+
 use sqlx_test::{new, test_type};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
@@ -70,34 +73,44 @@ test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(MySql,
         == sqlx::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));
 
+test_type!(mysql_time<MySqlTime>(MySql,
+    "TIME '00:00:00.000000'" == MySqlTime::ZERO,
+    "TIME '-00:00:00.000000'" == MySqlTime::ZERO,
+    "TIME '838:59:59.0'" == MySqlTime::MAX,
+    "TIME '-838:59:59.0'" == MySqlTime::MIN,
+    "TIME '123:45:56.890'" == MySqlTime::new(MySqlTimeSign::Positive, 123, 45, 56, 890_000).unwrap(),
+    "TIME '-123:45:56.890'" == MySqlTime::new(MySqlTimeSign::Negative, 123, 45, 56, 890_000).unwrap(),
+    "TIME '123:45:56.890011'" == MySqlTime::new(MySqlTimeSign::Positive, 123, 45, 56, 890_011).unwrap(),
+    "TIME '-123:45:56.890011'" == MySqlTime::new(MySqlTimeSign::Negative, 123, 45, 56, 890_011).unwrap(),
+));
+
 #[cfg(feature = "chrono")]
 mod chrono {
-    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 
     use super::*;
 
     test_type!(chrono_date<NaiveDate>(MySql,
-        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
-        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+        "DATE '2001-01-05'" == NaiveDate::from_ymd_opt(2001, 1, 5).unwrap(),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd_opt(2050, 11, 23).unwrap()
     ));
 
     test_type!(chrono_time_zero<NaiveTime>(MySql,
-        "TIME '00:00:00.000000'" == NaiveTime::from_hms_micro(0, 0, 0, 0)
+        "TIME '00:00:00.000000'" == NaiveTime::from_hms_micro_opt(0, 0, 0, 0).unwrap()
     ));
 
     test_type!(chrono_time<NaiveTime>(MySql,
-        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(MySql,
-        "TIMESTAMP '2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "TIMESTAMP '2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
     ));
 
     test_type!(chrono_timestamp<DateTime::<Utc>>(MySql,
         "TIMESTAMP '2019-01-02 05:10:20.115100'"
-            == DateTime::<Utc>::from_utc(
-                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
-                Utc,
+            == Utc.from_utc_datetime(
+                &NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_micro_opt(5, 10, 20, 115100).unwrap(),
             )
     ));
 

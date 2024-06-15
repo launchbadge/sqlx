@@ -2,7 +2,7 @@ use crate::any::{
     AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyQueryResult, AnyRow,
     AnyStatement, AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
 };
-use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
+use crate::database::{Database, HasStatementCache};
 
 /// Opaque database driver. Capable of being used in place of any SQLx database driver. The actual
 /// driver used will be selected at runtime, from the connection url.
@@ -23,29 +23,16 @@ impl Database for Any {
     type TypeInfo = AnyTypeInfo;
 
     type Value = AnyValue;
+    type ValueRef<'r> = AnyValueRef<'r>;
+
+    type Arguments<'q> = AnyArguments<'q>;
+    type ArgumentBuffer<'q> = AnyArgumentBuffer<'q>;
+
+    type Statement<'q> = AnyStatement<'q>;
+
     const NAME: &'static str = "Any";
 
     const URL_SCHEMES: &'static [&'static str] = &[];
-}
-
-impl<'r> HasValueRef<'r> for Any {
-    type Database = Any;
-
-    type ValueRef = AnyValueRef<'r>;
-}
-
-impl<'q> HasStatement<'q> for Any {
-    type Database = Any;
-
-    type Statement = AnyStatement<'q>;
-}
-
-impl<'q> HasArguments<'q> for Any {
-    type Database = Any;
-
-    type Arguments = AnyArguments<'q>;
-
-    type ArgumentBuffer = AnyArgumentBuffer<'q>;
 }
 
 // This _may_ be true, depending on the selected database

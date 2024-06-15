@@ -35,7 +35,7 @@ impl<'db> Encode<'db, Postgres> for IpAddr
 where
     IpNetwork: Encode<'db, Postgres>,
 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         IpNetwork::from(*self).encode_by_ref(buf)
     }
 

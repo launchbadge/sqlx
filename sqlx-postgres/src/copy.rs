@@ -211,20 +211,13 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     /// If both `runtime-async-std` and `runtime-tokio` features are enabled, the Tokio version
     /// takes precedent.
     pub async fn read_from(&mut self, mut source: impl AsyncRead + Unpin) -> Result<&mut Self> {
-        // this is a separate guard from WriteAndFlush so we can reuse the buffer without zeroing
-        struct BufGuard<'s>(&'s mut Vec<u8>);
-
-        impl Drop for BufGuard<'_> {
-            fn drop(&mut self) {
-                self.0.clear()
-            }
-        }
-
         let conn: &mut PgConnection = self.conn.as_deref_mut().expect("copy_from: conn taken");
         loop {
             let buf = conn.stream.write_buffer_mut();
 
-            // CopyData format code and reserved space for length
+            // Write the CopyData format code and reserve space for the length.
+            // This may end up sending an empty `CopyData` packet if, after this point, 
+            // we get canceled or read 0 bytes, but that should be fine.
             buf.put_slice(b"d\0\0\0\x04");
 
             let read = match () {
@@ -236,7 +229,6 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             };
 
             if read == 0 {
-                // This will end up sending an empty `CopyData` packet but that should be fine.
                 break;
             }
 
@@ -342,16 +334,21 @@ async fn pg_begin_copy_out<'c, C: DerefMut<Target = PgConnection> + Send + 'c>(
 
     let stream: TryAsyncStream<'c, Bytes> = try_stream! {
         loop {
-            let msg = conn.stream.recv().await?;
-            match msg.format {
-                MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
-                MessageFormat::CopyDone => {
-                    let _ = msg.decode::<CopyDone>()?;
-                    conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+            match conn.stream.recv().await {
+                Err(e) => {
                     conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
-                    return Ok(())
+                    return Err(e);
                 },
-                _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                Ok(msg) => match msg.format {
+                    MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
+                    MessageFormat::CopyDone => {
+                        let _ = msg.decode::<CopyDone>()?;
+                        conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+                        conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
+                        return Ok(())
+                    },
+                    _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))
+                }
             }
         }
     };

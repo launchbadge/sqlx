@@ -20,7 +20,7 @@ impl<'q, T> Encode<'q, MySql> for Text<T>
 where
     T: Display,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         // We can't really do the trick like with Postgres where we reserve the space for the
         // length up-front and then overwrite it later, because MySQL appears to enforce that
         // length-encoded integers use the smallest encoding for the value:

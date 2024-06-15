@@ -19,6 +19,7 @@
     feature(track_path)
 )]
 
+#[cfg(feature = "macros")]
 use crate::query::QueryDriver;
 
 pub type Error = Box<dyn std::error::Error>;
@@ -28,15 +29,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod common;
 mod database;
 
+#[cfg(feature = "derive")]
 pub mod derives;
+#[cfg(feature = "macros")]
 pub mod query;
 
+#[cfg(feature = "macros")]
 // The compiler gives misleading help messages about `#[cfg(test)]` when this is just named `test`.
 pub mod test_attr;
 
 #[cfg(feature = "migrate")]
 pub mod migrate;
 
+#[cfg(feature = "macros")]
 pub const FOSS_DRIVERS: &[QueryDriver] = &[
     #[cfg(feature = "mysql")]
     QueryDriver::new::<sqlx_mysql::MySql>(),

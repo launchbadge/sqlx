@@ -3,13 +3,13 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::IntoArguments;
-use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
+use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
-use crate::error::Error;
+use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
 use crate::query_as::{
-    query_as, query_as_with, query_statement_as, query_statement_as_with, QueryAs,
+    query_as, query_as_with_result, query_statement_as, query_statement_as_with, QueryAs,
 };
 use crate::types::Type;
 
@@ -29,12 +29,12 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&DB::Statement<'q>> {
         self.inner.statement()
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
         self.inner.take_arguments()
     }
 
@@ -44,11 +44,11 @@ where
     }
 }
 
-impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {
+impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }
@@ -320,7 +320,7 @@ where
 #[inline]
 pub fn query_scalar<'q, DB, O>(
     sql: &'q str,
-) -> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments>
+) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
@@ -343,15 +343,29 @@ where
     A: IntoArguments<'q, DB>,
     (O,): for<'r> FromRow<'r, DB::Row>,
 {
+    query_scalar_with_result(sql, Ok(arguments))
+}
+
+/// Same as [`query_scalar_with`] but takes arguments as Result
+#[inline]
+pub fn query_scalar_with_result<'q, DB, O, A>(
+    sql: &'q str,
+    arguments: Result<A, BoxDynError>,
+) -> QueryScalar<'q, DB, O, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+    (O,): for<'r> FromRow<'r, DB::Row>,
+{
     QueryScalar {
-        inner: query_as_with(sql, arguments),
+        inner: query_as_with_result(sql, arguments),
     }
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete value.
 pub fn query_statement_scalar<'q, DB, O>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
-) -> QueryScalar<'q, DB, O, <DB as HasArguments<'_>>::Arguments>
+    statement: &'q DB::Statement<'q>,
+) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
@@ -363,7 +377,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete value.
 pub fn query_statement_scalar_with<'q, DB, O, A>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q DB::Statement<'q>,
     arguments: A,
 ) -> QueryScalar<'q, DB, O, A>
 where
