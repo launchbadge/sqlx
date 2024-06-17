@@ -72,6 +72,12 @@ impl MySqlConnectOptions {
                     options = options.socket(&*value);
                 }
 
+                "connection-attributes" => {
+                    options.attributes = value
+                        .parse()
+                        .map_err(|err: &'static str| Error::Configuration(err.into()))?;
+                }
+
                 _ => {}
             }
         }
@@ -175,4 +181,47 @@ fn it_returns_the_parsed_url() {
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn it_parses_connection_attributes_false() {
+    let url = "mysql://username:password@hostname:5432/database?connection-attributes=false";
+    let opts = MySqlConnectOptions::from_str(url).unwrap();
+
+    assert!(matches!(opts.attributes, crate::options::Attributes::None));
+}
+
+#[test]
+fn it_parses_custom_connection_attributes() {
+    use std::collections::BTreeMap;
+
+    let url = "mysql://username:password@hostname:5432/database?collation=before&connection-attributes=[key1=value1,key2=value2]&charset=after";
+    let opts = MySqlConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(opts.collation, Some("before".into()));
+    assert_eq!(opts.charset, "after");
+
+    match opts.attributes {
+        crate::options::Attributes::ClientDefaultAndCustom(attr) => {
+            assert_eq!(
+                BTreeMap::from([
+                    ("key1".into(), "value1".into()),
+                    ("key2".into(), "value2".into()),
+                ]),
+                attr
+            );
+        }
+        _ => panic!("Invalid connection attributes"),
+    }
+}
+
+#[test]
+fn connection_attributes_default_is_client_defined() {
+    let url = "mysql://username:password@hostname:5432/database";
+    let opts = MySqlConnectOptions::from_str(url).unwrap();
+
+    assert!(matches!(
+        opts.attributes,
+        crate::options::Attributes::ClientDefault
+    ));
 }
