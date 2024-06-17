@@ -117,8 +117,8 @@ impl AnyRow {
                 })?;
 
             let value_kind = match type_info.kind {
-                _ if value.is_null() => AnyValueKind::Null,
-                AnyTypeInfoKind::Null => AnyValueKind::Null,
+                k if value.is_null() => AnyValueKind::Null(k),
+                AnyTypeInfoKind::Null => AnyValueKind::Null(AnyTypeInfoKind::Null),
                 AnyTypeInfoKind::Bool => AnyValueKind::Bool(decode(value)?),
                 AnyTypeInfoKind::SmallInt => AnyValueKind::SmallInt(decode(value)?),
                 AnyTypeInfoKind::Integer => AnyValueKind::Integer(decode(value)?),
