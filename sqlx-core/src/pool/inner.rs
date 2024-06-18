@@ -97,19 +97,14 @@ impl<DB: Database> PoolInner<DB> {
         self.mark_closed();
 
         async move {
-            for permits in 1..=self.options.max_connections {
-                // Close any currently idle connections in the pool.
-                while let Some(idle) = self.idle_conns.pop() {
-                    let _ = idle.live.float((*self).clone()).close().await;
-                }
+            let _permits = self.semaphore.acquire(self.options.max_connections).await;
 
-                if self.size() == 0 {
-                    break;
-                }
-
-                // Wait for all permits to be released.
-                let _permits = self.semaphore.acquire(permits).await;
+            while let Some(idle) = self.idle_conns.pop() {
+                let _ = idle.live.raw.close().await;
             }
+
+            self.num_idle.store(0, Ordering::Release);
+            self.size.store(0, Ordering::Release);
         }
     }
 
