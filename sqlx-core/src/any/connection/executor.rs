@@ -18,7 +18,8 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         E: Execute<'q, Any>,
     {
         let arguments = query.take_arguments();
-        self.backend.fetch_many(query.sql(), arguments)
+        self.backend
+            .fetch_many(query.sql(), query.persistent(), arguments)
     }
 
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
@@ -30,7 +31,8 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         E: Execute<'q, Self::Database>,
     {
         let arguments = query.take_arguments();
-        self.backend.fetch_optional(query.sql(), arguments)
+        self.backend
+            .fetch_optional(query.sql(), query.persistent(), arguments)
     }
 
     fn prepare_with<'e, 'q: 'e>(
