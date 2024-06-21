@@ -27,6 +27,7 @@ pub struct QueryDriver {
     db_name: &'static str,
     url_schemes: &'static [&'static str],
     expand: fn(QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
+    db_type_name: &'static str,
 }
 
 impl QueryDriver {
@@ -38,32 +39,85 @@ impl QueryDriver {
             db_name: DB::NAME,
             url_schemes: DB::URL_SCHEMES,
             expand: expand_with::<DB>,
+            db_type_name: DB::TYPE_IMPORT_PATH,
         }
     }
 }
+
+#[derive(Clone)]
+pub struct QueryDataSourceUrl<'a> {
+    database_url: &'a str,
+    database_url_parsed: Url,
+}
+
+impl<'a> From<&'a String> for QueryDataSourceUrl<'a> {
+    fn from(database_url: &'a String) -> Self {
+        let database_url_parsed = Url::parse(database_url).expect("invalid URL");
+
+        QueryDataSourceUrl {
+            database_url,
+            database_url_parsed,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum QueryDataSource<'a> {
     Live {
-        database_url: &'a str,
-        database_url_parsed: Url,
+        database_urls: Vec<QueryDataSourceUrl<'a>>,  
     },
     Cached(DynQueryData),
 }
 
 impl<'a> QueryDataSource<'a> {
-    pub fn live(database_url: &'a str) -> crate::Result<Self> {
+    pub fn live(database_urls: Vec<QueryDataSourceUrl<'a>>) -> crate::Result<Self> {
         Ok(QueryDataSource::Live {
-            database_url,
-            database_url_parsed: database_url.parse()?,
+            database_urls,
         })
     }
 
     pub fn matches_driver(&self, driver: &QueryDriver) -> bool {
         match self {
             Self::Live {
-                database_url_parsed,
+                database_urls,
                 ..
-            } => driver.url_schemes.contains(&database_url_parsed.scheme()),
+            } => driver.url_schemes.iter().any(|scheme| {
+                database_urls.iter().any(|url| url.database_url_parsed.scheme() == *scheme)
+            }),
             Self::Cached(dyn_data) => dyn_data.db_name == driver.db_name,
+        }
+    }
+
+    pub fn get_url_for_schemes(&self, schemes: &[&str]) -> Option<&QueryDataSourceUrl> {
+        match self {
+            Self::Live {
+                database_urls,
+                ..
+            } => {
+                for scheme in schemes {
+                    if let Some(url) = database_urls.iter().find(|url| url.database_url_parsed.scheme() == *scheme) {
+                        return Some(url);
+                    }
+                }
+                None
+            }
+            Self::Cached(_) => {
+                None
+            }
+        }
+    }
+
+    pub fn supported_schemes(&self) -> Vec<&str> {
+        match self {
+            Self::Live {
+                 database_urls,
+                ..
+            } => {
+                let mut schemes = vec![];
+                schemes.extend(database_urls.iter().map(|url| url.database_url_parsed.scheme()));
+                schemes
+            }
+            Self::Cached(..) => vec![],
         }
     }
 }
@@ -72,7 +126,7 @@ struct Metadata {
     #[allow(unused)]
     manifest_dir: PathBuf,
     offline: bool,
-    database_url: Option<String>,
+    database_urls: Vec<String>,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -139,12 +193,10 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env("DATABASE_URL").ok();
-
     Metadata {
         manifest_dir,
         offline,
-        database_url,
+        database_urls: env_db_urls(),
         workspace_root: Arc::new(Mutex::new(None)),
     }
 });
@@ -156,9 +208,11 @@ pub fn expand_input<'a>(
     let data_source = match &*METADATA {
         Metadata {
             offline: false,
-            database_url: Some(db_url),
+            database_urls: db_urls,
             ..
-        } => QueryDataSource::live(db_url)?,
+        } => {
+            QueryDataSource::live(db_urls.iter().map(QueryDataSourceUrl::from).collect())?
+        },
 
         Metadata { offline, .. } => {
             // Try load the cached query metadata file.
@@ -189,6 +243,54 @@ pub fn expand_input<'a>(
         }
     };
 
+    let mut working_drivers = vec![];
+
+    // If the driver was explicitly set, use it directly.
+    if let Some(input_driver) = input.driver.clone() {
+        for driver in drivers {
+                if (driver.expand)(input.clone(), data_source.clone()).is_ok() {
+                    working_drivers.push(driver);
+                }
+        }
+
+        return match working_drivers.len() {
+            0 => {
+                Err(format!(
+                    "no database driver found matching for query; the corresponding Cargo feature may need to be enabled"
+                ).into())
+            }
+            1 => {
+                let driver = working_drivers.pop().unwrap();
+                (driver.expand)(input, data_source)
+            }
+            _ => {
+                let expansions = working_drivers.iter().map(|driver| {
+                    let driver_name = driver.db_type_name;
+                    let driver_type: Type = syn::parse_str(driver_name).unwrap();
+                    let expanded = (driver.expand)(input.clone(), data_source.clone()).unwrap();
+                    quote! {
+                        impl ProvideQuery<#driver_type> for #driver_type {
+                            fn provide_query<'a>() -> Query<'a, #driver_type, <#driver_type as sqlx::Database>::Arguments<'a>> {
+                                #expanded
+                            }
+                        }
+                    }
+                });
+                Ok(quote! {
+                    {
+                        use sqlx::query::Query;
+                        trait ProvideQuery<DB: sqlx::Database> {
+                            fn provide_query<'a>() -> Query<'a, DB, DB::Arguments<'a>>;
+                        }
+                        #(#expansions)*
+                        #input_driver::provide_query()
+                    }
+                })
+            }
+        }
+    }
+    
+    // If no driver was set, try to find a matching driver for the data source.
     for driver in drivers {
         if data_source.matches_driver(driver) {
             return (driver.expand)(input, data_source);
@@ -196,12 +298,9 @@ pub fn expand_input<'a>(
     }
 
     match data_source {
-        QueryDataSource::Live {
-            database_url_parsed,
-            ..
-        } => Err(format!(
+        QueryDataSource::Live{..} => Err(format!(
             "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled", 
-            database_url_parsed.scheme()
+            data_source.supported_schemes()
         ).into()),
         QueryDataSource::Cached(data) => {
             Err(format!(
@@ -221,8 +320,9 @@ where
 {
     let (query_data, offline): (QueryData<DB>, bool) = match data_source {
         QueryDataSource::Cached(dyn_data) => (QueryData::from_dyn_data(dyn_data)?, true),
-        QueryDataSource::Live { database_url, .. } => {
-            let describe = DB::describe_blocking(&input.sql, database_url)?;
+        QueryDataSource::Live { .. } => {
+            let data_source_url = data_source.get_url_for_schemes(DB::URL_SCHEMES).unwrap();
+            let describe = DB::describe_blocking(&input.sql, data_source_url.database_url)?;
             (QueryData::from_describe(&input.sql, describe), false)
         }
     };
@@ -385,4 +485,8 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+fn env_db_urls() -> Vec<String> {
+    std::env::vars().filter(|(k, _)| k.starts_with("DATABASE_URL")).map(|(_, v)| v).collect()
 }
