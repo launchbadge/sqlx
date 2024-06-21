@@ -24,6 +24,7 @@ pub struct PoolConnection<DB: Database> {
 pub(super) struct Live<DB: Database> {
     pub(super) raw: DB::Connection,
     pub(super) created_at: Instant,
+    pub(super) max_lifetime: Option<Duration>,
 }
 
 pub(super) struct Idle<DB: Database> {
@@ -203,11 +204,12 @@ impl<DB: Database> DerefMut for Idle<DB> {
 }
 
 impl<DB: Database> Floating<DB, Live<DB>> {
-    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<DB>) -> Self {
+    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<DB>, max_lifetime: Option<Duration>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
                 created_at: Instant::now(),
+                max_lifetime,
             },
             guard,
         }

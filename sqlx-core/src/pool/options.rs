@@ -5,6 +5,7 @@ use crate::pool::inner::PoolInner;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use rand::Rng;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -81,6 +82,7 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
+    pub(crate) max_lifetime_jitter: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) fair: bool,
 
@@ -104,6 +106,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             acquire_timeout: self.acquire_timeout,
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
+            max_lifetime_jitter: self.max_lifetime_jitter,
             idle_timeout: self.idle_timeout,
             fair: self.fair,
             parent_pool: self.parent_pool.clone(),
@@ -160,6 +163,7 @@ impl<DB: Database> PoolOptions<DB> {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
+            max_lifetime_jitter: None,
             fair: true,
             parent_pool: None,
         }
@@ -290,6 +294,48 @@ impl<DB: Database> PoolOptions<DB> {
     /// Get the maximum lifetime of individual connections.
     pub fn get_max_lifetime(&self) -> Option<Duration> {
         self.max_lifetime
+    }
+
+    /// This is added to or subtracted from the `max_lifetime` introduce randomness and avoid a
+    /// thundering herd of all connections expiring at the same time.
+    ///
+    /// If this value is greater than `max_lifetime`, `max_lifetime` will be used as the jitter
+    /// instead in order to prevent lifetimes of 0.
+    ///
+    /// It's recommended to set this to 10% of the `max_lifetime` time for production
+    /// workloads.
+    pub fn max_lifetime_jitter(mut self, lifetime: impl Into<Option<Duration>>) -> Self {
+        self.max_lifetime_jitter = lifetime.into();
+        self
+    }
+
+    /// Get the maximum jitter added to the lifetime of individual connections.
+    pub fn get_max_lifetime_jitter(&self) -> Option<Duration> {
+        self.max_lifetime_jitter
+    }
+
+    /// Get the maximum lifetime of individual connections, including any jitter.
+    ///
+    /// If both `max_lifetime` and `max_lifetime_jitter` are set, their values are added together with randomness.
+    pub(crate) fn get_max_lifetime_with_jitter(&self) -> Option<Duration> {
+        if let Some(max_lifetime) = self.max_lifetime {
+            if let Some(jitter) = self.max_lifetime_jitter {
+                let jitter = jitter.min(max_lifetime);
+
+                let mut rng = rand::thread_rng();
+                let jitter_value = rng.gen_range((-jitter.as_secs_f64())..=jitter.as_secs_f64());
+
+                if jitter_value >= 0. {
+                    Some(max_lifetime + Duration::from_secs_f64(jitter_value))
+                } else {
+                    Some(max_lifetime.saturating_sub(Duration::from_secs_f64(jitter_value.abs())))
+                }
+            } else {
+                Some(max_lifetime)
+            }
+        } else {
+            None
+        }
     }
 
     /// Set a maximum idle duration for individual connections.
@@ -589,6 +635,7 @@ impl<DB: Database> Debug for PoolOptions<DB> {
             .field("min_connections", &self.min_connections)
             .field("connect_timeout", &self.acquire_timeout)
             .field("max_lifetime", &self.max_lifetime)
+            .field("max_lifetime_jitter", &self.max_lifetime_jitter)
             .field("idle_timeout", &self.idle_timeout)
             .field("test_before_acquire", &self.test_before_acquire)
             .finish()
