@@ -33,6 +33,8 @@ impl Database for Any {
     const NAME: &'static str = "Any";
 
     const URL_SCHEMES: &'static [&'static str] = &[];
+
+    const TYPE_IMPORT_PATH: &'static str = "sqlx::any::database::Any";
 }
 
 // This _may_ be true, depending on the selected database

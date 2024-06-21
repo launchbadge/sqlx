@@ -39,7 +39,7 @@ impl QueryDriver {
             db_name: DB::NAME,
             url_schemes: DB::URL_SCHEMES,
             expand: expand_with::<DB>,
-            db_type_name: std::any::type_name::<DB>(),
+            db_type_name: DB::TYPE_IMPORT_PATH,
         }
     }
 }
@@ -264,15 +264,13 @@ pub fn expand_input<'a>(
                 (driver.expand)(input, data_source)
             }
             _ => {
-                // todo!("Multiple drivers found matching the query, this is not yet supported.");
-
                 let expansions = working_drivers.iter().map(|driver| {
                     let driver_name = driver.db_type_name;
                     let driver_type: Type = syn::parse_str(driver_name).unwrap();
                     let expanded = (driver.expand)(input.clone(), data_source.clone()).unwrap();
                     quote! {
-                        impl<'a> ProvideQuery<'a, #driver_type, _> for #driver_type {
-                            fn provide_query() -> Query<'a, #driver_type, _> {
+                        impl ProvideQuery<#driver_type> for #driver_type {
+                            fn provide_query<'a>() -> Query<'a, #driver_type, <#driver_type as sqlx::Database>::Arguments<'a>> {
                                 #expanded
                             }
                         }
@@ -281,11 +279,11 @@ pub fn expand_input<'a>(
                 Ok(quote! {
                     {
                         use sqlx::query::Query;
-                        trait ProvideQuery<'a, DB, A> {
-                            fn provide_query() -> Query<'a, DB, A>;
+                        trait ProvideQuery<DB: sqlx::Database> {
+                            fn provide_query<'a>() -> Query<'a, DB, DB::Arguments<'a>>;
                         }
                         #(#expansions)*
-                        ProvideQuery::<#input_driver, _>::provide_query()
+                        #input_driver::provide_query()
                     }
                 })
             }
