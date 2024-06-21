@@ -1,5 +1,5 @@
-use std::num::{NonZeroI16, NonZeroI32, NonZeroI64};
 use byteorder::{BigEndian, ByteOrder};
+use std::num::{NonZeroI16, NonZeroI32, NonZeroI64};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -166,7 +166,6 @@ impl PgHasArrayType for NonZeroI32 {
         PgTypeInfo::INT4_ARRAY
     }
 }
-
 
 impl PgHasArrayType for NonZeroI64 {
     fn array_type_info() -> PgTypeInfo {
