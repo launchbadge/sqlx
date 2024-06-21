@@ -42,6 +42,7 @@ pub use transaction::AnyTransactionManager;
 pub use type_info::{AnyTypeInfo, AnyTypeInfoKind};
 pub use value::{AnyValue, AnyValueRef};
 
+use crate::types::Type;
 #[doc(hidden)]
 pub use value::AnyValueKind;
 
@@ -65,7 +66,7 @@ impl_column_index_for_statement!(AnyStatement);
 // required because some databases have a different handling of NULL
 impl<'q, T> Encode<'q, Any> for Option<T>
 where
-    T: Encode<'q, Any> + 'q,
+    T: Encode<'q, Any> + 'q + Type<Any>,
 {
     fn encode_by_ref(
         &self,
@@ -74,7 +75,7 @@ where
         if let Some(value) = self {
             value.encode_by_ref(buf)
         } else {
-            buf.0.push(AnyValueKind::Null);
+            buf.0.push(AnyValueKind::Null(T::type_info().kind));
             Ok(crate::encode::IsNull::Yes)
         }
     }
