@@ -74,9 +74,10 @@ impl AnyConnectionBackend for PgConnection {
     fn fetch_many<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
-        let persistent = arguments.is_some();
+        let persistent = persistent && arguments.is_some();
         let arguments = match arguments.as_ref().map(AnyArguments::convert_to).transpose() {
             Ok(arguments) => arguments,
             Err(error) => {
@@ -99,9 +100,10 @@ impl AnyConnectionBackend for PgConnection {
     fn fetch_optional<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
-        let persistent = arguments.is_some();
+        let persistent = persistent && arguments.is_some();
         let arguments = arguments
             .as_ref()
             .map(AnyArguments::convert_to)

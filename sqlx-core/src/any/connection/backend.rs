@@ -72,12 +72,14 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn fetch_many<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
     fn fetch_optional<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
 
