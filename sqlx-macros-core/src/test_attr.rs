@@ -32,7 +32,7 @@ pub fn expand(args: TokenStream, input: syn::ItemFn) -> crate::Result<TokenStrea
 
     if input.sig.inputs.is_empty() {
         if !args.is_empty() {
-            if cfg!(feature = "migrate") {
+            if !cfg!(feature = "migrate") {
                 return Err(syn::Error::new_spanned(
                     args.first().unwrap(),
                     "control attributes are not allowed unless \
