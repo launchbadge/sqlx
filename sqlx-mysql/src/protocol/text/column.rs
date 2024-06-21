@@ -112,7 +112,8 @@ pub(crate) struct ColumnDefinition {
     table: Bytes,
     alias: Bytes,
     name: Bytes,
-    pub(crate) char_set: u16,
+    #[allow(unused)]
+    pub(crate) collation: u16,
     pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
@@ -142,7 +143,7 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
         let alias = buf.get_bytes_lenenc();
         let name = buf.get_bytes_lenenc();
         let _next_len = buf.get_uint_lenenc(); // always 0x0c
-        let char_set = buf.get_u16_le();
+        let collation = buf.get_u16_le();
         let max_size = buf.get_u32_le();
         let type_id = buf.get_u8();
         let flags = buf.get_u16_le();
@@ -155,7 +156,7 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
             table,
             alias,
             name,
-            char_set,
+            collation,
             max_size,
             r#type: ColumnType::try_from_u16(type_id)?,
             flags: ColumnFlags::from_bits_truncate(flags),
@@ -165,13 +166,8 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
 }
 
 impl ColumnType {
-    pub(crate) fn name(
-        self,
-        char_set: u16,
-        flags: ColumnFlags,
-        max_size: Option<u32>,
-    ) -> &'static str {
-        let is_binary = char_set == 63;
+    pub(crate) fn name(self, flags: ColumnFlags, max_size: Option<u32>) -> &'static str {
+        let is_binary = flags.contains(ColumnFlags::BINARY);
         let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
         let is_enum = flags.contains(ColumnFlags::ENUM);
 

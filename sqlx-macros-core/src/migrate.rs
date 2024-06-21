@@ -20,7 +20,7 @@ impl ToTokens for QuoteMigrationType {
                 quote! { ::sqlx::migrate::MigrationType::ReversibleDown }
             }
         };
-        tokens.append_all(ts.into_iter());
+        tokens.append_all(ts);
     }
 }
 
@@ -77,7 +77,7 @@ impl ToTokens for QuoteMigration {
             }
         };
 
-        tokens.append_all(ts.into_iter());
+        tokens.append_all(ts);
     }
 }
 

@@ -32,12 +32,7 @@ pub struct PgArgumentBuffer {
     //
     // This currently is only setup to be useful if there is a *fixed-size* slot that needs to be
     // tweaked from the input type. However, that's the only use case we currently have.
-    //
-    patches: Vec<(
-        usize, // offset
-        usize, // argument index
-        Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
-    )>,
+    patches: Vec<Patch>,
 
     // Whenever an `Encode` impl encounters a `PgTypeInfo` object that does not have an OID
     // It pushes a "hole" that must be patched later.
@@ -47,6 +42,13 @@ pub struct PgArgumentBuffer {
     // function and can just ask postgres.
     //
     type_holes: Vec<(usize, UStr)>, // Vec<{ offset, type_name }>
+}
+
+struct Patch {
+    buf_offset: usize,
+    arg_index: usize,
+    #[allow(clippy::type_complexity)]
+    callback: Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
 }
 
 /// Implementation of [`Arguments`] for PostgreSQL.
@@ -97,15 +99,15 @@ impl PgArguments {
             ..
         } = self.buffer;
 
-        for (offset, ty, callback) in patches {
-            let buf = &mut buffer[*offset..];
-            let ty = &parameters[*ty];
+        for patch in patches {
+            let buf = &mut buffer[patch.buf_offset..];
+            let ty = &parameters[patch.arg_index];
 
-            callback(buf, ty);
+            (patch.callback)(buf, ty);
         }
 
         for (offset, name) in type_holes {
-            let oid = conn.fetch_type_id_by_name(&*name).await?;
+            let oid = conn.fetch_type_id_by_name(name).await?;
             buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
 
@@ -169,9 +171,13 @@ impl PgArgumentBuffer {
         F: Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync,
     {
         let offset = self.len();
-        let index = self.count;
+        let arg_index = self.count;
 
-        self.patches.push((offset, index, Box::new(callback)));
+        self.patches.push(Patch {
+            buf_offset: offset,
+            arg_index,
+            callback: Box::new(callback),
+        });
     }
 
     // Extends the inner buffer by enough space to have an OID

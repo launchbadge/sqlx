@@ -1,5 +1,8 @@
 mod date;
 mod datetime;
+
+// Parent module is named after the `time` crate, this module is named after the `TIME` SQL type.
+#[allow(clippy::module_inception)]
 mod time;
 
 #[rustfmt::skip]

@@ -139,8 +139,8 @@ impl Metadata {
 
             let cargo = env("CARGO").expect("`CARGO` must be set");
 
-            let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1", "--no-deps"])
+            let output = Command::new(cargo)
+                .args(["metadata", "--format-version=1", "--no-deps"])
                 .current_dir(&self.manifest_dir)
                 .env_remove("__CARGO_FIX_PLZ")
                 .output()
@@ -293,8 +293,7 @@ pub fn expand_input<'a>(
     // If no driver was set, try to find a matching driver for the data source.
     for driver in drivers {
         if data_source.matches_driver(driver) {
-            let result = (driver.expand)(input, data_source);
-            return result;
+            return (driver.expand)(input, data_source);
         }
     }
 
@@ -396,13 +395,9 @@ where
                     }
                 }
 
-                let record_fields = columns.iter().map(
-                    |&output::RustColumn {
-                         ref ident,
-                         ref type_,
-                         ..
-                     }| quote!(#ident: #type_,),
-                );
+                let record_fields = columns
+                    .iter()
+                    .map(|output::RustColumn { ident, type_, .. }| quote!(#ident: #type_,));
 
                 let mut record_tokens = quote! {
                     #[derive(Debug)]

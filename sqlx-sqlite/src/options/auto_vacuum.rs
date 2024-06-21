@@ -1,8 +1,9 @@
 use crate::error::Error;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SqliteAutoVacuum {
+    #[default]
     None,
     Full,
     Incremental,
@@ -15,12 +16,6 @@ impl SqliteAutoVacuum {
             SqliteAutoVacuum::Full => "FULL",
             SqliteAutoVacuum::Incremental => "INCREMENTAL",
         }
-    }
-}
-
-impl Default for SqliteAutoVacuum {
-    fn default() -> Self {
-        SqliteAutoVacuum::None
     }
 }
 

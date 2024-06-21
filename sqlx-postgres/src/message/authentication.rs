@@ -162,8 +162,8 @@ impl Decode<'_> for AuthenticationSaslContinue {
         Ok(Self {
             iterations,
             salt,
-            nonce: from_utf8(&*nonce).map_err(Error::protocol)?.to_owned(),
-            message: from_utf8(&*buf).map_err(Error::protocol)?.to_owned(),
+            nonce: from_utf8(&nonce).map_err(Error::protocol)?.to_owned(),
+            message: from_utf8(&buf).map_err(Error::protocol)?.to_owned(),
         })
     }
 }

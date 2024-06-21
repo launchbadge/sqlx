@@ -154,13 +154,15 @@ test_type!(transparent_array<TransparentArray>(Postgres,
 test_type!(weak_enum<Weak>(Postgres,
     "0::int4" == Weak::One,
     "2::int4" == Weak::Two,
-    "4::int4" == Weak::Three
+    "4::int4" == Weak::Three,
+    "'{0, 2, 4}'::int4[]" == vec![Weak::One, Weak::Two, Weak::Three],
 ));
 
 test_type!(strong_enum<Strong>(Postgres,
     "'one'::text" == Strong::One,
     "'two'::text" == Strong::Two,
-    "'four'::text" == Strong::Three
+    "'four'::text" == Strong::Three,
+    "'{'one', 'two', 'four'}'::text[]" == vec![Strong::One, Strong::Two, Strong::Three],
 ));
 
 test_type!(floatrange<FloatRange>(Postgres,
@@ -723,4 +725,39 @@ async fn test_skip() -> anyhow::Result<()> {
     assert_eq!(None, account.default.default);
 
     Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_enum_with_schema() -> anyhow::Result<()> {
+    #[derive(Debug, PartialEq, Eq, sqlx::Type)]
+    #[sqlx(type_name = "foo.\"Foo\"")]
+    enum Foo {
+        Bar,
+        Baz,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Bar)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo, Foo::Bar);
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Baz)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo, Foo::Baz);
+
+    let foos: Vec<Foo> = sqlx::query_scalar!("SELECT ARRAY($1::foo.\"Foo\", $2::foo.\"Foo\")")
+        .bind(Foo::Bar)
+        .bind(Foo::Baz)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foos, [Foo::Bar, Foo::Baz]);
 }

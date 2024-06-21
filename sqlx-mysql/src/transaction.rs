@@ -59,7 +59,7 @@ impl TransactionManager for MySqlTransactionManager {
             conn.inner.stream.sequence_id = 0;
             conn.inner
                 .stream
-                .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));
+                .write_packet(Query(&rollback_ansi_transaction_sql(depth)));
 
             conn.inner.transaction_depth = depth - 1;
         }

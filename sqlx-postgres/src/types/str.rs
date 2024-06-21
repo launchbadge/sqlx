@@ -125,7 +125,7 @@ impl Encode<'_, Postgres> for String {
 
 impl<'r> Decode<'r, Postgres> for &'r str {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.as_str()?)
+        value.as_str()
     }
 }
 

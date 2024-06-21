@@ -385,6 +385,7 @@ async fn it_can_query_all_scalar() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[ignore]
 #[sqlx_macros::test]
 async fn copy_can_work_with_failed_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;

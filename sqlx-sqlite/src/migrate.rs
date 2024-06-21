@@ -28,8 +28,7 @@ impl MigrateDatabase for Sqlite {
             }
 
             // Opening a connection to sqlite creates the database
-            let _ = opts
-                .connect()
+            opts.connect()
                 .await?
                 // Ensure WAL mode tempfiles are cleaned up
                 .close()

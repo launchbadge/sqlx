@@ -376,7 +376,7 @@ impl<DB: Database> Pool<DB> {
 
     /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
-        Ok(Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await?)
+        Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
@@ -642,7 +642,7 @@ impl FusedFuture for CloseEvent {
 /// get the time between the deadline and now and use that as our timeout
 ///
 /// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout<DB: Database>(deadline: Instant) -> Result<Duration, Error> {
+fn deadline_as_timeout(deadline: Instant) -> Result<Duration, Error> {
     deadline
         .checked_duration_since(Instant::now())
         .ok_or(Error::PoolTimedOut)

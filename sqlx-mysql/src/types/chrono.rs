@@ -25,7 +25,7 @@ impl Type<MySql> for DateTime<Utc> {
 /// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl Encode<'_, MySql> for DateTime<Utc> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        Encode::<MySql>::encode(&self.naive_utc(), buf)
+        Encode::<MySql>::encode(self.naive_utc(), buf)
     }
 }
 
@@ -51,7 +51,7 @@ impl Type<MySql> for DateTime<Local> {
 /// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl Encode<'_, MySql> for DateTime<Local> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        Encode::<MySql>::encode(&self.naive_utc(), buf)
+        Encode::<MySql>::encode(self.naive_utc(), buf)
     }
 }
 
@@ -318,7 +318,7 @@ fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
     buf.push(time.second() as u8);
 
     if include_micros {
-        buf.extend(&((time.nanosecond() / 1000) as u32).to_le_bytes());
+        buf.extend((time.nanosecond() / 1000).to_le_bytes());
     }
 }
 

@@ -119,7 +119,7 @@ impl MySqlConnectOptions {
     /// The default behavior when the host is not specified,
     /// is to connect to localhost.
     pub fn host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+        host.clone_into(&mut self.host);
         self
     }
 
@@ -142,7 +142,7 @@ impl MySqlConnectOptions {
 
     /// Sets the username to connect as.
     pub fn username(mut self, username: &str) -> Self {
-        self.username = username.to_owned();
+        username.clone_into(&mut self.username);
         self
     }
 
@@ -302,7 +302,7 @@ impl MySqlConnectOptions {
     /// The default character set is `utf8mb4`. This is supported from MySQL 5.5.3.
     /// If you need to connect to an older version, we recommend you to change this to `utf8`.
     pub fn charset(mut self, charset: &str) -> Self {
-        self.charset = charset.to_owned();
+        charset.clone_into(&mut self.charset);
         self
     }
 
