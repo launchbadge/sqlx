@@ -316,7 +316,7 @@ macro_rules! query (
     ($query:expr) => ({
         $crate::sqlx_macros::expand_query!(source = $query)
     });
-    ($driver:expr, $query:expr) => ({
+    ($driver:ty, $query:expr) => ({
         $crate::sqlx_macros::expand_query!(source = $query, driver = $driver)
     });
     // RFC: this semantically should be `$($args:expr),*` (with `$(,)?` to allow trailing comma)
@@ -330,7 +330,7 @@ macro_rules! query (
     ($query:expr, $($args:tt)*) => ({
         $crate::sqlx_macros::expand_query!(source = $query, args = [$($args)*])
     });
-    ($driver:expr, $query:expr, $($args:tt)*) => ({
+    ($driver:ty, $query:expr, $($args:tt)*) => ({
         $crate::sqlx_macros::expand_query!(source = $query, args = [$($args)*], driver = $driver)
     })
 );

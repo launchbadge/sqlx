@@ -27,6 +27,7 @@ pub struct QueryDriver {
     db_name: &'static str,
     url_schemes: &'static [&'static str],
     expand: fn(QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
+    db_type_name: &'static str,
 }
 
 impl QueryDriver {
@@ -38,10 +39,12 @@ impl QueryDriver {
             db_name: DB::NAME,
             url_schemes: DB::URL_SCHEMES,
             expand: expand_with::<DB>,
+            db_type_name: DB::TYPE_IMPORT_PATH,
         }
     }
 }
 
+#[derive(Clone)]
 pub struct QueryDataSourceUrl<'a> {
     database_url: &'a str,
     database_url_parsed: Url,
@@ -58,6 +61,7 @@ impl<'a> From<&'a String> for QueryDataSourceUrl<'a> {
     }
 }
 
+#[derive(Clone)]
 pub enum QueryDataSource<'a> {
     Live {
         database_urls: Vec<QueryDataSourceUrl<'a>>,  
@@ -239,19 +243,51 @@ pub fn expand_input<'a>(
         }
     };
 
+    let mut working_drivers = vec![];
+
     // If the driver was explicitly set, use it directly.
     if let Some(input_driver) = input.driver.clone() {
         for driver in drivers {
-            if driver.db_name == input_driver {
-                let result = (driver.expand)(input, data_source);
-                return result;
-            }
+                if (driver.expand)(input.clone(), data_source.clone()).is_ok() {
+                    working_drivers.push(driver);
+                }
         }
 
-        return Err(format!(
-            "no database driver found matching {:?}; the corresponding Cargo feature may need to be enabled",
-            input_driver
-        ).into());
+        return match working_drivers.len() {
+            0 => {
+                Err(format!(
+                    "no database driver found matching for query; the corresponding Cargo feature may need to be enabled"
+                ).into())
+            }
+            1 => {
+                let driver = working_drivers.pop().unwrap();
+                (driver.expand)(input, data_source)
+            }
+            _ => {
+                let expansions = working_drivers.iter().map(|driver| {
+                    let driver_name = driver.db_type_name;
+                    let driver_type: Type = syn::parse_str(driver_name).unwrap();
+                    let expanded = (driver.expand)(input.clone(), data_source.clone()).unwrap();
+                    quote! {
+                        impl ProvideQuery<#driver_type> for #driver_type {
+                            fn provide_query<'a>() -> Query<'a, #driver_type, <#driver_type as sqlx::Database>::Arguments<'a>> {
+                                #expanded
+                            }
+                        }
+                    }
+                });
+                Ok(quote! {
+                    {
+                        use sqlx::query::Query;
+                        trait ProvideQuery<DB: sqlx::Database> {
+                            fn provide_query<'a>() -> Query<'a, DB, DB::Arguments<'a>>;
+                        }
+                        #(#expansions)*
+                        #input_driver::provide_query()
+                    }
+                })
+            }
+        }
     }
     
     // If no driver was set, try to find a matching driver for the data source.

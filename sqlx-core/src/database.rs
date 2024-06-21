@@ -108,6 +108,10 @@ pub trait Database: 'static + Sized + Send + Debug {
 
     /// The schemes for database URLs that should match this driver.
     const URL_SCHEMES: &'static [&'static str];
+
+    // This can be removed once https://github.com/rust-lang/rust/issues/63084 is resolved and type_name is available in const fns.
+    /// The path to the database-specific type system.
+    const TYPE_IMPORT_PATH: &'static str;
 }
 
 /// A [`Database`] that maintains a client-side cache of prepared statements.

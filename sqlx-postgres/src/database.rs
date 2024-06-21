@@ -35,6 +35,8 @@ impl Database for Postgres {
     const NAME: &'static str = "PostgreSQL";
 
     const URL_SCHEMES: &'static [&'static str] = &["postgres", "postgresql"];
+
+    const TYPE_IMPORT_PATH: &'static str = "sqlx::postgres::Postgres";
 }
 
 impl HasStatementCache for Postgres {}

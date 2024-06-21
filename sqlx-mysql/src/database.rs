@@ -33,6 +33,8 @@ impl Database for MySql {
     const NAME: &'static str = "MySQL";
 
     const URL_SCHEMES: &'static [&'static str] = &["mysql", "mariadb"];
+
+    const TYPE_IMPORT_PATH: &'static str = "sqlx::mysql::MySql";
 }
 
 impl HasStatementCache for MySql {}
