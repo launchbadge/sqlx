@@ -2,6 +2,7 @@ use either::Either;
 use futures_core::stream::BoxStream;
 
 use crate::database::Database;
+use crate::error::BoxDynError;
 use crate::executor::{Execute, Executor};
 use crate::Error;
 
@@ -126,8 +127,8 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
         None
     }
 
-    fn take_arguments(&mut self) -> Option<<DB as Database>::Arguments<'q>> {
-        None
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(None)
     }
 
     fn persistent(&self) -> bool {

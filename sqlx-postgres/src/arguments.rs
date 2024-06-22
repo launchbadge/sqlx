@@ -8,6 +8,7 @@ use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::arguments::Arguments;
+use sqlx_core::error::BoxDynError;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
 // TODO: Extend the patch system to support dynamic lengths
@@ -31,12 +32,7 @@ pub struct PgArgumentBuffer {
     //
     // This currently is only setup to be useful if there is a *fixed-size* slot that needs to be
     // tweaked from the input type. However, that's the only use case we currently have.
-    //
-    patches: Vec<(
-        usize, // offset
-        usize, // argument index
-        Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
-    )>,
+    patches: Vec<Patch>,
 
     // Whenever an `Encode` impl encounters a `PgTypeInfo` object that does not have an OID
     // It pushes a "hole" that must be patched later.
@@ -46,6 +42,13 @@ pub struct PgArgumentBuffer {
     // function and can just ask postgres.
     //
     type_holes: Vec<(usize, UStr)>, // Vec<{ offset, type_name }>
+}
+
+struct Patch {
+    buf_offset: usize,
+    arg_index: usize,
+    #[allow(clippy::type_complexity)]
+    callback: Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
 }
 
 /// Implementation of [`Arguments`] for PostgreSQL.
@@ -59,19 +62,27 @@ pub struct PgArguments {
 }
 
 impl PgArguments {
-    pub(crate) fn add<'q, T>(&mut self, value: T)
+    pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres> + Type<Postgres>,
     {
-        // remember the type information for this value
-        self.types
-            .push(value.produces().unwrap_or_else(T::type_info));
+        let type_info = value.produces().unwrap_or_else(T::type_info);
+
+        let buffer_snapshot = self.buffer.snapshot();
 
         // encode the value into our buffer
-        self.buffer.encode(value);
+        if let Err(error) = self.buffer.encode(value) {
+            // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+            self.buffer.reset_to_snapshot(buffer_snapshot);
+            return Err(error);
+        };
 
+        // remember the type information for this value
+        self.types.push(type_info);
         // increment the number of arguments we are tracking
         self.buffer.count += 1;
+
+        Ok(())
     }
 
     // Apply patches
@@ -88,15 +99,15 @@ impl PgArguments {
             ..
         } = self.buffer;
 
-        for (offset, ty, callback) in patches {
-            let buf = &mut buffer[*offset..];
-            let ty = &parameters[*ty];
+        for patch in patches {
+            let buf = &mut buffer[patch.buf_offset..];
+            let ty = &parameters[patch.arg_index];
 
-            callback(buf, ty);
+            (patch.callback)(buf, ty);
         }
 
         for (offset, name) in type_holes {
-            let oid = conn.fetch_type_id_by_name(&*name).await?;
+            let oid = conn.fetch_type_id_by_name(name).await?;
             buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
 
@@ -112,7 +123,7 @@ impl<'q> Arguments<'q> for PgArguments {
         self.buffer.reserve(size);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
@@ -122,10 +133,14 @@ impl<'q> Arguments<'q> for PgArguments {
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         write!(writer, "${}", self.buffer.count)
     }
+
+    fn len(&self) -> usize {
+        self.buffer.count
+    }
 }
 
 impl PgArgumentBuffer {
-    pub(crate) fn encode<'q, T>(&mut self, value: T)
+    pub(crate) fn encode<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Postgres>,
     {
@@ -134,7 +149,7 @@ impl PgArgumentBuffer {
         self.extend(&[0; 4]);
 
         // encode the value into our buffer
-        let len = if let IsNull::No = value.encode(self) {
+        let len = if let IsNull::No = value.encode(self)? {
             (self.len() - offset - 4) as i32
         } else {
             // Write a -1 to indicate NULL
@@ -145,6 +160,8 @@ impl PgArgumentBuffer {
 
         // write the len to the beginning of the value
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+
+        Ok(())
     }
 
     // Adds a callback to be invoked later when we know the parameter type
@@ -154,9 +171,13 @@ impl PgArgumentBuffer {
         F: Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync,
     {
         let offset = self.len();
-        let index = self.count;
+        let arg_index = self.count;
 
-        self.patches.push((offset, index, Box::new(callback)));
+        self.patches.push(Patch {
+            buf_offset: offset,
+            arg_index,
+            callback: Box::new(callback),
+        });
     }
 
     // Extends the inner buffer by enough space to have an OID
@@ -167,6 +188,44 @@ impl PgArgumentBuffer {
         self.extend_from_slice(&0_u32.to_be_bytes());
         self.type_holes.push((offset, type_name.clone()));
     }
+
+    fn snapshot(&self) -> PgArgumentBufferSnapshot {
+        let Self {
+            buffer,
+            count,
+            patches,
+            type_holes,
+        } = self;
+
+        PgArgumentBufferSnapshot {
+            buffer_length: buffer.len(),
+            count: *count,
+            patches_length: patches.len(),
+            type_holes_length: type_holes.len(),
+        }
+    }
+
+    fn reset_to_snapshot(
+        &mut self,
+        PgArgumentBufferSnapshot {
+            buffer_length,
+            count,
+            patches_length,
+            type_holes_length,
+        }: PgArgumentBufferSnapshot,
+    ) {
+        self.buffer.truncate(buffer_length);
+        self.count = count;
+        self.patches.truncate(patches_length);
+        self.type_holes.truncate(type_holes_length);
+    }
+}
+
+struct PgArgumentBufferSnapshot {
+    buffer_length: usize,
+    count: usize,
+    patches_length: usize,
+    type_holes_length: usize,
 }
 
 impl Deref for PgArgumentBuffer {

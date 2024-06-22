@@ -109,6 +109,7 @@ impl<DB: Database> FixtureSnapshot<DB> {
 
 /// Implements `ToString` but not `Display` because it uses [`QueryBuilder`] internally,
 /// which appends to an internal string.
+#[allow(clippy::to_string_trait_impl)]
 impl<DB: Database> ToString for Fixture<DB>
 where
     for<'a> <DB as Database>::Arguments<'a>: Default,

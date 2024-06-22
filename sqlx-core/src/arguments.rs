@@ -2,10 +2,13 @@
 
 use crate::database::Database;
 use crate::encode::Encode;
+use crate::error::BoxDynError;
 use crate::types::Type;
 use std::fmt::{self, Write};
 
 /// A tuple of arguments to be sent to the database.
+// This lint is designed for general collections, but `Arguments` is not meant to be as such.
+#[allow(clippy::len_without_is_empty)]
 pub trait Arguments<'q>: Send + Sized + Default {
     type Database: Database;
 
@@ -14,9 +17,12 @@ pub trait Arguments<'q>: Send + Sized + Default {
     fn reserve(&mut self, additional: usize, size: usize);
 
     /// Add the value to the end of the arguments.
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
+
+    /// The number of arguments that were already added.
+    fn len(&self) -> usize;
 
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         writer.write_str("?")

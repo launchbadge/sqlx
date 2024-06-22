@@ -23,11 +23,11 @@ impl Type<MySql> for OffsetDateTime {
 }
 
 impl Encode<'_, MySql> for OffsetDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let utc_dt = self.to_offset(UtcOffset::UTC);
         let primitive_dt = PrimitiveDateTime::new(utc_dt.date(), utc_dt.time());
 
-        Encode::<MySql>::encode(&primitive_dt, buf)
+        Encode::<MySql>::encode(primitive_dt, buf)
     }
 }
 
@@ -46,7 +46,7 @@ impl Type<MySql> for Time {
 }
 
 impl Encode<'_, MySql> for Time {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
@@ -59,7 +59,7 @@ impl Encode<'_, MySql> for Time {
 
         encode_time(self, len > 9, buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -149,12 +149,12 @@ impl Type<MySql> for Date {
 }
 
 impl Encode<'_, MySql> for Date {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.push(4);
 
-        encode_date(self, buf);
+        encode_date(self, buf)?;
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -190,17 +190,17 @@ impl Type<MySql> for PrimitiveDateTime {
 }
 
 impl Encode<'_, MySql> for PrimitiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
-        encode_date(&self.date(), buf);
+        encode_date(&self.date(), buf)?;
 
         if len > 4 {
             encode_time(&self.time(), len > 8, buf);
         }
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -267,14 +267,16 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
     }
 }
 
-fn encode_date(date: &Date, buf: &mut Vec<u8>) {
+fn encode_date(date: &Date, buf: &mut Vec<u8>) -> Result<(), BoxDynError> {
     // MySQL supports years from 1000 - 9999
-    let year = u16::try_from(date.year())
-        .unwrap_or_else(|_| panic!("Date out of range for Mysql: {date}"));
+    let year =
+        u16::try_from(date.year()).map_err(|_| format!("Date out of range for Mysql: {date}"))?;
 
     buf.extend_from_slice(&year.to_le_bytes());
     buf.push(date.month().into());
     buf.push(date.day());
+
+    Ok(())
 }
 
 fn decode_date(buf: &[u8]) -> Result<Option<Date>, BoxDynError> {
@@ -285,8 +287,8 @@ fn decode_date(buf: &[u8]) -> Result<Option<Date>, BoxDynError> {
 
     Date::from_calendar_date(
         LittleEndian::read_u16(buf) as i32,
-        time::Month::try_from(buf[2] as u8)?,
-        buf[3] as u8,
+        time::Month::try_from(buf[2])?,
+        buf[3],
     )
     .map_err(Into::into)
     .map(Some)
@@ -298,7 +300,7 @@ fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
     buf.push(time.second());
 
     if include_micros {
-        buf.extend(&((time.nanosecond() / 1000) as u32).to_le_bytes());
+        buf.extend(&(time.nanosecond() / 1000).to_le_bytes());
     }
 }
 

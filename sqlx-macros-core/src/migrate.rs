@@ -20,7 +20,7 @@ impl ToTokens for QuoteMigrationType {
                 quote! { ::sqlx::migrate::MigrationType::ReversibleDown }
             }
         };
-        tokens.append_all(ts.into_iter());
+        tokens.append_all(ts);
     }
 }
 
@@ -77,7 +77,7 @@ impl ToTokens for QuoteMigration {
             }
         };
 
-        tokens.append_all(ts.into_iter());
+        tokens.append_all(ts);
     }
 }
 
@@ -103,7 +103,7 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     })?;
 
     // Use the same code path to resolve migrations at compile time and runtime.
-    let migrations = sqlx_core::migrate::resolve_blocking(path)?
+    let migrations = sqlx_core::migrate::resolve_blocking(&path)?
         .into_iter()
         .map(|(migration, path)| QuoteMigration { migration, path });
 

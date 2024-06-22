@@ -7,6 +7,7 @@ use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
 
 pub(crate) use sqlx_core::arguments::*;
+use sqlx_core::error::BoxDynError;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue<'q> {
@@ -24,13 +25,23 @@ pub struct SqliteArguments<'q> {
 }
 
 impl<'q> SqliteArguments<'q> {
-    pub(crate) fn add<T>(&mut self, value: T)
+    pub(crate) fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Sqlite>,
     {
-        if let IsNull::Yes = value.encode(&mut self.values) {
-            self.values.push(SqliteArgumentValue::Null);
-        }
+        let value_length_before_encoding = self.values.len();
+
+        match value.encode(&mut self.values) {
+            Ok(IsNull::Yes) => self.values.push(SqliteArgumentValue::Null),
+            Ok(IsNull::No) => {}
+            Err(error) => {
+                // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+                self.values.truncate(value_length_before_encoding);
+                return Err(error);
+            }
+        };
+
+        Ok(())
     }
 
     pub(crate) fn into_static(self) -> SqliteArguments<'static> {
@@ -51,11 +62,15 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
         self.values.reserve(len);
     }
 
-    fn add<T>(&mut self, value: T)
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Self::Database>,
     {
         self.add(value)
+    }
+
+    fn len(&self) -> usize {
+        self.values.len()
     }
 }
 

@@ -4,10 +4,11 @@ use std::str::FromStr;
 /// Refer to [SQLite documentation] for the meaning of various synchronous settings.
 ///
 /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SqliteSynchronous {
     Off,
     Normal,
+    #[default]
     Full,
     Extra,
 }
@@ -20,12 +21,6 @@ impl SqliteSynchronous {
             SqliteSynchronous::Full => "FULL",
             SqliteSynchronous::Extra => "EXTRA",
         }
-    }
-}
-
-impl Default for SqliteSynchronous {
-    fn default() -> Self {
-        SqliteSynchronous::Full
     }
 }
 

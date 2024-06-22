@@ -33,18 +33,18 @@ impl Type<MySql> for f64 {
 }
 
 impl Encode<'_, MySql> for f32 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, MySql> for f64 {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.extend(&self.to_le_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

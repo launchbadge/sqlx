@@ -7,18 +7,10 @@ use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use std::borrow::Cow;
 
-const COLLATE_UTF8_GENERAL_CI: u16 = 33;
-const COLLATE_UTF8_UNICODE_CI: u16 = 192;
-const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
-const COLLATE_UTF8MB4_BIN: u16 = 46;
-const COLLATE_UTF8MB4_GENERAL_CI: u16 = 45;
-const COLLATE_UTF8MB4_0900_AI_CI: u16 = 255;
-
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
-            r#type: ColumnType::VarString,        // VARCHAR
-            char_set: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
+            r#type: ColumnType::VarString, // VARCHAR
             flags: ColumnFlags::empty(),
             max_size: None,
         }
@@ -36,23 +28,15 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && matches!(
-            ty.char_set,
-            COLLATE_UTF8MB4_UNICODE_CI
-                | COLLATE_UTF8_UNICODE_CI
-                | COLLATE_UTF8_GENERAL_CI
-                | COLLATE_UTF8MB4_BIN
-                | COLLATE_UTF8MB4_GENERAL_CI
-                | COLLATE_UTF8MB4_0900_AI_CI
-        )
+        ) && !ty.flags.contains(ColumnFlags::BINARY)
     }
 }
 
 impl Encode<'_, MySql> for &'_ str {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         buf.put_str_lenenc(self);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
@@ -73,7 +57,7 @@ impl Type<MySql> for Box<str> {
 }
 
 impl Encode<'_, MySql> for Box<str> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&str as Encode<MySql>>::encode(&**self, buf)
     }
 }
@@ -95,7 +79,7 @@ impl Type<MySql> for String {
 }
 
 impl Encode<'_, MySql> for String {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&str as Encode<MySql>>::encode(&**self, buf)
     }
 }
@@ -117,7 +101,7 @@ impl Type<MySql> for Cow<'_, str> {
 }
 
 impl Encode<'_, MySql> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         match self {
             Cow::Borrowed(str) => <&str as Encode<MySql>>::encode(*str, buf),
             Cow::Owned(str) => <&str as Encode<MySql>>::encode(&**str, buf),

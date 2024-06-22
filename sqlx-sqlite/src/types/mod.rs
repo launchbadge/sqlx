@@ -60,7 +60,7 @@
 //!   A number of possible formats are tried; see `sqlx-sqlite/src/types/chrono.rs` for the current
 //!   set of formats.
 //! * If `INTEGER`, it is expected to be the number of seconds since January 1, 1970 00:00 UTC,
-//!   as if returned from the `unixtime()` function (without the `subsec` modifier).
+//!   as if returned from the `unixepoch()` function (without the `subsec` modifier).
 //! * If `REAL`, it is expected to be the (possibly fractional) number of days since the Julian epoch,
 //!   November 24, 4714 BCE 12:00 UTC, as if returned from the `julianday()` function.
 //!

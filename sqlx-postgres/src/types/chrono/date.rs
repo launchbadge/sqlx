@@ -21,10 +21,10 @@ impl PgHasArrayType for NaiveDate {
 }
 
 impl Encode<'_, Postgres> for NaiveDate {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // DATE is encoded as the days since epoch
         let days = (*self - postgres_epoch_date()).num_days() as i32;
-        Encode::<Postgres>::encode(&days, buf)
+        Encode::<Postgres>::encode(days, buf)
     }
 
     fn size_hint(&self) -> usize {

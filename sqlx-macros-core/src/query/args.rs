@@ -17,7 +17,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     if input.arg_exprs.is_empty() {
         return Ok(quote! {
-            let query_args = <#db_path as ::sqlx::database::Database>::Arguments::<'_>::default();
+            let query_args = ::core::result::Result::<_, ::sqlx::error::BoxDynError>::Ok(<#db_path as ::sqlx::database::Database>::Arguments::<'_>::default());
         });
     }
 
@@ -56,9 +56,9 @@ pub fn quote_args<DB: DatabaseExt>(
                     }
 
                     let param_ty =
-                        DB::param_type_for_id(&param_ty)
+                        DB::param_type_for_id(param_ty)
                             .ok_or_else(|| {
-                                if let Some(feature_gate) = DB::get_feature_gate(&param_ty) {
+                                if let Some(feature_gate) = DB::get_feature_gate(param_ty) {
                                     format!(
                                         "optional sqlx feature `{}` required for type {} of param #{}",
                                         feature_gate,
@@ -109,7 +109,8 @@ pub fn quote_args<DB: DatabaseExt>(
             #args_count,
             0 #(+ ::sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
         );
-        #(query_args.add(#arg_name);)*
+        let query_args = ::core::result::Result::<_, ::sqlx::error::BoxDynError>::Ok(query_args)
+        #(.and_then(move |mut query_args| query_args.add(#arg_name).map(move |()| query_args) ))*;
     })
 }
 

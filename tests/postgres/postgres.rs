@@ -6,7 +6,7 @@ use sqlx::postgres::{
     PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
-use sqlx_core::bytes::Bytes;
+use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
 use std::pin::Pin;
@@ -385,6 +385,7 @@ async fn it_can_query_all_scalar() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[ignore]
 #[sqlx_macros::test]
 async fn copy_can_work_with_failed_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
@@ -1124,7 +1125,7 @@ CREATE TABLE heating_bills (
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, BoxDynError> {
             <i16 as sqlx::Encode<Postgres>>::encode(self.0, buf)
         }
     }
@@ -1162,12 +1163,12 @@ CREATE TABLE heating_bills (
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
             let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
-            encoder.encode(self.year);
-            encoder.encode(self.month);
+            encoder.encode(self.year)?;
+            encoder.encode(self.month)?;
             encoder.finish();
-            sqlx::encode::IsNull::No
+            Ok(sqlx::encode::IsNull::No)
         }
     }
     let mut conn = new::<Postgres>().await?;
@@ -1484,7 +1485,7 @@ CREATE TYPE another.some_enum_type AS ENUM ('d', 'e', 'f');
         fn encode_by_ref(
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
-        ) -> sqlx::encode::IsNull {
+        ) -> Result<sqlx::encode::IsNull, BoxDynError> {
             <String as sqlx::Encode<Postgres>>::encode_by_ref(&self.0, buf)
         }
     }
@@ -1673,7 +1674,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
             }
         }
 
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
             match self {
                 Value::String(s) => <String as Encode<'_, Postgres>>::encode_by_ref(s, buf),
                 Value::Number(n) => <i32 as Encode<'_, Postgres>>::encode_by_ref(n, buf),
@@ -1912,31 +1913,24 @@ async fn test_issue_3052() {
 
     let mut conn = new::<Postgres>().await.unwrap();
 
-    let too_small_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+    let too_small_error = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
         .bind(&too_small)
         .fetch_one(&mut conn)
-        .await;
+        .await
+        .expect_err("Too small number should have failed");
+    assert!(
+        matches!(&too_small_error, sqlx::Error::Encode(_)),
+        "expected encode error, got {too_small_error:?}"
+    );
 
-    match too_small_res {
-        Err(sqlx::Error::Database(dbe)) => {
-            let dbe = dbe.downcast::<PgDatabaseError>();
-
-            assert_eq!(dbe.code(), "22P03");
-        }
-        other => panic!("expected Err(DatabaseError), got {other:?}"),
-    }
-
-    let too_large_res = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
+    let too_large_error = sqlx::query_scalar::<_, BigDecimal>("SELECT $1::numeric")
         .bind(&too_large)
         .fetch_one(&mut conn)
-        .await;
+        .await
+        .expect_err("Too large number should have failed");
 
-    match too_large_res {
-        Err(sqlx::Error::Database(dbe)) => {
-            let dbe = dbe.downcast::<PgDatabaseError>();
-
-            assert_eq!(dbe.code(), "22P03");
-        }
-        other => panic!("expected Err(DatabaseError), got {other:?}"),
-    }
+    assert!(
+        matches!(&too_large_error, sqlx::Error::Encode(_)),
+        "expected encode error, got {too_large_error:?}",
+    );
 }

@@ -95,15 +95,15 @@ impl PgHasArrayType for String {
 }
 
 impl Encode<'_, Postgres> for &'_ str {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(self.as_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 
 impl Encode<'_, Postgres> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         match self {
             Cow::Borrowed(str) => <&str as Encode<Postgres>>::encode(*str, buf),
             Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf),
@@ -112,20 +112,20 @@ impl Encode<'_, Postgres> for Cow<'_, str> {
 }
 
 impl Encode<'_, Postgres> for Box<str> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&str as Encode<Postgres>>::encode(&**self, buf)
     }
 }
 
 impl Encode<'_, Postgres> for String {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&str as Encode<Postgres>>::encode(&**self, buf)
     }
 }
 
 impl<'r> Decode<'r, Postgres> for &'r str {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.as_str()?)
+        value.as_str()
     }
 }
 

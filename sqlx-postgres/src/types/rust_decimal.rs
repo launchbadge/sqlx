@@ -72,18 +72,16 @@ impl TryFrom<PgNumeric> for Decimal {
 }
 
 // This impl is effectively infallible because `NUMERIC` has a greater range than `Decimal`.
-impl TryFrom<&'_ Decimal> for PgNumeric {
-    type Error = BoxDynError;
-
-    fn try_from(decimal: &Decimal) -> Result<Self, BoxDynError> {
+impl From<&'_ Decimal> for PgNumeric {
+    fn from(decimal: &Decimal) -> Self {
         // `Decimal` added `is_zero()` as an inherent method in a more recent version
         if Zero::is_zero(decimal) {
-            return Ok(PgNumeric::Number {
+            PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
                 weight: 0,
                 digits: vec![],
-            });
+            };
         }
 
         let scale = decimal.scale() as u16;
@@ -105,9 +103,9 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
         let groups_diff = scale % 4;
         if groups_diff > 0 {
             let remainder = 4 - groups_diff as u32;
-            let power = 10u32.pow(remainder as u32) as u128;
+            let power = 10u32.pow(remainder) as u128;
 
-            mantissa = mantissa * power;
+            mantissa *= power;
         }
 
         // Array to store max mantissa of Decimal in Postgres decimal format.
@@ -123,7 +121,7 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
         digits.reverse();
 
         // Weight is number of digits on the left side of the decimal.
-        let digits_after_decimal = (scale + 3) as u16 / 4;
+        let digits_after_decimal = (scale + 3) / 4;
         let weight = digits.len() as i16 - digits_after_decimal as i16 - 1;
 
         // Remove non-significant zeroes.
@@ -131,7 +129,7 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
             digits.pop();
         }
 
-        Ok(PgNumeric::Number {
+        PgNumeric::Number {
             sign: match decimal.is_sign_negative() {
                 false => PgNumericSign::Positive,
                 true => PgNumericSign::Negative,
@@ -139,17 +137,15 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
             scale: scale as i16,
             weight,
             digits,
-        })
+        }
     }
 }
 
 impl Encode<'_, Postgres> for Decimal {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        PgNumeric::try_from(self)
-            .expect("BUG: `Decimal` to `PgNumeric` conversion should be infallible")
-            .encode(buf);
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        PgNumeric::from(self).encode(buf);
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 }
 

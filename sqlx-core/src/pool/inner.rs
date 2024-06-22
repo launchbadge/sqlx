@@ -153,7 +153,7 @@ impl<DB: Database> PoolInner<DB> {
 
                 if parent_close_event.as_mut().poll(cx).is_ready() {
                     // Propagate the parent's close event to the child.
-                    let _ = self.close();
+                    self.mark_closed();
                     return Poll::Ready(Err(Error::PoolClosed));
                 }
 
@@ -208,7 +208,7 @@ impl<DB: Database> PoolInner<DB> {
 
         let Floating { inner: idle, guard } = floating.into_idle();
 
-        if !self.idle_conns.push(idle).is_ok() {
+        if self.idle_conns.push(idle).is_err() {
             panic!("BUG: connection queue overflow in release()");
         }
 
@@ -226,7 +226,7 @@ impl<DB: Database> PoolInner<DB> {
         self: &'a Arc<Self>,
         permit: AsyncSemaphoreReleaser<'a>,
     ) -> Result<DecrementSizeGuard<DB>, AsyncSemaphoreReleaser<'a>> {
-        match self
+        let result = self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
                 if self.is_closed() {
@@ -235,7 +235,9 @@ impl<DB: Database> PoolInner<DB> {
 
                 size.checked_add(1)
                     .filter(|size| size <= &self.options.max_connections)
-            }) {
+            });
+
+        match result {
             // we successfully incremented the size
             Ok(_) => Ok(DecrementSizeGuard::from_permit((*self).clone(), permit)),
             // the pool is at max capacity or is closed
@@ -332,10 +334,10 @@ impl<DB: Database> PoolInner<DB> {
         }
 
         let mut backoff = Duration::from_millis(10);
-        let max_backoff = deadline_as_timeout::<DB>(deadline)? / 5;
+        let max_backoff = deadline_as_timeout(deadline)? / 5;
 
         loop {
-            let timeout = deadline_as_timeout::<DB>(deadline)?;
+            let timeout = deadline_as_timeout(deadline)?;
 
             // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point
@@ -505,9 +507,9 @@ async fn check_idle_conn<DB: Database>(
 }
 
 fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
-    // NOTE: use `pool_weak` for the maintenance tasks so
-    // they don't keep `PoolInner` from being dropped.
-    let pool_weak = Arc::downgrade(&pool);
+    // NOTE: use `pool_weak` for the maintenance tasks
+    // so they don't keep `PoolInner` from being dropped.
+    let pool_weak = Arc::downgrade(pool);
 
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,

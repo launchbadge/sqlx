@@ -65,16 +65,14 @@ fn expand_derive_from_row_struct(
 
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
-    let default_instance: Option<Stmt>;
-
-    if container_attributes.default {
+    let default_instance: Option<Stmt> = if container_attributes.default {
         predicates.push(parse_quote!(#ident: ::std::default::Default));
-        default_instance = Some(parse_quote!(
+        Some(parse_quote!(
             let __default = #ident::default();
-        ));
+        ))
     } else {
-        default_instance = None;
-    }
+        None
+    };
 
     let reads: Vec<Stmt> = fields
         .iter()

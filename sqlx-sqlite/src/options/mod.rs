@@ -162,6 +162,12 @@ impl SqliteConnectOptions {
         // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory
         pragmas.insert("locking_mode".into(), None);
 
+        // `auto_vacuum` needs to be executed before `journal_mode`, if set.
+        //
+        // Otherwise, a change in the `journal_mode` setting appears to mark even an empty database as dirty,
+        // requiring a `vacuum` command to be executed to actually apply the new `auto_vacuum` setting.
+        pragmas.insert("auto_vacuum".into(), None);
+
         // Don't set `journal_mode` unless the user requested it.
         // WAL mode is a permanent setting for created databases and changing into or out of it
         // requires an exclusive lock that can't be waited on with `sqlite3_busy_timeout()`.
@@ -175,8 +181,6 @@ impl SqliteConnectOptions {
         // The `synchronous` pragma defaults to FULL
         // https://www.sqlite.org/compile.html#default_synchronous.
         pragmas.insert("synchronous".into(), None);
-
-        pragmas.insert("auto_vacuum".into(), None);
 
         // Soft limit on the number of rows that `ANALYZE` touches per index.
         pragmas.insert("analysis_limit".into(), None);
@@ -206,14 +210,18 @@ impl SqliteConnectOptions {
     }
 
     /// Sets the name of the database file.
+    ///
+    /// This is a low-level API, and SQLx will apply no special treatment for `":memory:"` as an
+    /// in-memory database using this method. Using [SqliteConnectOptions::from_str] may be
+    /// preferred for simple use cases.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = Cow::Owned(filename.as_ref().to_owned());
         self
     }
 
     /// Gets the current name of the database file.
-    pub fn get_filename(self) -> Cow<'static, Path> {
-        self.filename
+    pub fn get_filename(&self) -> &Path {
+        &self.filename
     }
 
     /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
@@ -222,6 +230,14 @@ impl SqliteConnectOptions {
     /// compared to other database flavors.
     pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
+    }
+
+    /// Set the [`SQLITE_OPEN_MEMORY` flag](https://sqlite.org/c3ref/open.html).
+    ///
+    /// By default, this is disabled.
+    pub fn in_memory(mut self, in_memory: bool) -> Self {
+        self.in_memory = in_memory;
+        self
     }
 
     /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).

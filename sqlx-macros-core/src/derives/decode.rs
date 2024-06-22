@@ -9,7 +9,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Stmt, Variant,
+    FieldsUnnamed, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -95,7 +95,7 @@ fn expand_derive_decode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let attr = check_weak_enum_attributes(input, &variants)?;
+    let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
 
     let ident = &input.ident;
@@ -142,7 +142,7 @@ fn expand_derive_decode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let cattr = check_strong_enum_attributes(input, &variants)?;
+    let cattr = check_strong_enum_attributes(input, variants)?;
 
     let ident = &input.ident;
     let ident_s = ident.to_string();
@@ -154,7 +154,7 @@ fn expand_derive_decode_strong_enum(
         if let Some(rename) = attributes.rename {
             parse_quote!(#rename => ::std::result::Result::Ok(#ident :: #id),)
         } else if let Some(pattern) = cattr.rename_all {
-            let name = rename_all(&*id.to_string(), pattern);
+            let name = rename_all(&id.to_string(), pattern);
 
             parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         } else {
@@ -265,24 +265,21 @@ fn expand_derive_decode_struct(
     if cfg!(feature = "postgres") {
         let ident = &input.ident;
 
-        // extract type generics
-        let generics = &input.generics;
-        let (_, ty_generics, _) = generics.split_for_impl();
+        let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+
+        let mut generics = input.generics.clone();
 
         // add db type for impl generics & where clause
-        let mut generics = generics.clone();
-        generics.params.insert(0, parse_quote!('r));
-
-        let predicates = &mut generics.make_where_clause().predicates;
-
-        for field in fields {
-            let ty = &field.ty;
-
-            predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, ::sqlx::Postgres>));
-            predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
+        for type_param in &mut generics.type_params_mut() {
+            type_param.bounds.extend::<[TypeParamBound; 2]>([
+                parse_quote!(for<'decode> ::sqlx::decode::Decode<'decode, ::sqlx::Postgres>),
+                parse_quote!(::sqlx::types::Type<::sqlx::Postgres>),
+            ]);
         }
 
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        generics.params.push(parse_quote!('r));
+
+        let (impl_generics, _, _) = generics.split_for_impl();
 
         let reads = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;

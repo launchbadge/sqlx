@@ -155,7 +155,7 @@ where
             .arguments
             .as_mut()
             .expect("BUG: Arguments taken already");
-        arguments.add(value);
+        arguments.add(value).expect("Failed to add argument");
 
         arguments
             .format_placeholder(&mut self.query)
@@ -450,7 +450,7 @@ where
 
         Query {
             statement: Either::Left(&self.query),
-            arguments: self.arguments.take(),
+            arguments: self.arguments.take().map(Ok),
             database: PhantomData,
             persistent: true,
         }

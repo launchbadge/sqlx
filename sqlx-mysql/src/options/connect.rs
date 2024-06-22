@@ -71,8 +71,8 @@ impl ConnectOptions for MySqlConnectOptions {
             if self.set_names {
                 options.push(format!(
                     r#"NAMES {} COLLATE {}"#,
-                    conn.stream.charset.as_str(),
-                    conn.stream.collation.as_str()
+                    conn.inner.stream.charset.as_str(),
+                    conn.inner.stream.collation.as_str()
                 ))
             }
 

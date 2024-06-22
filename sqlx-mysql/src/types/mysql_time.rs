@@ -410,10 +410,13 @@ impl<'r> Decode<'r, MySql> for MySqlTime {
 }
 
 impl<'q> Encode<'q, MySql> for MySqlTime {
-    fn encode_by_ref(&self, buf: &mut <MySql as Database>::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <MySql as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
         if self.is_zero() {
             buf.put_u8(0);
-            return IsNull::No;
+            return Ok(IsNull::No);
         }
 
         buf.put_u8(self.encoded_len());
@@ -438,7 +441,7 @@ impl<'q> Encode<'q, MySql> for MySqlTime {
             buf.put_u32_le(microseconds);
         }
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -495,7 +498,7 @@ impl MySqlTimeSign {
         }
     }
 
-    fn to_byte(&self) -> u8 {
+    fn to_byte(self) -> u8 {
         match self {
             // We can't use `#[repr(u8)]` because this is opposite of the ordering we want from `Ord`
             Self::Negative => 1,
@@ -576,7 +579,7 @@ fn parse(text: &str) -> Result<MySqlTime, BoxDynError> {
         MySqlTimeSign::Positive
     };
 
-    let hours = hours.abs() as u32;
+    let hours = hours.unsigned_abs();
 
     let minutes: u8 = minutes
         .parse()

@@ -126,17 +126,15 @@ pub struct AsyncSemaphoreReleaser<'a> {
 
 impl AsyncSemaphoreReleaser<'_> {
     pub fn disarm(self) {
+        #[cfg(feature = "_rt-tokio")]
+        {
+            self.inner.forget();
+        }
+
         #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
         {
             let mut this = self;
             this.inner.disarm();
-            return;
-        }
-
-        #[cfg(feature = "_rt-tokio")]
-        {
-            self.inner.forget();
-            return;
         }
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]

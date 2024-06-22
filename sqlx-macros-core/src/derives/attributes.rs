@@ -41,6 +41,7 @@ impl TypeName {
 }
 
 #[derive(Copy, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub enum RenameAll {
     LowerCase,
     SnakeCase,
@@ -165,7 +166,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                 json = true;
             }
 
-            return Ok(());
+            Ok(())
         })?;
 
         if json && flatten {
@@ -218,12 +219,6 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAt
         input
     );
 
-    assert_attribute!(
-        !attributes.no_pg_array,
-        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for enums",
-        input
-    );
-
     Ok(attributes)
 }
 
@@ -265,8 +260,8 @@ pub fn check_strong_enum_attributes(
     Ok(attributes)
 }
 
-pub fn check_struct_attributes<'a>(
-    input: &'a DeriveInput,
+pub fn check_struct_attributes(
+    input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
 ) -> syn::Result<SqlxContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;

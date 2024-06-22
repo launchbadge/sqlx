@@ -16,10 +16,10 @@ impl TransactionManager for MySqlTransactionManager {
 
     fn begin(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let depth = conn.transaction_depth;
+            let depth = conn.inner.transaction_depth;
 
             conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
-            conn.transaction_depth = depth + 1;
+            conn.inner.transaction_depth = depth + 1;
 
             Ok(())
         })
@@ -27,11 +27,11 @@ impl TransactionManager for MySqlTransactionManager {
 
     fn commit(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let depth = conn.transaction_depth;
+            let depth = conn.inner.transaction_depth;
 
             if depth > 0 {
                 conn.execute(&*commit_ansi_transaction_sql(depth)).await?;
-                conn.transaction_depth = depth - 1;
+                conn.inner.transaction_depth = depth - 1;
             }
 
             Ok(())
@@ -40,11 +40,11 @@ impl TransactionManager for MySqlTransactionManager {
 
     fn rollback(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let depth = conn.transaction_depth;
+            let depth = conn.inner.transaction_depth;
 
             if depth > 0 {
                 conn.execute(&*rollback_ansi_transaction_sql(depth)).await?;
-                conn.transaction_depth = depth - 1;
+                conn.inner.transaction_depth = depth - 1;
             }
 
             Ok(())
@@ -52,15 +52,16 @@ impl TransactionManager for MySqlTransactionManager {
     }
 
     fn start_rollback(conn: &mut MySqlConnection) {
-        let depth = conn.transaction_depth;
+        let depth = conn.inner.transaction_depth;
 
         if depth > 0 {
-            conn.stream.waiting.push_back(Waiting::Result);
-            conn.stream.sequence_id = 0;
-            conn.stream
-                .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));
+            conn.inner.stream.waiting.push_back(Waiting::Result);
+            conn.inner.stream.sequence_id = 0;
+            conn.inner
+                .stream
+                .write_packet(Query(&rollback_ansi_transaction_sql(depth)));
 
-            conn.transaction_depth = depth - 1;
+            conn.inner.transaction_depth = depth - 1;
         }
     }
 }

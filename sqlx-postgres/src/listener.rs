@@ -332,13 +332,15 @@ impl Drop for PgListener {
 impl<'c> Executor<'c> for &'c mut PgListener {
     type Database = Postgres;
 
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q, E>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<Either<PgQueryResult, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         futures_util::stream::once(async move {
             // need some basic type annotation to help the compiler a bit
@@ -349,13 +351,12 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         .boxed()
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
+    fn fetch_optional<'e, 'q, E>(self, query: E) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         async move { self.connection().await?.fetch_optional(query).await }.boxed()
     }

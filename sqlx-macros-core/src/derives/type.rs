@@ -127,10 +127,10 @@ fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let attr = check_weak_enum_attributes(input, variants)?;
-    let repr = attr.repr.unwrap();
+    let attrs = check_weak_enum_attributes(input, variants)?;
+    let repr = attrs.repr.unwrap();
     let ident = &input.ident;
-    let ts = quote!(
+    let mut ts = quote!(
         #[automatically_derived]
         impl<DB: ::sqlx::Database> ::sqlx::Type<DB> for #ident
         where
@@ -145,6 +145,16 @@ fn expand_derive_has_sql_type_weak_enum(
             }
         }
     );
+
+    if cfg!(feature = "postgres") && !attrs.no_pg_array {
+        ts.extend(quote!(
+            impl ::sqlx::postgres::PgHasArrayType for #ident  {
+                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    <#ident as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+                }
+            }
+        ));
+    }
 
     Ok(ts)
 }
@@ -184,6 +194,16 @@ fn expand_derive_has_sql_type_strong_enum(
                 }
             }
         ));
+
+        if !attributes.no_pg_array {
+            tts.extend(quote!(
+                impl ::sqlx::postgres::PgHasArrayType for #ident  {
+                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                        <#ident as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+                    }
+                }
+            ));
+        }
     }
 
     if cfg!(feature = "sqlite") {

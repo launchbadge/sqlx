@@ -51,11 +51,12 @@ mod chrono {
     }
 
     impl Encode<'_, Postgres> for PgTimeTz<NaiveTime, FixedOffset> {
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-            let _ = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf);
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+            let _: IsNull = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf)?;
 
-            IsNull::No
+            Ok(IsNull::No)
         }
 
         fn size_hint(&self) -> usize {
@@ -87,38 +88,36 @@ mod chrono {
                     Ok(PgTimeTz { time, offset })
                 }
 
-                PgValueFormat::Text => {
-                    let s = value.as_str()?;
+                PgValueFormat::Text => try_parse_timetz(value.as_str()?),
+            }
+        }
+    }
 
-                    let mut tmp = String::with_capacity(11 + s.len());
-                    tmp.push_str("2001-07-08 ");
-                    tmp.push_str(s);
+    fn try_parse_timetz(s: &str) -> Result<PgTimeTz<NaiveTime, FixedOffset>, BoxDynError> {
+        let mut tmp = String::with_capacity(11 + s.len());
+        tmp.push_str("2001-07-08 ");
+        tmp.push_str(s);
 
-                    let dt = 'out: loop {
-                        let mut err = None;
+        let mut err = None;
 
-                        for fmt in &["%Y-%m-%d %H:%M:%S%.f%#z", "%Y-%m-%d %H:%M:%S%.f"] {
-                            match DateTime::parse_from_str(&tmp, fmt) {
-                                Ok(dt) => {
-                                    break 'out dt;
-                                }
-
-                                Err(error) => {
-                                    err = Some(error);
-                                }
-                            }
-                        }
-
-                        return Err(err.unwrap().into());
-                    };
-
+        for fmt in &["%Y-%m-%d %H:%M:%S%.f%#z", "%Y-%m-%d %H:%M:%S%.f"] {
+            match DateTime::parse_from_str(&tmp, fmt) {
+                Ok(dt) => {
                     let time = dt.time();
                     let offset = *dt.offset();
 
-                    Ok(PgTimeTz { time, offset })
+                    return Ok(PgTimeTz { time, offset });
+                }
+
+                Err(error) => {
+                    err = Some(error);
                 }
             }
         }
+
+        Err(err
+            .expect("BUG: loop should have set `err` to `Some()` before exiting")
+            .into())
     }
 }
 
@@ -134,11 +133,12 @@ mod time {
     }
 
     impl Encode<'_, Postgres> for PgTimeTz<Time, UtcOffset> {
-        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-            let _ = <Time as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf);
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+            let _: IsNull = <Time as Encode<'_, Postgres>>::encode(self.time, buf)?;
+            let _: IsNull =
+                <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf)?;
 
-            IsNull::No
+            Ok(IsNull::No)
         }
 
         fn size_hint(&self) -> usize {

@@ -24,6 +24,7 @@ use std::time::Duration;
 // https://doc.rust-lang.org/stable/std/sync/atomic/index.html#portability
 static THREAD_ID: AtomicUsize = AtomicUsize::new(0);
 
+#[derive(Copy, Clone)]
 enum SqliteLoadExtensionMode {
     /// Enables only the C-API, leaving the SQL function disabled.
     Enable,
@@ -32,7 +33,7 @@ enum SqliteLoadExtensionMode {
 }
 
 impl SqliteLoadExtensionMode {
-    fn as_int(self) -> c_int {
+    fn to_int(self) -> c_int {
         match self {
             SqliteLoadExtensionMode::Enable => 1,
             SqliteLoadExtensionMode::DisableAll => 0,
@@ -101,13 +102,13 @@ impl EstablishParams {
         }
 
         if let Some(vfs) = options.vfs.as_deref() {
-            query_params.insert("vfs", &vfs);
+            query_params.insert("vfs", vfs);
         }
 
         if !query_params.is_empty() {
             filename = format!(
                 "file:{}?{}",
-                percent_encoding::percent_encode(filename.as_bytes(), &NON_ALPHANUMERIC),
+                percent_encoding::percent_encode(filename.as_bytes(), NON_ALPHANUMERIC),
                 serde_urlencoded::to_string(&query_params).unwrap()
             );
             flags |= libsqlite3_sys::SQLITE_OPEN_URI;
@@ -174,7 +175,7 @@ impl EstablishParams {
         let status = sqlite3_db_config(
             db,
             SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION,
-            mode.as_int(),
+            mode.to_int(),
             null::<i32>(),
         );
 
@@ -294,6 +295,7 @@ impl EstablishParams {
             transaction_depth: 0,
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,
+            update_hook_callback: None,
         })
     }
 }

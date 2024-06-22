@@ -85,8 +85,8 @@ impl Metadata {
 
             let cargo = env("CARGO").expect("`CARGO` must be set");
 
-            let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1", "--no-deps"])
+            let output = Command::new(cargo)
+                .args(["metadata", "--format-version=1", "--no-deps"])
                 .current_dir(&self.manifest_dir)
                 .env_remove("__CARGO_FIX_PLZ")
                 .output()
@@ -190,7 +190,7 @@ pub fn expand_input<'a>(
     };
 
     for driver in drivers {
-        if data_source.matches_driver(&driver) {
+        if data_source.matches_driver(driver) {
             return (driver.expand)(input, data_source);
         }
     }
@@ -222,7 +222,7 @@ where
     let (query_data, offline): (QueryData<DB>, bool) = match data_source {
         QueryDataSource::Cached(dyn_data) => (QueryData::from_dyn_data(dyn_data)?, true),
         QueryDataSource::Live { database_url, .. } => {
-            let describe = DB::describe_blocking(&input.sql, &database_url)?;
+            let describe = DB::describe_blocking(&input.sql, database_url)?;
             (QueryData::from_describe(&input.sql, describe), false)
         }
     };
@@ -276,7 +276,7 @@ where
         let sql = &input.sql;
 
         quote! {
-            ::sqlx::query_with::<#db_path, _>(#sql, #query_args)
+            ::sqlx::__query_with_result::<#db_path, _>(#sql, #query_args)
         }
     } else {
         match input.record_type {
@@ -295,13 +295,9 @@ where
                     }
                 }
 
-                let record_fields = columns.iter().map(
-                    |&output::RustColumn {
-                         ref ident,
-                         ref type_,
-                         ..
-                     }| quote!(#ident: #type_,),
-                );
+                let record_fields = columns
+                    .iter()
+                    .map(|output::RustColumn { ident, type_, .. }| quote!(#ident: #type_,));
 
                 let mut record_tokens = quote! {
                     #[derive(Debug)]

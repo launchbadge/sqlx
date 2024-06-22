@@ -30,11 +30,11 @@ impl PgHasArrayType for BitVec {
 }
 
 impl Encode<'_, Postgres> for BitVec {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.extend(&(self.len() as i32).to_be_bytes());
         buf.extend(self.to_bytes());
 
-        IsNull::No
+        Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
@@ -66,7 +66,7 @@ impl Decode<'_, Postgres> for BitVec {
                     ))?;
                 }
 
-                let mut bitvec = BitVec::from_bytes(&bytes);
+                let mut bitvec = BitVec::from_bytes(bytes);
 
                 // Chop off zeroes from the back. We get bits in bytes, so if
                 // our bitvec is not in full bytes, extra zeroes are added to
