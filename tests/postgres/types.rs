@@ -442,6 +442,75 @@ mod json {
     }
 }
 
+mod full_text_search {
+    use super::*;
+    use sqlx::postgres::types::TsVector;
+    use sqlx::postgres::PgRow;
+    use sqlx::{Executor, Row};
+    use sqlx_core::statement::Statement;
+    use sqlx_test::new;
+
+    #[sqlx_macros::test]
+    async fn test_ts_vector() -> anyhow::Result<()> {
+        let mut conn = new::<Postgres>().await?;
+
+        // unprepared, text API
+        let row: PgRow = conn
+            .fetch_one("SELECT to_tsvector('english', 'A quick brown fox')")
+            .await?;
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'brown':3 'fox':4 'quick':2");
+
+        // prepared, binary API
+        let row: PgRow = conn
+            .fetch_one(sqlx::query("SELECT to_tsvector('A quick brown fox')"))
+            .await?;
+
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'brown':3 'fox':4 'quick':2");
+
+        // with weights
+        let row = conn
+            .fetch_one("SELECT 'text:1A,2B,3C,4,5D'::tsvector")
+            .await?;
+
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'text':1A,2B,3C,4,5");
+
+        // with no positions
+        let row = conn.fetch_one("SELECT 'text'::tsvector").await?;
+        let value: TsVector = row.try_get(0)?;
+
+        assert_eq!(value.to_string(), "'text'");
+
+        let row = conn.fetch_one(r#"SELECT $$'    A'$$::tsvector;"#).await?;
+        let value = row.get::<TsVector, _>(0).to_string();
+        assert_eq!(value, "'    A'");
+
+        let row = conn
+            .fetch_one(r#"SELECT $$'Joe''s' cat$$::tsvector;"#)
+            .await?;
+        let value = row.get::<TsVector, _>(0).to_string();
+        assert_eq!(value, "'Joe''s' 'cat'");
+
+        let sql = r#"SELECT $$'Joe''s' cat$$::tsvector;"#;
+        let row = conn.fetch_one(sql).await.unwrap();
+        let cell = row.get::<TsVector, _>(0);
+        assert_eq!(cell.words()[0].word(), "Joe's");
+
+        let sql = r#"SELECT $$'Joe''s' cat$$::tsvector;"#;
+        let statement = conn.prepare(sql).await.unwrap();
+        let row = statement.query().fetch_one(&mut conn).await.unwrap();
+        let cell = row.get::<TsVector, _>(0);
+        assert_eq!(cell.to_string(), "'Joe''s' 'cat'");
+
+        Ok(())
+    }
+}
+
 #[cfg(feature = "bigdecimal")]
 test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
 

@@ -100,6 +100,8 @@ pub enum PgType {
     RecordArray,
     Uuid,
     UuidArray,
+    TsVector,
+    TsVectorArray,
     Jsonb,
     JsonbArray,
     Int4Range,
@@ -333,6 +335,8 @@ impl PgType {
             2287 => PgType::RecordArray,
             2950 => PgType::Uuid,
             2951 => PgType::UuidArray,
+            3614 => PgType::TsVector,
+            3643 => PgType::TsVectorArray,
             3802 => PgType::Jsonb,
             3807 => PgType::JsonbArray,
             3904 => PgType::Int4Range,
@@ -441,6 +445,8 @@ impl PgType {
             PgType::RecordArray => Oid(2287),
             PgType::Uuid => Oid(2950),
             PgType::UuidArray => Oid(2951),
+            PgType::TsVector => Oid(3614),
+            PgType::TsVectorArray => Oid(3643),
             PgType::Jsonb => Oid(3802),
             PgType::JsonbArray => Oid(3807),
             PgType::Int4Range => Oid(3904),
@@ -542,6 +548,8 @@ impl PgType {
             PgType::RecordArray => "RECORD[]",
             PgType::Uuid => "UUID",
             PgType::UuidArray => "UUID[]",
+            PgType::TsVector => "TSVECTOR",
+            PgType::TsVectorArray => "TSVECTOR[]",
             PgType::Jsonb => "JSONB",
             PgType::JsonbArray => "JSONB[]",
             PgType::Int4Range => "INT4RANGE",
@@ -642,6 +650,8 @@ impl PgType {
             PgType::RecordArray => "_record",
             PgType::Uuid => "uuid",
             PgType::UuidArray => "_uuid",
+            PgType::TsVector => "tsvector",
+            PgType::TsVectorArray => "_tsvector",
             PgType::Jsonb => "jsonb",
             PgType::JsonbArray => "_jsonb",
             PgType::Int4Range => "int4range",
@@ -742,6 +752,8 @@ impl PgType {
             PgType::RecordArray => &PgTypeKind::Array(PgTypeInfo(PgType::Record)),
             PgType::Uuid => &PgTypeKind::Simple,
             PgType::UuidArray => &PgTypeKind::Array(PgTypeInfo(PgType::Uuid)),
+            PgType::TsVector => &PgTypeKind::Simple,
+            PgType::TsVectorArray => &PgTypeKind::Array(PgTypeInfo(PgType::TsVector)),
             PgType::Jsonb => &PgTypeKind::Simple,
             PgType::JsonbArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonb)),
             PgType::Int4Range => &PgTypeKind::Range(PgTypeInfo::INT4),
@@ -855,6 +867,8 @@ impl PgType {
             PgType::RecordArray => Some(Cow::Owned(PgTypeInfo(PgType::Record))),
             PgType::Uuid => None,
             PgType::UuidArray => Some(Cow::Owned(PgTypeInfo(PgType::Uuid))),
+            PgType::TsVector => None,
+            PgType::TsVectorArray => Some(Cow::Owned(PgTypeInfo(PgType::TsVector))),
             PgType::Jsonb => None,
             PgType::JsonbArray => Some(Cow::Owned(PgTypeInfo(PgType::Jsonb))),
             PgType::Int4Range => None,
@@ -927,6 +941,10 @@ impl PgTypeInfo {
     // uuid
     pub(crate) const UUID: Self = Self(PgType::Uuid);
     pub(crate) const UUID_ARRAY: Self = Self(PgType::UuidArray);
+
+    // tsvector
+    pub(crate) const TS_VECTOR: Self = Self(PgType::TsVector);
+    pub(crate) const TS_VECTOR_ARRAY: Self = Self(PgType::TsVectorArray);
 
     // record
     pub(crate) const RECORD: Self = Self(PgType::Record);
