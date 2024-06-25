@@ -10,7 +10,8 @@
 //! | Database | Version | Driver |
 //! | - | - | - |
 //! | [MariaDB] | 10.1+ | [`mysql`] |
-//! | [Microsoft SQL Server] | 2019 | [`mssql`] |
+// | [Microsoft SQL Server] | 2019 | [`mssql`] |
+// MSSQL is pending a full rewrite
 //! | [MySQL] | 5.6, 5.7, 8.0 | [`mysql`] |
 //! | [PostgreSQL] | 9.5+ | [`postgres`] |
 //! | [SQLite] | 3.20.1+ | [`sqlite`] |

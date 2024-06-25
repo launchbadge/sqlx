@@ -11,7 +11,7 @@
 //! SQLx provides a canonical connection pool implementation intended to satisfy the majority
 //! of use cases.
 //!
-//! See [Pool][crate::pool::Pool] for details.
+//! See [Pool] for details.
 //!
 //! Type aliases are provided for each database to make it easier to sprinkle `Pool` through
 //! your codebase:
@@ -110,7 +110,7 @@ pub use self::maybe::MaybePoolConnection;
 /// when at this limit and all connections are checked out, the task will be made to wait until
 /// a connection becomes available.
 ///
-/// You can configure the connection limit, and other parameters, using [PoolOptions][crate::pool::PoolOptions].
+/// You can configure the connection limit, and other parameters, using [PoolOptions].
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
@@ -310,7 +310,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// The pool will establish connections only as needed.
     ///
-    /// Refer to the relevant [`ConnectOptions`] impl for your database for the expected URL format:
+    /// Refer to the relevant [`ConnectOptions`][crate::connection::ConnectOptions] impl for your database for the expected URL format:
     ///
     /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
     /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]

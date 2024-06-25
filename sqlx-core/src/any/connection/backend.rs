@@ -27,7 +27,7 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
-    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    /// Returns a [`Transaction`][crate::transaction::Transaction] for controlling and tracking the new transaction.
     fn begin(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
