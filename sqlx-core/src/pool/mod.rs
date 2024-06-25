@@ -506,7 +506,7 @@ impl<DB: Database> Pool<DB> {
     /// As of 0.6.0, this has been fixed to use a separate atomic counter and so should be fine to
     /// call even at high load.
     ///
-    /// This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and
+    /// This previously called `crossbeam::queue::ArrayQueue::len()` which waits for the head and
     /// tail pointers to be in a consistent state, which may never happen at high levels of churn.
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()

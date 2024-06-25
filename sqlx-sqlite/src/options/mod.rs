@@ -69,7 +69,7 @@ pub struct SqliteConnectOptions {
     /// Extensions are specified as a pair of \<Extension Name : Optional Entry Point>, the majority
     /// of SQLite extensions will use the default entry points specified in the docs, these should
     /// be added to the map with a `None` value.
-    /// <https://www.sqlite.org/loadext.html#loading_an_extension/>
+    /// <https://www.sqlite.org/loadext.html#loading_an_extension>
     pub(crate) extensions: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
     pub(crate) command_channel_size: usize,
