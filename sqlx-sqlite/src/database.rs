@@ -32,6 +32,7 @@ impl Database for Sqlite {
     type Statement<'q> = SqliteStatement<'q>;
 
     const NAME: &'static str = "SQLite";
+    const NAME_LOWERCASE: &'static str = "sqlite";
 
     const URL_SCHEMES: &'static [&'static str] = &["sqlite"];
 }

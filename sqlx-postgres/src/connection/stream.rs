@@ -6,13 +6,14 @@ use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
 use sqlx_core::bytes::{Buf, Bytes};
+use sqlx_core::database::Database;
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
 use crate::io::{Decode, Encode};
 use crate::message::{Message, MessageFormat, Notice, Notification, ParameterStatus};
 use crate::net::{self, BufferedSocket, Socket};
-use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
+use crate::{PgConnectOptions, PgDatabaseError, PgSeverity, Postgres};
 
 // the stream is a separate type from the connection to uphold the invariant where an instantiated
 // [PgConnection] is a **valid** connection to postgres
@@ -162,6 +163,7 @@ impl PgStream {
                         sqlx_core::private_tracing_dynamic_event!(
                             target: "sqlx::postgres::notice",
                             tracing_level,
+                            db.system = Postgres::NAME_LOWERCASE,
                             message = notice.message()
                         );
                     }
