@@ -33,6 +33,7 @@ impl Database for Postgres {
     type Statement<'q> = PgStatement<'q>;
 
     const NAME: &'static str = "PostgreSQL";
+    const NAME_LOWERCASE: &'static str = "postgresql";
 
     const URL_SCHEMES: &'static [&'static str] = &["postgres", "postgresql"];
 }
