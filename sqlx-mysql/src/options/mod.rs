@@ -349,7 +349,7 @@ impl MySqlConnectOptions {
     /// By default, this is `true` (`NO_ENGINE_SUBSTITUTION` is passed, forbidding engine
     /// substitution).
     ///
-    /// https://mariadb.com/kb/en/sql-mode/
+    /// <https://mariadb.com/kb/en/sql-mode/>
     pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
         self.no_engine_subsitution = flag_val;
         self

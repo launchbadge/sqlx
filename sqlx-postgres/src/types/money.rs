@@ -32,7 +32,7 @@ use std::{
 /// If you're not sure what locale your database is set to or how many decimal digits it specifies,
 /// you can execute `SHOW lc_monetary;` to get the locale name, and then look it up in this list
 /// (you can ignore the `.utf8` prefix):
-/// https://lh.2xlibre.net/values/frac_digits/
+/// <https://lh.2xlibre.net/values/frac_digits/>
 ///
 /// If that link is dead and you're on a POSIX-compliant system (Unix, FreeBSD) you can also execute:
 ///
@@ -45,7 +45,7 @@ use std::{
 ///
 /// Note that if `frac_digits` for the locale is outside the range `[0, 10]`, Postgres assumes
 /// it's a sentinel value and defaults to 2:
-/// https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/cash.c#L114-L123
+/// <https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/cash.c#L114-L123>
 ///
 /// [`MONEY`]: https://www.postgresql.org/docs/current/datatype-money.html
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
@@ -68,7 +68,7 @@ impl PgMoney {
     ///
     /// See the type-level docs for an explanation of `locale_frac_digits`.
     ///
-    /// [`BigDecimal`]: crate::types::BigDecimal
+    /// [`BigDecimal`]: bigdecimal::BigDecimal
     #[cfg(feature = "bigdecimal")]
     pub fn to_bigdecimal(self, locale_frac_digits: i64) -> bigdecimal::BigDecimal {
         let digits = num_bigint::BigInt::from(self.0);
@@ -80,7 +80,7 @@ impl PgMoney {
     ///
     /// See the type-level docs for an explanation of `locale_frac_digits`.
     ///
-    /// [`Decimal`]: crate::types::Decimal
+    /// [`Decimal`]: rust_decimal::Decimal
     #[cfg(feature = "rust_decimal")]
     pub fn to_decimal(self, locale_frac_digits: u32) -> rust_decimal::Decimal {
         rust_decimal::Decimal::new(self.0, locale_frac_digits)
@@ -93,7 +93,7 @@ impl PgMoney {
     /// Note that `Decimal` has 96 bits of precision, but `PgMoney` only has 63 plus the sign bit.
     /// If the value is larger than 63 bits it will be truncated.
     ///
-    /// [`Decimal`]: crate::types::Decimal
+    /// [`Decimal`]: rust_decimal::Decimal
     #[cfg(feature = "rust_decimal")]
     pub fn from_decimal(mut decimal: rust_decimal::Decimal, locale_frac_digits: u32) -> Self {
         // this is all we need to convert to our expected locale's `frac_digits`
@@ -116,7 +116,7 @@ impl PgMoney {
         Self(if is_negative { -value } else { value })
     }
 
-    /// Convert a [`BigDecimal`](crate::types::BigDecimal) value into money using the correct precision
+    /// Convert a [`BigDecimal`](bigdecimal::BigDecimal) value into money using the correct precision
     /// defined in the PostgreSQL settings. The default precision is two.
     #[cfg(feature = "bigdecimal")]
     pub fn from_bigdecimal(

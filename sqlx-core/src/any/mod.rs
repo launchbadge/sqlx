@@ -1,7 +1,7 @@
 //! **SEE DOCUMENTATION BEFORE USE**. Generic database driver with the specific driver selected at runtime.
 //!
 //! The underlying database drivers are chosen at runtime from the list set via
-//! [`install_drivers`][self::driver::install_drivers). Any use of `AnyConnection` or `AnyPool`
+//! [`install_drivers`][self::driver::install_drivers]. Any use of `AnyConnection` or `AnyPool`
 //! without this will panic.
 use crate::executor::Executor;
 

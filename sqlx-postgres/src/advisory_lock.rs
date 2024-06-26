@@ -46,12 +46,12 @@ pub struct PgAdvisoryLock {
 /// 64-bit integer, and one keyed by a pair of two 32-bit integers. The Postgres docs
 /// specify that these key spaces "do not overlap":
 ///
-/// https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
+/// <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS>
 ///
 /// The documentation for the `pg_locks` system view explains further how advisory locks
 /// are treated in Postgres:
 ///
-/// https://www.postgresql.org/docs/current/view-pg-locks.html
+/// <https://www.postgresql.org/docs/current/view-pg-locks.html>
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PgAdvisoryLockKey {

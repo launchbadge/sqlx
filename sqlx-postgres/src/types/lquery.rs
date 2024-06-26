@@ -30,13 +30,13 @@ pub enum PgLQueryParseError {
 
 /// Container for a Label Tree Query (`lquery`) in Postgres.
 ///
-/// See https://www.postgresql.org/docs/current/ltree.html
+/// See <https://www.postgresql.org/docs/current/ltree.html>
 ///
 /// ### Note: Requires Postgres 13+
 ///
 /// This integration requires that the `lquery` type support the binary format in the Postgres
 /// wire protocol, which only became available in Postgres 13.
-/// ([Postgres 13.0 Release Notes, Additional Modules][https://www.postgresql.org/docs/13/release-13.html#id-1.11.6.11.5.14])
+/// ([Postgres 13.0 Release Notes, Additional Modules](https://www.postgresql.org/docs/13/release-13.html#id-1.11.6.11.5.14))
 ///
 /// Ideally, SQLx's Postgres driver should support falling back to text format for types
 /// which don't have `typsend` and `typrecv` entries in `pg_type`, but that work still needs

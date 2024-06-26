@@ -24,7 +24,7 @@ impl PgConnection {
     /// returned.
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
-    /// https://www.postgresql.org/docs/current/sql-copy.html
+    /// <https://www.postgresql.org/docs/current/sql-copy.html>
     ///
     /// ### Note
     /// [PgCopyIn::finish] or [PgCopyIn::abort] *must* be called when finished or the connection
@@ -51,7 +51,7 @@ impl PgConnection {
     /// need to read and discard all the remaining queued data, which could take some time.
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
-    /// https://www.postgresql.org/docs/current/sql-copy.html
+    /// <https://www.postgresql.org/docs/current/sql-copy.html>
     #[allow(clippy::needless_lifetimes)]
     pub async fn copy_out_raw<'c>(
         &'c mut self,
@@ -61,7 +61,7 @@ impl PgConnection {
     }
 }
 
-/// Implements methods for directly executing `COPY FROM/TO STDOUT` on a [`PgPool`].
+/// Implements methods for directly executing `COPY FROM/TO STDOUT` on a [`PgPool`][crate::PgPool].
 ///
 /// This is a replacement for the inherent methods on `PgPool` which could not exist
 /// once the Postgres driver was moved out into its own crate.
@@ -76,7 +76,7 @@ pub trait PgPoolCopyExt {
     /// returned.
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
-    /// https://www.postgresql.org/docs/current/sql-copy.html
+    /// <https://www.postgresql.org/docs/current/sql-copy.html>
     ///
     /// ### Note
     /// [PgCopyIn::finish] or [PgCopyIn::abort] *must* be called when finished or the connection
@@ -104,7 +104,7 @@ pub trait PgPoolCopyExt {
     /// need to read and discard all the remaining queued data, which could take some time.
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
-    /// https://www.postgresql.org/docs/current/sql-copy.html
+    /// <https://www.postgresql.org/docs/current/sql-copy.html>
     fn copy_out_raw<'a>(
         &'a self,
         statement: &'a str,
