@@ -39,6 +39,23 @@ macro_rules! private_tracing_dynamic_event {
 }
 
 #[doc(hidden)]
+#[macro_export]
+macro_rules! private_tracing_dynamic_span {
+    (target: $target:expr, $level:expr, $($args:tt)*) => {{
+        use ::tracing::Level;
+
+        match $level {
+            Level::ERROR => ::tracing::span!(target: $target, Level::ERROR, $($args)*),
+            Level::WARN => ::tracing::span!(target: $target, Level::WARN, $($args)*),
+            Level::INFO => ::tracing::span!(target: $target, Level::INFO, $($args)*),
+            Level::DEBUG => ::tracing::span!(target: $target, Level::DEBUG, $($args)*),
+            Level::TRACE => ::tracing::span!(target: $target, Level::TRACE, $($args)*),
+        }
+    }};
+}
+
+
+#[doc(hidden)]
 pub fn private_level_filter_to_levels(
     filter: log::LevelFilter,
 ) -> Option<(tracing::Level, log::Level)> {
@@ -68,16 +85,33 @@ pub struct QueryLogger<'q> {
     rows_affected: u64,
     start: Instant,
     settings: LogSettings,
+    pub span: tracing::Span,
 }
 
 impl<'q> QueryLogger<'q> {
-    pub fn new(sql: &'q str, settings: LogSettings) -> Self {
+    pub fn new(sql: &'q str, db_system: &'q str, settings: LogSettings) -> Self {
+        use tracing::field::Empty;
+
+        let level = private_level_filter_to_trace_level(settings.tracing_span_level()).unwrap_or(tracing::Level::TRACE);
+
+        let span = private_tracing_dynamic_span!(
+            target: "sqlx::query",
+            level, 
+            "sqlx::query",
+            summary = Empty,
+            db.statement = Empty,
+            db.system = db_system,
+            rows_affected = Empty,
+            rows_returned = Empty,
+        );
+
         Self {
             sql,
             rows_returned: 0,
             rows_affected: 0,
             start: Instant::now(),
             settings,
+            span,
         }
     }
 
@@ -100,6 +134,7 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
+        // only create an event if the level filter is set
         if let Some((tracing_level, log_level)) = private_level_filter_to_levels(lvl) {
             // The enabled level could be set from either tracing world or log world, so check both
             // to see if logging should be enabled for our level
@@ -122,37 +157,35 @@ impl<'q> QueryLogger<'q> {
                     String::new()
                 };
 
-                if was_slow {
+                self.span.record("summary", summary);
+                self.span.record("db.statement", sql);
+                self.span.record("rows_affected", self.rows_affected);
+                self.span.record("rows_returned", self.rows_returned);
+
+                let _e = self.span.enter();
+                if was_slow { 
                     private_tracing_dynamic_event!(
                         target: "sqlx::query",
                         tracing_level,
-                        summary,
-                        db.statement = sql,
-                        rows_affected = self.rows_affected,
-                        rows_returned = self.rows_returned,
+                        // When logging to JSON, one can trigger alerts from the presence of this field.
+                        slow_threshold=?self.settings.slow_statements_duration,
                         // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
                         // Search friendly - numeric
                         elapsed_secs = elapsed.as_secs_f64(),
-                        // When logging to JSON, one can trigger alerts from the presence of this field.
-                        slow_threshold=?self.settings.slow_statements_duration,
                         // Make sure to use "slow" in the message as that's likely
                         // what people will grep for.
                         "slow statement: execution time exceeded alert threshold"
-                    );
+                    )
                 } else {
                     private_tracing_dynamic_event!(
                         target: "sqlx::query",
                         tracing_level,
-                        summary,
-                        db.statement = sql,
-                        rows_affected = self.rows_affected,
-                        rows_returned = self.rows_returned,
                         // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
                         // Search friendly - numeric
                         elapsed_secs = elapsed.as_secs_f64(),
-                    );
+                    )
                 }
             }
         }

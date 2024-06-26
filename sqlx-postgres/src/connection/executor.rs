@@ -17,7 +17,9 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use sqlx_core::arguments::Arguments;
+use sqlx_core::database::Database;
 use sqlx_core::Either;
+use tracing_futures::Instrument;
 use std::{borrow::Cow, sync::Arc};
 
 async fn prepare(
@@ -195,7 +197,8 @@ impl PgConnection {
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
-        let mut logger = QueryLogger::new(query, self.log_settings.clone());
+        let mut logger = QueryLogger::new(query, Postgres::NAME_LOWERCASE, self.log_settings.clone());
+        let span_handle = logger.span.clone();
 
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
@@ -362,7 +365,7 @@ impl PgConnection {
             }
 
             Ok(())
-        })
+        }.instrument(span_handle))
     }
 }
 

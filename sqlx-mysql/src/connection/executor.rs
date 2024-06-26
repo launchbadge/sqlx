@@ -22,6 +22,8 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
+use sqlx_core::database::Database;
+use tracing_futures::Instrument;
 use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
@@ -106,7 +108,8 @@ impl MySqlConnection {
         persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error>
     {
-        let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
+        let mut logger = QueryLogger::new(sql, MySql::NAME_LOWERCASE, self.inner.log_settings.clone());
+        let span_handle = logger.span.clone();
 
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
@@ -240,7 +243,7 @@ impl MySqlConnection {
                     r#yield!(v);
                 }
             }
-        }))
+        }).instrument(span_handle))
     }
 }
 

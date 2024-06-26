@@ -7,10 +7,12 @@
 )]
 
 use crate::connection::intmap::IntMap;
+use crate::Sqlite;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use sqlx_core::database::Database;
 pub(crate) use sqlx_core::logger::*;
 
 #[derive(Debug)]
@@ -429,6 +431,7 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
         sqlx_core::private_tracing_dynamic_event!(
             target: "sqlx::explain",
             tracing::Level::TRACE,
+            db.system = Sqlite::NAME_LOWERCASE,
             "{}; program:\n{}\n\n{:?}", summary, self, sql
         );
     }

@@ -105,6 +105,7 @@ pub trait Database: 'static + Sized + Send + Debug {
 
     /// The display name for this database driver.
     const NAME: &'static str;
+    const NAME_LOWERCASE: &'static str;
 
     /// The schemes for database URLs that should match this driver.
     const URL_SCHEMES: &'static [&'static str];

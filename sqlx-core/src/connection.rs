@@ -181,6 +181,10 @@ impl LogSettings {
         self.slow_statements_level = level;
         self.slow_statements_duration = duration;
     }
+
+    pub fn tracing_span_level(&self) -> LevelFilter {
+        std::cmp::max(self.slow_statements_level, self.statements_level)
+    }
 }
 
 pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug + Clone {

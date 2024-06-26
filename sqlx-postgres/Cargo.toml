@@ -31,6 +31,7 @@ futures-channel = { version = "0.3.19", default-features = false, features = ["s
 futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
+tracing-futures.workspace = true
 
 # Cryptographic Primitives
 crc = "3.0.0"
