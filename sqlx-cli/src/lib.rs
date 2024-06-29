@@ -90,10 +90,11 @@ pub async fn run(opt: Opt) -> Result<()> {
 
         Command::Prepare {
             check,
+            all,
             workspace,
             connect_opts,
             args,
-        } => prepare::run(check, workspace, connect_opts, args).await?,
+        } => prepare::run(check, all, workspace, connect_opts, args).await?,
 
         #[cfg(feature = "completions")]
         Command::Completions { shell } => completions::run(shell),
