@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -12,6 +13,8 @@ use crate::error::Error;
 use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
 use std::future::Future;
+use futures_core::future::BoxFuture;
+use crate::transaction::Transaction;
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -158,6 +161,10 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
     ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c, DB>, Error>>
     {
         crate::transaction::Transaction::begin(&mut **self)
+    }
+
+    fn begin_custom(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
+        crate::transaction::Transaction::begin_custom(&mut **self, sql)
     }
 }
 

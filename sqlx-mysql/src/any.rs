@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::protocol::text::ColumnType;
 use crate::{
     MySql, MySqlColumn, MySqlConnectOptions, MySqlConnection, MySqlQueryResult, MySqlRow,
@@ -38,6 +39,10 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
         MySqlTransactionManager::begin(self)
+    }
+
+    fn begin_custom(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        MySqlTransactionManager::begin_custom(self, sql)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {

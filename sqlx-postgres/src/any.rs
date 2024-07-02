@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::{
     Either, PgColumn, PgConnectOptions, PgConnection, PgQueryResult, PgRow, PgTransactionManager,
     PgTypeInfo, Postgres,
@@ -37,6 +38,10 @@ impl AnyConnectionBackend for PgConnection {
 
     fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
         PgTransactionManager::begin(self)
+    }
+
+    fn begin_custom(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        PgTransactionManager::begin_custom(self, sql)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {

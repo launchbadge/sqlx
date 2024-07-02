@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
 use either::Either;
@@ -29,6 +30,11 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
     fn begin(&mut self) -> BoxFuture<'_, crate::Result<()>>;
+
+    /// Begin a new transaction or establish a savepoint within the active transaction.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    fn begin_custom(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 

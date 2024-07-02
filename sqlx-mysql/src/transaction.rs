@@ -1,5 +1,6 @@
+use std::borrow::Cow;
 use futures_core::future::BoxFuture;
-
+use sqlx_core::database::Database;
 use crate::connection::Waiting;
 use crate::error::Error;
 use crate::executor::Executor;
@@ -19,6 +20,17 @@ impl TransactionManager for MySqlTransactionManager {
             let depth = conn.transaction_depth;
 
             conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
+            conn.transaction_depth = depth + 1;
+
+            Ok(())
+        })
+    }
+
+    fn begin_custom<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+        Box::pin(async move {
+            let depth = conn.transaction_depth;
+
+            conn.execute(&*sql).await?;
             conn.transaction_depth = depth + 1;
 
             Ok(())

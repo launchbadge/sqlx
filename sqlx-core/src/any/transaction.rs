@@ -1,6 +1,8 @@
+use std::borrow::Cow;
 use futures_util::future::BoxFuture;
 
 use crate::any::{Any, AnyConnection};
+use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::TransactionManager;
 
@@ -12,6 +14,11 @@ impl TransactionManager for AnyTransactionManager {
     fn begin(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
         conn.backend.begin()
     }
+
+    fn begin_custom<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+        conn.backend.begin_custom(sql)
+    }
+
 
     fn commit(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
         conn.backend.commit()
