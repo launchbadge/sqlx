@@ -25,6 +25,18 @@ impl MySqlTypeInfo {
         }
     }
 
+    pub fn column_type(&self) -> ColumnType {
+        self.r#type
+    }
+
+    pub fn column_flags(&self) -> ColumnFlags {
+        self.flags
+    }
+
+    pub fn max_size(&self) -> Option<u32> {
+        self.max_size
+    }
+
     #[doc(hidden)]
     pub const fn __enum() -> Self {
         Self {
