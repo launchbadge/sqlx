@@ -54,4 +54,4 @@ CREATE TABLE test_citext (
 
 CREATE SCHEMA IF NOT EXISTS foo;
 
-CREATE ENUM foo."Foo" ('Bar', 'Baz');
+CREATE TYPE foo."Foo" as ENUM ('Bar', 'Baz');
