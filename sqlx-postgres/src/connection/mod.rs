@@ -55,6 +55,7 @@ pub struct PgConnection {
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<Oid, PgTypeInfo>,
     cache_type_oid: HashMap<UStr, Oid>,
+    cache_elem_type_to_array: HashMap<Oid, Oid>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,

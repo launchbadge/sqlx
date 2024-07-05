@@ -210,8 +210,10 @@ pub trait Type<DB: Database> {
     ///
     /// When binding arguments with `query!` or `query_as!`, this method is consulted to determine
     /// if the Rust type is acceptable.
+    ///
+    /// Defaults to checking [`TypeInfo::type_compatible()`].
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        *ty == Self::type_info()
+        Self::type_info().type_compatible(ty)
     }
 }
 
