@@ -5,7 +5,7 @@ use crate::from_row::FromRow;
 use crate::logger::{BranchParent, BranchResult, DebugDiff};
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
-use sqlx_core::HashMap;
+use sqlx_core::{hash_map, HashMap};
 use std::fmt::Debug;
 use std::str::from_utf8;
 
@@ -535,13 +535,13 @@ impl BranchList {
     ) {
         logger.add_branch(&state, &state.branch_parent.unwrap());
         match self.visited_branch_state.entry(state.mem) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
+            hash_map::Entry::Vacant(entry) => {
                 //this state is not identical to another state, so it will need to be processed
                 state.mem = entry.key().clone(); //replace state.mem since .entry() moved it
                 entry.insert(state.get_reference());
                 self.states.push(state);
             }
-            std::collections::hash_map::Entry::Occupied(entry) => {
+            hash_map::Entry::Occupied(entry) => {
                 //already saw a state identical to this one, so no point in processing it
                 state.mem = entry.key().clone(); //replace state.mem since .entry() moved it
                 logger.add_result(state, BranchResult::Dedup(*entry.get()));

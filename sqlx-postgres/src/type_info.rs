@@ -11,6 +11,34 @@ use crate::types::Oid;
 pub(crate) use sqlx_core::type_info::TypeInfo;
 
 /// Type information for a PostgreSQL type.
+///
+/// ### Note: Implementation of `==` ([`PartialEq::eq()`])
+/// Because `==` on [`TypeInfo`]s has been used throughout the SQLx API as a synonym for type compatibility,
+/// e.g. in the default impl of [`Type::compatible()`][sqlx_core::types::Type::compatible],
+/// some concessions have been made in the implementation.
+///
+/// When comparing two `PgTypeInfo`s using the `==` operator ([`PartialEq::eq()`]),
+/// if one was constructed with [`Self::with_oid()`] and the other with [`Self::with_name()`] or
+/// [`Self::array_of()`], `==` will return `true`:
+///
+/// ```
+/// # use sqlx::postgres::{types::Oid, PgTypeInfo};
+/// // Potentially surprising result, this assert will pass:
+/// assert_eq!(PgTypeInfo::with_oid(Oid(1)), PgTypeInfo::with_name("definitely_not_real"));
+/// ```
+///
+/// Since it is not possible in this case to prove the types are _not_ compatible (because
+/// both `PgTypeInfo`s need to be resolved by an active connection to know for sure)
+/// and type compatibility is mainly done as a sanity check anyway,
+/// it was deemed acceptable to fudge equality in this very specific case.
+///
+/// This also applies when querying with the text protocol (not using prepared statements,
+/// e.g. [`sqlx::raw_sql()`][sqlx_core::raw_sql::raw_sql]), as the connection will be unable
+/// to look up the type info like it normally does when preparing a statement: it won't know
+/// what the OIDs of the output columns will be until it's in the middle of reading the result,
+/// and by that time it's too late.
+///
+/// To compare types for exact equality, use [`Self::type_eq()`] instead.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgTypeInfo(pub(crate) PgType);
@@ -132,6 +160,8 @@ pub enum PgType {
     // NOTE: Do we want to bring back type declaration by ID? It's notoriously fragile but
     //       someone may have a user for it
     DeclareWithOid(Oid),
+
+    DeclareArrayOf(Arc<PgArrayOf>),
 }
 
 #[derive(Debug, Clone)]
@@ -153,6 +183,13 @@ pub enum PgTypeKind {
     Array(PgTypeInfo),
     Enum(Arc<[String]>),
     Range(PgTypeInfo),
+}
+
+#[derive(Debug)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+pub struct PgArrayOf {
+    pub(crate) elem_name: UStr,
+    pub(crate) name: Box<str>,
 }
 
 impl PgTypeInfo {
@@ -233,17 +270,78 @@ impl PgTypeInfo {
     ///
     /// The OID for the type will be fetched from Postgres on use of
     /// a value of this type. The fetched OID will be cached per-connection.
+    ///
+    /// ### Note: Type Names Prefixed with `_`
+    /// In `pg_catalog.pg_type`, Postgres prefixes a type name with `_` to denote an array of that
+    /// type, e.g. `int4[]` actually exists in `pg_type` as `_int4`.
+    ///
+    /// Previously, it was necessary in manual [`PgHasArrayType`][crate::PgHasArrayType] impls
+    /// to return [`PgTypeInfo::with_name()`] with the type name prefixed with `_` to denote
+    /// an array type, but this would not work with schema-qualified names.
+    ///
+    /// As of 0.8, [`PgTypeInfo::array_of()`] is used to declare an array type,
+    /// and the Postgres driver is now able to properly resolve arrays of custom types,
+    /// even in other schemas, which was not previously supported.
+    ///
+    /// It is highly recommended to migrate existing usages to [`PgTypeInfo::array_of()`] where
+    /// applicable.
+    ///
+    /// However, to maintain compatibility, the driver now infers any type name prefixed with `_`
+    /// to be an array of that type. This may introduce some breakages for types which use
+    /// a `_` prefix but which are not arrays.
+    ///
+    /// As a workaround, type names with `_` as a prefix but which are not arrays should be wrapped
+    /// in quotes, e.g.:
+    /// ```
+    /// use sqlx::postgres::PgTypeInfo;
+    /// use sqlx::Type;
+    ///
+    /// /// `CREATE TYPE "_foo" AS ENUM ('Bar', 'Baz');`
+    /// #[derive(sqlx::Type)]
+    /// // Will prevent SQLx from inferring `_foo` as an array type.
+    /// #[sqlx(type_name = r#""_foo""#)]
+    /// enum Foo {
+    ///     Bar,
+    ///     Baz
+    /// }
+    ///
+    /// assert_eq!(Foo::type_info().name(), r#""_foo""#);
+    /// ```
     pub const fn with_name(name: &'static str) -> Self {
         Self(PgType::DeclareWithName(UStr::Static(name)))
+    }
+
+    /// Create a `PgTypeInfo` of an array from the name of its element type.
+    ///
+    /// The array type OID will be fetched from Postgres on use of a value of this type.
+    /// The fetched OID will be cached per-connection.
+    pub fn array_of(elem_name: &'static str) -> Self {
+        // to satisfy `name()` and `display_name()`, we need to construct strings to return
+        Self(PgType::DeclareArrayOf(Arc::new(PgArrayOf {
+            elem_name: elem_name.into(),
+            name: format!("{elem_name}[]").into(),
+        })))
     }
 
     /// Create a `PgTypeInfo` from an OID.
     ///
     /// Note that the OID for a type is very dependent on the environment. If you only ever use
     /// one database or if this is an unhandled built-in type, you should be fine. Otherwise,
-    /// you will be better served using [`with_name`](Self::with_name).
+    /// you will be better served using [`Self::with_name()`].
+    ///
+    /// ### Note: Interaction with `==`
+    /// This constructor may give surprising results with `==`.
+    ///
+    /// See [the type-level docs][Self] for details.
     pub const fn with_oid(oid: Oid) -> Self {
         Self(PgType::DeclareWithOid(oid))
+    }
+
+    /// Returns `true` if `self` can be compared exactly to `other`.
+    ///
+    /// Unlike `==`, this will return false if
+    pub fn type_eq(&self, other: &Self) -> bool {
+        self.eq_impl(other, false)
     }
 }
 
@@ -464,6 +562,9 @@ impl PgType {
             PgType::DeclareWithName(_) => {
                 return None;
             }
+            PgType::DeclareArrayOf(_) => {
+                return None;
+            }
         })
     }
 
@@ -564,6 +665,7 @@ impl PgType {
             PgType::Custom(ty) => &ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
+            PgType::DeclareArrayOf(array) => &array.name,
         }
     }
 
@@ -664,6 +766,7 @@ impl PgType {
             PgType::Custom(ty) => &ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
+            PgType::DeclareArrayOf(array) => &array.name,
         }
     }
 
@@ -771,13 +874,16 @@ impl PgType {
             PgType::DeclareWithName(name) => {
                 unreachable!("(bug) use of unresolved type declaration [name={name}]");
             }
+            PgType::DeclareArrayOf(array) => {
+                unreachable!(
+                    "(bug) use of unresolved type declaration [array of={}]",
+                    array.elem_name
+                );
+            }
         }
     }
 
     /// If `self` is an array type, return the type info for its element.
-    ///
-    /// This method should only be called on resolved types: calling it on
-    /// a type that is merely declared (DeclareWithOid/Name) is a bug.
     pub(crate) fn try_array_element(&self) -> Option<Cow<'_, PgTypeInfo>> {
         // We explicitly match on all the `None` cases to ensure an exhaustive match.
         match self {
@@ -885,13 +991,49 @@ impl PgType {
                 PgTypeKind::Enum(_) => None,
                 PgTypeKind::Range(_) => None,
             },
-            PgType::DeclareWithOid(oid) => {
-                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
-            }
+            PgType::DeclareWithOid(_) => None,
             PgType::DeclareWithName(name) => {
-                unreachable!("(bug) use of unresolved type declaration [name={name}]");
+                // LEGACY: infer the array element name from a `_` prefix
+                UStr::strip_prefix(name, "_")
+                    .map(|elem| Cow::Owned(PgTypeInfo(PgType::DeclareWithName(elem))))
             }
+            PgType::DeclareArrayOf(array) => Some(Cow::Owned(PgTypeInfo(PgType::DeclareWithName(
+                array.elem_name.clone(),
+            )))),
         }
+    }
+
+    /// Returns `true` if this type cannot be matched by name.
+    fn is_declare_with_oid(&self) -> bool {
+        matches!(self, Self::DeclareWithOid(_))
+    }
+
+    /// Compare two `PgType`s, first by OID, then by array element, then by name.
+    ///
+    /// If `soft_eq` is true and `self` or `other` is `DeclareWithOid` but not both, return `true`
+    /// before checking names.
+    fn eq_impl(&self, other: &Self, soft_eq: bool) -> bool {
+        if let (Some(a), Some(b)) = (self.try_oid(), other.try_oid()) {
+            // If there are OIDs available, use OIDs to perform a direct match
+            return a == b;
+        }
+
+        if soft_eq && (self.is_declare_with_oid() || other.is_declare_with_oid()) {
+            // If we get to this point, one instance is `DeclareWithOid()` and the other is
+            // `DeclareArrayOf()` or `DeclareWithName()`, which means we can't compare the two.
+            //
+            // Since this is only likely to occur when using the text protocol where we can't
+            // resolve type names before executing a query, we can just opt out of typechecking.
+            return true;
+        }
+
+        if let (Some(elem_a), Some(elem_b)) = (self.try_array_element(), other.try_array_element())
+        {
+            return elem_a == elem_b;
+        }
+
+        // Otherwise, perform a match on the name
+        name_eq(self.name(), other.name())
     }
 }
 
@@ -906,6 +1048,13 @@ impl TypeInfo for PgTypeInfo {
 
     fn is_void(&self) -> bool {
         matches!(self.0, PgType::Void)
+    }
+
+    fn type_compatible(&self, other: &Self) -> bool
+    where
+        Self: Sized,
+    {
+        self == other
     }
 }
 
@@ -1140,22 +1289,7 @@ impl Display for PgTypeInfo {
 
 impl PartialEq<PgType> for PgType {
     fn eq(&self, other: &PgType) -> bool {
-        if let (Some(a), Some(b)) = (self.try_oid(), other.try_oid()) {
-            // If there are OIDs available, use OIDs to perform a direct match
-            a == b
-        } else if matches!(
-            (self, other),
-            (PgType::DeclareWithName(_), PgType::DeclareWithOid(_))
-                | (PgType::DeclareWithOid(_), PgType::DeclareWithName(_))
-        ) {
-            // One is a declare-with-name and the other is a declare-with-id
-            // This only occurs in the TEXT protocol with custom types
-            // Just opt-out of type checking here
-            true
-        } else {
-            // Otherwise, perform a match on the name
-            name_eq(self.name(), other.name())
-        }
+        self.eq_impl(other, true)
     }
 }
 

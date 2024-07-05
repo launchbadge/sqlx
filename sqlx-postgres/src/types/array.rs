@@ -156,11 +156,10 @@ where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let type_info = if self.is_empty() {
-            T::type_info()
-        } else {
-            self[0].produces().unwrap_or_else(T::type_info)
-        };
+        let type_info = self
+            .first()
+            .and_then(Encode::produces)
+            .unwrap_or_else(T::type_info);
 
         buf.extend(&1_i32.to_be_bytes()); // number of dimensions
         buf.extend(&0_i32.to_be_bytes()); // flags
@@ -168,6 +167,7 @@ where
         // element type
         match type_info.0 {
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
+            PgType::DeclareArrayOf(array) => buf.patch_array_type(array),
 
             ty => {
                 buf.extend(&ty.oid().0.to_be_bytes());

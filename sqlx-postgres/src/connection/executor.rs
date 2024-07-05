@@ -7,7 +7,6 @@ use crate::message::{
     RowDescription,
 };
 use crate::statement::PgStatementMetadata;
-use crate::type_info::PgType;
 use crate::types::Oid;
 use crate::{
     statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo,
@@ -36,11 +35,7 @@ async fn prepare(
     let mut param_types = Vec::with_capacity(parameters.len());
 
     for ty in parameters {
-        param_types.push(if let PgType::DeclareWithName(name) = &ty.0 {
-            conn.fetch_type_id_by_name(name).await?
-        } else {
-            ty.0.oid()
-        });
+        param_types.push(conn.resolve_type_id(&ty.0).await?);
     }
 
     // flush and wait until we are re-ready
