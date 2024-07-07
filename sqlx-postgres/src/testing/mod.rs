@@ -124,6 +124,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         create table if not exists _sqlx_test.databases (
             db_name text primary key,
             test_path text not null,
+            test_run_id uuid,
             created_at timestamptz not null default now()
         );
 
@@ -149,12 +150,13 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 
     let new_db_name: String = query_scalar(
         r#"
-            insert into _sqlx_test.databases(db_name, test_path)
-            select '_sqlx_test_' || nextval('_sqlx_test.database_ids'), $1
+            insert into _sqlx_test.databases(db_name, test_path, test_run_id)
+            select '_sqlx_test_' || nextval('_sqlx_test.database_ids'), $1, $2::uuid
             returning db_name
         "#,
     )
     .bind(args.test_path)
+    .bind(get_current_run_id())
     .fetch_one(&mut *conn)
     .await?;
 
@@ -183,13 +185,23 @@ async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result
     // since SystemTime is not monotonic we added a little margin here to avoid race conditions with other threads
     let created_before = i64::try_from(created_before.as_secs()).unwrap() - 2;
 
-    let delete_db_names: Vec<String> = query_scalar(
-        "select db_name from _sqlx_test.databases \
+    let delete_db_names: Vec<String> = if let Some(current_run_id) = get_current_run_id() {
+        query_scalar(
+            "select db_name from _sqlx_test.databases \
+            where test_run_id::text != $1 or test_run_id is null",
+        )
+        .bind(current_run_id)
+        .fetch_all(&mut *conn)
+        .await?
+    } else {
+        query_scalar(
+            "select db_name from _sqlx_test.databases \
             where created_at < (to_timestamp($1) at time zone 'UTC')",
-    )
-    .bind(created_before)
-    .fetch_all(&mut *conn)
-    .await?;
+        )
+        .bind(created_before)
+        .fetch_all(&mut *conn)
+        .await?
+    };
 
     if delete_db_names.is_empty() {
         return Ok(0);

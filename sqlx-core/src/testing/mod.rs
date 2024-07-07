@@ -1,3 +1,4 @@
+use std::env;
 use std::future::Future;
 use std::time::Duration;
 
@@ -258,4 +259,10 @@ async fn setup_test_db<DB: Database>(
     conn.close()
         .await
         .expect("failed to close setup connection");
+}
+
+pub fn get_current_run_id() -> Option<String> {
+    // Currently we have to add a special case for any testrunners that spawns tests in separate processes
+    // The intention is to get a `CARGO_RUN_ID` merged into cargo and then use it instead in the future
+    env::var("NEXTEST_RUN_ID").ok()
 }
