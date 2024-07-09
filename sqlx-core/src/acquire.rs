@@ -80,7 +80,7 @@ pub trait Acquire<'c> {
 
     fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
 
-    fn begin_custom(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
+    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
 }
 
 impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
@@ -100,11 +100,11 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
         })
     }
 
-    fn begin_custom(self, sql: Cow<'static, str>) -> BoxFuture<'a, Result<Transaction<'a, Self::Database>, Error>> {
+    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'a, Result<Transaction<'a, Self::Database>, Error>> {
         let conn = self.acquire();
 
         Box::pin(async move {
-            Transaction::begin_custom(MaybePoolConnection::PoolConnection(conn.await?), sql).await
+            Transaction::begin_with(MaybePoolConnection::PoolConnection(conn.await?), sql).await
         })
     }
 }
@@ -136,14 +136,14 @@ macro_rules! impl_acquire {
             }
 
             #[inline]
-            fn begin_custom(
+            fn begin_with(
                 self,
                 stmt: std::borrow::Cow<'static, str>,
             ) -> futures_core::future::BoxFuture<
                 'c,
                 Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
             > {
-                $crate::transaction::Transaction::begin_custom(self, stmt)
+                $crate::transaction::Transaction::begin_with(self, stmt)
             }
         }
     };

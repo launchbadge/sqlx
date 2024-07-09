@@ -26,7 +26,7 @@ impl TransactionManager for MySqlTransactionManager {
         })
     }
 
-    fn begin_custom<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+    fn begin_with<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
         Box::pin(async move {
             let depth = conn.transaction_depth;
 

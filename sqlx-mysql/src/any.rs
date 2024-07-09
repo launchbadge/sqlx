@@ -41,8 +41,8 @@ impl AnyConnectionBackend for MySqlConnection {
         MySqlTransactionManager::begin(self)
     }
 
-    fn begin_custom(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        MySqlTransactionManager::begin_custom(self, sql)
+    fn begin_with(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        MySqlTransactionManager::begin_with(self, sql)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {

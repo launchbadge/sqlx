@@ -42,7 +42,7 @@ impl AnyConnectionBackend for SqliteConnection {
         SqliteTransactionManager::begin(self)
     }
 
-    fn begin_custom(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+    fn begin_with(&mut self, sql: Cow<'static, str>) -> BoxFuture<'_, sqlx_core::Result<()>> {
         todo!()
     }
 

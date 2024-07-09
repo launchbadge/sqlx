@@ -15,8 +15,8 @@ impl TransactionManager for AnyTransactionManager {
         conn.backend.begin()
     }
 
-    fn begin_custom<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
-        conn.backend.begin_custom(sql)
+    fn begin_with<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+        conn.backend.begin_with(sql)
     }
 
 

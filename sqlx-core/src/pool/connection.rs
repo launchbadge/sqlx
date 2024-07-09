@@ -163,8 +163,8 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
         crate::transaction::Transaction::begin(&mut **self)
     }
 
-    fn begin_custom(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
-        crate::transaction::Transaction::begin_custom(&mut **self, sql)
+    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
+        crate::transaction::Transaction::begin_with(&mut **self, sql)
     }
 }
 

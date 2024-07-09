@@ -15,7 +15,7 @@ impl TransactionManager for SqliteTransactionManager {
         Box::pin(conn.worker.begin())
     }
 
-    fn begin_custom<'a>(_conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+    fn begin_with<'a>(_conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
         unimplemented!()
     }
 

@@ -27,7 +27,7 @@ impl TransactionManager for PgTransactionManager {
         })
     }
 
-    fn begin_custom<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+    fn begin_with<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
         Box::pin(async move {
             let rollback = Rollback::new(conn);
             rollback.conn.queue_simple_query(&sql);

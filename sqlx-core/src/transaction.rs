@@ -20,7 +20,7 @@ pub trait TransactionManager {
         conn: &mut <Self::Database as Database>::Connection,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
-    fn begin_custom<'a>(
+    fn begin_with<'a>(
         conn: &'a mut <Self::Database as Database>::Connection,
         sql: Cow<'static, str>,
     ) -> BoxFuture<'a, Result<(), Error>>;
@@ -84,14 +84,14 @@ where
     }
 
     #[doc(hidden)]
-    pub fn begin_custom(
+    pub fn begin_with(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
         sql: Cow<'static, str>
     ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            DB::TransactionManager::begin_custom(&mut conn, sql).await?;
+            DB::TransactionManager::begin_with(&mut conn, sql).await?;
 
             Ok(Self {
                 connection: conn,
@@ -245,8 +245,8 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
         Transaction::begin(&mut **self)
     }
 
-    fn begin_custom(self, sql: Cow<'static, str>) -> BoxFuture<'t, Result<Transaction<'t, Self::Database>, Error>> {
-        Transaction::begin_custom(&mut **self, sql)
+    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'t, Result<Transaction<'t, Self::Database>, Error>> {
+        Transaction::begin_with(&mut **self, sql)
     }
 }
 
