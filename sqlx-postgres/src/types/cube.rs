@@ -58,11 +58,11 @@ impl FromStr for PgCube {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let content = s
-            .trim_start_matches("(")
-            .trim_start_matches("[")
-            .trim_end_matches(")")
-            .trim_end_matches("]")
-            .replace(" ", "");
+            .trim_start_matches('(')
+            .trim_start_matches('[')
+            .trim_end_matches(')')
+            .trim_end_matches(']')
+            .replace(' ', "");
 
         if !content.contains('(') && !content.contains(',') {
             return parse_point(&content);
@@ -83,7 +83,7 @@ impl FromStr for PgCube {
 
 fn pg_cube_from_bytes(bytes: &[u8]) -> Result<PgCube, Error> {
     let cube_type = bytes
-        .get(0)
+        .first()
         .map(|&byte| byte as usize)
         .ok_or(Error::Decode(
             format!("Could not decode cube bytes: {:?}", bytes).into(),
@@ -98,21 +98,21 @@ fn pg_cube_from_bytes(bytes: &[u8]) -> Result<PgCube, Error> {
 
     match (cube_type, dimensionality) {
         (CUBE_TYPE_ZERO_VOLUME, CUBE_DIMENSION_ONE) => {
-            let point = get_f64_from_bytes(&bytes, 4)?;
+            let point = get_f64_from_bytes(bytes, 4)?;
             Ok(PgCube::Point(point))
         }
         (CUBE_TYPE_ZERO_VOLUME, _) => {
-            Ok(PgCube::ZeroVolume(deserialize_vector(&bytes, START_INDEX)?))
+            Ok(PgCube::ZeroVolume(deserialize_vector(bytes, START_INDEX)?))
         }
         (CUBE_TYPE_DEFAULT, CUBE_DIMENSION_ONE) => {
             let x_start = 4;
             let y_start = x_start + BYTE_WIDTH;
-            let x = get_f64_from_bytes(&bytes, x_start)?;
-            let y = get_f64_from_bytes(&bytes, y_start)?;
+            let x = get_f64_from_bytes(bytes, x_start)?;
+            let y = get_f64_from_bytes(bytes, y_start)?;
             Ok(PgCube::OneDimensionInterval(x, y))
         }
         (CUBE_TYPE_DEFAULT, dim) => Ok(PgCube::MultiDimension(deserialize_matrix(
-            &bytes,
+            bytes,
             START_INDEX,
             dim,
         )?)),
@@ -138,7 +138,7 @@ impl PgCube {
                 buff.extend_from_slice(&[CUBE_TYPE_ZERO_VOLUME as u8, 0, 0]);
                 buff.extend_from_slice(&dimension.to_be_bytes());
                 let bytes = values
-                    .into_iter()
+                    .iter()
                     .flat_map(|v| v.to_be_bytes())
                     .collect::<Vec<u8>>();
                 buff.extend_from_slice(&bytes);
@@ -152,12 +152,12 @@ impl PgCube {
                 let dimension = multi_values
                     .first()
                     .map(|arr| arr.len() as u8)
-                    .unwrap_or(1 as u8);
+                    .unwrap_or(1_u8);
                 buff.extend_from_slice(&[0, 0, 0]);
                 buff.extend_from_slice(&dimension.to_be_bytes());
                 let bytes = multi_values
-                    .into_iter()
-                    .flat_map(|inner| inner)
+                    .iter()
+                    .flatten()
                     .flat_map(|v| v.to_be_bytes())
                     .collect::<Vec<u8>>();
                 buff.extend_from_slice(&bytes);
@@ -188,7 +188,7 @@ fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
 fn deserialize_vector(bytes: &[u8], start_index: usize) -> Result<Vec<f64>, Error> {
     let steps = (bytes.len() - start_index) / BYTE_WIDTH;
     (0..steps)
-        .map(|i| get_f64_from_bytes(&bytes, start_index + i * BYTE_WIDTH))
+        .map(|i| get_f64_from_bytes(bytes, start_index + i * BYTE_WIDTH))
         .collect()
 }
 
@@ -204,7 +204,7 @@ fn deserialize_matrix(
         .map(|step_idx| {
             (0..dim)
                 .map(|dim_idx| {
-                    get_f64_from_bytes(&bytes, start_index + step_idx * step + dim_idx * BYTE_WIDTH)
+                    get_f64_from_bytes(bytes, start_index + step_idx * step + dim_idx * BYTE_WIDTH)
                 })
                 .collect()
         })
@@ -232,7 +232,7 @@ fn parse_zero_volume(content: &str) -> Result<PgCube, Error> {
 
 fn parse_one_dimensional_interval(point_vecs: Vec<&str>) -> Result<PgCube, Error> {
     let x = parse_float_from_str(
-        &remove_parentheses(point_vecs.get(0).ok_or(Error::Decode(
+        &remove_parentheses(point_vecs.first().ok_or(Error::Decode(
             format!("Could not decode cube interval x: {:?}", point_vecs).into(),
         ))?),
         "Failed to parse X in one-dimensional interval",
