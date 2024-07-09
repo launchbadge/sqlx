@@ -87,14 +87,15 @@ fn expand_derive_from_row_struct(
                 ));
             }
 
-            let id_s = attributes
-                .rename
-                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                .map(|s| match container_attributes.rename_all {
+            let id_s = if let Some(s) = attributes.rename {
+                s
+            } else {
+                let s = id.to_string().trim_start_matches("r#").to_owned();
+                match container_attributes.rename_all {
                     Some(pattern) => rename_all(&s, pattern),
-                    None => s,
-                })
-                .unwrap();
+                    None => s
+                }
+            };
 
             let expr: Expr = match (attributes.flatten, attributes.try_from, attributes.json) {
                 // <No attributes>
