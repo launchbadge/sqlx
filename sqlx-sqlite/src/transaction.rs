@@ -1,9 +1,9 @@
-use std::borrow::Cow;
+use crate::{Sqlite, SqliteConnection};
 use futures_core::future::BoxFuture;
 use sqlx_core::database::Database;
-use crate::{Sqlite, SqliteConnection};
 use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
+use std::borrow::Cow;
 
 /// Implementation of [`TransactionManager`] for SQLite.
 pub struct SqliteTransactionManager;
@@ -15,7 +15,13 @@ impl TransactionManager for SqliteTransactionManager {
         Box::pin(conn.worker.begin())
     }
 
-    fn begin_with<'a>(_conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+    fn begin_with<'a, S>(
+        _conn: &'a mut <Self::Database as Database>::Connection,
+        sql: S,
+    ) -> BoxFuture<'a, Result<(), Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'a,
+    {
         unimplemented!()
     }
 

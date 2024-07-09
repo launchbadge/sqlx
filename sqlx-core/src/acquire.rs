@@ -1,7 +1,7 @@
-use std::borrow::Cow;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{MaybePoolConnection, Pool, PoolConnection};
+use std::borrow::Cow;
 
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
@@ -80,7 +80,9 @@ pub trait Acquire<'c> {
 
     fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
 
-    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
+    fn begin_with<S>(self, sql: S) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'c;
 }
 
 impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
@@ -100,7 +102,10 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
         })
     }
 
-    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'a, Result<Transaction<'a, Self::Database>, Error>> {
+    fn begin_with<S>(self, sql: S) -> BoxFuture<'a, Result<Transaction<'a, Self::Database>, Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'a,
+    {
         let conn = self.acquire();
 
         Box::pin(async move {
@@ -136,13 +141,16 @@ macro_rules! impl_acquire {
             }
 
             #[inline]
-            fn begin_with(
+            fn begin_with<S>(
                 self,
-                stmt: std::borrow::Cow<'static, str>,
+                stmt: S,
             ) -> futures_core::future::BoxFuture<
                 'c,
                 Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
-            > {
+            >
+            where
+                S: Into<std::borrow::Cow<'static, str>> + Send + 'c,
+            {
                 $crate::transaction::Transaction::begin_with(self, stmt)
             }
         }

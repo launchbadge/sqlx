@@ -1,8 +1,8 @@
-use std::borrow::Cow;
-use futures_core::future::BoxFuture;
-use sqlx_core::database::Database;
 use crate::error::Error;
 use crate::executor::Executor;
+use futures_core::future::BoxFuture;
+use sqlx_core::database::Database;
+use std::borrow::Cow;
 
 use crate::{PgConnection, Postgres};
 
@@ -27,10 +27,16 @@ impl TransactionManager for PgTransactionManager {
         })
     }
 
-    fn begin_with<'a>(conn: &'a mut <Self::Database as Database>::Connection, sql: Cow<'static, str>) -> BoxFuture<'a, Result<(), Error>> {
+    fn begin_with<'a, S>(
+        conn: &'a mut <Self::Database as Database>::Connection,
+        sql: S,
+    ) -> BoxFuture<'a, Result<(), Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'a,
+    {
         Box::pin(async move {
             let rollback = Rollback::new(conn);
-            rollback.conn.queue_simple_query(&sql);
+            rollback.conn.queue_simple_query(&sql.into());
             rollback.conn.transaction_depth += 1;
             rollback.conn.wait_until_ready().await?;
             rollback.defuse();
@@ -38,7 +44,6 @@ impl TransactionManager for PgTransactionManager {
             Ok(())
         })
     }
-
 
     fn commit(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {

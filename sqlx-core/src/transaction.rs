@@ -20,10 +20,12 @@ pub trait TransactionManager {
         conn: &mut <Self::Database as Database>::Connection,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
-    fn begin_with<'a>(
+    fn begin_with<'a, S>(
         conn: &'a mut <Self::Database as Database>::Connection,
-        sql: Cow<'static, str>,
-    ) -> BoxFuture<'a, Result<(), Error>>;
+        sql: S,
+    ) -> BoxFuture<'a, Result<(), Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'a;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
@@ -84,10 +86,13 @@ where
     }
 
     #[doc(hidden)]
-    pub fn begin_with(
+    pub fn begin_with<S>(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
-        sql: Cow<'static, str>
-    ) -> BoxFuture<'c, Result<Self, Error>> {
+        sql: S,
+    ) -> BoxFuture<'c, Result<Self, Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'c,
+    {
         let mut conn = conn.into();
 
         Box::pin(async move {
@@ -99,7 +104,6 @@ where
             })
         })
     }
-
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
@@ -245,7 +249,10 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
         Transaction::begin(&mut **self)
     }
 
-    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'t, Result<Transaction<'t, Self::Database>, Error>> {
+    fn begin_with<S>(self, sql: S) -> BoxFuture<'t, Result<Transaction<'t, Self::Database>, Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 't,
+    {
         Transaction::begin_with(&mut **self, sql)
     }
 }

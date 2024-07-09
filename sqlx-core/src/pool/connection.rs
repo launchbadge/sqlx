@@ -12,9 +12,9 @@ use crate::error::Error;
 
 use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
-use std::future::Future;
-use futures_core::future::BoxFuture;
 use crate::transaction::Transaction;
+use futures_core::future::BoxFuture;
+use std::future::Future;
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -163,7 +163,10 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
         crate::transaction::Transaction::begin(&mut **self)
     }
 
-    fn begin_with(self, sql: Cow<'static, str>) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
+    fn begin_with<S>(self, sql: S) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>
+    where
+        S: Into<Cow<'static, str>> + Send + 'c,
+    {
         crate::transaction::Transaction::begin_with(&mut **self, sql)
     }
 }
