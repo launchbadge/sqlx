@@ -1,9 +1,9 @@
-use std::borrow::Cow;
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use std::borrow::Cow;
 use std::fmt::Debug;
 
 pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {

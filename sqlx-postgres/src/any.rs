@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use crate::{
     Either, PgColumn, PgConnectOptions, PgConnection, PgQueryResult, PgRow, PgTransactionManager,
     PgTypeInfo, Postgres,
@@ -6,6 +5,7 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
+use std::borrow::Cow;
 
 pub use sqlx_core::any::*;
 

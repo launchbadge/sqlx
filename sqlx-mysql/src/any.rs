@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use crate::protocol::text::ColumnType;
 use crate::{
     MySql, MySqlColumn, MySqlConnectOptions, MySqlConnection, MySqlQueryResult, MySqlRow,
@@ -17,6 +16,7 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
+use std::borrow::Cow;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
 
