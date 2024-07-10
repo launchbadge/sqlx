@@ -570,6 +570,7 @@ test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
 test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
     "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
     "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
+    "'Foo.Bar.Baz.Quux'::text" ==  serde_json::to_string(sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it

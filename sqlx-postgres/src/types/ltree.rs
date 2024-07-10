@@ -3,6 +3,8 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use serde::de::Visitor;
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::io::Write;
 use std::ops::Deref;
@@ -61,6 +63,22 @@ impl FromStr for PgLTreeLabel {
 impl Display for PgLTreeLabel {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Serialize for PgLTreeLabel {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PgLTreeLabel {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        PgLTreeLabel::new(s).map_err(de::Error::custom)
     }
 }
 
@@ -224,5 +242,50 @@ impl<'r> Decode<'r, Postgres> for PgLTree {
             }
             PgValueFormat::Text => Ok(Self::from_str(value.as_str()?)?),
         }
+    }
+}
+
+impl Serialize for PgLTree {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let concatenated = self
+            .labels
+            .iter()
+            .map(|s| s.0.as_str())
+            .collect::<Vec<&str>>()
+            .join(".");
+        serializer.serialize_str(&concatenated)
+    }
+}
+
+impl<'de> Deserialize<'de> for PgLTree {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PgLTreeVisitor;
+
+        impl<'de> Visitor<'de> for PgLTreeVisitor {
+            type Value = PgLTree;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid ltree string separated by '.'")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<PgLTree, E>
+            where
+                E: de::Error,
+            {
+                let mut ltree = PgLTree::new();
+                for label_str in value.split('.') {
+                    ltree.push(PgLTreeLabel::new(label_str).map_err(de::Error::custom)?);
+                }
+                Ok(ltree)
+            }
+        }
+
+        deserializer.deserialize_str(PgLTreeVisitor)
     }
 }
