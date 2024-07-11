@@ -235,6 +235,7 @@ impl Encode<'_, MySql> for NaiveDateTime {
             self.hour(),
             self.minute(),
             self.second(),
+            #[allow(deprecated)]
             self.timestamp_subsec_nanos(),
         ) {
             // if hour, minutes, seconds and micro_seconds are all 0,
