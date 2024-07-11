@@ -5,6 +5,7 @@ use std::ops::Bound;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
+use sqlx_postgres::types::{PgLTree, PgLTreeLabel};
 use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
 use sqlx_core::executor::Executor;
@@ -72,6 +73,7 @@ test_type!(str<&str>(Postgres,
 
 test_type!(string<String>(Postgres,
     "'this is foo'" == format!("this is foo"),
+    "'Foo.Bar.Baz.Quux'::text" == serde_plain::to_string(&PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap()).unwrap(),
 ));
 
 test_type!(string_vec<Vec<String>>(Postgres,
@@ -566,11 +568,11 @@ test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
 // but `PgLTree` should just fall back to text format
-#[cfg(any(postgres_14, postgres_15))]
+//#[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
     "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
     "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
-    "'Foo.Bar.Baz.Quux'::text" ==  serde_json::to_string(sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+    "'Alfa.Bravo.Charlie.Delta'::ltree" == serde_plain::from_str::<sqlx::postgres::types::PgLTree>("Alfa.Bravo.Charlie.Delta").unwrap(),
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
