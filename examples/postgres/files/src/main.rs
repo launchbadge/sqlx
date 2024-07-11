@@ -1,4 +1,4 @@
-use sqlx::{query_file, query_file_as, query_file_unchecked, FromRow, PgPool};
+use sqlx::{query_file, query_file_as, FromRow, PgPool};
 use std::fmt::{Display, Formatter};
 
 #[derive(FromRow)]
