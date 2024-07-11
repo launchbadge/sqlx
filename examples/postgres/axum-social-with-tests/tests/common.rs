@@ -27,7 +27,6 @@ impl RequestBuilderExt for request::Builder {
     }
 }
 
-#[track_caller]
 pub async fn response_json(resp: &mut Response<BoxBody>) -> serde_json::Value {
     assert_eq!(
         resp.headers()
