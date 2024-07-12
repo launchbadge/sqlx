@@ -13,6 +13,7 @@
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME, CITEXT                 |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
+//! | `BTreeMap<String, Option<String>>`    | HSTORE                                               |
 //! | `()`                                  | VOID                                                 |
 //! | [`PgInterval`]                        | INTERVAL                                             |
 //! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZRANGE, DATERANGE, NUMRANGE |
@@ -187,6 +188,7 @@ mod bool;
 mod bytes;
 mod citext;
 mod float;
+mod hstore;
 mod int;
 mod interval;
 mod lquery;

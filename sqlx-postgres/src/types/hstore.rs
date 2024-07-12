@@ -1,0 +1,171 @@
+use std::{collections::BTreeMap, mem::size_of, str::from_utf8};
+
+use crate::{
+    decode::Decode,
+    encode::{Encode, IsNull},
+    error::BoxDynError,
+    types::Type,
+    PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres,
+};
+
+impl Type<Postgres> for BTreeMap<String, Option<String>> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::with_name("hstore")
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for BTreeMap<String, Option<String>> {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        let mut buf = <&[u8] as Decode<Postgres>>::decode(value)?;
+        let len = read_length(&mut buf)?;
+
+        if len < 0 {
+            Err(format!("hstore, invalid entry count: {len}"))?;
+        }
+
+        let mut result = BTreeMap::new();
+
+        while buf.len() > 0 {
+            let key_len = read_length(&mut buf)?;
+            let key = read_value(&mut buf, key_len)?.ok_or_else(|| "hstore, key not found")?;
+
+            let value_len = read_length(&mut buf)?;
+            let value = read_value(&mut buf, value_len)?;
+
+            result.insert(key, value);
+        }
+
+        Ok(result)
+    }
+}
+
+impl Encode<'_, Postgres> for BTreeMap<String, Option<String>> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        buf.extend_from_slice(&i32::to_be_bytes(self.len() as i32));
+
+        for (key, val) in self {
+            let key_bytes = key.as_bytes();
+
+            buf.extend_from_slice(&i32::to_be_bytes(key_bytes.len() as i32));
+            buf.extend_from_slice(key_bytes);
+
+            match val {
+                Some(val) => {
+                    let val_bytes = val.as_bytes();
+
+                    buf.extend_from_slice(&i32::to_be_bytes(val_bytes.len() as i32));
+                    buf.extend_from_slice(val_bytes);
+                }
+                None => {
+                    buf.extend_from_slice(&i32::to_be_bytes(-1));
+                }
+            }
+        }
+
+        Ok(IsNull::No)
+    }
+}
+
+fn read_length(buf: &mut &[u8]) -> Result<i32, BoxDynError> {
+    let (bytes, rest) = buf.split_at(size_of::<i32>());
+
+    *buf = rest;
+
+    Ok(i32::from_be_bytes(
+        bytes
+            .try_into()
+            .map_err(|err| format!("hstore, reading length: {err}"))?,
+    ))
+}
+
+fn read_value(buf: &mut &[u8], len: i32) -> Result<Option<String>, BoxDynError> {
+    match len {
+        len if len <= 0 => Ok(None),
+        len => {
+            let (val, rest) = buf.split_at(len as usize);
+
+            *buf = rest;
+
+            Ok(Some(
+                from_utf8(val)
+                    .map_err(|err| format!("hstore, reading value: {err}"))?
+                    .to_string(),
+            ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::PgValueFormat;
+
+    const EMPTY: &str = "00000000";
+
+    const NAME_SURNAME_AGE: &str =
+        "0000000300000003616765ffffffff000000046e616d65000000044a6f686e000000077375726e616d6500000003446f65";
+
+    #[test]
+    fn hstore_deserialize_ok() {
+        let empty = hex::decode(EMPTY).unwrap();
+        let name_surname_age = hex::decode(NAME_SURNAME_AGE).unwrap();
+
+        let empty = PgValueRef {
+            value: Some(empty.as_slice()),
+            row: None,
+            type_info: PgTypeInfo::with_name("hstore"),
+            format: PgValueFormat::Binary,
+        };
+
+        let name_surname = PgValueRef {
+            value: Some(name_surname_age.as_slice()),
+            row: None,
+            type_info: PgTypeInfo::with_name("hstore"),
+            format: PgValueFormat::Binary,
+        };
+
+        let res_empty = BTreeMap::<String, Option<String>>::decode(empty).unwrap();
+        let res_name_surname = BTreeMap::<String, Option<String>>::decode(name_surname).unwrap();
+
+        assert!(res_empty.is_empty());
+        assert_eq!(res_name_surname["name"], Some("John".to_string()));
+        assert_eq!(res_name_surname["surname"], Some("Doe".to_string()));
+        assert_eq!(res_name_surname["age"], None);
+    }
+
+    #[test]
+    #[should_panic(expected = "hstore, invalid entry count: -5")]
+    fn hstore_deserialize_buffer_length_error() {
+        let buf = PgValueRef {
+            value: Some(&[255, 255, 255, 251]),
+            row: None,
+            type_info: PgTypeInfo::with_name("hstore"),
+            format: PgValueFormat::Binary,
+        };
+
+        BTreeMap::<String, Option<String>>::decode(buf).unwrap();
+    }
+
+    #[test]
+    fn hstore_serialize_ok() {
+        let mut buff = PgArgumentBuffer::default();
+
+        let _ = BTreeMap::<String, Option<String>>::from([])
+            .encode_by_ref(&mut buff)
+            .unwrap();
+
+        assert_eq!(hex::encode(buff.as_slice()), EMPTY);
+
+        buff.clear();
+
+        let _ = BTreeMap::<String, Option<String>>::from([
+            ("name".to_string(), Some("John".to_string())),
+            ("surname".to_string(), Some("Doe".to_string())),
+            ("age".to_string(), None),
+        ])
+        .encode_by_ref(&mut buff)
+        .unwrap();
+
+        assert_eq!(hex::encode(buff.as_slice()), NAME_SURNAME_AGE);
+    }
+}
