@@ -153,13 +153,19 @@ impl Decode<'_> for Notice {
                 }
 
                 b'M' => {
+                    _ = from_utf8(&buf[v.0 as usize..v.1 as usize])
+                        .map_err(|_| notice_protocol_err())?;
                     message = v;
                 }
 
                 b'C' => {
+                    _ = from_utf8(&buf[v.0 as usize..v.1 as usize])
+                        .map_err(|_| notice_protocol_err())?;
                     code = v;
                 }
 
+                // If more fields are added, make sure to check that they are valid UTF-8,
+                // otherwise the get_cached_str method will panic.
                 _ => {}
             }
         }
