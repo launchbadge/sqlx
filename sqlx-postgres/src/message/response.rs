@@ -6,11 +6,6 @@ use sqlx_core::bytes::Bytes;
 use crate::error::Error;
 use crate::io::Decode;
 
-const INVALID_UTF8: &str = "Postgres returned a non-UTF-8 string for its error message. \
-         This is most likely due to an error that occurred during authentication and \
-         the default lc_messages locale is not binary-compatible with UTF-8. \
-         See the server logs for the error details.";
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
 pub enum PgSeverity {
@@ -105,7 +100,8 @@ impl Notice {
 
     #[inline]
     fn get_cached_str(&self, cache: (u16, u16)) -> &str {
-        from_utf8(&self.storage[cache.0 as usize..cache.1 as usize]).unwrap_or(INVALID_UTF8)
+        // unwrap: this cannot fail at this stage
+        from_utf8(&self.storage[cache.0 as usize..cache.1 as usize]).unwrap()
     }
 }
 
@@ -207,7 +203,13 @@ impl<'a> Iterator for Fields<'a> {
 
 fn notice_protocol_err() -> Error {
     // https://github.com/launchbadge/sqlx/issues/1144
-    Error::Protocol(INVALID_UTF8.into())
+    Error::Protocol(
+        "Postgres returned a non-UTF-8 string for its error message. \
+         This is most likely due to an error that occurred during authentication and \
+         the default lc_messages locale is not binary-compatible with UTF-8. \
+         See the server logs for the error details."
+            .into(),
+    )
 }
 
 #[test]
