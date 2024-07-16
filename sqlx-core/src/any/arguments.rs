@@ -1,5 +1,5 @@
 use crate::any::value::AnyValueKind;
-use crate::any::Any;
+use crate::any::{Any, AnyTypeInfoKind};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -46,6 +46,14 @@ impl<'q> AnyArguments<'q> {
     where
         'q: 'a,
         Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<bool>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<i16>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<i64>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<f32>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<f64>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<String>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<Vec<u8>>: Type<A::Database> + Encode<'a, A::Database>,
         bool: Type<A::Database> + Encode<'a, A::Database>,
         i16: Type<A::Database> + Encode<'a, A::Database>,
         i32: Type<A::Database> + Encode<'a, A::Database>,
@@ -59,7 +67,15 @@ impl<'q> AnyArguments<'q> {
 
         for arg in &self.values.0 {
             match arg {
-                AnyValueKind::Null => out.add(Option::<i32>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Null) => out.add(Option::<i32>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Bool) => out.add(Option::<bool>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::SmallInt) => out.add(Option::<i16>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Integer) => out.add(Option::<i32>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::BigInt) => out.add(Option::<i64>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Real) => out.add(Option::<f64>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Double) => out.add(Option::<f32>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Text) => out.add(Option::<String>::None),
+                AnyValueKind::Null(AnyTypeInfoKind::Blob) => out.add(Option::<Vec<u8>>::None),
                 AnyValueKind::Bool(b) => out.add(b),
                 AnyValueKind::SmallInt(i) => out.add(i),
                 AnyValueKind::Integer(i) => out.add(i),
@@ -70,7 +86,6 @@ impl<'q> AnyArguments<'q> {
                 AnyValueKind::Blob(b) => out.add(&**b),
             }?
         }
-
         Ok(out)
     }
 }

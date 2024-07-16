@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - '*-dev'
+      - "*-dev"
 
 jobs:
   format:
@@ -50,6 +50,16 @@ jobs:
           --features all-databases,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
           --target-dir target/beta/
 
+  check-minimal-versions:
+    name: Check build using minimal versions
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup update
+      - run: rustup toolchain install nightly
+      - run: cargo +nightly generate-lockfile -Z minimal-versions
+      - run: cargo build --all-features
+
   test:
     name: Unit Test
     runs-on: ubuntu-22.04
@@ -87,7 +97,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]#, macOS-latest]
+        os: [ubuntu-latest, windows-latest] #, macOS-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -97,9 +107,9 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin: target/debug/cargo-sqlx.exe
           # FIXME: macOS build fails because of missing pin-project-internal
-#          - os: macOS-latest
-#            target: x86_64-apple-darwin
-#            bin: target/debug/cargo-sqlx
+    #          - os: macOS-latest
+    #            target: x86_64-apple-darwin
+    #            bin: target/debug/cargo-sqlx
 
     steps:
       - uses: actions/checkout@v2

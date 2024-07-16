@@ -1,6 +1,9 @@
 -- https://www.postgresql.org/docs/current/ltree.html
 CREATE EXTENSION IF NOT EXISTS ltree;
 
+-- https://www.postgresql.org/docs/current/cube.html
+CREATE EXTENSION IF NOT EXISTS cube;
+
 -- https://www.postgresql.org/docs/current/citext.html
 CREATE EXTENSION IF NOT EXISTS citext;
 
@@ -54,4 +57,4 @@ CREATE TABLE test_citext (
 
 CREATE SCHEMA IF NOT EXISTS foo;
 
-CREATE ENUM foo."Foo" ('Bar', 'Baz');
+CREATE TYPE foo."Foo" as ENUM ('Bar', 'Baz');

@@ -53,7 +53,7 @@ dotenvy = { workspace = true }
 hex = "0.4.3"
 home = "0.5.5"
 itoa = "1.0.1"
-log = "0.4.17"
+log = "0.4.18"
 memchr = { version = "2.4.1", default-features = false }
 num-bigint = { version = "0.4.3", optional = true }
 once_cell = "1.9.0"
@@ -70,6 +70,9 @@ serde_json = { version = "1.0.85", features = ["raw_value"] }
 workspace = true
 # We use JSON in the driver implementation itself so there's no reason not to enable it here.
 features = ["json"]
+
+[dev-dependencies]
+sqlx.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 etcetera = "0.8.0"

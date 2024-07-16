@@ -1,5 +1,6 @@
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
@@ -7,6 +8,7 @@ use crate::ext::ustr::UStr;
 use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
 
+use crate::type_info::PgArrayOf;
 pub(crate) use sqlx_core::arguments::Arguments;
 use sqlx_core::error::BoxDynError;
 
@@ -41,7 +43,12 @@ pub struct PgArgumentBuffer {
     // This is done for Records and Arrays as the OID is needed well before we are in an async
     // function and can just ask postgres.
     //
-    type_holes: Vec<(usize, UStr)>, // Vec<{ offset, type_name }>
+    type_holes: Vec<(usize, HoleKind)>, // Vec<{ offset, type_name }>
+}
+
+enum HoleKind {
+    Type { name: UStr },
+    Array(Arc<PgArrayOf>),
 }
 
 struct Patch {
@@ -106,8 +113,11 @@ impl PgArguments {
             (patch.callback)(buf, ty);
         }
 
-        for (offset, name) in type_holes {
-            let oid = conn.fetch_type_id_by_name(name).await?;
+        for (offset, kind) in type_holes {
+            let oid = match kind {
+                HoleKind::Type { name } => conn.fetch_type_id_by_name(name).await?,
+                HoleKind::Array(array) => conn.fetch_array_type_id(array).await?,
+            };
             buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
 
@@ -186,7 +196,19 @@ impl PgArgumentBuffer {
         let offset = self.len();
 
         self.extend_from_slice(&0_u32.to_be_bytes());
-        self.type_holes.push((offset, type_name.clone()));
+        self.type_holes.push((
+            offset,
+            HoleKind::Type {
+                name: type_name.clone(),
+            },
+        ));
+    }
+
+    pub(crate) fn patch_array_type(&mut self, array: Arc<PgArrayOf>) {
+        let offset = self.len();
+
+        self.extend_from_slice(&0_u32.to_be_bytes());
+        self.type_holes.push((offset, HoleKind::Array(array)));
     }
 
     fn snapshot(&self) -> PgArgumentBufferSnapshot {

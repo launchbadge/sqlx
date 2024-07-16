@@ -4,7 +4,7 @@ use crate::message::{ParameterDescription, RowDescription};
 use crate::query_as::query_as;
 use crate::query_scalar::{query_scalar, query_scalar_with};
 use crate::statement::PgStatementMetadata;
-use crate::type_info::{PgCustomType, PgType, PgTypeKind};
+use crate::type_info::{PgArrayOf, PgCustomType, PgType, PgTypeKind};
 use crate::types::Json;
 use crate::types::Oid;
 use crate::HashMap;
@@ -355,6 +355,19 @@ WHERE rngtypid = $1
         })
     }
 
+    pub(crate) async fn resolve_type_id(&mut self, ty: &PgType) -> Result<Oid, Error> {
+        if let Some(oid) = ty.try_oid() {
+            return Ok(oid);
+        }
+
+        match ty {
+            PgType::DeclareWithName(name) => self.fetch_type_id_by_name(name).await,
+            PgType::DeclareArrayOf(array) => self.fetch_array_type_id(array).await,
+            // `.try_oid()` should return `Some()` or it should be covered here
+            _ => unreachable!("(bug) OID should be resolvable for type {ty:?}"),
+        }
+    }
+
     pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<Oid, Error> {
         if let Some(oid) = self.cache_type_oid.get(name) {
             return Ok(*oid);
@@ -366,11 +379,39 @@ WHERE rngtypid = $1
             .fetch_optional(&mut *self)
             .await?
             .ok_or_else(|| Error::TypeNotFound {
-                type_name: String::from(name),
+                type_name: name.into(),
             })?;
 
         self.cache_type_oid.insert(name.to_string().into(), oid);
         Ok(oid)
+    }
+
+    pub(crate) async fn fetch_array_type_id(&mut self, array: &PgArrayOf) -> Result<Oid, Error> {
+        if let Some(oid) = self
+            .cache_type_oid
+            .get(&array.elem_name)
+            .and_then(|elem_oid| self.cache_elem_type_to_array.get(elem_oid))
+        {
+            return Ok(*oid);
+        }
+
+        // language=SQL
+        let (elem_oid, array_oid): (Oid, Oid) =
+            query_as("SELECT oid, typarray FROM pg_catalog.pg_type WHERE oid = $1::regtype::oid")
+                .bind(&*array.elem_name)
+                .fetch_optional(&mut *self)
+                .await?
+                .ok_or_else(|| Error::TypeNotFound {
+                    type_name: array.name.to_string(),
+                })?;
+
+        // Avoids copying `elem_name` until necessary
+        self.cache_type_oid
+            .entry_ref(&array.elem_name)
+            .insert(elem_oid);
+        self.cache_elem_type_to_array.insert(elem_oid, array_oid);
+
+        Ok(array_oid)
     }
 
     pub(crate) async fn get_nullable_for_columns(

@@ -17,6 +17,14 @@ impl UStr {
     pub fn new(s: &str) -> Self {
         UStr::Shared(Arc::from(s.to_owned()))
     }
+
+    /// Apply [str::strip_prefix], without copying if possible.
+    pub fn strip_prefix(this: &Self, prefix: &str) -> Option<Self> {
+        match this {
+            UStr::Static(s) => s.strip_prefix(prefix).map(Self::Static),
+            UStr::Shared(s) => s.strip_prefix(prefix).map(|s| Self::Shared(s.into())),
+        }
+    }
 }
 
 impl Deref for UStr {
@@ -57,6 +65,12 @@ impl From<&'static str> for UStr {
     #[inline]
     fn from(s: &'static str) -> Self {
         UStr::Static(s)
+    }
+}
+
+impl<'a> From<&'a UStr> for UStr {
+    fn from(value: &'a UStr) -> Self {
+        value.clone()
     }
 }
 

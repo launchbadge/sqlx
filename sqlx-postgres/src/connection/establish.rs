@@ -146,6 +146,7 @@ impl PgConnection {
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
+            cache_elem_type_to_array: HashMap::new(),
             log_settings: options.log_settings.clone(),
         })
     }

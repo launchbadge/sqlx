@@ -75,9 +75,10 @@ impl AnyConnectionBackend for SqliteConnection {
     fn fetch_many<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
-        let persistent = arguments.is_some();
+        let persistent = persistent && arguments.is_some();
         let args = arguments.map(map_arguments);
 
         Box::pin(
@@ -97,9 +98,10 @@ impl AnyConnectionBackend for SqliteConnection {
     fn fetch_optional<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
-        let persistent = arguments.is_some();
+        let persistent = persistent && arguments.is_some();
         let args = arguments.map(map_arguments);
 
         Box::pin(async move {
@@ -201,7 +203,7 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
             .0
             .into_iter()
             .map(|val| match val {
-                AnyValueKind::Null => SqliteArgumentValue::Null,
+                AnyValueKind::Null(_) => SqliteArgumentValue::Null,
                 AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
                 AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
                 AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
