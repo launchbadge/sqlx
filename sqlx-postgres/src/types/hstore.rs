@@ -76,9 +76,9 @@ impl<'r> Decode<'r, Postgres> for PgHstore {
 
         let mut result = Self::default();
 
-        while buf.len() > 0 {
+        while !buf.is_empty() {
             let key_len = read_length(&mut buf)?;
-            let key = read_value(&mut buf, key_len)?.ok_or_else(|| "hstore, key not found")?;
+            let key = read_value(&mut buf, key_len)?.ok_or("hstore, key not found")?;
 
             let value_len = read_length(&mut buf)?;
             let value = read_value(&mut buf, value_len)?;
