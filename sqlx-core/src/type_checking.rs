@@ -146,7 +146,7 @@ macro_rules! impl_type_checking {
                     )*
                     $(
                         $(#[$meta])?
-                        _ if <$ty as sqlx_core::types::Type<$database>>::compatible(info) => Some(select_input_type!($ty $(, $input)?)),
+                        _ if <$ty as sqlx_core::types::Type<$database>>::compatible(info) => Some($crate::select_input_type!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
