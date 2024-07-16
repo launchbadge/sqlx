@@ -28,7 +28,7 @@ postgres = ["sqlx-postgres"]
 sqlite = ["sqlx-sqlite"]
 
 # type integrations
-json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-sqlite?/json", "sqlx-postgres?/json"]
+json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
 
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-postgres?/bit-vec"]
