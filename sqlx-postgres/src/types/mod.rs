@@ -13,7 +13,6 @@
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME, CITEXT                 |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
-//! | `BTreeMap<String, Option<String>>`    | HSTORE                                               |
 //! | `()`                                  | VOID                                                 |
 //! | [`PgInterval`]                        | INTERVAL                                             |
 //! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZRANGE, DATERANGE, NUMRANGE |
@@ -22,6 +21,7 @@
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
 //! | [`PgCube`]                            | CUBE                                                 |
+//! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
 //! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
@@ -242,6 +242,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use hstore::PgHstore;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;

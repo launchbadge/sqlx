@@ -1,4 +1,11 @@
-use std::{collections::BTreeMap, mem::size_of, str::from_utf8};
+use std::{
+    collections::{btree_map, BTreeMap},
+    mem::size_of,
+    ops::{Deref, DerefMut},
+    str::from_utf8,
+};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
     decode::Decode,
@@ -8,13 +15,57 @@ use crate::{
     PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres,
 };
 
-impl Type<Postgres> for BTreeMap<String, Option<String>> {
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PgHstore(pub BTreeMap<String, Option<String>>);
+
+impl Deref for PgHstore {
+    type Target = BTreeMap<String, Option<String>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PgHstore {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl FromIterator<(String, String)> for PgHstore {
+    fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {
+        iter.into_iter().map(|(k, v)| (k, Some(v))).collect()
+    }
+}
+
+impl FromIterator<(String, Option<String>)> for PgHstore {
+    fn from_iter<T: IntoIterator<Item = (String, Option<String>)>>(iter: T) -> Self {
+        let mut result = Self::default();
+
+        for (key, value) in iter {
+            result.0.insert(key, value);
+        }
+
+        result
+    }
+}
+
+impl IntoIterator for PgHstore {
+    type Item = (String, Option<String>);
+    type IntoIter = btree_map::IntoIter<String, Option<String>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl Type<Postgres> for PgHstore {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name("hstore")
     }
 }
 
-impl<'r> Decode<'r, Postgres> for BTreeMap<String, Option<String>> {
+impl<'r> Decode<'r, Postgres> for PgHstore {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let mut buf = <&[u8] as Decode<Postgres>>::decode(value)?;
         let len = read_length(&mut buf)?;
@@ -23,7 +74,7 @@ impl<'r> Decode<'r, Postgres> for BTreeMap<String, Option<String>> {
             Err(format!("hstore, invalid entry count: {len}"))?;
         }
 
-        let mut result = BTreeMap::new();
+        let mut result = Self::default();
 
         while buf.len() > 0 {
             let key_len = read_length(&mut buf)?;
@@ -39,11 +90,11 @@ impl<'r> Decode<'r, Postgres> for BTreeMap<String, Option<String>> {
     }
 }
 
-impl Encode<'_, Postgres> for BTreeMap<String, Option<String>> {
+impl Encode<'_, Postgres> for PgHstore {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        buf.extend_from_slice(&i32::to_be_bytes(self.len() as i32));
+        buf.extend_from_slice(&i32::to_be_bytes(self.0.len() as i32));
 
-        for (key, val) in self {
+        for (key, val) in &self.0 {
             let key_bytes = key.as_bytes();
 
             buf.extend_from_slice(&i32::to_be_bytes(key_bytes.len() as i32));
@@ -124,8 +175,8 @@ mod test {
             format: PgValueFormat::Binary,
         };
 
-        let res_empty = BTreeMap::<String, Option<String>>::decode(empty).unwrap();
-        let res_name_surname = BTreeMap::<String, Option<String>>::decode(name_surname).unwrap();
+        let res_empty = PgHstore::decode(empty).unwrap();
+        let res_name_surname = PgHstore::decode(name_surname).unwrap();
 
         assert!(res_empty.is_empty());
         assert_eq!(res_name_surname["name"], Some("John".to_string()));
@@ -143,14 +194,13 @@ mod test {
             format: PgValueFormat::Binary,
         };
 
-        BTreeMap::<String, Option<String>>::decode(buf).unwrap();
+        PgHstore::decode(buf).unwrap();
     }
 
     #[test]
     fn hstore_serialize_ok() {
         let mut buff = PgArgumentBuffer::default();
-
-        let _ = BTreeMap::<String, Option<String>>::from([])
+        let _ = PgHstore::from_iter::<[(String, String); 0]>([])
             .encode_by_ref(&mut buff)
             .unwrap();
 
@@ -158,7 +208,7 @@ mod test {
 
         buff.clear();
 
-        let _ = BTreeMap::<String, Option<String>>::from([
+        let _ = PgHstore::from_iter([
             ("name".to_string(), Some("John".to_string())),
             ("surname".to_string(), Some("Doe".to_string())),
             ("age".to_string(), None),
