@@ -119,7 +119,10 @@ fn expand_derive_from_row_struct(
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
                                     .map_err(|e| {
-                                        ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())
+                                        ::sqlx::Error::ColumnDecode {
+                                            index: #id_s.to_string(),
+                                            error: sqlx::__spec_error!(e),
+                                        }
                                     })
                             })
                     )
@@ -138,7 +141,12 @@ fn expand_derive_from_row_struct(
                         __row.try_get(#id_s)
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
-                                    .map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))
+                                    .map_err(|e| {
+                                        ::sqlx::Error::ColumnDecode {
+                                            index: #id_s.to_string(),
+                                            error: sqlx::__spec_error!(e),
+                                        }
+                                    })
                             })
                     )
                 }
@@ -152,8 +160,11 @@ fn expand_derive_from_row_struct(
                         __row.try_get::<::sqlx::types::Json<_>, _>(#id_s)
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
-                                    .map_err(|_| {
-                                        ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())
+                                    .map_err(|e| {
+                                        ::sqlx::Error::ColumnDecode {
+                                            index: #id_s.to_string(),
+                                            error: sqlx::__spec_error!(e),
+                                        }
                                     })
                             })
                     )
