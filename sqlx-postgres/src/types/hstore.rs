@@ -15,6 +15,79 @@ use crate::{
     PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres,
 };
 
+/// Key-value support (`hstore`) for Postgres.
+///
+/// SQLx currently maps `hstore` to a `BTreeMap<String, Option<String>>` but this may be expanded in
+/// future to allow for user defined types.
+///
+/// See [the Postgres manual, Appendix F, Section 18][PG.F.18]
+///
+/// [PG.F.18]: https://www.postgresql.org/docs/current/hstore.html
+///
+/// ### Note: Requires Postgres 8.3+
+/// Introduced as a method for storing unstructured data, the `hstore` extension was first added in
+/// Postgres 8.3.
+///
+///
+/// ### Note: Extension Required
+/// The `hstore` extension is not enabled by default in Postgres. You will need to do so explicitly:
+///
+/// ```ignore
+/// CREATE EXTENSION IF NOT EXISTS hstore;
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// # use sqlx_postgres::types::PgHstore;
+/// // Shows basic usage of the PgHstore type.
+/// //
+/// #[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// struct UserCreate<'a> {
+///     username: &'a str,
+///     password: &'a str,
+///     additional_data: PgHstore
+/// }
+///
+/// let mut new_user = UserCreate {
+///     username: "name.surname@email.com",
+///     password: "@super_secret_1",
+///     ..Default::default()
+/// };
+///
+/// new_user.additional_data.insert("department".to_string(), Some("IT".to_string()));
+/// new_user.additional_data.insert("equipment_issued".to_string(), None);
+/// ```
+/// ```ignore
+/// query_scalar::<_, i64>(
+///     "insert into user(username, password, additional_data) values($1, $2, $3) returning id"
+/// )
+/// .bind(new_user.username)
+/// .bind(new_user.password)
+/// .bind(new_user.additional_data)
+/// .fetch_one(pg_conn)
+/// .await?;
+/// ```
+///
+/// ```
+/// # use sqlx_postgres::types::PgHstore;
+/// // PgHstore implements FromIterator to simplify construction.
+/// //
+/// let additional_data = PgHstore::from_iter([
+///     ("department".to_string(), Some("IT".to_string())),
+///     ("equipment_issued".to_string(), None),
+/// ]);
+///
+/// assert_eq!(additional_data["department"], Some("IT".to_string()));
+/// assert_eq!(additional_data["equipment_issued"], None);
+///
+/// // Also IntoIterator for ease of iteration.
+/// //
+/// for (key, value) in additional_data {
+///     println!("{key}: {value:?}");
+/// }
+/// ```
+///
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PgHstore(pub BTreeMap<String, Option<String>>);
 
