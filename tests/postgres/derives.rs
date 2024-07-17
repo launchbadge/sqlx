@@ -769,3 +769,26 @@ async fn test_enum_with_schema() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_from_row_hygiene() -> anyhow::Result<()> { 
+    // A field named `row` previously would shadow the `row` parameter of `FromRow::from_row()`:
+    // https://github.com/launchbadge/sqlx/issues/3344
+    #[derive(Debug, sqlx::FromRow)]
+    pub struct Foo {
+        pub row: i32,
+        pub bar: i32
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let foo: Foo = sqlx::query_as("SELECT 1234 as row, 5678 as bar")
+        .fetch_one(&mut conn)
+        .await?;
+    
+    assert_eq!(foo.row, 1234);
+    assert_eq!(foo.bar, 5678);
+
+    Ok(())
+}
