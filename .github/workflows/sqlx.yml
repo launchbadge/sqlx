@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - '*-dev'
+      - "*-dev"
 
 jobs:
   format:
@@ -97,7 +97,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]#, macOS-latest]
+        os: [ubuntu-latest, windows-latest] #, macOS-latest]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -107,9 +107,9 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin: target/debug/cargo-sqlx.exe
           # FIXME: macOS build fails because of missing pin-project-internal
-#          - os: macOS-latest
-#            target: x86_64-apple-darwin
-#            bin: target/debug/cargo-sqlx
+    #          - os: macOS-latest
+    #            target: x86_64-apple-darwin
+    #            bin: target/debug/cargo-sqlx
 
     steps:
       - uses: actions/checkout@v2
