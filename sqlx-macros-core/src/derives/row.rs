@@ -104,17 +104,25 @@ fn expand_derive_from_row_struct(
                         .push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
 
-                    parse_quote!(row.try_get(#id_s))
+                    parse_quote!(__row.try_get(#id_s))
                 }
                 // Flatten
                 (true, None, false) => {
                     predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
-                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
+                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(__row))
                 }
                 // Flatten + Try from
                 (true, Some(try_from), false) => {
                     predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
-                    parse_quote!(<#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
+                    parse_quote!(
+                        <#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(__row)
+                            .and_then(|v| {
+                                <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
+                                    .map_err(|e| {
+                                        ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())
+                                    })
+                            })
+                    )
                 }
                 // Flatten + Json
                 (true, _, true) => {
@@ -126,7 +134,13 @@ fn expand_derive_from_row_struct(
                         .push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>)); 
 
-                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                    parse_quote!(
+                        __row.try_get(#id_s)
+                            .and_then(|v| {
+                                <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
+                                    .map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))
+                            })
+                    )
                 }
                 // Try from + Json
                 (false, Some(try_from), true) => {
@@ -135,10 +149,13 @@ fn expand_derive_from_row_struct(
                     predicates.push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::types::Type<R::Database>));
 
                     parse_quote!(
-                        row.try_get::<::sqlx::types::Json<_>, _>(#id_s).and_then(|v|
-                            <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
-                            .map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))
-                        )
+                        __row.try_get::<::sqlx::types::Json<_>, _>(#id_s)
+                            .and_then(|v| {
+                                <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
+                                    .map_err(|_| {
+                                        ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())
+                                    })
+                            })
                     )
                 },
                 // Json
@@ -147,24 +164,28 @@ fn expand_derive_from_row_struct(
                         .push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::types::Type<R::Database>));
 
-                    parse_quote!(row.try_get::<::sqlx::types::Json<_>, _>(#id_s).map(|x| x.0))
+                    parse_quote!(__row.try_get::<::sqlx::types::Json<_>, _>(#id_s).map(|x| x.0))
                 },
             };
 
             if attributes.default {
-                Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                ::sqlx::Error::ColumnNotFound(_) => {
-                    ::std::result::Result::Ok(Default::default())
-                },
-                e => ::std::result::Result::Err(e)
-            })?;))
+                Some(parse_quote!(
+                    let #id: #ty = #expr.or_else(|e| match e {
+                        ::sqlx::Error::ColumnNotFound(_) => {
+                            ::std::result::Result::Ok(Default::default())
+                        },
+                        e => ::std::result::Result::Err(e)
+                    })?;
+                ))
             } else if container_attributes.default {
-                Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                    ::sqlx::Error::ColumnNotFound(_) => {
-                        ::std::result::Result::Ok(__default.#id)
-                    },
-                    e => ::std::result::Result::Err(e)
-                })?;))
+                Some(parse_quote!(
+                    let #id: #ty = #expr.or_else(|e| match e {
+                        ::sqlx::Error::ColumnNotFound(_) => {
+                            ::std::result::Result::Ok(__default.#id)
+                        },
+                        e => ::std::result::Result::Err(e)
+                    })?;
+                ))
             } else {
                 Some(parse_quote!(
                     let #id: #ty = #expr?;
@@ -180,7 +201,7 @@ fn expand_derive_from_row_struct(
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
+            fn from_row(__row: &#lifetime R) -> ::sqlx::Result<Self> {
                 #default_instance
 
                 #(#reads)*
