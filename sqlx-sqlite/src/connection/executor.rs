@@ -64,13 +64,15 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
             futures_util::pin_mut!(stream);
 
+            let mut out = Ok(None);
+
             while let Some(res) = stream.try_next().await? {
                 if let Either::Right(row) = res {
-                    return Ok(Some(row));
+                    out = Ok(Some(row));
                 }
             }
 
-            Ok(None)
+            out
         })
     }
 
