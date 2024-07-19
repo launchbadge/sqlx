@@ -216,8 +216,19 @@ fn it_parses_custom_connection_attributes() {
 }
 
 #[test]
-fn connection_attributes_default_is_client_defined() {
+fn connection_attributes_default_is_none() {
     let url = "mysql://username:password@hostname:5432/database";
+    let opts = MySqlConnectOptions::from_str(url).unwrap();
+
+    assert!(matches!(
+        opts.attributes,
+        crate::options::Attributes::None
+    ));
+}
+
+#[test]
+fn connection_attributes_set_client() {
+    let url = "mysql://username:password@hostname:5432/database?connection-attributes=true";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
     assert!(matches!(

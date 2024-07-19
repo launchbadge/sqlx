@@ -23,13 +23,14 @@ pub(crate) enum Attributes {
     Custom(BTreeMap<String, String>),
 }
 
-/// The default is to only send the default client attributes to the server
+/// The default is to not send any client attributes to the server
 impl Default for Attributes {
     fn default() -> Self {
-        Attributes::ClientDefault
+        Attributes::None
     }
 }
 
+/// Implement parsing connection attributes from the connection string
 impl FromStr for Attributes {
     type Err = &'static str;
 

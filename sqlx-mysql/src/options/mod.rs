@@ -439,6 +439,17 @@ impl MySqlConnectOptions {
         self
     }
 
+    /// Enable sending the default client connection attributes.
+    pub fn with_default_attributes(mut self) -> Self {
+        match self.attributes {
+            Attributes::None => {}
+            Attributes::ClientDefault => self.attributes = Attributes::ClientDefault,
+            Attributes::ClientDefaultAndCustom(_) => {},
+            Attributes::Custom(attr) => self.attributes = Attributes::ClientDefaultAndCustom(attr)
+        }
+        self
+    }
+
     /// Disable sending the default client connection attributes.
     pub fn no_default_attributes(mut self) -> Self {
         match self.attributes {
