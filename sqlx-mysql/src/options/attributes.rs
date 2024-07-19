@@ -26,12 +26,15 @@ impl Attributes {
                     unreachable!()
                 };
                 new_attributes
-            },
+            }
             Attributes::Some(attr) => attr,
         };
 
         attr.insert("_client_name".to_string(), "sqlx-mysql".to_string());
-        attr.insert("_client_version".to_string(), env!("CARGO_PKG_VERSION").to_string());
+        attr.insert(
+            "_client_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
     }
 }
 

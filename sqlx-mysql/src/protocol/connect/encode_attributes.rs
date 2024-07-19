@@ -1,9 +1,8 @@
-use std::collections::BTreeMap;
-
 use sqlx_core::io::Encode;
 
 use crate::{io::MySqlBufMutExt, options::Attributes, protocol::Capabilities};
 
+/// Encode the connection attributes to the wire format
 impl Encode<'_, Capabilities> for Attributes {
     fn encode_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
         // Connection attributes are not enabled or not supported
@@ -11,19 +10,11 @@ impl Encode<'_, Capabilities> for Attributes {
             return;
         }
 
-        let mut attributes_to_encode = BTreeMap::new();
-        match self {
-            Attributes::None => unreachable!(),
-            Attributes::Some(custom_attributes) => {
-                attributes_to_encode.extend(
-                    custom_attributes
-                        .iter()
-                        .map(|(k, v)| (k.as_str(), v.as_str())),
-                );
-            }
-        }
+        let Attributes::Some(attributes) = self else {
+            return;
+        };
 
-        if attributes_to_encode.is_empty() {
+        if attributes.is_empty() {
             return;
         }
 
@@ -31,7 +22,7 @@ impl Encode<'_, Capabilities> for Attributes {
         let mut attribute_buffer = vec![];
 
         // Add key/value pairs to the buffer
-        for (key, value) in attributes_to_encode {
+        for (key, value) in attributes {
             attribute_buffer.put_str_lenenc(key);
             attribute_buffer.put_str_lenenc(value);
         }
@@ -57,9 +48,10 @@ macro_rules! u8_slice {
 #[test]
 fn test_attributes_not_supported() {
     let capabilities = Capabilities::empty();
-    let client_default = Attributes::Some(BTreeMap::from([
-        ("attrib1".into(), "0123".into()),
-    ]));
+    let client_default = Attributes::Some(std::collections::BTreeMap::from([(
+        "attrib1".into(),
+        "0123".into(),
+    )]));
 
     let mut buffer = vec![];
     client_default.encode_with(&mut buffer, capabilities);
@@ -69,7 +61,7 @@ fn test_attributes_not_supported() {
 #[test]
 fn test_attribute_encoding() {
     let capabilities = Capabilities::CONNECT_ATTRS;
-    let client_default = Attributes::Some(BTreeMap::from([
+    let client_default = Attributes::Some(std::collections::BTreeMap::from([
         ("attrib1".into(), "0123".into()),
         ("attrib2_empty".into(), "".into()),
         ("attrib3".into(), "456".into()),
