@@ -474,7 +474,8 @@ pub fn build_script(migration_source: &str, force: bool) -> anyhow::Result<()> {
 fn main() {{
     // trigger recompilation when a new migration is added
     println!("cargo:rerun-if-changed={migration_source}");
-}}"#,
+}}
+"#,
     );
 
     fs::write("build.rs", contents)?;
