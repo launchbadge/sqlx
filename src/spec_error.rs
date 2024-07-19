@@ -6,35 +6,59 @@ use std::fmt::{Debug, Display};
 pub struct SpecErrorWrapper<E>(pub E);
 
 pub trait SpecError<E>: Sized {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static>;
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static>;
 }
 
-impl<E> SpecError<E> for &&&&SpecErrorWrapper<E> where E: Error + Send + Sync + 'static {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
+impl<E> SpecError<E> for &&&&SpecErrorWrapper<E>
+where
+    E: Error + Send + Sync + 'static,
+{
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
         |e| Box::new(e.0)
     }
 }
 
-impl<E> SpecError<E> for &&&SpecErrorWrapper<E> where E: Display {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
+impl<E> SpecError<E> for &&&SpecErrorWrapper<E>
+where
+    E: Display,
+{
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
         |e| e.0.to_string().into()
     }
 }
 
-impl<E> SpecError<E> for &&SpecErrorWrapper<E> where E: Debug {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
+impl<E> SpecError<E> for &&SpecErrorWrapper<E>
+where
+    E: Debug,
+{
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
         |e| format!("{:?}", e.0).into()
     }
 }
 
-impl<E> SpecError<E> for &SpecErrorWrapper<E> where E: Any {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
+impl<E> SpecError<E> for &SpecErrorWrapper<E>
+where
+    E: Any,
+{
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
         |_e| format!("unprintable error: {}", std::any::type_name::<E>()).into()
     }
 }
 
 impl<E> SpecError<E> for SpecErrorWrapper<E> {
-    fn __sqlx_spec_error(&self) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
+    fn __sqlx_spec_error(
+        &self,
+    ) -> fn(SpecErrorWrapper<E>) -> Box<dyn Error + Send + Sync + 'static> {
         |_e| "unprintable error: (unprintable type)".into()
     }
 }
@@ -58,7 +82,8 @@ fn test_spec_error() {
 
     struct AnyError;
 
-    let _e: Box<dyn Error + Send + Sync + 'static> = __spec_error!(std::io::Error::from(std::io::ErrorKind::Unsupported));
+    let _e: Box<dyn Error + Send + Sync + 'static> =
+        __spec_error!(std::io::Error::from(std::io::ErrorKind::Unsupported));
 
     let _e: Box<dyn Error + Send + Sync + 'static> = __spec_error!("displayable error");
 
