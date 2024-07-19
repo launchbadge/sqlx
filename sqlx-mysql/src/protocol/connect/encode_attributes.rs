@@ -14,20 +14,7 @@ impl Encode<'_, Capabilities> for Attributes {
         let mut attributes_to_encode = BTreeMap::new();
         match self {
             Attributes::None => unreachable!(),
-            Attributes::ClientDefault => {
-                add_client_attributes(&mut attributes_to_encode);
-            }
-
-            Attributes::ClientDefaultAndCustom(custom_attributes) => {
-                add_client_attributes(&mut attributes_to_encode);
-                attributes_to_encode.extend(
-                    custom_attributes
-                        .iter()
-                        .map(|(k, v)| (k.as_str(), v.as_str())),
-                );
-            }
-
-            Attributes::Custom(custom_attributes) => {
+            Attributes::Some(custom_attributes) => {
                 attributes_to_encode.extend(
                     custom_attributes
                         .iter()
@@ -55,14 +42,6 @@ impl Encode<'_, Capabilities> for Attributes {
     }
 }
 
-/// Add default client attributes
-///
-/// https://dev.mysql.com/doc/refman/8.0/en/performance-schema-connection-attribute-tables.html
-fn add_client_attributes(attr: &mut BTreeMap<&str, &str>) {
-    attr.insert("_client_name", "sqlx-mysql");
-    attr.insert("_client_version", env!("CARGO_PKG_VERSION"));
-}
-
 #[cfg(test)]
 #[macro_export]
 macro_rules! u8_slice {
@@ -78,7 +57,9 @@ macro_rules! u8_slice {
 #[test]
 fn test_attributes_not_supported() {
     let capabilities = Capabilities::empty();
-    let client_default = Attributes::ClientDefault;
+    let client_default = Attributes::Some(BTreeMap::from([
+        ("attrib1".into(), "0123".into()),
+    ]));
 
     let mut buffer = vec![];
     client_default.encode_with(&mut buffer, capabilities);
@@ -88,7 +69,7 @@ fn test_attributes_not_supported() {
 #[test]
 fn test_attribute_encoding() {
     let capabilities = Capabilities::CONNECT_ATTRS;
-    let client_default = Attributes::Custom(BTreeMap::from([
+    let client_default = Attributes::Some(BTreeMap::from([
         ("attrib1".into(), "0123".into()),
         ("attrib2_empty".into(), "".into()),
         ("attrib3".into(), "456".into()),
@@ -107,35 +88,6 @@ fn test_attribute_encoding() {
 
         7,  "attrib3",
         3,  "456"
-    );
-
-    // Prefix length (<251) as 1 byte
-    encoded.insert(0, encoded.len() as u8);
-
-    assert_eq!(encoded, buffer.as_slice());
-}
-
-#[test]
-fn test_custom_attributes_override_client_default() {
-    let capabilities = Capabilities::CONNECT_ATTRS;
-    let client_default = Attributes::ClientDefaultAndCustom(BTreeMap::from([
-        ("_client_version".into(), "overwrite1".into()),
-        ("newattrib".into(), "123".into()),
-    ]));
-
-    let mut buffer = vec![];
-    client_default.encode_with(&mut buffer, capabilities);
-
-    #[rustfmt::skip]
-    let mut encoded = u8_slice!(
-        12, "_client_name",
-        10, "sqlx-mysql",
-
-        15, "_client_version",
-        10, "overwrite1",
-
-        9,  "newattrib",
-        3,  "123"
     );
 
     // Prefix length (<251) as 1 byte

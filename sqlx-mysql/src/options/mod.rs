@@ -1,6 +1,5 @@
 use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
+    borrow::Cow, collections::BTreeMap, path::{Path, PathBuf}
 };
 
 mod attributes;
@@ -410,65 +409,35 @@ impl MySqlConnectOptions {
     /// Set a connection attribute.
     ///
     /// If a connection attribute with the same key already exists it is replaced.
-    pub fn attribute(mut self, key: &str, value: &str) -> Self {
+    pub fn attribute(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
         let attributes = match &mut self.attributes {
             Attributes::None => {
                 // No attributes defined yet => create
-                self.attributes = Attributes::Custom(BTreeMap::new());
+                self.attributes = Attributes::Some(BTreeMap::new());
 
-                let Attributes::Custom(ref mut new_attributes) = &mut self.attributes else {
+                let Attributes::Some(ref mut new_attributes) = &mut self.attributes else {
                     unreachable!()
                 };
                 new_attributes
             }
-            Attributes::ClientDefault => {
-                // No attributes defined yet => create
-                self.attributes = Attributes::ClientDefaultAndCustom(BTreeMap::new());
-
-                let Attributes::ClientDefaultAndCustom(ref mut new_attributes) =
-                    &mut self.attributes
-                else {
-                    unreachable!()
-                };
-                new_attributes
-            }
-            Attributes::ClientDefaultAndCustom(attr) | Attributes::Custom(attr) => attr,
+            Attributes::Some(attr) => attr,
         };
 
-        _ = attributes.insert(String::from(key), String::from(value));
+        _ = attributes.insert(key.into().to_string(), value.into().to_string());
         self
     }
 
     /// Enable sending the default client connection attributes.
+    ///
+    /// This will set `_client_name` and `_client_version`
     pub fn with_default_attributes(mut self) -> Self {
-        match self.attributes {
-            Attributes::None => {}
-            Attributes::ClientDefault => self.attributes = Attributes::ClientDefault,
-            Attributes::ClientDefaultAndCustom(_) => {},
-            Attributes::Custom(attr) => self.attributes = Attributes::ClientDefaultAndCustom(attr)
-        }
+        self.attributes.add_default_client_attributes();
         self
     }
 
-    /// Disable sending the default client connection attributes.
-    pub fn no_default_attributes(mut self) -> Self {
-        match self.attributes {
-            Attributes::None => {}
-            Attributes::ClientDefault => self.attributes = Attributes::None,
-            Attributes::ClientDefaultAndCustom(attr) => self.attributes = Attributes::Custom(attr),
-            Attributes::Custom(_) => {}
-        }
-        self
-    }
-
-    /// Clear any previous defined custom connection attributes.
-    pub fn clear_custom_attributes(mut self) -> Self {
-        match self.attributes {
-            Attributes::None => {}
-            Attributes::ClientDefault => {}
-            Attributes::ClientDefaultAndCustom(_) => self.attributes = Attributes::ClientDefault,
-            Attributes::Custom(_) => self.attributes = Attributes::None,
-        }
+    /// Clear any connection attributes.
+    pub fn clear_attributes(mut self) -> Self {
+        self.attributes = Attributes::None;
         self
     }
 }
@@ -596,11 +565,10 @@ impl MySqlConnectOptions {
     /// let mut attributes = options.get_custom_attributes().into_iter().flatten();
     /// assert_eq!(Some(("key", "value")), attributes.next());
     /// ```
-    pub fn get_custom_attributes(&self) -> Option<impl Iterator<Item = (&str, &str)>> {
+    pub fn get_attributes(&self) -> Option<impl Iterator<Item = (&str, &str)>> {
         match &self.attributes {
             Attributes::None => None,
-            Attributes::ClientDefault => None,
-            Attributes::ClientDefaultAndCustom(attr) | Attributes::Custom(attr) => Some(
+            Attributes::Some(attr) => Some(
                 attr.iter()
                     .map(|(key, value)| (key.as_str(), value.as_str())),
             ),

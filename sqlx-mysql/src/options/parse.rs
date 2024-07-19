@@ -202,7 +202,7 @@ fn it_parses_custom_connection_attributes() {
     assert_eq!(opts.charset, "after");
 
     match opts.attributes {
-        crate::options::Attributes::ClientDefaultAndCustom(attr) => {
+        crate::options::Attributes::Some(attr) => {
             assert_eq!(
                 BTreeMap::from([
                     ("key1".into(), "value1".into()),
@@ -233,6 +233,6 @@ fn connection_attributes_set_client() {
 
     assert!(matches!(
         opts.attributes,
-        crate::options::Attributes::ClientDefault
+        crate::options::Attributes::Some(_)
     ));
 }
