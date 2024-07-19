@@ -21,6 +21,7 @@
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
 //! | [`PgCube`]                            | CUBE                                                 |
+//! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
 //! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
@@ -187,6 +188,7 @@ mod bool;
 mod bytes;
 mod citext;
 mod float;
+mod hstore;
 mod int;
 mod interval;
 mod lquery;
@@ -240,6 +242,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use hstore::PgHstore;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;
