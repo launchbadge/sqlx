@@ -56,7 +56,7 @@ pub trait TransactionManager {
 ///
 /// let result = sqlx::query("DELETE FROM \"testcases\" WHERE id = $1")
 ///     .bind(id)
-///     .execute(tx.as_mut())
+///     .execute(&mut *tx)
 ///     .await?
 ///     .rows_affected();
 ///
