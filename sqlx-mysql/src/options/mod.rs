@@ -550,7 +550,7 @@ impl MySqlConnectOptions {
     /// let options = MySqlConnectOptions::new()
     ///     .attribute("key", "value");
     ///
-    /// let mut attributes = options.get_custom_attributes().into_iter().flatten();
+    /// let mut attributes = options.get_attributes().into_iter();
     /// assert_eq!(Some(("key", "value")), attributes.next());
     /// ```
     pub fn get_attributes(&self) -> impl Iterator<Item = (&str, &str)> {
