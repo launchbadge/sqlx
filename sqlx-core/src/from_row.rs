@@ -173,7 +173,7 @@ use crate::{error::Error, row::Row};
 ///    .fetch_one(&mut some_connection)
 ///    .await?;
 ///
-/// `Default` for `Vec<Address>` is an empty vector.
+/// // `Default` for `Vec<Address>` is an empty vector.
 /// assert!(user.addresses.is_empty());
 /// ```
 ///

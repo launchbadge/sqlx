@@ -18,7 +18,7 @@ use std::time::Duration;
 /// Allowed range is `-838:59:59.0` to `838:59:59.0`.
 ///
 /// If this value is used for a time-of-day, the range should be `00:00:00.0` to `23:59:59.999999`.
-/// You can use [`Self::is_time_of_day()`] to check this easily.
+/// You can use [`Self::is_valid_time_of_day()`] to check this easily.
 ///
 /// * [MySQL Manual 13.2.3: The TIME Type](https://dev.mysql.com/doc/refman/8.3/en/time.html)
 /// * [MariaDB Manual: TIME](https://mariadb.com/kb/en/time/)
@@ -125,7 +125,7 @@ impl MySqlTime {
     /// Construct a [`MySqlTime`] that is valid for use as a `TIME` value.
     ///
     /// ### Errors
-    /// * [`MySqlTimeError::NegativeZero`] if all fields are 0 but `sign` is [`MySqlSign::Negative`].
+    /// * [`MySqlTimeError::NegativeZero`] if all fields are 0 but `sign` is [`MySqlTimeSign::Negative`].
     /// * [`MySqlTimeError::FieldRange`] if any field is out of range:
     ///     * `hours > 838`
     ///     * `minutes > 59`

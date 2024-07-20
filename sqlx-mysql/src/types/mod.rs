@@ -21,7 +21,7 @@
 //! | `Ipv4Addr`                            | INET4 (MariaDB-only), VARCHAR, TEXT                  |
 //! | `Ipv6Addr`                            | INET6 (MariaDB-only), VARCHAR, TEXT                  |
 //! | [`MySqlTime`]                         | TIME (encode and decode full range)                  |
-//! | [`Duration`]                          | TIME (for decoding positive values only)             |
+//! | [`Duration`][std::time::Duration]     | TIME (for decoding positive values only)             |
 //!
 //! ##### Note: `BOOLEAN`/`BOOL` Type
 //! MySQL and MariaDB treat `BOOLEAN` as an alias of the `TINYINT` type:
