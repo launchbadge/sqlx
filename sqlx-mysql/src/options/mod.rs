@@ -1,5 +1,6 @@
 use std::{
-    borrow::Cow, collections::BTreeMap, path::{Path, PathBuf}
+    borrow::Cow,
+    path::{Path, PathBuf},
 };
 
 mod attributes;
@@ -409,21 +410,14 @@ impl MySqlConnectOptions {
     /// Set a connection attribute.
     ///
     /// If a connection attribute with the same key already exists it is replaced.
-    pub fn attribute(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
-        let attributes = match &mut self.attributes {
-            Attributes::None => {
-                // No attributes defined yet => create
-                self.attributes = Attributes::Some(BTreeMap::new());
-
-                let Attributes::Some(ref mut new_attributes) = &mut self.attributes else {
-                    unreachable!()
-                };
-                new_attributes
-            }
-            Attributes::Some(attr) => attr,
-        };
-
-        _ = attributes.insert(key.into().to_string(), value.into().to_string());
+    pub fn attribute(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        _ = self
+            .attributes
+            .insert(key.into().to_string(), value.into().to_string());
         self
     }
 
@@ -432,12 +426,6 @@ impl MySqlConnectOptions {
     /// This will set `_client_name` and `_client_version`
     pub fn with_default_attributes(mut self) -> Self {
         self.attributes.add_default_client_attributes();
-        self
-    }
-
-    /// Clear any connection attributes.
-    pub fn clear_attributes(mut self) -> Self {
-        self.attributes = Attributes::None;
         self
     }
 }
@@ -565,13 +553,9 @@ impl MySqlConnectOptions {
     /// let mut attributes = options.get_custom_attributes().into_iter().flatten();
     /// assert_eq!(Some(("key", "value")), attributes.next());
     /// ```
-    pub fn get_attributes(&self) -> Option<impl Iterator<Item = (&str, &str)>> {
-        match &self.attributes {
-            Attributes::None => None,
-            Attributes::Some(attr) => Some(
-                attr.iter()
-                    .map(|(key, value)| (key.as_str(), value.as_str())),
-            ),
-        }
+    pub fn get_attributes(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.attributes
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
     }
 }

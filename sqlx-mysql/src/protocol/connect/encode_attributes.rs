@@ -2,19 +2,13 @@ use sqlx_core::io::Encode;
 
 use crate::{io::MySqlBufMutExt, options::Attributes, protocol::Capabilities};
 
+// See: https://mariadb.com/kb/en/connection/#handshake-response-packet
+
 /// Encode the connection attributes to the wire format
 impl Encode<'_, Capabilities> for Attributes {
     fn encode_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
         // Connection attributes are not enabled or not supported
-        if !capabilities.contains(Capabilities::CONNECT_ATTRS) || matches!(self, Attributes::None) {
-            return;
-        }
-
-        let Attributes::Some(attributes) = self else {
-            return;
-        };
-
-        if attributes.is_empty() {
+        if !capabilities.contains(Capabilities::CONNECT_ATTRS) || self.is_empty() {
             return;
         }
 
@@ -22,7 +16,7 @@ impl Encode<'_, Capabilities> for Attributes {
         let mut attribute_buffer = vec![];
 
         // Add key/value pairs to the buffer
-        for (key, value) in attributes {
+        for (key, value) in self.iter() {
             attribute_buffer.put_str_lenenc(key);
             attribute_buffer.put_str_lenenc(value);
         }
@@ -48,27 +42,25 @@ macro_rules! u8_slice {
 #[test]
 fn test_attributes_not_supported() {
     let capabilities = Capabilities::empty();
-    let client_default = Attributes::Some(std::collections::BTreeMap::from([(
-        "attrib1".into(),
-        "0123".into(),
-    )]));
+    let mut attributes = Attributes::default();
+    attributes.insert("attrib1".into(), "0123".into());
 
     let mut buffer = vec![];
-    client_default.encode_with(&mut buffer, capabilities);
+    attributes.encode_with(&mut buffer, capabilities);
     assert!(buffer.is_empty());
 }
 
 #[test]
 fn test_attribute_encoding() {
     let capabilities = Capabilities::CONNECT_ATTRS;
-    let client_default = Attributes::Some(std::collections::BTreeMap::from([
-        ("attrib1".into(), "0123".into()),
-        ("attrib2_empty".into(), "".into()),
-        ("attrib3".into(), "456".into()),
-    ]));
+
+    let mut attributes = Attributes::default();
+    attributes.insert("attrib1".into(), "0123".into());
+    attributes.insert("attrib2_empty".into(), "".into());
+    attributes.insert("attrib3".into(), "456".into());
 
     let mut buffer = vec![];
-    client_default.encode_with(&mut buffer, capabilities);
+    attributes.encode_with(&mut buffer, capabilities);
 
     #[rustfmt::skip]
     let mut encoded = u8_slice!(

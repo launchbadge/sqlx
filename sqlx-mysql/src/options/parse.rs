@@ -188,7 +188,7 @@ fn it_parses_connection_attributes_false() {
     let url = "mysql://username:password@hostname:5432/database?connection-attributes=false";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
-    assert!(matches!(opts.attributes, crate::options::Attributes::None));
+    assert!(opts.attributes.is_empty());
 }
 
 #[test]
@@ -201,18 +201,13 @@ fn it_parses_custom_connection_attributes() {
     assert_eq!(opts.collation, Some("before".into()));
     assert_eq!(opts.charset, "after");
 
-    match opts.attributes {
-        crate::options::Attributes::Some(attr) => {
-            assert_eq!(
-                BTreeMap::from([
-                    ("key1".into(), "value1".into()),
-                    ("key2".into(), "value2".into()),
-                ]),
-                attr
-            );
-        }
-        _ => panic!("Invalid connection attributes"),
-    }
+    assert_eq!(
+        BTreeMap::from([
+            ("key1".into(), "value1".into()),
+            ("key2".into(), "value2".into()),
+        ]),
+        *opts.attributes
+    );
 }
 
 #[test]
@@ -220,7 +215,7 @@ fn connection_attributes_default_is_none() {
     let url = "mysql://username:password@hostname:5432/database";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
-    assert!(matches!(opts.attributes, crate::options::Attributes::None));
+    assert!(opts.attributes.is_empty());
 }
 
 #[test]
@@ -228,8 +223,6 @@ fn connection_attributes_set_client() {
     let url = "mysql://username:password@hostname:5432/database?connection-attributes=true";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
-    assert!(matches!(
-        opts.attributes,
-        crate::options::Attributes::Some(_)
-    ));
+    assert!(opts.attributes.contains_key("_client_name"));
+    assert!(opts.attributes.contains_key("_client_version"));
 }
