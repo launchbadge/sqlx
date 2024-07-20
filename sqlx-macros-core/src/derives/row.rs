@@ -119,9 +119,11 @@ fn expand_derive_from_row_struct(
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
                                     .map_err(|e| {
+                                        // Triggers a lint warning if `TryFrom::Err = Infallible`
+                                        #[allow(unreachable_code)]
                                         ::sqlx::Error::ColumnDecode {
                                             index: #id_s.to_string(),
-                                            error: sqlx::__spec_error!(e),
+                                            source: sqlx::__spec_error!(e),
                                         }
                                     })
                             })
@@ -142,9 +144,11 @@ fn expand_derive_from_row_struct(
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
                                     .map_err(|e| {
+                                        // Triggers a lint warning if `TryFrom::Err = Infallible`
+                                        #[allow(unreachable_code)]
                                         ::sqlx::Error::ColumnDecode {
                                             index: #id_s.to_string(),
-                                            error: sqlx::__spec_error!(e),
+                                            source: sqlx::__spec_error!(e),
                                         }
                                     })
                             })
@@ -161,9 +165,11 @@ fn expand_derive_from_row_struct(
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v.0)
                                     .map_err(|e| {
+                                        // Triggers a lint warning if `TryFrom::Err = Infallible`
+                                        #[allow(unreachable_code)]
                                         ::sqlx::Error::ColumnDecode {
                                             index: #id_s.to_string(),
-                                            error: sqlx::__spec_error!(e),
+                                            source: sqlx::__spec_error!(e),
                                         }
                                     })
                             })
