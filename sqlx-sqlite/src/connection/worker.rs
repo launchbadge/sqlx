@@ -40,15 +40,15 @@ pub(crate) struct WorkerSharedState {
 
 enum Command {
     Prepare {
-        query: Box<str>,
+        query: Arc<str>,
         tx: oneshot::Sender<Result<SqliteStatement<'static>, Error>>,
     },
     Describe {
-        query: Box<str>,
+        query: Arc<str>,
         tx: oneshot::Sender<Result<Describe<Sqlite>, Error>>,
     },
     Execute {
-        query: Box<str>,
+        query: Arc<str>,
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
@@ -119,7 +119,7 @@ impl ConnectionWorker {
                     let _guard = span.enter();
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, &query).map(|prepared| {
+                            tx.send(prepare(&mut conn, query).map(|prepared| {
                                 update_cached_statements_size(
                                     &conn,
                                     &shared.cached_statements_size,
@@ -394,7 +394,7 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'static>, Error> {
+fn prepare(conn: &mut ConnectionState, query: Arc<str>) -> Result<SqliteStatement<'static>, Error> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query, true)?;
 

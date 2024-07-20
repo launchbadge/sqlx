@@ -5,9 +5,9 @@ use std::os::raw::c_int;
 use std::{borrow::Cow, str::from_utf8_unchecked};
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_errmsg, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
-    SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL, SQLITE_CONSTRAINT_PRIMARYKEY,
-    SQLITE_CONSTRAINT_UNIQUE,
+    sqlite3, sqlite3_errmsg, sqlite3_error_offset, sqlite3_extended_errcode,
+    SQLITE_CONSTRAINT_CHECK, SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL,
+    SQLITE_CONSTRAINT_PRIMARYKEY, SQLITE_CONSTRAINT_UNIQUE,
 };
 
 pub(crate) use sqlx_core::error::*;
@@ -19,6 +19,8 @@ pub(crate) use sqlx_core::error::*;
 pub struct SqliteError {
     code: c_int,
     message: String,
+    offset: Option<usize>,
+    error_pos: Option<ErrorPosition>,
 }
 
 impl SqliteError {
@@ -34,9 +36,26 @@ impl SqliteError {
             from_utf8_unchecked(CStr::from_ptr(msg).to_bytes())
         };
 
+        // returns `-1` if not applicable
+        let offset = unsafe { sqlite3_error_offset(handle) }.try_into().ok();
+
         Self {
             code,
             message: message.to_owned(),
+            offset,
+            error_pos,
+        }
+    }
+
+    pub(crate) fn add_offset(&mut self, offset: usize) {
+        if let Some(prev_offset) = self.offset {
+            self.offset = prev_offset.checked_add(offset);
+        }
+    }
+
+    pub(crate) fn find_error_pos(&mut self, query: &str) {
+        if let Some(offset) = self.offset {
+            self.error_pos = ErrorPosition::find(query, PositionBasis::ByteOffset(offset));
         }
     }
 
@@ -70,6 +89,10 @@ impl DatabaseError for SqliteError {
     #[inline]
     fn code(&self) -> Option<Cow<'_, str>> {
         Some(format!("{}", self.code).into())
+    }
+
+    fn position(&self) -> Option<ErrorPosition> {
+        self.error_pos
     }
 
     #[doc(hidden)]

@@ -31,8 +31,11 @@ pub struct VirtualStatement {
     /// there are no more statements to execute and `reset()` must be called
     index: Option<usize>,
 
-    /// tail of the most recently prepared SQL statement within this container
-    tail: Bytes,
+    /// The full input SQL.
+    sql: Arc<str>,
+
+    /// The byte offset of the next statement to prepare in `sql`.
+    tail_offset: usize,
 
     /// underlying sqlite handles for each inner statement
     /// a SQL query string in SQLite is broken up into N statements
@@ -44,6 +47,9 @@ pub struct VirtualStatement {
 
     // each set of column names
     pub(crate) column_names: SmallVec<[Arc<HashMap<UStr, usize>>; 1]>,
+
+    /// Offsets into `sql` for each statement.
+    pub(crate) sql_offsets: SmallVec<[usize; 1]>,
 }
 
 pub struct PreparedStatement<'a> {
@@ -53,9 +59,7 @@ pub struct PreparedStatement<'a> {
 }
 
 impl VirtualStatement {
-    pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
-        query = query.trim();
-
+    pub(crate) fn new(query: Arc<str>, persistent: bool) -> Result<Self, Error> {
         if query.len() > i32::max_value() as usize {
             return Err(err_protocol!(
                 "query string must be smaller than {} bytes",
@@ -65,11 +69,13 @@ impl VirtualStatement {
 
         Ok(Self {
             persistent,
-            tail: Bytes::from(String::from(query)),
+            sql: query,
+            tail_offset: 0,
             handles: SmallVec::with_capacity(1),
             index: None,
             columns: SmallVec::with_capacity(1),
             column_names: SmallVec::with_capacity(1),
+            sql_offsets: SmallVec::with_capacity(1),
         })
     }
 
@@ -84,11 +90,33 @@ impl VirtualStatement {
             .or(Some(0));
 
         while self.handles.len() <= self.index.unwrap_or(0) {
-            if self.tail.is_empty() {
+            let sql_offset = self.tail_offset;
+
+            let query = self.sql.get(sql_offset..).unwrap_or("");
+
+            if query.is_empty() {
                 return Ok(None);
             }
 
-            if let Some(statement) = prepare(conn.as_ptr(), &mut self.tail, self.persistent)? {
+            let (consumed, maybe_statement) = try_prepare(
+                conn.as_ptr(),
+                query,
+                self.persistent,
+            ).map_err(|mut e| {
+                // `sqlite3_offset()` returns the offset into the passed string,
+                // but we want the offset into the original SQL string.
+                e.add_offset(sql_offset);
+                e.find_error_pos(&self.sql);
+                e
+            })?;
+
+            self.tail_offset = self.tail_offset
+                .checked_add(consumed)
+                // Highly unlikely, but since we're dealing with `unsafe` here
+                // it's best not to fool around.
+                .ok_or_else(|| Error::Protocol(format!("overflow adding {n:?} bytes to tail_offset {tail_offset:?}")))?;
+
+            if let Some(statement) = maybe_statement {
                 let num = statement.column_count();
 
                 let mut columns = Vec::with_capacity(num);
@@ -112,6 +140,7 @@ impl VirtualStatement {
                 self.handles.push(statement);
                 self.columns.push(Arc::new(columns));
                 self.column_names.push(Arc::new(column_names));
+                self.sql_offsets.push(sql_offset);
             }
         }
 
@@ -140,11 +169,13 @@ impl VirtualStatement {
     }
 }
 
-fn prepare(
+/// Attempt to prepare one statement, returning the number of bytes consumed from `sql`,
+/// and the statement handle if successful.
+fn try_prepare(
     conn: *mut sqlite3,
-    query: &mut Bytes,
+    query: &str,
     persistent: bool,
-) -> Result<Option<StatementHandle>, Error> {
+) -> Result<(usize, Option<StatementHandle>), SqliteError> {
     let mut flags = 0;
 
     // For some reason, when building with the `sqlcipher` feature enabled
@@ -158,40 +189,37 @@ fn prepare(
         flags |= SQLITE_PREPARE_PERSISTENT as u32;
     }
 
-    while !query.is_empty() {
-        let mut statement_handle: *mut sqlite3_stmt = null_mut();
-        let mut tail: *const c_char = null();
+    let mut statement_handle: *mut sqlite3_stmt = null_mut();
+    let mut tail_ptr: *const c_char = null();
 
-        let query_ptr = query.as_ptr() as *const c_char;
-        let query_len = query.len() as i32;
+    let query_ptr = query.as_ptr() as *const c_char;
+    let query_len = query.len() as i32;
 
-        // <https://www.sqlite.org/c3ref/prepare.html>
-        let status = unsafe {
-            sqlite3_prepare_v3(
-                conn,
-                query_ptr,
-                query_len,
-                flags,
-                &mut statement_handle,
-                &mut tail,
-            )
-        };
+    // <https://www.sqlite.org/c3ref/prepare.html>
+    let status = unsafe {
+        sqlite3_prepare_v3(
+            conn,
+            query_ptr,
+            query_len,
+            flags,
+            &mut statement_handle,
+            &mut tail_ptr,
+        )
+    };
 
-        if status != SQLITE_OK {
-            return Err(SqliteError::new(conn).into());
-        }
-
-        // tail should point to the first byte past the end of the first SQL
-        // statement in zSql. these routines only compile the first statement,
-        // so tail is left pointing to what remains un-compiled.
-
-        let n = (tail as usize) - (query_ptr as usize);
-        query.advance(n);
-
-        if let Some(handle) = NonNull::new(statement_handle) {
-            return Ok(Some(StatementHandle::new(handle)));
-        }
+    if status != SQLITE_OK {
+        // Note: `offset` and `error_pos` will be updated in `VirtualStatement::prepare_next()`.
+        return Err(SqliteError::new(conn));
     }
 
-    Ok(None)
+    // tail should point to the first byte past the end of the first SQL
+    // statement in zSql. these routines only compile the first statement,
+    // so tail is left pointing to what remains un-compiled.
+
+    let consumed = (tail_ptr as usize) - (query_ptr as usize);
+
+    Ok((
+        consumed,
+        NonNull::new(statement_handle).map(StatementHandle::new),
+    ))
 }

@@ -6,7 +6,7 @@ use std::os::raw::{c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
 use std::ptr::NonNull;
-
+use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
@@ -395,12 +395,12 @@ impl Statements {
         }
     }
 
-    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut VirtualStatement, Error> {
+    fn get(&mut self, query: Arc<str>, persistent: bool) -> Result<&mut VirtualStatement, Error> {
         if !persistent || !self.cached.is_enabled() {
             return Ok(self.temp.insert(VirtualStatement::new(query, false)?));
         }
 
-        let exists = self.cached.contains_key(query);
+        let exists = self.cached.contains_key(&query);
 
         if !exists {
             let statement = VirtualStatement::new(query, true)?;
