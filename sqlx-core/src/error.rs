@@ -193,6 +193,15 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
         None
     }
 
+    /// The position in the query where the error occurred, if applicable.
+    ///
+    /// ### Note
+    /// This assumes that Rust and the database server agree on the definition of "character",
+    /// i.e. a Unicode scalar value.
+    fn position(&self) -> Option<ErrorPosition> {
+        None
+    }
+
     #[doc(hidden)]
     fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static);
 
@@ -319,4 +328,88 @@ macro_rules! err_protocol {
     ($fmt:expr, $($arg:tt)*) => {
         $crate::error::Error::Protocol(format!($fmt, $($arg)*))
     };
+}
+
+/// The line and column (1-based) in the query where the server says an error occurred.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ErrorPosition {
+    /// The line number (1-based) in the query where the server says the error occurred.
+    pub line: usize,
+    /// The column (1-based) in the query where the server says the error occurred.
+    pub column: usize,
+}
+
+/// The character basis for an error position. Used with [`ErrorPosition`].
+pub enum CharBasis {
+    /// A zero-based character index.
+    Zero(usize),
+    /// A 1-based character position.
+    One(usize)
+}
+
+impl ErrorPosition {
+    /// Given a query string and a character position, return the line and column in the query.
+    ///
+    /// ### Note
+    /// This assumes that Rust and the database server agree on the definition of "character",
+    /// i.e. a Unicode scalar value.
+    pub fn from_char_pos(query: &str, char_basis: CharBasis) -> Option<ErrorPosition> {
+        // UTF-8 encoding forces us to count characters from the beginning.
+        let char_idx = char_basis.to_index()?;
+
+        let mut pos = ErrorPosition {
+            line: 1,
+            column: 1,
+        };
+
+        for (i, ch) in query.chars().enumerate() {
+            if i == char_idx { return Some(pos); }
+
+            if ch == '\n' {
+                pos.line = pos.line.checked_add(1)?;
+                pos.column = 1;
+            } else {
+                pos.column = pos.column.checked_add(1)?;
+            }
+        }
+
+        None
+    }
+}
+
+impl CharBasis {
+    fn to_index(&self) -> Option<usize> {
+        match *self {
+            CharBasis::Zero(idx) => Some(idx),
+            CharBasis::One(pos) => pos.checked_sub(1),
+        }
+    }
+}
+
+#[test]
+fn test_error_position() {
+    macro_rules! test_error_position {
+        // Note: only tests one-based positions since zero-based is most of the same steps.
+        ($query:expr, pos: $pos:expr, line: $line:expr, col: $column:expr; $($tt:tt)*) => {
+            let expected = ErrorPosition { line: $line, column: $column };
+            let actual = ErrorPosition::from_char_pos($query, CharBasis::One($pos));
+            assert_eq!(actual, Some(expected), "for position {} in query {:?}", $pos, $query);
+
+            test_error_position!($($tt)*);
+        };
+        ($query:expr, pos: $pos:expr, None; $($tt:tt)*) => {
+            let actual = ErrorPosition::from_char_pos($query, CharBasis::One($pos));
+            assert_eq!(actual, None, "for position {} in query {:?}", $pos, $query);
+
+            test_error_position!($($tt)*);
+        };
+        () => {}
+    }
+
+    test_error_position! {
+        "SELECT foo", pos: 8, line: 1, col: 8;
+        "SELECT foo\nbar FROM baz", pos: 16, line: 2, col: 5;
+        "SELECT foo\r\nbar FROM baz", pos: 17, line: 2, col: 5;
+        "SELECT foo\r\nbar FROM baz", pos: 27, None;
+    }
 }
