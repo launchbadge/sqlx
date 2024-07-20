@@ -116,7 +116,7 @@ async fn it_can_inspect_errors() -> anyhow::Result<()> {
     assert_eq!(err.severity(), PgSeverity::Error);
     assert_eq!(err.message(), "column \"f\" does not exist");
     assert_eq!(err.code(), "42703");
-    assert_eq!(err.position(), Some(PgErrorPosition::Original(8)));
+    assert_eq!(err.pg_error_position(), Some(PgErrorPosition::Original(8)));
     assert_eq!(err.routine(), Some("errorMissingColumn"));
     assert_eq!(err.constraint(), None);
 
@@ -151,7 +151,7 @@ async fn it_can_inspect_constraint_errors() -> anyhow::Result<()> {
         "new row for relation \"products\" violates check constraint \"products_price_check\""
     );
     assert_eq!(err.code(), "23514");
-    assert_eq!(err.position(), None);
+    assert_eq!(err.pg_error_position(), None);
     assert_eq!(err.routine(), Some("ExecConstraints"));
     assert_eq!(err.constraint(), Some("products_price_check"));
 
