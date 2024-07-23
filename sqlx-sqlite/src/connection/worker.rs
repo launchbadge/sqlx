@@ -160,9 +160,18 @@ impl ConnectionWorker {
                                 },
                                 Returning::One => {
                                     let mut iter = iter;
-                                    if let Some(res) = iter.next() {
-                                        drop(iter);
-                                        let _ = tx.send(res);
+
+                                    while let Some(res) = iter.next() {
+                                        if let Ok(ok) = &res {
+                                            if ok.is_right() {
+                                                drop(iter);
+                                                let _ = tx.send(res);
+                                                break;
+                                            }
+                                        }
+                                        if tx.send(res).is_err() {
+                                            break;
+                                        }
                                     }
                                 },
                             }
