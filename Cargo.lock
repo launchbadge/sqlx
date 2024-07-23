@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3198,7 +3198,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3225,7 +3225,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "async-io 1.13.0",
  "async-std",
@@ -3409,7 +3409,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3420,7 +3420,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros-core"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "async-std",
  "dotenvy",
@@ -3445,7 +3445,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-mysql"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "atoi",
  "base64 0.22.0",
@@ -3490,7 +3490,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-postgres"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "atoi",
  "base64 0.22.0",
@@ -3536,7 +3536,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-sqlite"
-version = "0.8.0-alpha.0"
+version = "0.8.0"
 dependencies = [
  "atoi",
  "chrono",
