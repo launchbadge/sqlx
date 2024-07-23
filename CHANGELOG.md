@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.0 - 2024-07-22
 
-69 pull requests were merged this release cycle.
+70 pull requests were merged this release cycle.
+
+[#2697] was merged the same day as release 0.7.4 and so was missed by the automatic CHANGELOG generation.
 
 ### Breaking
+* [[#2697]]: fix(macros): only enable chrono when time is disabled [[@saiintbrisson]]
 * [[#2973]]: Generic Associated Types in Database, replacing HasValueRef, HasArguments, HasStatement [[@nitn3lav]]
 * [[#2482]]: chore: bump syn to 2.0 [[@saiintbrisson]]
     * Deprecated type ascription syntax in the query macros was removed.
@@ -110,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#2482]: https://github.com/launchbadge/sqlx/pull/2482
 [#2652]: https://github.com/launchbadge/sqlx/pull/2652
+[#2697]: https://github.com/launchbadge/sqlx/pull/2697
 [#2702]: https://github.com/launchbadge/sqlx/pull/2702
 [#2736]: https://github.com/launchbadge/sqlx/pull/2736
 [#2869]: https://github.com/launchbadge/sqlx/pull/2869
