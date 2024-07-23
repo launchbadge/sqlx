@@ -21,6 +21,8 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
+use super::Returning;
+
 // Each SQLite connection has a dedicated thread.
 
 // TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
@@ -52,6 +54,7 @@ enum Command {
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
+        returning: Returning
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -136,6 +139,7 @@ impl ConnectionWorker {
                             arguments,
                             persistent,
                             tx,
+                            returning
                         } => {
                             let iter = match execute::iter(&mut conn, &query, arguments, persistent)
                             {
@@ -146,10 +150,21 @@ impl ConnectionWorker {
                                 }
                             };
 
-                            for res in iter {
-                                if tx.send(res).is_err() {
-                                    break;
-                                }
+                            match returning {
+                                Returning::Many => {
+                                    for res in iter {
+                                        if tx.send(res).is_err() {
+                                            break;
+                                        }
+                                    }
+                                },
+                                Returning::One => {
+                                    let mut iter = iter;
+                                    if let Some(res) = iter.next() {
+                                        drop(iter);
+                                        let _ = tx.send(res);
+                                    }
+                                },
                             }
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
@@ -284,6 +299,7 @@ impl ConnectionWorker {
         args: Option<SqliteArguments<'_>>,
         chan_size: usize,
         persistent: bool,
+        returning: Returning
     ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, SqliteRow>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
@@ -294,6 +310,7 @@ impl ConnectionWorker {
                     arguments: args.map(SqliteArguments::into_static),
                     persistent,
                     tx,
+                    returning
                 },
                 Span::current(),
             ))
