@@ -429,5 +429,5 @@ impl Statements {
 
 pub(crate) enum Returning {
     Many,
-    One
+    One,
 }

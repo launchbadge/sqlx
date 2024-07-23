@@ -54,7 +54,7 @@ enum Command {
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
-        returning: Returning
+        returning: Returning,
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -299,7 +299,7 @@ impl ConnectionWorker {
         args: Option<SqliteArguments<'_>>,
         chan_size: usize,
         persistent: bool,
-        returning: Returning
+        returning: Returning,
     ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, SqliteRow>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
@@ -310,7 +310,7 @@ impl ConnectionWorker {
                     arguments: args.map(SqliteArguments::into_static),
                     persistent,
                     tx,
-                    returning
+                    returning,
                 },
                 Span::current(),
             ))

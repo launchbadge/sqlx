@@ -32,7 +32,13 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
         Box::pin(
             self.worker
-                .execute(sql, arguments, self.row_channel_size, persistent, crate::connection::Returning::Many)
+                .execute(
+                    sql,
+                    arguments,
+                    self.row_channel_size,
+                    persistent,
+                    crate::connection::Returning::Many,
+                )
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream(),
         )
@@ -58,7 +64,13 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         Box::pin(async move {
             let stream = self
                 .worker
-                .execute(sql, arguments, self.row_channel_size, persistent, crate::connection::Returning::One)
+                .execute(
+                    sql,
+                    arguments,
+                    self.row_channel_size,
+                    persistent,
+                    crate::connection::Returning::One,
+                )
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream();
 
@@ -66,7 +78,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
             while let Some(res) = stream.try_next().await? {
                 if let Either::Right(row) = res {
-                    return Ok(Some(row))
+                    return Ok(Some(row));
                 }
             }
 
