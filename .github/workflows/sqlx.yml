@@ -12,7 +12,7 @@ jobs:
     name: Format
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
 
@@ -24,7 +24,7 @@ jobs:
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -54,7 +54,7 @@ jobs:
     name: Check build using minimal versions
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - run: rustup update
       - run: rustup toolchain install nightly
       - run: cargo +nightly generate-lockfile -Z minimal-versions
@@ -68,7 +68,7 @@ jobs:
         runtime: [async-std, tokio]
         tls: [native-tls, rustls, none]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -83,7 +83,7 @@ jobs:
     name: CLI Unit Test
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -112,7 +112,7 @@ jobs:
     #            bin: target/debug/cargo-sqlx
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -133,7 +133,7 @@ jobs:
         runtime: [async-std, tokio]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
 
@@ -196,7 +196,7 @@ jobs:
         tls: [native-tls, rustls, none]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -296,7 +296,7 @@ jobs:
         tls: [native-tls, rustls, none]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -384,7 +384,7 @@ jobs:
         tls: [native-tls, rustls, none]
     needs: check
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
