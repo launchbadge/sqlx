@@ -8,7 +8,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum PascalCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -16,7 +16,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum CamelCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -24,7 +24,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum SnakeCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -32,7 +32,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum ScreamingSnakeCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -40,7 +40,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum KebabCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -48,7 +48,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum LowerCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
@@ -56,14 +56,14 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
     enum UpperCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::Type, PartialEq, Eq, Debug)]
     enum DefaultCaseEnum {
         FooFoo,
         BarBar,
-        BazBaz
+        BazBaz,
     }
 
     #[derive(sqlx::FromRow, PartialEq, Eq, Debug)]
@@ -75,13 +75,13 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         kebab_case: KebabCaseEnum,
         lowercase: LowerCaseEnum,
         uppercase: UpperCaseEnum,
-        default_case: DefaultCaseEnum
+        default_case: DefaultCaseEnum,
     }
 
     let mut conn = new::<MySql>().await?;
 
     sqlx::raw_sql(
-    r#"
+        r#"
             CREATE TEMPORARY TABLE strong_enum (
                 pascal_case ENUM('FooFoo', 'BarBar', 'BazBaz'),
                 camel_case ENUM('fooFoo', 'barBar', 'bazBaz'),
@@ -92,10 +92,10 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
                 uppercase ENUM('FOOFOO', 'BARBAR', 'BAZBAZ'),
                 default_case ENUM('FooFoo', 'BarBar', 'BazBaz')
             );
-        "#
+        "#,
     )
-        .execute(&mut conn)
-        .await?;
+    .execute(&mut conn)
+    .await?;
 
     let input = StrongEnumRow {
         pascal_case: PascalCaseEnum::FooFoo,
@@ -105,11 +105,11 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         kebab_case: KebabCaseEnum::BarBar,
         lowercase: LowerCaseEnum::BazBaz,
         uppercase: UpperCaseEnum::FooFoo,
-        default_case: DefaultCaseEnum::BarBar
+        default_case: DefaultCaseEnum::BarBar,
     };
 
     sqlx::query(
-    r#"
+        r#"
             INSERT INTO strong_enum(
                 pascal_case,
                 camel_case,
@@ -121,18 +121,18 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
                 default_case
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        "#,
     )
-        .bind(&input.pascal_case)
-        .bind(&input.camel_case)
-        .bind(&input.snake_case)
-        .bind(&input.screaming_snake_case)
-        .bind(&input.kebab_case)
-        .bind(&input.lowercase)
-        .bind(&input.uppercase)
-        .bind(&input.default_case)
-        .execute(&mut conn)
-        .await?;
+    .bind(&input.pascal_case)
+    .bind(&input.camel_case)
+    .bind(&input.snake_case)
+    .bind(&input.screaming_snake_case)
+    .bind(&input.kebab_case)
+    .bind(&input.lowercase)
+    .bind(&input.uppercase)
+    .bind(&input.default_case)
+    .execute(&mut conn)
+    .await?;
 
     let output: StrongEnumRow = sqlx::query_as("SELECT * FROM strong_enum")
         .fetch_one(&mut conn)
@@ -150,7 +150,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
     enum WeakEnumI8 {
         Foo = i8::MIN,
         Bar = 0,
-        Baz = i8::MAX
+        Baz = i8::MAX,
     }
 
     #[derive(sqlx::Type, Debug, PartialEq, Eq)]
@@ -158,7 +158,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
     enum WeakEnumI16 {
         Foo = i16::MIN,
         Bar = 0,
-        Baz = i16::MAX
+        Baz = i16::MAX,
     }
 
     #[derive(sqlx::Type, Debug, PartialEq, Eq)]
@@ -182,7 +182,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
     enum WeakEnumU8 {
         Foo = 0,
         Bar = 1,
-        Baz = u8::MAX
+        Baz = u8::MAX,
     }
 
     #[derive(sqlx::Type, Debug, PartialEq, Eq)]
@@ -190,7 +190,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
     enum WeakEnumU16 {
         Foo = 0,
         Bar = 1,
-        Baz = u16::MAX
+        Baz = u16::MAX,
     }
 
     #[derive(sqlx::Type, Debug, PartialEq, Eq)]
@@ -218,7 +218,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         u8: WeakEnumU8,
         u16: WeakEnumU16,
         u32: WeakEnumU32,
-        u64: WeakEnumU64
+        u64: WeakEnumU64,
     }
 
     let mut conn = new::<MySql>().await?;
@@ -235,10 +235,10 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
                 u32 INT UNSIGNED,
                 u64 BIGINT UNSIGNED
             )
-        "#
+        "#,
     )
-        .execute(&mut conn)
-        .await?;
+    .execute(&mut conn)
+    .await?;
 
     let rows_in = vec![
         WeakEnumRow {
@@ -249,7 +249,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
             u8: WeakEnumU8::Foo,
             u16: WeakEnumU16::Foo,
             u32: WeakEnumU32::Foo,
-            u64: WeakEnumU64::Foo
+            u64: WeakEnumU64::Foo,
         },
         WeakEnumRow {
             i8: WeakEnumI8::Bar,
@@ -259,7 +259,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
             u8: WeakEnumU8::Bar,
             u16: WeakEnumU16::Bar,
             u32: WeakEnumU32::Bar,
-            u64: WeakEnumU64::Bar
+            u64: WeakEnumU64::Bar,
         },
         WeakEnumRow {
             i8: WeakEnumI8::Baz,
@@ -269,7 +269,7 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
             u8: WeakEnumU8::Baz,
             u16: WeakEnumU16::Baz,
             u32: WeakEnumU32::Baz,
-            u64: WeakEnumU64::Baz
+            u64: WeakEnumU64::Baz,
         },
     ];
 
@@ -278,18 +278,18 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
             r#"
                 INSERT INTO weak_enum(i8, i16, i32, i64, u8, u16, u32, u64)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
-            .bind(&row.i8)
-            .bind(&row.i16)
-            .bind(&row.i32)
-            .bind(&row.i64)
-            .bind(&row.u8)
-            .bind(&row.u16)
-            .bind(&row.u32)
-            .bind(&row.u64)
-            .execute(&mut conn)
-            .await?;
+        .bind(&row.i8)
+        .bind(&row.i16)
+        .bind(&row.i32)
+        .bind(&row.i64)
+        .bind(&row.u8)
+        .bind(&row.u16)
+        .bind(&row.u32)
+        .bind(&row.u64)
+        .execute(&mut conn)
+        .await?;
     }
 
     let rows_out: Vec<WeakEnumRow> = sqlx::query_as("SELECT * FROM weak_enum")
