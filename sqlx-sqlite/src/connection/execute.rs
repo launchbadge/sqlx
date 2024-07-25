@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::connection::{ConnectionHandle, ConnectionState};
 use crate::error::Error;
 use crate::logger::QueryLogger;
@@ -20,14 +21,14 @@ pub struct ExecuteIter<'a> {
 
 pub(crate) fn iter<'a>(
     conn: &'a mut ConnectionState,
-    query: &'a str,
+    query: &'a Arc<str>,
     args: Option<SqliteArguments<'a>>,
     persistent: bool,
 ) -> Result<ExecuteIter<'a>, Error> {
     // fetch the cached statement or allocate a new one
-    let statement = conn.statements.get(query, persistent)?;
+    let statement = conn.statements.get(query.clone(), persistent)?;
 
-    let logger = QueryLogger::new(query, conn.log_settings.clone());
+    let logger = QueryLogger::new(&query, conn.log_settings.clone());
 
     Ok(ExecuteIter {
         handle: &mut conn.handle,

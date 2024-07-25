@@ -1,5 +1,5 @@
 use crate::describe::Describe;
-use crate::error::Error;
+use crate::error::{Error, PgResultExt};
 use crate::executor::{Execute, Executor};
 use crate::logger::QueryLogger;
 use crate::message::{
@@ -168,7 +168,9 @@ impl PgConnection {
             return Ok((*statement).clone());
         }
 
-        let statement = prepare(self, sql, parameters, metadata).await?;
+        let statement = prepare(self, sql, parameters, metadata)
+            .await
+            .pg_find_error_pos(sql)?;
 
         if store_to_cache && self.cache_statement.is_enabled() {
             if let Some((id, _)) = self.cache_statement.insert(sql, statement.clone()) {
@@ -267,7 +269,9 @@ impl PgConnection {
 
         Ok(try_stream! {
             loop {
-                let message = self.stream.recv().await?;
+                let message = self.stream.recv()
+                    .await
+                    .pg_find_error_pos(query)?;
 
                 match message.format {
                     MessageFormat::BindComplete

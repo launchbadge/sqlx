@@ -1,4 +1,5 @@
 use sqlx::{error::ErrorKind, sqlite::Sqlite, Connection, Executor};
+use sqlx_sqlite::{SqliteConnection, SqliteError};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -67,6 +68,27 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let err = err.into_database_error().unwrap();
 
     assert_eq!(err.kind(), ErrorKind::CheckViolation);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_fails_with_useful_information() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect(":memory:").await?;
+
+    let err: sqlx::Error = sqlx::query("SELECT foo FORM bar")
+        .execute(&mut conn)
+        .await
+        .unwrap_err();
+
+    let sqlx::Error::Database(dbe) = err else {
+        panic!("unexpected error kind: {err:?}")
+    };
+
+    let dbe= dbe.downcast::<SqliteError>();
+
+    eprintln!("{dbe}");
+    eprintln!("{dbe:?}");
 
     Ok(())
 }

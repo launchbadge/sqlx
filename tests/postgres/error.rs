@@ -1,4 +1,5 @@
 use sqlx::{error::ErrorKind, postgres::Postgres, Connection};
+use sqlx_core::executor::Executor;
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -71,6 +72,73 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let err = err.into_database_error().unwrap();
 
     assert_eq!(err.kind(), ErrorKind::CheckViolation);
+
+    Ok(())
+}
+
+
+#[sqlx::test]
+async fn test_error_includes_position() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let err: sqlx::Error = conn
+        .prepare("SELECT bar.foo as foo\nFORM bar")
+        .await
+        .unwrap_err();
+
+    let sqlx::Error::Database(dbe) = err else {
+        panic!("unexpected error kind {err:?}")
+    };
+
+    let pos = dbe.position().unwrap();
+
+    assert_eq!(pos.line, 2);
+    assert_eq!(pos.column, 1);
+    assert!(
+        dbe.to_string().contains("line 2, column 1"),
+        "{:?}",
+        dbe.to_string()
+    );
+
+    let err: sqlx::Error = sqlx::query("SELECT bar.foo as foo\r\nFORM bar")
+        .execute(&mut conn)
+        .await
+        .unwrap_err();
+
+    let sqlx::Error::Database(dbe) = err else {
+        panic!("unexpected error kind {err:?}")
+    };
+
+    let pos = dbe.position().unwrap();
+
+    assert_eq!(pos.line, 2);
+    assert_eq!(pos.column, 1);
+    assert!(
+        dbe.to_string().contains("line 2, column 1"),
+        "{:?}",
+        dbe.to_string()
+    );
+
+    let err: sqlx::Error = sqlx::query(
+        "SELECT foo\r\nFROM bar\r\nINNER JOIN baz USING (foo)\r\nWHERE foo=1 ADN baz.foo = 2",
+    )
+        .execute(&mut conn)
+        .await
+        .unwrap_err();
+
+    let sqlx::Error::Database(dbe) = err else {
+        panic!("unexpected error kind {err:?}")
+    };
+
+    let pos = dbe.position().unwrap();
+
+    assert_eq!(pos.line, 4);
+    assert_eq!(pos.column, 13);
+    assert!(
+        dbe.to_string().contains("line 4, column 13"),
+        "{:?}",
+        dbe.to_string()
+    );
 
     Ok(())
 }
