@@ -27,9 +27,17 @@ impl MySqlTypeInfo {
 
     #[doc(hidden)]
     pub const fn __enum() -> Self {
+        // Newer versions of MySQL seem to expect that a parameter binding of `MYSQL_TYPE_ENUM`
+        // means that the value is encoded as an integer.
+        //
+        // For "strong" enums inputted as strings, we need to specify this type instead
+        // for wider compatibility. This works on all covered versions of MySQL and MariaDB.
+        //
+        // Annoyingly, MySQL's developer documentation doesn't really explain this anywhere;
+        // this had to be determined experimentally.
         Self {
-            r#type: ColumnType::Enum,
-            flags: ColumnFlags::BINARY,
+            r#type: ColumnType::String,
+            flags: ColumnFlags::ENUM,
             max_size: None,
         }
     }

@@ -3565,11 +3565,9 @@ name = "sqlx-test"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "dotenvy",
  "env_logger",
  "sqlx",
- "tokio",
 ]
 
 [[package]]

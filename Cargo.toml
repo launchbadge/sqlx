@@ -288,6 +288,11 @@ path = "tests/mysql/describe.rs"
 required-features = ["mysql"]
 
 [[test]]
+name = "mysql-derives"
+path = "tests/mysql/derives.rs"
+required-features = ["mysql", "derive"]
+
+[[test]]
 name = "mysql-macros"
 path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
