@@ -9,5 +9,3 @@ sqlx = { default-features = false, path = ".." }
 env_logger = "0.11"
 dotenvy = "0.15.0"
 anyhow = "1.0.26"
-async-std = { version = "1.8.0", features = [ "attributes" ] }
-tokio = { version = "1.0.1", features = [ "full" ] }
