@@ -17,6 +17,11 @@ pub struct MySqlTypeInfo {
 }
 
 impl MySqlTypeInfo {
+    pub fn is_enum(&self) -> bool {
+        // Can't do `== __enum_input()` because MySQL returns a nonzero `max_size`
+        self.flags.contains(ColumnFlags::ENUM) || self.r#type == ColumnType::Enum
+    }
+
     pub(crate) const fn binary(ty: ColumnType) -> Self {
         Self {
             r#type: ty,
@@ -26,7 +31,11 @@ impl MySqlTypeInfo {
     }
 
     #[doc(hidden)]
-    pub const fn __enum() -> Self {
+    pub const fn __enum_input() -> Self {
+        // Newer versions of MySQL seem to expect that a parameter binding of `MYSQL_TYPE_ENUM`
+        // means that the value is encoded as an integer.
+        //
+        // For "strong" enums inputted as strings, we need to specify this type instead.
         Self {
             r#type: ColumnType::String,
             flags: ColumnFlags::union(ColumnFlags::BINARY, ColumnFlags::ENUM),
