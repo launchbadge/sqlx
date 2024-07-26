@@ -1,10 +1,5 @@
 /// Configuration shared by multiple components.
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case", deny_unknown_fields)
-)]
+#[derive(Debug, Default, serde::Deserialize)]
 pub struct Config {
     /// Override the database URL environment variable.
     ///
@@ -21,14 +16,14 @@ pub struct Config {
     ///
     /// #### `foo/sqlx.toml`
     /// ```toml
-    /// [common]
-    /// database-url-var = "FOO_DATABASE_URL"
+    /// [macros]
+    /// database_url_var = "FOO_DATABASE_URL"
     /// ```
     ///
     /// #### `bar/sqlx.toml`
     /// ```toml
-    /// [common]
-    /// database-url-var = "BAR_DATABASE_URL"
+    /// [macros]
+    /// database_url_var = "BAR_DATABASE_URL"
     /// ```
     ///
     /// #### `.env`
@@ -40,10 +35,4 @@ pub struct Config {
     /// The query macros used in `foo` will use `FOO_DATABASE_URL`,
     /// and the ones used in `bar` will use `BAR_DATABASE_URL`.
     pub database_url_var: Option<String>,
-}
-
-impl Config {
-    pub fn database_url_var(&self) -> &str {
-        self.database_url_var.as_deref().unwrap_or("DATABASE_URL")
-    }
 }

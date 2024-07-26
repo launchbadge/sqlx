@@ -28,7 +28,8 @@ derive = ["sqlx-macros-core/derive"]
 macros = ["sqlx-macros-core/macros"]
 migrate = ["sqlx-macros-core/migrate"]
 
-sqlx-toml = ["sqlx-macros-core/sqlx-toml"]
+config-macros = ["sqlx-macros-core/config-macros"]
+config-migrate = ["sqlx-macros-core/config-migrate"]
 
 # database
 mysql = ["sqlx-macros-core/mysql"]
