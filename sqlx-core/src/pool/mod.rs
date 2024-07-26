@@ -470,7 +470,7 @@ impl<DB: Database> Pool<DB> {
     ///         // This is because `.do_until()` cancels the future it's given if the
     ///         // pool is closed first.
     ///         println!("Waited!");
-    /// 
+    ///
     ///         Ok(())
     ///     }).await
     /// });

@@ -22,13 +22,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo clippy --manifest_path sqlx-cli/Cargo.toml -- -D warnings
+      - run: cargo clippy --manifest-path sqlx-cli/Cargo.toml -- -D warnings
 
       # Run beta for new warnings but don't break the build.
       # Use a subdirectory of `target` to avoid clobbering the cache.
       - run: >
           cargo +beta clippy
-          --manifest_path sqlx-cli/Cargo.toml
+          --manifest-path sqlx-cli/Cargo.toml
           --target-dir target/beta/
 
   test:
