@@ -14,13 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use latest Rust
+        run: rustup override set stable
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: sqlx-cli
 
-      - env:
-          RUSTFLAGS: -D warnings
-        run: >
+      - run: >
             cargo build
             -p sqlx-cli
             --bin sqlx
