@@ -138,7 +138,6 @@ jobs:
         run: sqlx db setup
 
       - name: Files (Run)
-        uses: actions-rs/cargo@v1
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/files
         run: cargo run -p sqlx-example-postgres-files
@@ -161,7 +160,6 @@ jobs:
         run: sqlx db create
 
       - name: Listen (Run)
-        uses: actions-rs/cargo@v1
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/listen
         run: cargo run -p sqlx-example-postgres-listen
