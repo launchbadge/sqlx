@@ -1,14 +1,14 @@
+use clap::{Parser, Subcommand};
 use sqlx::sqlite::SqlitePool;
 use std::env;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Args {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     cmd: Option<Command>,
 }
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 enum Command {
     Add { description: String },
     Done { id: i64 },
@@ -16,7 +16,7 @@ enum Command {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let args = Args::from_args_safe()?;
+    let args = Args::parse();
     let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {

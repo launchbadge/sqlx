@@ -11,5 +11,5 @@ futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { path = "../../../", features = ["runtime-tokio", "postgres", "json"] }
-structopt = "0.3"
+clap = { version = "4", features = ["derive"] }
 tokio = { version = "1.20.0", features = ["rt", "macros"]}

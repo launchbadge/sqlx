@@ -1,18 +1,18 @@
+use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sqlx::postgres::PgPool;
 use sqlx::types::Json;
 use std::io::{self, Read};
 use std::num::NonZeroU8;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Args {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Option<Command>,
 }
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 enum Command {
     Add,
 }
@@ -32,7 +32,7 @@ struct Row {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let args = Args::from_args_safe()?;
+    let args = Args::parse();
     let pool = PgPool::connect(&dotenvy::var("DATABASE_URL")?).await?;
 
     match args.cmd {
