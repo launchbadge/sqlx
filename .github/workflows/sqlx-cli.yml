@@ -9,6 +9,7 @@ on:
 
 jobs:
   check:
+    name: Check
     runs-on: ubuntu-latest
 
     steps:
@@ -32,13 +33,14 @@ jobs:
           --target-dir target/beta/
 
   test:
+    name: Test
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         # Note: macOS-latest uses M1 Silicon (ARM64)
         os:
-         - ubuntu-latest,
+         - ubuntu-latest
          - windows-latest
          - macOS-13
          - macOS-latest
@@ -53,13 +55,14 @@ jobs:
       - run: cargo test --manifest-path sqlx-cli/Cargo.toml
 
   build:
+    name: Build
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         # Note: macOS-latest uses M1 Silicon (ARM64)
         os:
-          - ubuntu-latest,
+          - ubuntu-latest
           - windows-latest
           - macOS-13
           - macOS-latest
