@@ -21,8 +21,6 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
-use super::Returning;
-
 // Each SQLite connection has a dedicated thread.
 
 // TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
@@ -54,7 +52,7 @@ enum Command {
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
-        returning: Returning,
+        limit: Option<usize>,
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -139,7 +137,7 @@ impl ConnectionWorker {
                             arguments,
                             persistent,
                             tx,
-                            returning
+                            limit
                         } => {
                             let iter = match execute::iter(&mut conn, &query, arguments, persistent)
                             {
@@ -150,23 +148,27 @@ impl ConnectionWorker {
                                 }
                             };
 
-                            match returning {
-                                Returning::Many => {
+                            match limit {
+                                None => {
                                     for res in iter {
                                         if tx.send(res).is_err() {
                                             break;
                                         }
                                     }
                                 },
-                                Returning::One => {
+                                Some(limit) => {
                                     let mut iter = iter;
+                                    let mut rows_returned = 0;
 
                                     while let Some(res) = iter.next() {
                                         if let Ok(ok) = &res {
                                             if ok.is_right() {
-                                                drop(iter);
-                                                let _ = tx.send(res);
-                                                break;
+                                                rows_returned += 1;
+                                                if rows_returned >= limit {
+                                                    drop(iter);
+                                                    let _ = tx.send(res);
+                                                    break;
+                                                }
                                             }
                                         }
                                         if tx.send(res).is_err() {
@@ -308,7 +310,7 @@ impl ConnectionWorker {
         args: Option<SqliteArguments<'_>>,
         chan_size: usize,
         persistent: bool,
-        returning: Returning,
+        limit: Option<usize>,
     ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, SqliteRow>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
@@ -319,7 +321,7 @@ impl ConnectionWorker {
                     arguments: args.map(SqliteArguments::into_static),
                     persistent,
                     tx,
-                    returning,
+                    limit,
                 },
                 Span::current(),
             ))

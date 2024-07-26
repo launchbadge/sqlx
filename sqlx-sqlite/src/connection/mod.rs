@@ -426,8 +426,3 @@ impl Statements {
         self.temp = None;
     }
 }
-
-pub(crate) enum Returning {
-    Many,
-    One,
-}
