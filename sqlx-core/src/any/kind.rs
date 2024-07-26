@@ -1,6 +1,7 @@
 use crate::error::Error;
 use std::str::FromStr;
 
+#[deprecated = "not used or returned by any API"]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AnyKind {
     #[cfg(feature = "postgres")]
