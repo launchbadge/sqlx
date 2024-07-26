@@ -8,7 +8,11 @@ fn reference_parses_as_config() {
         .unwrap_or_else(|e| panic!("expected reference.toml to parse as Config: {e}"));
 
     assert_common_config(&config.common);
+
+    #[cfg(feature = "config-macros")]
     assert_macros_config(&config.macros);
+
+    #[cfg(feature = "config-migrate")]
     assert_migrate_config(&config.migrate);
 }
 
@@ -16,16 +20,14 @@ fn assert_common_config(config: &config::common::Config) {
     assert_eq!(config.database_url_var.as_deref(), Some("FOO_DATABASE_URL"));
 }
 
+#[cfg(feature = "config-macros")]
 fn assert_macros_config(config: &config::macros::Config) {
     use config::macros::*;
 
-    assert_eq!(config.preferred_crates.date_time, DateTimeCrate::Chrono);
-    assert_eq!(config.preferred_crates.numeric, NumericCrate::RustDecimal);
+    assert_eq!(config.datetime_crate, DateTimeCrate::Chrono);
 
     // Type overrides
     // Don't need to cover everything, just some important canaries.
-    assert_eq!(config.type_override("UUID"), Some("crate::types::MyUuid"));
-
     assert_eq!(config.type_override("foo"), Some("crate::types::Foo"));
 
     assert_eq!(config.type_override(r#""Bar""#), Some("crate::types::Bar"),);
@@ -72,22 +74,17 @@ fn assert_macros_config(config: &config::macros::Config) {
     );
 }
 
+#[cfg(feature = "config-migrate")]
 fn assert_migrate_config(config: &config::migrate::Config) {
     use config::migrate::*;
 
     assert_eq!(config.table_name.as_deref(), Some("foo._sqlx_migrations"));
     assert_eq!(config.migrations_dir.as_deref(), Some("foo/migrations"));
 
-    let ignored_chars = BTreeSet::from([' ', '\t', '\r', '\n', '\u{FEFF}']);
+    let ignored_chars = BTreeSet::from([' ', '\t', '\r', '\n']);
 
     assert_eq!(config.ignored_chars, ignored_chars);
 
-    assert_eq!(
-        config.defaults.migration_type,
-        DefaultMigrationType::Reversible
-    );
-    assert_eq!(
-        config.defaults.migration_versioning,
-        DefaultVersioning::Sequential
-    );
+    assert_eq!(config.default_type, DefaultMigrationType::Reversible);
+    assert_eq!(config.default_versioning, DefaultVersioning::Sequential);
 }

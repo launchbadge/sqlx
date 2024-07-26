@@ -13,7 +13,7 @@ features = ["offline"]
 
 [features]
 default = []
-migrate = ["sha2", "crc"]
+migrate = ["sha2", "crc", "config-migrate"]
 
 any = []
 
@@ -32,13 +32,11 @@ _tls-none = []
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
 
-# Enable parsing of `sqlx.toml`.
-# For simplicity, the `config` module is always enabled,
-# but disabling this disables the `serde` derives and the `toml` crate,
-# which is a good bit less code to compile if the feature isn't being used.
-sqlx-toml = ["serde", "toml/parse"]
+config = ["serde", "toml/parse"]
+config-macros = ["config"]
+config-migrate = ["config"]
 
-_unstable-doc = ["sqlx-toml"]
+_unstable-doc = ["config-macros", "config-migrate"]
 
 [dependencies]
 # Runtimes

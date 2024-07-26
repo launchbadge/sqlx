@@ -1,10 +1,5 @@
 /// Configuration shared by multiple components.
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
-)]
+#[derive(Debug, Default, serde::Deserialize)]
 pub struct Config {
     /// Override the database URL environment variable.
     ///
@@ -21,14 +16,14 @@ pub struct Config {
     ///
     /// #### `foo/sqlx.toml`
     /// ```toml
-    /// [common]
-    /// database-url-var = "FOO_DATABASE_URL"
+    /// [macros]
+    /// database_url_var = "FOO_DATABASE_URL"
     /// ```
     ///
     /// #### `bar/sqlx.toml`
     /// ```toml
-    /// [common]
-    /// database-url-var = "BAR_DATABASE_URL"
+    /// [macros]
+    /// database_url_var = "BAR_DATABASE_URL"
     /// ```
     ///
     /// #### `.env`
@@ -57,24 +52,14 @@ impl Config {
 }
 
 /// Configuration for specific database drivers.
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
-)]
+#[derive(Debug, Default, serde::Deserialize)]
 pub struct Drivers {
     /// Specify options for the SQLite driver.
     pub sqlite: SQLite,
 }
 
 /// Configuration for the SQLite database driver.
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
-)]
+#[derive(Debug, Default, serde::Deserialize)]
 pub struct SQLite {
     /// Specify extensions to load.
     ///
@@ -82,7 +67,7 @@ pub struct SQLite {
     /// `sqlx.toml`:
     /// ```toml
     /// [common.drivers.sqlite]
-    /// load-extensions = ["uuid", "vsv"]
+    /// load_extensions = ["uuid", "vsv"]
     /// ```
     pub load_extensions: Vec<String>,
 }

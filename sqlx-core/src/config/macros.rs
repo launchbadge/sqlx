@@ -1,28 +1,39 @@
 use std::collections::BTreeMap;
 
 /// Configuration for the `query!()` family of macros.
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
-)]
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
 pub struct Config {
-    /// Specify which crates' types to use when types from multiple crates apply.
+    /// Specify the crate to use for mapping date/time types to Rust.
     ///
-    /// See [`PreferredCrates`] for details.
-    pub preferred_crates: PreferredCrates,
+    /// The default behavior is to use whatever crate is enabled,
+    /// [`chrono`] or [`time`] (the latter takes precedent).
+    ///
+    /// [`chrono`]: crate::types::chrono
+    /// [`time`]: crate::types::time
+    ///
+    /// Example: Always Use Chrono
+    /// -------
+    /// Thanks to Cargo's [feature unification], a crate in the dependency graph may enable
+    /// the `time` feature of SQLx which will force it on for all crates using SQLx,
+    /// which will result in problems if your crate wants to use types from [`chrono`].
+    ///
+    /// You can use the type override syntax (see `sqlx::query!` for details),
+    /// or you can force an override globally by setting this option.
+    ///
+    /// #### `sqlx.toml`
+    /// ```toml
+    /// [macros]
+    /// datetime_crate = "chrono"
+    /// ```
+    ///
+    /// [feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
+    pub datetime_crate: DateTimeCrate,
 
     /// Specify global overrides for mapping SQL type names to Rust type names.
     ///
     /// Default type mappings are defined by the database driver.
     /// Refer to the `sqlx::types` module for details.
-    ///
-    /// ## Note: Case-Sensitive
-    /// Currently, the case of the type name MUST match the name SQLx knows it by.
-    /// Built-in types are spelled in all-uppercase to match SQL convention.
-    ///
-    /// However, user-created types in Postgres are all-lowercase unless quoted.
     ///
     /// ## Note: Orthogonal to Nullability
     /// These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
@@ -67,9 +78,9 @@ pub struct Config {
     ///
     /// #### `sqlx.toml`
     /// ```toml
-    /// [macros.type-overrides]
+    /// [macros.type_overrides]
     /// # Override a built-in type
-    /// 'UUID' = "crate::types::MyUuid"
+    /// 'uuid' = "crate::types::MyUuid"
     ///
     /// # Support an external or custom wrapper type (e.g. from the `isn` Postgres extension)
     /// # (NOTE: FOR DOCUMENTATION PURPOSES ONLY; THIS CRATE/TYPE DOES NOT EXIST AS OF WRITING)
@@ -104,7 +115,7 @@ pub struct Config {
     ///
     /// #### `sqlx.toml`
     /// ```toml
-    /// [macros.type-overrides]
+    /// [macros.type_overrides]
     /// # Map SQL type `foo` to `crate::types::Foo`
     /// 'foo' = "crate::types::Foo"
     /// ```
@@ -114,7 +125,7 @@ pub struct Config {
     /// (See `Note` section above for details.)
     ///
     /// ```toml
-    /// [macros.type-overrides]
+    /// [macros.type_overrides]
     /// # Map SQL type `foo.foo` to `crate::types::Foo`
     /// 'foo.foo' = "crate::types::Foo"
     /// ```
@@ -125,7 +136,7 @@ pub struct Config {
     /// it must be wrapped in quotes _twice_ for SQLx to know the difference:
     ///
     /// ```toml
-    /// [macros.type-overrides]
+    /// [macros.type_overrides]
     /// # `"Foo"` in SQLx
     /// '"Foo"' = "crate::types::Foo"
     /// # **NOT** `"Foo"` in SQLx (parses as just `Foo`)
@@ -138,11 +149,9 @@ pub struct Config {
     /// ```
     ///
     /// (See `Note` section above for details.)
-    // TODO: allow specifying different types for input vs output
-    // e.g. to accept `&[T]` on input but output `Vec<T>`
     pub type_overrides: BTreeMap<SqlType, RustType>,
 
-    /// Specify per-table and per-column overrides for mapping SQL types to Rust types.
+    /// Specify per-column overrides for mapping SQL types to Rust types.
     ///
     /// Default type mappings are defined by the database driver.
     /// Refer to the `sqlx::types` module for details.
@@ -197,7 +206,7 @@ pub struct Config {
     ///
     /// #### `sqlx.toml`
     /// ```toml
-    /// [macros.table-overrides.'foo']
+    /// [macros.column_overrides.'foo']
     /// # Map column `bar` of table `foo` to Rust type `crate::types::Foo`:
     /// 'bar' = "crate::types::Bar"
     ///
@@ -209,89 +218,25 @@ pub struct Config {
     /// # "Bar" = "crate::types::Bar"
     ///
     /// # Table name may be quoted (note the wrapping single-quotes)
-    /// [macros.table-overrides.'"Foo"']
+    /// [macros.column_overrides.'"Foo"']
     /// 'bar' = "crate::types::Bar"
     /// '"Bar"' = "crate::types::Bar"
     ///
     /// # Table name may also be schema-qualified.
     /// # Note how the dot is inside the quotes.
-    /// [macros.table-overrides.'my_schema.my_table']
+    /// [macros.column_overrides.'my_schema.my_table']
     /// 'my_column' = "crate::types::MyType"
     ///
     /// # Quoted schema, table, and column names
-    /// [macros.table-overrides.'"My Schema"."My Table"']
+    /// [macros.column_overrides.'"My Schema"."My Table"']
     /// '"My Column"' = "crate::types::MyType"
     /// ```
-    pub table_overrides: BTreeMap<TableName, BTreeMap<ColumnName, RustType>>,
+    pub column_overrides: BTreeMap<TableName, BTreeMap<ColumnName, RustType>>,
 }
 
-#[derive(Debug, Default)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
-)]
-pub struct PreferredCrates {
-    /// Specify the crate to use for mapping date/time types to Rust.
-    ///
-    /// The default behavior is to use whatever crate is enabled,
-    /// [`chrono`] or [`time`] (the latter takes precedent).
-    ///
-    /// [`chrono`]: crate::types::chrono
-    /// [`time`]: crate::types::time
-    ///
-    /// Example: Always Use Chrono
-    /// -------
-    /// Thanks to Cargo's [feature unification], a crate in the dependency graph may enable
-    /// the `time` feature of SQLx which will force it on for all crates using SQLx,
-    /// which will result in problems if your crate wants to use types from [`chrono`].
-    ///
-    /// You can use the type override syntax (see `sqlx::query!` for details),
-    /// or you can force an override globally by setting this option.
-    ///
-    /// #### `sqlx.toml`
-    /// ```toml
-    /// [macros.preferred-crates]
-    /// date-time = "chrono"
-    /// ```
-    ///
-    /// [feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
-    pub date_time: DateTimeCrate,
-
-    /// Specify the crate to use for mapping `NUMERIC` types to Rust.
-    ///
-    /// The default behavior is to use whatever crate is enabled,
-    /// [`bigdecimal`] or [`rust_decimal`] (the latter takes precedent).
-    ///
-    /// [`bigdecimal`]: crate::types::bigdecimal
-    /// [`rust_decimal`]: crate::types::rust_decimal
-    ///
-    /// Example: Always Use `bigdecimal`
-    /// -------
-    /// Thanks to Cargo's [feature unification], a crate in the dependency graph may enable
-    /// the `rust_decimal` feature of SQLx which will force it on for all crates using SQLx,
-    /// which will result in problems if your crate wants to use types from [`bigdecimal`].
-    ///
-    /// You can use the type override syntax (see `sqlx::query!` for details),
-    /// or you can force an override globally by setting this option.
-    ///
-    /// #### `sqlx.toml`
-    /// ```toml
-    /// [macros.preferred-crates]
-    /// numeric = "bigdecimal"
-    /// ```
-    ///
-    /// [feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
-    pub numeric: NumericCrate,
-}
-
-/// The preferred crate to use for mapping date/time types to Rust.
-#[derive(Debug, Default, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(rename_all = "snake_case")
-)]
+/// The crate to use for mapping date/time types to Rust.
+#[derive(Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DateTimeCrate {
     /// Use whichever crate is enabled (`time` then `chrono`).
     #[default]
@@ -300,63 +245,33 @@ pub enum DateTimeCrate {
     /// Always use types from [`chrono`][crate::types::chrono].
     ///
     /// ```toml
-    /// [macros.preferred-crates]
-    /// date-time = "chrono"
+    /// [macros]
+    /// datetime_crate = "chrono"
     /// ```
     Chrono,
 
     /// Always use types from [`time`][crate::types::time].
     ///
     /// ```toml
-    /// [macros.preferred-crates]
-    /// date-time = "time"
+    /// [macros]
+    /// datetime_crate = "time"
     /// ```
     Time,
 }
 
-/// The preferred crate to use for mapping `NUMERIC` types to Rust.
-#[derive(Debug, Default, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "sqlx-toml",
-    derive(serde::Deserialize),
-    serde(rename_all = "snake_case")
-)]
-pub enum NumericCrate {
-    /// Use whichever crate is enabled (`rust_decimal` then `bigdecimal`).
-    #[default]
-    Inferred,
-
-    /// Always use types from [`bigdecimal`][crate::types::bigdecimal].
-    ///
-    /// ```toml
-    /// [macros.preferred-crates]
-    /// numeric = "bigdecimal"
-    /// ```
-    #[cfg_attr(feature = "sqlx-toml", serde(rename = "bigdecimal"))]
-    BigDecimal,
-
-    /// Always use types from [`rust_decimal`][crate::types::rust_decimal].
-    ///
-    /// ```toml
-    /// [macros.preferred-crates]
-    /// numeric = "rust_decimal"
-    /// ```
-    RustDecimal,
-}
-
 /// A SQL type name; may optionally be schema-qualified.
 ///
-/// See [`macros.type-overrides`][Config::type_overrides] for usages.
+/// See [`macros.type_overrides`][Config::type_overrides] for usages.
 pub type SqlType = Box<str>;
 
 /// A SQL table name; may optionally be schema-qualified.
 ///
-/// See [`macros.table-overrides`][Config::table_overrides] for usages.
+/// See [`macros.column_overrides`][Config::column_overrides] for usages.
 pub type TableName = Box<str>;
 
 /// A column in a SQL table.
 ///
-/// See [`macros.table-overrides`][Config::table_overrides] for usages.
+/// See [`macros.column_overrides`][Config::column_overrides] for usages.
 pub type ColumnName = Box<str>;
 
 /// A Rust type name or path.
@@ -368,49 +283,14 @@ pub type RustType = Box<str>;
 impl Config {
     /// Get the override for a given type name (optionally schema-qualified).
     pub fn type_override(&self, type_name: &str) -> Option<&str> {
-        // TODO: make this case-insensitive
         self.type_overrides.get(type_name).map(|s| &**s)
     }
 
     /// Get the override for a given column and table name (optionally schema-qualified).
     pub fn column_override(&self, table: &str, column: &str) -> Option<&str> {
-        self.table_overrides
+        self.column_overrides
             .get(table)
             .and_then(|by_column| by_column.get(column))
             .map(|s| &**s)
-    }
-}
-
-impl DateTimeCrate {
-    /// Returns `self == Self::Inferred`
-    #[inline(always)]
-    pub fn is_inferred(&self) -> bool {
-        *self == Self::Inferred
-    }
-
-    #[inline(always)]
-    pub fn crate_name(&self) -> Option<&str> {
-        match self {
-            Self::Inferred => None,
-            Self::Chrono => Some("chrono"),
-            Self::Time => Some("time"),
-        }
-    }
-}
-
-impl NumericCrate {
-    /// Returns `self == Self::Inferred`
-    #[inline(always)]
-    pub fn is_inferred(&self) -> bool {
-        *self == Self::Inferred
-    }
-
-    #[inline(always)]
-    pub fn crate_name(&self) -> Option<&str> {
-        match self {
-            Self::Inferred => None,
-            Self::BigDecimal => Some("bigdecimal"),
-            Self::RustDecimal => Some("rust_decimal"),
-        }
     }
 }
