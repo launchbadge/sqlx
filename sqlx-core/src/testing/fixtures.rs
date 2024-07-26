@@ -196,13 +196,14 @@ fn foreign_key_depth(
 }
 
 #[test]
-#[cfg(feature = "postgres")]
+#[cfg(feature = "any")]
 fn test_additive_fixture() -> Result<()> {
-    use crate::postgres::Postgres;
+    // Just need something that implements `Database`
+    use crate::any::Any;
 
     let mut snapshot = FixtureSnapshot {
         tables: BTreeMap::new(),
-        db: PhantomData::<Postgres>,
+        db: PhantomData::<Any>,
     };
 
     snapshot.tables.insert(

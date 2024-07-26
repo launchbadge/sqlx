@@ -54,30 +54,27 @@
 //! [`Pool::acquire`] or
 //! [`Pool::begin`].
 
-use self::inner::PoolInner;
-#[cfg(all(
-    any(
-        feature = "postgres",
-        feature = "mysql",
-        feature = "mssql",
-        feature = "sqlite"
-    ),
-    feature = "any"
-))]
-use crate::any::{Any, AnyKind};
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use crate::transaction::Transaction;
-use event_listener::EventListener;
-use futures_core::FusedFuture;
-use futures_util::FutureExt;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
+
+use event_listener::EventListener;
+use futures_core::FusedFuture;
+use futures_util::FutureExt;
+
+use crate::connection::Connection;
+use crate::database::Database;
+use crate::error::Error;
+use crate::transaction::Transaction;
+
+pub use self::connection::PoolConnection;
+use self::inner::PoolInner;
+#[doc(hidden)]
+pub use self::maybe::MaybePoolConnection;
+pub use self::options::{PoolConnectionMetadata, PoolOptions};
 
 #[macro_use]
 mod executor;
@@ -88,12 +85,6 @@ pub mod maybe;
 mod connection;
 mod inner;
 mod options;
-
-pub use self::connection::PoolConnection;
-pub use self::options::{PoolConnectionMetadata, PoolOptions};
-
-#[doc(hidden)]
-pub use self::maybe::MaybePoolConnection;
 
 /// An asynchronous pool of SQLx database connections.
 ///
@@ -434,8 +425,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// Do something when the pool is closed:
     /// ```rust,no_run
-    /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// # async fn bleh() -> sqlx::Result<()> {
     /// use sqlx::PgPool;
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;
@@ -463,8 +453,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// Cancel a long-running operation:
     /// ```rust,no_run
-    /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// # async fn bleh() -> sqlx::Result<()> {
     /// use sqlx::{Executor, PgPool};
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;
@@ -475,13 +464,15 @@ impl<DB: Database> Pool<DB> {
     ///     pool2.close_event().do_until(async {
     ///         // This statement normally won't return for 30 days!
     ///         // (Assuming the connection doesn't time out first, of course.)
-    ///         pool2.execute("SELECT pg_sleep('30 days')").await;
+    ///         pool2.execute("SELECT pg_sleep('30 days')").await?;
     ///
     ///         // If the pool is closed before the statement completes, this won't be printed.
     ///         // This is because `.do_until()` cancels the future it's given if the
     ///         // pool is closed first.
     ///         println!("Waited!");
-    ///     }).await;
+    /// 
+    ///         Ok(())
+    ///     }).await
     /// });
     ///
     /// // This normally wouldn't return until the above statement completed and the connection
@@ -531,28 +522,6 @@ impl<DB: Database> Pool<DB> {
     /// Get the options for this pool
     pub fn options(&self) -> &PoolOptions<DB> {
         &self.0.options
-    }
-}
-
-#[cfg(all(
-    any(
-        feature = "postgres",
-        feature = "mysql",
-        feature = "mssql",
-        feature = "sqlite"
-    ),
-    feature = "any"
-))]
-impl Pool<Any> {
-    /// Returns the database driver currently in-use by this `Pool`.
-    ///
-    /// Determined by the connection URL.
-    pub fn any_kind(&self) -> AnyKind {
-        self.0
-            .connect_options
-            .read()
-            .expect("write-lock holder panicked")
-            .kind()
     }
 }
 
