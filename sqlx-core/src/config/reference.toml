@@ -1,0 +1,175 @@
+# `sqlx.toml` reference.
+#
+# Note: shown values are *not* defaults.
+# They are explicitly set to non-default values to test parsing.
+# Refer to the comment for a given option for its default value.
+
+###############################################################################################
+
+# Configuration shared by multiple components.
+[common]
+# Change the environment variable to get the database URL.
+#
+# This is used by both the macros and `sqlx-cli`.
+#
+# If not specified, defaults to `DATABASE_URL`
+database_url_var = "FOO_DATABASE_URL"
+
+###############################################################################################
+
+# Configuration for the `query!()` family of macros.
+[macros]
+# Force the macros to use the `chrono` crate for date/time types, even if `time` is enabled.
+#
+# Defaults to "inferred": use whichever crate is enabled (`time` takes precedence over `chrono`).
+datetime_crate = "chrono"
+
+# Or, ensure the macros always prefer `time`
+# in case new date/time crates are added in the future:
+# datetime_crate = "time"
+
+# Set global overrides for mapping SQL types to Rust types.
+#
+# Default type mappings are defined by the database driver.
+# Refer to the `sqlx::types` module for details.
+#
+# Postgres users: schema qualification should not be used for types in the search path.
+#
+# ### Note: Orthogonal to Nullability
+# These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
+# or not. They only override the inner type used.
+[macros.type_overrides]
+# Override a built-in type (map all `UUID` columns to `crate::types::MyUuid`)
+'uuid' = "crate::types::MyUuid"
+
+# Support an external or custom wrapper type (e.g. from the `isn` Postgres extension)
+# (NOTE: FOR DOCUMENTATION PURPOSES ONLY; THIS CRATE/TYPE DOES NOT EXIST AS OF WRITING)
+'isbn13' = "isn_rs::isbn::ISBN13"
+
+# SQL type `foo` to Rust type `crate::types::Foo`:
+'foo' = "crate::types::Foo"
+
+# SQL type `"Bar"` to Rust type `crate::types::Bar`; notice the extra pair of quotes:
+'"Bar"' = "crate::types::Bar"
+
+# Will NOT work (the first pair of quotes are parsed by TOML)
+# "Bar" = "crate::types::Bar"
+
+# Schema qualified
+'foo.bar' = "crate::types::Bar"
+
+# Schema qualified and quoted
+'foo."Bar"' = "crate::schema::foo::Bar"
+
+# Quoted schema name
+'"Foo".bar' = "crate::schema::foo::Bar"
+
+# Quoted schema and type name
+'"Foo"."Bar"' = "crate::schema::foo::Bar"
+
+# Set per-column overrides for mapping SQL types to Rust types.
+#
+# Note: table name is required in the header.
+#
+# Postgres users: schema qualification should not be used for types in the search path.
+#
+# ### Note: Orthogonal to Nullability
+# These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
+# or not. They only override the inner type used.
+[macros.column_overrides.'foo']
+# Map column `bar` of table `foo` to Rust type `crate::types::Foo`:
+'bar' = "crate::types::Bar"
+
+# Quoted column name
+# Note: same quoting requirements as `macros.type_overrides`
+'"Bar"' = "crate::types::Bar"
+
+# Note: will NOT work (parses as `Bar`)
+# "Bar" = "crate::types::Bar"
+
+# Table name may be quoted (note the wrapping single-quotes)
+[macros.column_overrides.'"Foo"']
+'bar' = "crate::types::Bar"
+'"Bar"' = "crate::types::Bar"
+
+# Table name may also be schema-qualified.
+# Note how the dot is inside the quotes.
+[macros.column_overrides.'my_schema.my_table']
+'my_column' = "crate::types::MyType"
+
+# Quoted schema, table, and column names
+[macros.column_overrides.'"My Schema"."My Table"']
+'"My Column"' = "crate::types::MyType"
+
+###############################################################################################
+
+# Configuration for migrations when executed using `sqlx::migrate!()` or through `sqlx-cli`.
+#
+# ### Note
+# A manually constructed [`Migrator`][crate::migrate::Migrator] will not be aware of these
+# configuration options. We recommend using `sqlx::migrate!()` instead.
+#
+# ### Warning: Potential Data Loss or Corruption!
+# Many of these options, if changed after migrations are set up,
+# can result in data loss or corruption of a production database
+# if the proper precautions are not taken.
+#
+# Be sure you know what you are doing and that you read all relevant documentation _thoroughly_.
+[migrate]
+# Override the name of the table used to track executed migrations.
+#
+# May be schema-qualified and/or contain quotes. Defaults to `_sqlx_migrations`.
+#
+# Potentially useful for multi-tenant databases.
+#
+# ### Warning: Potential Data Loss or Corruption!
+# Changing this option for a production database will likely result in data loss or corruption
+# as the migration machinery will no longer be aware of what migrations have been applied
+# and will attempt to re-run them.
+#
+# You should create the new table as a copy of the existing migrations table (with contents!),
+# and be sure all instances of your application have been migrated to the new
+# table before deleting the old one.
+table_name = "foo._sqlx_migrations"
+
+# Override the directory used for migrations files.
+#
+# Relative to the crate root for `sqlx::migrate!()`, or the current directory for `sqlx-cli`.
+migrations_dir = "foo/migrations"
+
+# Specify characters that should be ignored when hashing migrations.
+#
+# Any characters contained in the given set will be dropped when a migration is hashed.
+#
+# Defaults to an empty array (don't drop any characters).
+#
+# ### Warning: May Change Hashes for Existing Migrations
+# Changing the characters considered in hashing migrations will likely
+# change the output of the hash.
+#
+# This may require manual rectification for deployed databases.
+# ignored_chars = []
+
+# Ignore Carriage Returns (`<CR>` | `\r`)
+# Note that the TOML format requires double-quoted strings to process escapes.
+# ignored_chars = ["\r"]
+
+# Ignore common whitespace characters (beware syntatically significant whitespace!)
+ignored_chars = [" ", "\t", "\r", "\n"] # Space, tab, CR, LF
+
+# Specify reversible migrations by default (for `sqlx migrate create`).
+#
+# Defaults to "inferred": uses the type of the last migration, or "simple" otherwise.
+default_type = "reversible"
+
+# Specify simple (non-reversible) migrations by default.
+# default_type = "simple"
+
+# Specify sequential versioning by default (for `sqlx migrate create`).
+#
+# Defaults to "inferred": guesses the versioning scheme from the latest migrations,
+# or "timestamp" otherwise.
+default_versioning = "sequential"
+
+# Specify timestamp versioning by default.
+# default_versioning = "timestamp"
