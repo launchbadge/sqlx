@@ -172,3 +172,6 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
+
+#[cfg(feature = "_unstable-doc")]
+pub use sqlx_core::config;
