@@ -461,7 +461,9 @@ impl<DB: Database> Pool<DB> {
     /// let pool2 = pool.clone();
     ///
     /// tokio::spawn(async move {
-    ///     pool2.close_event().do_until(async {
+    ///     // `do_until` yields the inner future's output wrapped in `sqlx::Result`,
+    ///     // in this case giving a double-wrapped result.
+    ///     let res: sqlx::Result<sqlx::Result<()>> = pool2.close_event().do_until(async {
     ///         // This statement normally won't return for 30 days!
     ///         // (Assuming the connection doesn't time out first, of course.)
     ///         pool2.execute("SELECT pg_sleep('30 days')").await?;
@@ -472,7 +474,13 @@ impl<DB: Database> Pool<DB> {
     ///         println!("Waited!");
     ///
     ///         Ok(())
-    ///     }).await
+    ///     }).await;
+    ///
+    ///     match res {
+    ///         Ok(Ok(())) => println!("Wait succeeded"),
+    ///         Ok(Err(e)) => println!("Error from inside do_until: {e:?}"),
+    ///         Err(e) => println!("Error from do_until: {e:?}"),
+    ///     }
     /// });
     ///
     /// // This normally wouldn't return until the above statement completed and the connection
