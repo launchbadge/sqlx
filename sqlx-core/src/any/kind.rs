@@ -1,3 +1,6 @@
+// Annoying how deprecation warnings trigger in the same module as the deprecated item.
+#![allow(deprecated)]
+
 use crate::error::Error;
 use std::str::FromStr;
 
