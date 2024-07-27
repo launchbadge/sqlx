@@ -124,11 +124,11 @@
 //! [Datatypes in SQLite: Type Affinity][type-affinity] (accessed 2023/11/20):
 //!
 //! > A column with NUMERIC affinity may contain values using all five storage classes.
-//! When text data is inserted into a NUMERIC column, the storage class of the text is converted to
-//! INTEGER or REAL (in order of preference) if the text is a well-formed integer or real literal,
-//! respectively. If the TEXT value is a well-formed integer literal that is too large to fit in a
-//! 64-bit signed integer, it is converted to REAL. For conversions between TEXT and REAL storage
-//! classes, only the first 15 significant decimal digits of the number are preserved.
+//! > When text data is inserted into a NUMERIC column, the storage class of the text is converted to
+//! > INTEGER or REAL (in order of preference) if the text is a well-formed integer or real literal,
+//! > respectively. If the TEXT value is a well-formed integer literal that is too large to fit in a
+//! > 64-bit signed integer, it is converted to REAL. For conversions between TEXT and REAL storage
+//! > classes, only the first 15 significant decimal digits of the number are preserved.
 //!
 //! With the SQLite3 interactive CLI, we can see that a higher-precision value
 //! (20 digits in this case) is rounded off:

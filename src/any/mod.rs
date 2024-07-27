@@ -6,9 +6,12 @@ use std::sync::Once;
 pub use sqlx_core::any::driver::install_drivers;
 
 pub use sqlx_core::any::{
-    Any, AnyArguments, AnyConnectOptions, AnyExecutor, AnyKind, AnyPoolOptions, AnyQueryResult,
-    AnyRow, AnyStatement, AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
+    Any, AnyArguments, AnyConnectOptions, AnyExecutor, AnyPoolOptions, AnyQueryResult, AnyRow,
+    AnyStatement, AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
 };
+
+#[allow(deprecated)]
+pub use sqlx_core::any::AnyKind;
 
 pub(crate) mod reexports {
     /// **SEE DOCUMENTATION BEFORE USE**. Type alias for `Pool<Any>`.
