@@ -100,15 +100,15 @@ mod chrono {
     use sqlx::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
     ));
 
     test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'1996-12-20T00:39:57+00:00'" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
+        "'1996-12-20T00:39:57+00:00'" == Utc.with_ymd_and_hms(1996, 12, 20, 0, 39, 57).unwrap()
     ));
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23))
+        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west_opt(5 * 3600).unwrap().with_ymd_and_hms(2016, 11, 08, 3, 50, 23).unwrap())
     ));
 }
 
