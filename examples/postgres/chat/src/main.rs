@@ -3,11 +3,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use sqlx::postgres::PgListener;
-use sqlx::PgPool;
-use std::sync::Arc;
-use std::{error::Error, io};
-use tokio::{sync::Mutex, time::Duration};
+use ratatui::text::Line;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -16,7 +12,11 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
-use ratatui::text::Line;
+use sqlx::postgres::PgListener;
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::{error::Error, io};
+use tokio::{sync::Mutex, time::Duration};
 use unicode_width::UnicodeWidthStr;
 
 struct ChatApp {
