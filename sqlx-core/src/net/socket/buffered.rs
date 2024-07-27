@@ -4,7 +4,7 @@ use std::{cmp, io};
 
 use crate::error::Error;
 
-use crate::io::{Decode, Encode, AsyncRead, AsyncReadExt};
+use crate::io::{AsyncRead, AsyncReadExt, Decode, Encode};
 
 // Tokio, async-std, and std all use this as the default capacity for their buffered I/O.
 const DEFAULT_BUF_SIZE: usize = 8192;
@@ -167,9 +167,9 @@ impl WriteBuffer {
 
         self.sanity_check();
     }
-    
+
     /// Read into the buffer from `source`, returning the number of bytes read.
-    /// 
+    ///
     /// The buffer is automatically advanced by the number of bytes read.
     pub async fn read_from(&mut self, mut source: impl AsyncRead + Unpin) -> io::Result<usize> {
         let read = match () {
@@ -179,11 +179,11 @@ impl WriteBuffer {
             #[cfg(not(feature = "_rt-tokio"))]
             _ => source.read(self.init_remaining_mut()).await?,
         };
-        
+
         if read > 0 {
             self.advance(read);
         }
-        
+
         Ok(read)
     }
 

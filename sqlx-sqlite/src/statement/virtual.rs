@@ -1,9 +1,9 @@
 #![allow(clippy::rc_buffer)]
 
+use std::cmp;
 use std::os::raw::c_char;
 use std::ptr::{null, null_mut, NonNull};
 use std::sync::Arc;
-use std::{cmp, i32};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
@@ -56,7 +56,7 @@ impl VirtualStatement {
     pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
         query = query.trim();
 
-        if query.len() > i32::max_value() as usize {
+        if query.len() > i32::MAX as usize {
             return Err(err_protocol!(
                 "query string must be smaller than {} bytes",
                 i32::MAX

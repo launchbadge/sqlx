@@ -1,14 +1,15 @@
-use futures_core::future::BoxFuture;
 use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
 
+use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+
 use sqlx_core::bytes::{BufMut, Bytes};
 
 use crate::connection::PgConnection;
 use crate::error::{Error, Result};
 use crate::ext::async_stream::TryAsyncStream;
-use crate::io::{AsyncRead, AsyncReadExt};
+use crate::io::AsyncRead;
 use crate::message::{
     CommandComplete, CopyData, CopyDone, CopyFail, CopyResponse, MessageFormat, Query,
 };
@@ -45,7 +46,7 @@ impl PgConnection {
     ///
     /// 1. by closing the connection, or:
     /// 2. by using another connection to kill the server process that is sending the data as shown
-    /// [in this StackOverflow answer](https://stackoverflow.com/a/35319598).
+    ///    [in this StackOverflow answer](https://stackoverflow.com/a/35319598).
     ///
     /// If you don't read the stream to completion, the next time the connection is used it will
     /// need to read and discard all the remaining queued data, which could take some time.
@@ -98,7 +99,7 @@ pub trait PgPoolCopyExt {
     ///
     /// 1. by closing the connection, or:
     /// 2. by using another connection to kill the server process that is sending the data as shown
-    /// [in this StackOverflow answer](https://stackoverflow.com/a/35319598).
+    ///    [in this StackOverflow answer](https://stackoverflow.com/a/35319598).
     ///
     /// If you don't read the stream to completion, the next time the connection is used it will
     /// need to read and discard all the remaining queued data, which could take some time.
