@@ -15,8 +15,8 @@
 //! using to prevent a `cargo update` from breaking things, e.g.:
 //!
 //! ```toml
-//! sqlx = { version = "=0.7.0", features = ["sqlite"] }
-//! rusqlite = "=0.28.0"
+//! sqlx = { version = "=0.8.1", features = ["sqlite"] }
+//! rusqlite = "=0.32.1"
 //! ```
 //!
 //! and then upgrade these crates in lockstep when necessary.
