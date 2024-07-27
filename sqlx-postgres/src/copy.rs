@@ -220,19 +220,11 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             // we get canceled or read 0 bytes, but that should be fine.
             buf.put_slice(b"d\0\0\0\x04");
 
-            let read = match () {
-                // Tokio lets us read into the buffer without zeroing first
-                #[cfg(feature = "_rt-tokio")]
-                _ => source.read_buf(buf.buf_mut()).await?,
-                #[cfg(not(feature = "_rt-tokio"))]
-                _ => source.read(buf.init_remaining_mut()).await?,
-            };
+            let read = buf.read_from(&mut source).await?;
 
             if read == 0 {
                 break;
             }
-
-            buf.advance(read);
 
             // Write the length
             let read32 = u32::try_from(read)
