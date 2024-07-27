@@ -1,15 +1,15 @@
 use async_trait::async_trait;
+use clap::{Parser, Subcommand};
 use sqlx::postgres::PgPool;
 use std::{env, io::Write, sync::Arc};
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Args {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     cmd: Option<Command>,
 }
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 enum Command {
     Add { description: String },
     Done { id: i64 },
@@ -18,7 +18,7 @@ enum Command {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    let args = Args::from_args_safe()?;
+    let args = Args::parse();
     let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
     let todo_repo = PostgresTodoRepo::new(pool);
     let mut writer = std::io::stdout();

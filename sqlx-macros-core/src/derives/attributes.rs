@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::quote;
+use quote::quote_spanned;
 use syn::{
     punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type,
     Variant,
@@ -36,7 +36,7 @@ pub struct TypeName {
 impl TypeName {
     pub fn get(&self) -> TokenStream {
         let val = &self.val;
-        quote! { #val }
+        quote_spanned! { self.span => #val }
     }
 }
 

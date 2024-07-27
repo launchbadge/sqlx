@@ -33,6 +33,7 @@ pub use connection::AnyConnection;
 use crate::encode::Encode;
 pub use connection::AnyConnectionBackend;
 pub use database::Any;
+#[allow(deprecated)]
 pub use kind::AnyKind;
 pub use options::AnyConnectOptions;
 pub use query_result::AnyQueryResult;

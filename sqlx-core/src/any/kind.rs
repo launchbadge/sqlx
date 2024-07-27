@@ -1,6 +1,13 @@
+// Annoying how deprecation warnings trigger in the same module as the deprecated item.
+#![allow(deprecated)]
+// Cargo features are broken in this file.
+// `AnyKind` may return at some point but it won't be a simple enum.
+#![allow(unexpected_cfgs)]
+
 use crate::error::Error;
 use std::str::FromStr;
 
+#[deprecated = "not used or returned by any API"]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AnyKind {
     #[cfg(feature = "postgres")]

@@ -8,5 +8,5 @@ workspace = "../../../"
 anyhow = "1.0"
 futures = "0.3"
 sqlx = { path = "../../../", features = [ "mysql", "runtime-tokio-native-tls" ] }
-structopt = "0.3"
+clap = { version = "4", features = ["derive"] }
 tokio = { version = "1.20.0", features = ["rt", "macros"]}
