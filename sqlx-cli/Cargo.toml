@@ -45,7 +45,7 @@ serde_json = "1.0.73"
 serde = { version = "1.0.132", features = ["derive"] }
 glob = "0.3.0"
 openssl = { version = "0.10.38", optional = true }
-cargo_metadata = "0.14"
+cargo_metadata = "0.18.1"
 filetime = "0.2"
 
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
