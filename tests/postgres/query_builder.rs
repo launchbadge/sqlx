@@ -96,7 +96,7 @@ fn test_query_builder_with_args() {
 
     let mut qb: QueryBuilder<'_, Postgres> =
         QueryBuilder::with_arguments(query.sql(), query.take_arguments().unwrap().unwrap());
-    let query = qb.push("OR membership_level =").push_bind(3i32).build();
+    let query = qb.push(" OR membership_level = ").push_bind(3i32).build();
 
     assert_eq!(
         query.sql(),
