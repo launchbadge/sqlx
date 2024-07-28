@@ -265,7 +265,7 @@ impl ConnectOpts {
     pub fn required_db_url(&self) -> anyhow::Result<&str> {
         self.database_url.as_deref().ok_or_else(
             || anyhow::anyhow!(
-                "the `--database-url` option the or `DATABASE_URL` environment variable must be provided"
+                "the `--database-url` option or the `DATABASE_URL` environment variable must be provided"
             )
         )
     }
