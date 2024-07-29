@@ -3,19 +3,20 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::text::Line;
+use ratatui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Span, Text},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+    Frame, Terminal,
+};
 use sqlx::postgres::PgListener;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::{error::Error, io};
 use tokio::{sync::Mutex, time::Duration};
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame, Terminal,
-};
 use unicode_width::UnicodeWidthStr;
 
 struct ChatApp {
@@ -53,7 +54,7 @@ impl ChatApp {
                 .await
                 .iter()
                 .map(|m| {
-                    let content = vec![Spans::from(Span::raw(m.to_owned()))];
+                    let content = vec![Line::from(Span::raw(m.to_owned()))];
                     ListItem::new(content)
                 })
                 .collect();
@@ -85,7 +86,7 @@ impl ChatApp {
         }
     }
 
-    fn ui<B: Backend>(&mut self, frame: &mut Frame<B>, messages: Vec<ListItem>) {
+    fn ui(&mut self, frame: &mut Frame, messages: Vec<ListItem>) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(2)
@@ -99,7 +100,7 @@ impl ChatApp {
             )
             .split(frame.size());
 
-        let text = Text::from(Spans::from(vec![
+        let text = Text::from(Line::from(vec![
             Span::raw("Press "),
             Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(" to send the message, "),
@@ -109,7 +110,7 @@ impl ChatApp {
         let help_message = Paragraph::new(text);
         frame.render_widget(help_message, chunks[0]);
 
-        let input = Paragraph::new(self.input.as_ref())
+        let input = Paragraph::new(self.input.as_str())
             .style(Style::default().fg(Color::Yellow))
             .block(Block::default().borders(Borders::ALL).title("Input"));
         frame.render_widget(input, chunks[1]);
@@ -131,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // setup postgres
     let conn_url =
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
-    let pool = sqlx::PgPool::connect(&conn_url).await?;
+    let pool = PgPool::connect(&conn_url).await?;
 
     let mut listener = PgListener::connect(&conn_url).await?;
     listener.listen("chan0").await?;
