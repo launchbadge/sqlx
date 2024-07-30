@@ -5,6 +5,8 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::slice;
 
+use super::MigrationType;
+
 /// A resolved set of migrations, ready to be run.
 ///
 /// Can be constructed statically using `migrate!()` or at runtime using [`Migrator::new()`].
@@ -36,7 +38,7 @@ fn validate_applied_migrations(
     let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
 
     for applied_migration in applied_migrations {
-        if !migrations.contains(&applied_migration.version) {
+        if applied_migration.version > 0 && !migrations.contains(&applied_migration.version) {
             return Err(MigrateError::VersionMissing(applied_migration.version));
         }
     }
@@ -160,17 +162,24 @@ impl Migrator {
         let applied_migrations = conn.list_applied_migrations().await?;
         validate_applied_migrations(&applied_migrations, self)?;
 
-        let applied_migrations: HashMap<_, _> = applied_migrations
-            .into_iter()
+        let (versioned_migrations, rerunnable_migrations): (Vec<_>, Vec<_>) = self
+            .iter()
+            .partition(|m| m.migration_type != MigrationType::OnChange);
+
+        let (applied_versioned_migrations, applied_rerunnable_migrations): (Vec<_>, Vec<_>) =
+            applied_migrations.iter().partition(|am| am.version > 0);
+
+        let applied_migrations_by_version: HashMap<_, _> = applied_versioned_migrations
+            .iter()
             .map(|m| (m.version, m))
             .collect();
 
-        for migration in self.iter() {
+        for migration in versioned_migrations {
             if migration.migration_type.is_down_migration() {
                 continue;
             }
 
-            match applied_migrations.get(&migration.version) {
+            match applied_migrations_by_version.get(&migration.version) {
                 Some(applied_migration) => {
                     if migration.checksum != applied_migration.checksum {
                         return Err(MigrateError::VersionMismatch(migration.version));
@@ -179,6 +188,43 @@ impl Migrator {
                 None => {
                     conn.apply(migration).await?;
                 }
+            }
+        }
+
+        let mut next_available_version = applied_rerunnable_migrations
+            .iter()
+            .min_by(|x, y| x.version.cmp(&y.version))
+            .map(|migration| migration.version - 1)
+            .unwrap_or(-1);
+
+        let applied_migrations_by_checksum: HashMap<_, _> = applied_rerunnable_migrations
+            .iter()
+            .map(|m| (m.checksum.clone(), m))
+            .collect();
+
+        let applied_migrations_by_desc: HashMap<_, _> = applied_rerunnable_migrations
+            .iter()
+            .map(|m| (m.description.to_string(), m))
+            .collect();
+
+        for migration in rerunnable_migrations {
+            if applied_migrations_by_checksum
+                .get(&migration.checksum)
+                .is_none()
+            {
+                let previously_applied =
+                    applied_migrations_by_desc.get(&migration.description.to_string());
+
+                if let Some(previous_applied) = previously_applied {
+                    let mut migration = migration.to_owned();
+                    migration.version = previous_applied.version;
+                    conn.reapply(&migration).await?
+                } else {
+                    let mut migration = migration.to_owned();
+                    migration.version = next_available_version;
+                    next_available_version -= 1;
+                    conn.apply(&migration).await?
+                };
             }
         }
 

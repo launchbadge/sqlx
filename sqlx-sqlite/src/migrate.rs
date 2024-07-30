@@ -103,16 +103,18 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
-            let rows: Vec<(i64, Vec<u8>)> =
-                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
-                    .fetch_all(self)
-                    .await?;
+            let rows: Vec<(i64, Vec<u8>, String)> = query_as(
+                "SELECT version, checksum, description FROM _sqlx_migrations ORDER BY version",
+            )
+            .fetch_all(self)
+            .await?;
 
             let migrations = rows
                 .into_iter()
-                .map(|(version, checksum)| AppliedMigration {
+                .map(|(version, checksum, description)| AppliedMigration {
                     version,
                     checksum: checksum.into(),
+                    description,
                 })
                 .collect();
 
@@ -156,6 +158,59 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .bind(migration.version)
             .bind(&*migration.description)
             .bind(&*migration.checksum)
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
+
+            // Update `elapsed_time`.
+            // NOTE: The process may disconnect/die at this point, so the elapsed time value might be lost. We accept
+            //       this small risk since this value is not super important.
+
+            let elapsed = start.elapsed();
+
+            // language=SQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET execution_time = ?1
+    WHERE version = ?2
+                "#,
+            )
+            .bind(elapsed.as_nanos() as i64)
+            .bind(migration.version)
+            .execute(self)
+            .await?;
+
+            Ok(elapsed)
+        })
+    }
+
+    fn reapply<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let mut tx = self.begin().await?;
+            let start = Instant::now();
+
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+            // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+            // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+            // and update it once the actual transaction completed.
+            let _ = tx.execute(&*migration.sql).await?;
+
+            // language=SQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET checksum = ?1, execution_time = -1
+    WHERE version = ?2
+                "#,
+            )
+            .bind(&*migration.checksum)
+            .bind(migration.version)
             .execute(&mut *tx)
             .await?;
 
