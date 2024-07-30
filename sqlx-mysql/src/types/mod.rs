@@ -165,3 +165,6 @@ mod time;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+#[cfg(feature = "geometry")]
+mod geometry;

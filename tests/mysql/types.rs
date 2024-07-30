@@ -300,6 +300,340 @@ mod json_tests {
     ));
 }
 
+#[cfg(feature = "geometry")]
+mod geometry_tests {
+    use geo_types::{
+        line_string, point, polygon, Geometry, GeometryCollection, LineString, MultiPoint,
+        MultiPolygon, Point, Polygon,
+    };
+    use sqlx_test::test_type;
+
+    use super::*;
+
+    test_type!(geometry_point<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('POINT(1 1)')" == Geometry::Point(point!( x: 1.0, y: 1.0 )),
+    ));
+
+    test_type!(geometry_subtype_point<Point<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('POINT(3 4)')" == point!( x: 3.0, y: 4.0 ),
+    ));
+
+    test_type!(geometry_linestring<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('LINESTRING(0 0, 1 1, 2 2)')" == Geometry::LineString(line_string![
+            (x: 0.0, y: 0.0),
+            (x: 1.0, y: 1.0),
+            (x: 2.0, y: 2.0),
+        ]),
+    ));
+
+    test_type!(geometry_subtype_linestring<LineString<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('LINESTRING(6 5, 4 3, 2 1)')" == line_string![
+            (x: 6.0, y: 5.0),
+            (x: 4.0, y: 3.0),
+            (x: 2.0, y: 1.0),
+        ],
+    ));
+
+    test_type!(geometry_polygon<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('POLYGON((0 0, 1 1, 1 0, 0 0))')" == Geometry::Polygon(polygon![
+            (x: 0.0, y: 0.0),
+            (x: 1.0, y: 1.0),
+            (x: 1.0, y: 0.0),
+            (x: 0.0, y: 0.0),
+        ]),
+    ));
+
+    test_type!(geometry_subtype_polygon<Polygon<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('POLYGON((0 0, 2 2, 2 0, 0 0))')" == polygon![
+            (x: 0.0, y: 0.0),
+            (x: 2.0, y: 2.0),
+            (x: 2.0, y: 0.0),
+            (x: 0.0, y: 0.0),
+        ],
+    ));
+
+    test_type!(geometry_multipoint<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('MULTIPOINT(0 0, 1 1, 2 2)')" == Geometry::MultiPoint(vec![
+            point!(x: 0.0, y: 0.0),
+            point!(x: 1.0, y: 1.0),
+            point!(x: 2.0, y: 2.0),
+        ].into()),
+    ));
+
+    test_type!(geometry_subtype_multipoint<MultiPoint<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('MULTIPOINT(0 0, 1 1, 2 2)')" == MultiPoint(vec![
+            point!(x: 0.0, y: 0.0),
+            point!(x: 1.0, y: 1.0),
+            point!(x: 2.0, y: 2.0),
+        ]),
+    ));
+
+    test_type!(geometry_collection<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(0 0, 1 1, 2 2),POLYGON((0 0, 1 1, 1 0, 0 0)))')" == Geometry::GeometryCollection(GeometryCollection(vec![
+            Geometry::Point(point!(x: 1.0, y: 1.0)),
+            Geometry::LineString(line_string![
+                (x: 0.0, y: 0.0),
+                (x: 1.0, y: 1.0),
+                (x: 2.0, y: 2.0),
+            ]),
+            Geometry::Polygon(polygon![
+                (x: 0.0, y: 0.0),
+                (x: 1.0, y: 1.0),
+                (x: 1.0, y: 0.0),
+                (x: 0.0, y: 0.0),
+            ]),
+        ])),
+    ));
+
+    test_type!(geometry_subtype_collection<GeometryCollection<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('GEOMETRYCOLLECTION(POINT(8 7),LINESTRING(6 5, 4 3, 2 1),POLYGON((0 0, 1 1, 1 0, 0 0)))')" == GeometryCollection(vec![
+            Geometry::Point(point!(x: 8.0, y: 7.0)),
+            Geometry::LineString(line_string![
+                (x: 6.0, y: 5.0),
+                (x: 4.0, y: 3.0),
+                (x: 2.0, y: 1.0),
+            ]),
+            Geometry::Polygon(polygon![
+                (x: 0.0, y: 0.0),
+                (x: 1.0, y: 1.0),
+                (x: 1.0, y: 0.0),
+                (x: 0.0, y: 0.0),
+            ]),
+        ]),
+    ));
+
+    test_type!(geometry_collection_empty<Geometry<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('GEOMETRYCOLLECTION EMPTY')" == Geometry::<f64>::GeometryCollection(GeometryCollection(vec![])),
+    ));
+
+    test_type!(geometry_subtype_collection_empty<GeometryCollection<f64>>(
+        MySql,
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
+        "ST_GeomFromText('GEOMETRYCOLLECTION EMPTY')" == GeometryCollection::<f64>(vec![]),
+    ));
+
+    macro_rules! geo_table {
+        (CREATE, $ty:literal) => {
+            format!(
+                r#"
+CREATE TEMPORARY TABLE with_geometry (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    geom {} NULL
+);"#,
+                $ty
+            )
+        };
+        (TRUNCATE) => {
+            "TRUNCATE TABLE with_geometry"
+        };
+    }
+
+    /// Test with a table that has a column which type is a subtype of `GEOMETRY`
+    ///
+    /// It tests that we can insert and select values from the table, including using
+    /// geometry literals in selection.
+    ///
+    /// Because of the limitations of MySQL, we have to use the `Blob` type to represent
+    /// the [`Geometry`] type, so use case testing in actual tables make more sense with
+    /// the actual use of users.
+    macro_rules! test_geo_table {
+        ($name:ident, $col:literal, $($text:literal == <$ty:ty>$value:expr),+ $(,)?) => {
+            paste::item! {
+                #[sqlx_macros::test]
+                async fn [< test_geometry_table_ $name >] () -> anyhow::Result<()> {
+                    use sqlx::Connection;
+
+                    let mut conn = sqlx_test::new::<MySql>().await?;
+                    let tdl = geo_table!(CREATE, $col);
+
+                    conn.execute(tdl.as_str()).await?;
+
+                    $(
+                        let expected = $value;
+
+                        println!("Insert with select {:?}", expected);
+                        sqlx::query("INSERT INTO with_geometry (geom) VALUES (?)")
+                            .bind(&expected)
+                            .execute(&mut conn)
+                            .await?;
+
+                        let row = sqlx::query("SELECT geom FROM with_geometry WHERE geom = ?")
+                            .bind(&expected)
+                            .fetch_one(&mut conn)
+                            .await?;
+                        let geom: $ty = row.try_get(0)?;
+
+                        assert_eq!(geom, expected);
+
+                        let query = format!("SELECT geom FROM with_geometry WHERE geom = {}", $text);
+                        println!("{query}");
+
+                        let row = sqlx::query(&query)
+                            .fetch_one(&mut conn)
+                            .await?;
+                        let geom: $ty = row.try_get(0)?;
+
+                        assert_eq!(geom, expected);
+                        conn.execute(geo_table!(TRUNCATE)).await?;
+                    )+
+
+                    conn.close().await?;
+
+                    Ok(())
+                }
+            }
+        };
+    }
+
+    /// Nullability tests for a subtype of the `GEOMETRY`
+    macro_rules! test_geo_table_null {
+        ($name:ident, $col:literal, $ty:ty $(,)?) => {
+            paste::item! {
+                #[sqlx_macros::test]
+                async fn [< test_geometry_table_null_ $name >] () -> anyhow::Result<()> {
+                    use sqlx::Connection;
+
+                    let mut conn = sqlx_test::new::<MySql>().await?;
+                    let tdl = geo_table!(CREATE, $col);
+
+                    conn.execute(tdl.as_str()).await?;
+
+
+                    println!("Insert with select NULL of {}", std::any::type_name::<$ty>());
+                    conn.execute("INSERT INTO with_geometry (geom) VALUES (NULL)").await?;
+
+                    let row = sqlx::query("SELECT geom FROM with_geometry WHERE geom IS NULL")
+                        .fetch_one(&mut conn)
+                        .await?;
+                    let geom: Option<$ty> = row.try_get(0)?;
+
+                    conn.close().await?;
+                    assert_eq!(geom, None);
+
+                    Ok(())
+                }
+            }
+        };
+    }
+
+    test_geo_table_null!(geometry, "GEOMETRY", Geometry<f64>);
+    test_geo_table_null!(point, "POINT", Point<f64>);
+    test_geo_table_null!(linestring, "LINESTRING", LineString<f64>);
+    test_geo_table_null!(polygon, "POLYGON", Polygon<f64>);
+    test_geo_table_null!(multipoint, "MULTIPOINT", MultiPoint<f64>);
+    test_geo_table_null!(multipolygon, "MULTIPOLYGON", MultiPolygon<f64>);
+    test_geo_table_null!(
+        geometry_collection,
+        "GEOMETRYCOLLECTION",
+        GeometryCollection<f64>
+    );
+
+    test_geo_table!(
+        point,
+        "POINT",
+        "ST_GeomFromText('Point(0 0)')" == <Geometry<f64>>Geometry::Point(point!(x: 0.0, y: 0.0)),
+        "ST_GeomFromText('Point(-2 -3)')" == <Geometry<f64>>Geometry::Point(point!(x: -2.0, y: -3.0)),
+        "ST_GeomFromText('Point(5.76814 12345)')"
+            == <Geometry<f64>>Geometry::Point(point!(x: 5.76814, y: 12345.0)),
+        "ST_GeomFromText('Point(0 0)')"
+            == <Point<f64>>point!(x: 0.0, y: 0.0),
+        "ST_GeomFromText('Point(-5.7 -4.3)')" == <Point<f64>>point!(x: -5.7, y: -4.3),
+    );
+
+    test_geo_table!(
+        linestring,
+        "LINESTRING",
+        "ST_GeomFromText('LineString(0 0, 1 1, 2 2)')"
+            == <Geometry<f64>>Geometry::LineString(line_string![
+                (x: 0.0, y: 0.0),
+                (x: 1.0, y: 1.0),
+                (x: 2.0, y: 2.0),
+            ]),
+        "ST_GeomFromText('LineString(6 5, 4 3, 2 1)')"
+            == <LineString<f64>>line_string![
+                (x: 6.0, y: 5.0),
+                (x: 4.0, y: 3.0),
+                (x: 2.0, y: 1.0),
+            ],
+    );
+
+    test_geo_table!(
+        polygon,
+        "POLYGON",
+        "ST_GeomFromText('Polygon((0 0, 1 1, 1 0, 0 0))')"
+            == <Geometry<f64>>Geometry::Polygon(polygon![
+                (x: 0.0, y: 0.0),
+                (x: 1.0, y: 1.0),
+                (x: 1.0, y: 0.0),
+                (x: 0.0, y: 0.0),
+            ]),
+        "ST_GeomFromText('Polygon((0 0, 2 2, 2 0, 0 0))')"
+            == <Polygon<f64>>polygon![
+                (x: 0.0, y: 0.0),
+                (x: 2.0, y: 2.0),
+                (x: 2.0, y: 0.0),
+                (x: 0.0, y: 0.0),
+            ],
+    );
+
+    test_geo_table!(
+        geometry_collection,
+        "GEOMETRYCOLLECTION",
+        "ST_GeomFromText('GeometryCollection(Point(1 2),LineString(3 4, 5 6, 7 8),Polygon((0 0, 1 1, 1 0, 0 0)))')"
+            == <Geometry<f64>>Geometry::GeometryCollection(GeometryCollection(vec![
+                Geometry::Point(point!(x: 1.0, y: 2.0)),
+                Geometry::LineString(line_string![
+                    (x: 3.0, y: 4.0),
+                    (x: 5.0, y: 6.0),
+                    (x: 7.0, y: 8.0),
+                ]),
+                Geometry::Polygon(polygon![
+                    (x: 0.0, y: 0.0),
+                    (x: 1.0, y: 1.0),
+                    (x: 1.0, y: 0.0),
+                    (x: 0.0, y: 0.0),
+                ]),
+            ])),
+        "ST_GeomFromText('GeometryCollection(Point(8 7),LineString(6 5, 4 3, 2 1),Polygon((0 0, 1 1, 1 0, 0 0)))')"
+            == <GeometryCollection<f64>>GeometryCollection(vec![
+                Geometry::Point(point!(x: 8.0, y: 7.0)),
+                Geometry::LineString(line_string![
+                    (x: 6.0, y: 5.0),
+                    (x: 4.0, y: 3.0),
+                    (x: 2.0, y: 1.0),
+                ]),
+                Geometry::Polygon(polygon![
+                    (x: 0.0, y: 0.0),
+                    (x: 1.0, y: 1.0),
+                    (x: 1.0, y: 0.0),
+                    (x: 0.0, y: 0.0),
+                ]),
+            ]),
+    );
+}
+
 #[sqlx_macros::test]
 async fn test_bits() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
