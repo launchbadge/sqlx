@@ -31,6 +31,10 @@ pub enum Command {
         #[clap(long)]
         check: bool,
 
+        /// Prepare query macros in dependencies that exist outside the current crate or workspace.
+        #[clap(long)]
+        all: bool,
+
         /// Generate a single workspace-level `.sqlx` folder.
         ///
         /// This option is intended for workspaces where multiple crates use SQLx. If there is only
