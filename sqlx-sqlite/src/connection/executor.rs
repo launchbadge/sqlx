@@ -32,7 +32,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
         Box::pin(
             self.worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size, persistent, None)
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream(),
         )
@@ -58,7 +58,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         Box::pin(async move {
             let stream = self
                 .worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size, persistent, Some(1))
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream();
 

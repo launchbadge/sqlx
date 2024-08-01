@@ -83,7 +83,7 @@ impl AnyConnectionBackend for SqliteConnection {
 
         Box::pin(
             self.worker
-                .execute(query, args, self.row_channel_size, persistent)
+                .execute(query, args, self.row_channel_size, persistent, None)
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream()
                 .map(
@@ -107,7 +107,7 @@ impl AnyConnectionBackend for SqliteConnection {
         Box::pin(async move {
             let stream = self
                 .worker
-                .execute(query, args, self.row_channel_size, persistent)
+                .execute(query, args, self.row_channel_size, persistent, Some(1))
                 .map_ok(flume::Receiver::into_stream)
                 .await?;
             futures_util::pin_mut!(stream);

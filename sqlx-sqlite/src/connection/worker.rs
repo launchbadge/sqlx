@@ -52,6 +52,7 @@ enum Command {
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
+        limit: Option<usize>,
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -136,6 +137,7 @@ impl ConnectionWorker {
                             arguments,
                             persistent,
                             tx,
+                            limit
                         } => {
                             let iter = match execute::iter(&mut conn, &query, arguments, persistent)
                             {
@@ -146,10 +148,34 @@ impl ConnectionWorker {
                                 }
                             };
 
-                            for res in iter {
-                                if tx.send(res).is_err() {
-                                    break;
-                                }
+                            match limit {
+                                None => {
+                                    for res in iter {
+                                        if tx.send(res).is_err() {
+                                            break;
+                                        }
+                                    }
+                                },
+                                Some(limit) => {
+                                    let mut iter = iter;
+                                    let mut rows_returned = 0;
+
+                                    while let Some(res) = iter.next() {
+                                        if let Ok(ok) = &res {
+                                            if ok.is_right() {
+                                                rows_returned += 1;
+                                                if rows_returned >= limit {
+                                                    drop(iter);
+                                                    let _ = tx.send(res);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if tx.send(res).is_err() {
+                                            break;
+                                        }
+                                    }
+                                },
                             }
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
@@ -284,6 +310,7 @@ impl ConnectionWorker {
         args: Option<SqliteArguments<'_>>,
         chan_size: usize,
         persistent: bool,
+        limit: Option<usize>,
     ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, SqliteRow>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
@@ -294,6 +321,7 @@ impl ConnectionWorker {
                     arguments: args.map(SqliteArguments::into_static),
                     persistent,
                     tx,
+                    limit,
                 },
                 Span::current(),
             ))
