@@ -1,3 +1,4 @@
+use crate::collation::Collation;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -12,6 +13,7 @@ impl Type<MySql> for str {
         MySqlTypeInfo {
             r#type: ColumnType::VarString, // VARCHAR
             flags: ColumnFlags::empty(),
+            collation: Collation::utf8mb3_bin,
             max_size: None,
         }
     }
@@ -28,7 +30,7 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && !ty.flags.contains(ColumnFlags::BINARY)
+        ) && ty.collation != Collation::binary
     }
 }
 
