@@ -83,18 +83,29 @@ where
     F: FnOnce() -> R + Send + 'static,
     R: Send + 'static,
 {
+    try_spawn_blocking(f)
+        // the compiler doesn't accept `missing_rt()` as a fn-item
+        // error[E0271]: expected `missing_rt` to be a fn item that returns `JoinHandle<R>`, but it returns `!`
+        .unwrap_or_else(|f| missing_rt(f))
+}
+
+pub fn try_spawn_blocking<F, R>(f: F) -> Result<JoinHandle<R>, F>
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
     #[cfg(feature = "_rt-tokio")]
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return JoinHandle::Tokio(handle.spawn_blocking(f));
+        return Ok(JoinHandle::Tokio(handle.spawn_blocking(f)));
     }
 
     #[cfg(feature = "_rt-async-std")]
     {
-        JoinHandle::AsyncStd(async_std::task::spawn_blocking(f))
+        Ok(JoinHandle::AsyncStd(async_std::task::spawn_blocking(f)))
     }
 
     #[cfg(not(feature = "_rt-async-std"))]
-    missing_rt(f)
+    Err(f)
 }
 
 pub async fn yield_now() {

@@ -141,6 +141,8 @@ uuid = "1.1.2"
 
 # Common utility crates
 dotenvy = { version = "0.15.0", default-features = false }
+tempfile = "3.10.1"
+once_cell = { version = "1.19.0", default-features = false, features = ["std"] }
 
 # Runtimes
 [workspace.dependencies.async-std]
@@ -176,7 +178,7 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
-tempfile = "3.10.1"
+tempfile = { workspace = true }
 criterion = { version = "0.5.1", features = ["async_tokio"] }
 
 # If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,

@@ -48,8 +48,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Sqlite>, Error> {
     }
 
     Ok(TestContext {
-        connect_opts: SqliteConnectOptions::new()
-            .filename(&db_path)
+        connect_opts: SqliteConnectOptions::with_path(&db_path)
             .create_if_missing(true),
         // This doesn't really matter for SQLite as the databases are independent of each other.
         // The main limitation is going to be the number of concurrent running tests.
