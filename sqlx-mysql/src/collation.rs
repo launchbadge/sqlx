@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::error::Error;
 use std::str::FromStr;
 
@@ -199,7 +197,8 @@ impl FromStr for CharSet {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 pub(crate) enum Collation {
