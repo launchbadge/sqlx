@@ -66,7 +66,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: column.r#type,
             flags: column.flags,
-            collation: column.collation.into(),
+            collation: column.collation,
             max_size: Some(column.max_size),
         }
     }
