@@ -22,6 +22,13 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "macros")]
+#[proc_macro]
+pub fn database_macros(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as database_macro::DatabaseMacroInput);
+    database_macro::expand_database_macros(input).into()
+}
+
 #[cfg(feature = "derive")]
 #[proc_macro_derive(Encode, attributes(sqlx))]
 pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
