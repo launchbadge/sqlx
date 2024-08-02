@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
@@ -72,8 +73,9 @@ struct Metadata {
     #[allow(unused)]
     manifest_dir: PathBuf,
     offline: bool,
-    database_url: Option<String>,
+    default_database_url: Option<String>,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
+    env_cache: HashMap<String, String>
 }
 
 impl Metadata {
@@ -139,13 +141,16 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env("DATABASE_URL").ok();
+    let env_cache = HashMap::from_iter(dotenvy::vars());
+
+    let default_database_url = env("DATABASE_URL").ok();
 
     Metadata {
         manifest_dir,
         offline,
-        database_url,
+        default_database_url,
         workspace_root: Arc::new(Mutex::new(None)),
+        env_cache
     }
 });
 
@@ -153,40 +158,58 @@ pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let data_source = match &*METADATA {
-        Metadata {
-            offline: false,
-            database_url: Some(db_url),
-            ..
-        } => QueryDataSource::live(db_url)?,
 
-        Metadata { offline, .. } => {
-            // Try load the cached query metadata file.
-            let filename = format!("query-{}.json", hash_string(&input.sql));
 
-            // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
-            let dirs = [
-                || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
-                || Some(METADATA.manifest_dir.join(".sqlx")),
-                || Some(METADATA.workspace_root().join(".sqlx")),
-            ];
-            let Some(data_file_path) = dirs
-                .iter()
-                .filter_map(|path| path())
-                .map(|path| path.join(&filename))
-                .find(|path| path.exists())
-            else {
-                return Err(
-                    if *offline {
-                        "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` to update the query cache or unset `SQLX_OFFLINE`"
-                    } else {
-                        "set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache"
-                    }.into()
-                );
-            };
-
-            QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
+    // If we don't require the query to be offline, check if we have a valid online datasource url
+    let online_data_source: Option<QueryDataSource> = if METADATA.offline == false {
+        if let Some(ref custom_env) = input.db_url_env {
+            // Get the custom db url environment
+            METADATA.env_cache.get(custom_env)
+                .map(|custom_db_url| QueryDataSource::live(custom_db_url))
+                .transpose()?
+        } else if let Some(default_database_url) = &METADATA.default_database_url {
+            // Get the default db url env
+            Some(QueryDataSource::live(default_database_url)?)
+        } else {
+            None
         }
+    } else {
+        None
+    };
+    
+    
+    let data_source = if let Some(data_source) = online_data_source {
+        data_source
+    } else {
+        // If we don't have a live source, try load the cached query metadata file.
+        let filename = format!("query-{}.json", hash_string(&input.sql));
+
+        // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
+        let dirs = [
+            || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
+            || Some(METADATA.manifest_dir.join(".sqlx")),
+            || Some(METADATA.workspace_root().join(".sqlx")),
+        ];
+        let Some(data_file_path) = dirs
+            .iter()
+            .filter_map(|path| path())
+            .map(|path| path.join(&filename))
+            .find(|path| path.exists())
+        else {
+            return Err(
+                if METADATA.offline {
+                    "`SQLX_OFFLINE=true` but there is no cached data for this query, run `cargo sqlx prepare` to update the query cache or unset `SQLX_OFFLINE`".to_string()
+                } else {
+                    if let Some(custom_env) = input.db_url_env {
+                        format!("set custom env `{:?}` to use query macros online, or run `cargo sqlx prepare` to update the query cache", custom_env)
+                    } else {
+                        "set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache".to_string()
+                    }
+                }.into()
+            );
+        };
+
+        QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
     };
 
     for driver in drivers {
