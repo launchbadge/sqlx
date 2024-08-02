@@ -75,7 +75,7 @@ struct Metadata {
     offline: bool,
     default_database_url: Option<String>,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
-    env_cache: HashMap<String, String>
+    env_cache: HashMap<String, String>,
 }
 
 impl Metadata {
@@ -150,7 +150,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         offline,
         default_database_url,
         workspace_root: Arc::new(Mutex::new(None)),
-        env_cache
+        env_cache,
     }
 });
 
@@ -158,13 +158,13 @@ pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-
-
     // If we don't require the query to be offline, check if we have a valid online datasource url
     let online_data_source: Option<QueryDataSource> = if METADATA.offline == false {
         if let Some(ref custom_env) = input.db_url_env {
             // Get the custom db url environment
-            METADATA.env_cache.get(custom_env)
+            METADATA
+                .env_cache
+                .get(custom_env)
                 .map(|custom_db_url| QueryDataSource::live(custom_db_url))
                 .transpose()?
         } else if let Some(default_database_url) = &METADATA.default_database_url {
@@ -176,8 +176,7 @@ pub fn expand_input<'a>(
     } else {
         None
     };
-    
-    
+
     let data_source = if let Some(data_source) = online_data_source {
         data_source
     } else {
@@ -193,7 +192,13 @@ pub fn expand_input<'a>(
         let Some(data_file_path) = dirs
             .iter()
             .filter_map(|path| path())
-            .map(|path| path.join(&filename))
+            .map(|path| {
+                if let Some(ref custom_env) = input.db_url_env {
+                    path.join(custom_env).join(&filename)
+                } else {
+                    path.join(&filename)
+                }
+            })
             .find(|path| path.exists())
         else {
             return Err(
@@ -387,8 +392,28 @@ where
                         .into());
                     }
 
-                    // .sqlx exists and is a directory, store data.
-                    data.save_in(path)?;
+                    if let Some(custom_db_env) = input.db_url_env {
+                        let full_path: PathBuf = path.join(custom_db_env);
+     
+                        match fs::create_dir(&full_path) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                match err.kind() {
+                                    std::io::ErrorKind::AlreadyExists => {}
+                                    _ => return Err(format!(
+                                        "Failed to create offline cache path {full_path:?}: {err}"
+                                    )
+                                    .into()),
+                                }
+                            }
+                        };
+
+                        // created subfolder if not exists, store data.
+                        data.save_in(full_path)?;
+                    } else {
+                        // .sqlx exists and is a directory, store data.
+                        data.save_in(path)?;
+                    }
                 }
             }
         }
