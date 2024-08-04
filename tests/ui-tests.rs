@@ -44,3 +44,12 @@ fn ui_tests() {
 
     t.compile_fail("tests/ui/*.rs");
 }
+
+#[test]
+#[cfg(feature = "migrate")]
+fn macro_tests(){
+    let t = trybuild::TestCases::new();
+
+    t.compile_fail("tests/macros/fixture1.rs");
+    t.compile_fail("tests/macros/fixture2.rs");
+}

@@ -1,0 +1,5 @@
+error: expected string literal
+ --> tests/macros/fixture2.rs:4:27
+  |
+4 |     #[sqlx::test(fixtures(path="../fixtures/postgres", scripts))]
+  |                           ^^^^
