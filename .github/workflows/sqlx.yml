@@ -66,7 +66,7 @@ jobs:
     strategy:
       matrix:
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     steps:
       - uses: actions/checkout@v4
 
@@ -147,7 +147,7 @@ jobs:
       matrix:
         postgres: [15, 11]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -247,7 +247,7 @@ jobs:
       matrix:
         mysql: [8]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -335,7 +335,7 @@ jobs:
       matrix:
         mariadb: [verylatest, 11_4, 10_11, 10_4]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4

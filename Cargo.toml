@@ -78,7 +78,9 @@ runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # TLS features
 tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros?/_tls-native-tls"]
-tls-rustls = ["sqlx-core/_tls-rustls", "sqlx-macros?/_tls-rustls"]
+tls-rustls = ["tls-rustls-ring"] # For backwards compatibility
+tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs", "sqlx-macros?/_tls-rustls-aws-lc-rs"]
+tls-rustls-ring = ["sqlx-core/_tls-rustls-ring", "sqlx-macros?/_tls-rustls-ring"]
 
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
@@ -86,10 +88,10 @@ tls-none = []
 # Legacy Runtime + TLS features
 
 runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
-runtime-async-std-rustls = ["runtime-async-std", "tls-rustls"]
+runtime-async-std-rustls = ["runtime-async-std", "tls-rustls-ring"]
 
 runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
-runtime-tokio-rustls = ["runtime-tokio", "tls-rustls"]
+runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
 
 # for conditional compilation
 _rt-async-std = []
