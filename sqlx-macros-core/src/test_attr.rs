@@ -218,6 +218,7 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
                             "unexpected fixture meta",
                         ));
                     }
+
                     Ok(())
                 });
 
