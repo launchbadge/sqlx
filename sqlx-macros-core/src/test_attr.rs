@@ -30,7 +30,6 @@ pub fn expand(args: TokenStream, input: syn::ItemFn) -> crate::Result<TokenStrea
     let parser = AttributeArgs::parse_terminated;
     let args = parser.parse2(args)?;
 
-
     if input.sig.inputs.is_empty() {
         if !args.is_empty() {
             if cfg!(not(feature = "migrate")) {
