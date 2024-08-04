@@ -50,6 +50,6 @@ fn ui_tests() {
 fn macro_tests(){
     let t = trybuild::TestCases::new();
 
-    t.compile_fail("tests/macros/fixture1.rs");
+    t.pass("tests/macros/fixture1.rs");
     t.compile_fail("tests/macros/fixture2.rs");
 }
