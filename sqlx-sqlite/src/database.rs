@@ -34,6 +34,8 @@ impl Database for Sqlite {
     const NAME: &'static str = "SQLite";
 
     const URL_SCHEMES: &'static [&'static str] = &["sqlite"];
+
+    const TYPE_IMPORT_PATH: &'static str = "sqlx::sqlite::Sqlite";
 }
 
 impl HasStatementCache for Sqlite {}
