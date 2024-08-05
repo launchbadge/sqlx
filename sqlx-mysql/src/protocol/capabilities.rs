@@ -83,5 +83,8 @@ bitflags::bitflags! {
 
         // Don't reset the options after an unsuccessful connect
         const REMEMBER_OPTIONS = (1 << 31);
+
+        // Permit bulk operations
+        const MARIADB_CLIENT_STMT_BULK_OPERATIONS = (1 << 34);
     }
 }
