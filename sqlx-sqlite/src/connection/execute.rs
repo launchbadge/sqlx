@@ -2,8 +2,10 @@ use crate::connection::{ConnectionHandle, ConnectionState};
 use crate::error::Error;
 use crate::logger::QueryLogger;
 use crate::statement::{StatementHandle, VirtualStatement};
-use crate::{SqliteArguments, SqliteQueryResult, SqliteRow};
+use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow};
+use sqlx_core::database::Database;
 use sqlx_core::Either;
+use tracing::Span;
 
 pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
@@ -16,6 +18,7 @@ pub struct ExecuteIter<'a> {
     args_used: usize,
 
     goto_next: bool,
+    span: Span,
 }
 
 pub(crate) fn iter<'a>(
@@ -27,7 +30,8 @@ pub(crate) fn iter<'a>(
     // fetch the cached statement or allocate a new one
     let statement = conn.statements.get(query, persistent)?;
 
-    let logger = QueryLogger::new(query, conn.log_settings.clone());
+    let logger = QueryLogger::new(query, Sqlite::NAME_LOWERCASE, conn.log_settings.clone());
+    let span = logger.span.clone();
 
     Ok(ExecuteIter {
         handle: &mut conn.handle,
@@ -36,6 +40,7 @@ pub(crate) fn iter<'a>(
         args,
         args_used: 0,
         goto_next: true,
+        span
     })
 }
 
@@ -67,6 +72,8 @@ impl Iterator for ExecuteIter<'_> {
     type Item = Result<Either<SqliteQueryResult, SqliteRow>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let _e = self.span.enter();
+
         let statement = if self.goto_next {
             let statement = match self.statement.prepare_next(self.handle) {
                 Ok(Some(statement)) => statement,

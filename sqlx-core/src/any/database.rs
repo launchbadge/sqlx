@@ -31,6 +31,7 @@ impl Database for Any {
     type Statement<'q> = AnyStatement<'q>;
 
     const NAME: &'static str = "Any";
+    const NAME_LOWERCASE: &'static str = "any";
 
     const URL_SCHEMES: &'static [&'static str] = &[];
 }

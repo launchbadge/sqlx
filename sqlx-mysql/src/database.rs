@@ -31,6 +31,7 @@ impl Database for MySql {
     type Statement<'q> = MySqlStatement<'q>;
 
     const NAME: &'static str = "MySQL";
+    const NAME_LOWERCASE: &'static str = "mysql";
 
     const URL_SCHEMES: &'static [&'static str] = &["mysql", "mariadb"];
 }
