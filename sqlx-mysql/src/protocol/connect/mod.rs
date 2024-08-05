@@ -3,6 +3,7 @@
 //! <https://dev.mysql.com/doc/internals/en/connection-phase.html>
 
 mod auth_switch;
+mod encode_attributes;
 mod handshake;
 mod handshake_response;
 mod ssl_request;

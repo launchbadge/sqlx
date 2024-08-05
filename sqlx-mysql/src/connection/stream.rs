@@ -51,7 +51,8 @@ impl<S: Socket> MySqlStream<S> {
             | Capabilities::MULTI_RESULTS
             | Capabilities::PLUGIN_AUTH
             | Capabilities::PS_MULTI_RESULTS
-            | Capabilities::SSL;
+            | Capabilities::SSL
+            | Capabilities::CONNECT_ATTRS;
 
         if options.database.is_some() {
             capabilities |= Capabilities::CONNECT_WITH_DB;
