@@ -11,6 +11,7 @@ use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
 use crate::query::{query, query_statement, query_statement_with, query_with_result, Query};
+use crate::sql_str::SqlSafeStr;
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement, mapping results using [`FromRow`].
@@ -339,7 +340,7 @@ where
 ///
 /// ```
 #[inline]
-pub fn query_as<'q, DB, O>(sql: &'q str) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>>
+pub fn query_as<'q, DB, SQL, O>(sql: SQL) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
     O: for<'r> FromRow<'r, DB::Row>,
@@ -357,9 +358,10 @@ where
 ///
 /// For details about type mapping from [`FromRow`], see [`query_as()`].
 #[inline]
-pub fn query_as_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, DB, O, A>
+pub fn query_as_with<'q, DB, SQL, O, A>(sql: SQL, arguments: A) -> QueryAs<'q, DB, O, A>
 where
     DB: Database,
+    SQL: SqlSafeStr<'q>,
     A: IntoArguments<'q, DB>,
     O: for<'r> FromRow<'r, DB::Row>,
 {
