@@ -10,6 +10,9 @@ pub use async_std::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 #[cfg(feature = "_rt-tokio")]
 pub use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 
+#[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
+pub use dummy::*;
+
 pub struct AsyncSemaphore {
     // We use the semaphore from futures-intrusive as the one from async-std
     // is missing the ability to add arbitrary permits, and is not guaranteed to be fair:
@@ -139,5 +142,44 @@ impl AsyncSemaphoreReleaser<'_> {
 
         #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
         crate::rt::missing_rt(())
+    }
+}
+
+#[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
+mod dummy {
+    use std::marker::PhantomData;
+
+    use std::ops::{Deref, DerefMut};
+
+    pub struct AsyncMutex<T> {
+        _marker: PhantomData<T>,
+    }
+
+    impl<T> AsyncMutex<T> {
+        pub fn new(val: T) -> Self {
+            crate::rt::missing_rt(val)
+        }
+
+        pub async fn lock(&self) -> AsyncMutexGuard<'_, T> {
+            crate::rt::missing_rt(())
+        }
+    }
+
+    pub struct AsyncMutexGuard<'a, T> {
+        mutex: &'a AsyncMutex<T>,
+    }
+
+    impl<'a, T> Deref for AsyncMutexGuard<'a, T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            crate::rt::missing_rt(())
+        }
+    }
+
+    impl<'a, T> DerefMut for AsyncMutexGuard<'a, T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            crate::rt::missing_rt(())
+        }
     }
 }
