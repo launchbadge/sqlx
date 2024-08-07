@@ -125,7 +125,7 @@ SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; an
 # PICK ONE OF THE FOLLOWING:
 
 # tokio (no TLS)
-sqlx = { version = "8", features = [ "runtime-tokio" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio" ] }
 # tokio + native-tls
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" ] }
 # tokio + rustls with ring
