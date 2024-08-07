@@ -44,7 +44,7 @@ fn load_password_from_file(
         .map_err(|e| {
             tracing::warn!(
                 path = %path.display(),
-                "Failed to open `.pgpass` file: {e:?}",
+                "Failed to open password file: {e:?}",
             );
         })
         .ok()?;
