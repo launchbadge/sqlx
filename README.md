@@ -125,22 +125,22 @@ SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; an
 # PICK ONE OF THE FOLLOWING:
 
 # tokio (no TLS)
-sqlx = { version = "0.7", features = [ "runtime-tokio" ] }
+sqlx = { version = "8", features = [ "runtime-tokio" ] }
 # tokio + native-tls
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native-tls" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" ] }
 # tokio + rustls with ring
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls-ring" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring" ] }
 # tokio + rustls with aws-lc-rs
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ] }
 
 # async-std (no TLS)
-sqlx = { version = "0.7", features = [ "runtime-async-std" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native-tls" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-native-tls" ] }
 # async-std + rustls with ring
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls-ring" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring" ] }
 # async-std + rustls with aws-lc-rs
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls-aws-lc-rs" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-aws-lc-rs" ] }
 ```
 
 #### Cargo Feature Flags
