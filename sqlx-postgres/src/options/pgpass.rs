@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::env::var_os;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -10,9 +9,9 @@ pub fn load_password(
     port: u16,
     username: &str,
     database: Option<&str>,
+    passfile: Option<&str>,
 ) -> Option<String> {
-    let custom_file = var_os("PGPASSFILE");
-    if let Some(file) = custom_file {
+    if let Some(file) = passfile {
         if let Some(password) =
             load_password_from_file(PathBuf::from(file), host, port, username, database)
         {
