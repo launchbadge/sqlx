@@ -187,7 +187,10 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
 #[cfg(feature = "migrate")]
 fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
-    use syn::{parenthesized, parse::Parse, punctuated::Punctuated, token::Comma, Expr, Lit, LitStr, Meta, MetaNameValue, Token};
+    use syn::{
+        parenthesized, parse::Parse, punctuated::Punctuated, token::Comma, Expr, Lit, LitStr, Meta,
+        MetaNameValue, Token,
+    };
 
     let mut fixtures = Vec::new();
     let mut migrations = MigrationsOpt::InferredPath;
