@@ -180,3 +180,16 @@ fn it_returns_the_parsed_url() {
 
     assert_eq!(expected_url, opts.build_url());
 }
+
+#[test]
+fn it_parses_timezone() {
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?timezone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
+
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?time-zone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
+}
