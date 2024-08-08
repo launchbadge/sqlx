@@ -72,6 +72,10 @@ impl MySqlConnectOptions {
                     options = options.socket(&*value);
                 }
 
+                "timezone" | "time-zone" => {
+                    options = options.timezone(Some(value.to_string()));
+                }
+
                 _ => {}
             }
         }
