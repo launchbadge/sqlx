@@ -77,7 +77,7 @@ pub struct MySqlConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
-    pub(crate) no_engine_subsitution: bool,
+    pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
 }
@@ -108,7 +108,7 @@ impl MySqlConnectOptions {
             log_settings: Default::default(),
             pipes_as_concat: true,
             enable_cleartext_plugin: false,
-            no_engine_subsitution: true,
+            no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
         }
@@ -350,8 +350,8 @@ impl MySqlConnectOptions {
     /// substitution).
     ///
     /// <https://mariadb.com/kb/en/sql-mode/>
-    pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
-        self.no_engine_subsitution = flag_val;
+    pub fn no_engine_substitution(mut self, flag_val: bool) -> Self {
+        self.no_engine_substitution = flag_val;
         self
     }
 
