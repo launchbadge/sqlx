@@ -29,6 +29,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod common;
 mod database;
 
+#[cfg(feature = "macros")]
+pub mod database_macro;
 #[cfg(feature = "derive")]
 pub mod derives;
 #[cfg(feature = "macros")]

@@ -19,6 +19,8 @@ pub struct QueryMacroInput {
     pub(super) checked: bool,
 
     pub(super) file_path: Option<String>,
+
+    pub(super) db_url_env: Option<String>
 }
 
 enum QuerySrc {
@@ -38,6 +40,7 @@ impl Parse for QueryMacroInput {
         let mut args: Option<Vec<Expr>> = None;
         let mut record_type = RecordType::Generated;
         let mut checked = true;
+        let mut db_url_env = None;
 
         let mut expect_comma = false;
 
@@ -82,6 +85,9 @@ impl Parse for QueryMacroInput {
             } else if key == "checked" {
                 let lit_bool = input.parse::<LitBool>()?;
                 checked = lit_bool.value;
+            } else if key == "db_url_env" {
+                let lit_str = input.parse::<LitStr>()?;
+                db_url_env = Some(lit_str.value());
             } else {
                 let message = format!("unexpected input key: {key}");
                 return Err(syn::Error::new_spanned(key, message));
@@ -104,6 +110,7 @@ impl Parse for QueryMacroInput {
             arg_exprs,
             checked,
             file_path,
+            db_url_env
         })
     }
 }
