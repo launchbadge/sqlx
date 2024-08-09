@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::ffi::CStr;
-use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
+use std::fmt::Write;
 use std::os::raw::{c_char, c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
@@ -22,11 +22,11 @@ use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::Transaction;
 
+use crate::{Sqlite, SqliteConnectOptions};
 use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
-use crate::options::OptimizeOnClose;
+use crate::options::{OptimizeOnClose, SqliteTempPath};
 use crate::statement::VirtualStatement;
-use crate::{Sqlite, SqliteConnectOptions};
 
 pub(crate) mod collation;
 pub(crate) mod describe;
@@ -106,6 +106,12 @@ pub(crate) struct ConnectionState {
     progress_handler_callback: Option<Handler>,
 
     update_hook_callback: Option<UpdateHookHandler>,
+
+    /// (MUST BE LAST) If applicable, hold a strong ref to the temporary directory
+    /// until the connection is closed.
+    ///
+    /// When the last strong ref is dropped, the temporary directory is deleted.
+    pub(crate) _temp: Option<SqliteTempPath>,
 }
 
 impl ConnectionState {
