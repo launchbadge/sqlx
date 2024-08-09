@@ -40,6 +40,7 @@ mod ssl_mode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
+/// | `passfile` | `None` | The path to the file used to store passwords. |
 /// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
 /// The URL scheme designator can be either `postgresql://` or `postgres://`.
@@ -101,6 +102,7 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
+    pub(crate) passfile: Option<String>,
     pub(crate) options: Option<String>,
 }
 
@@ -167,6 +169,7 @@ impl PgConnectOptions {
             application_name: var("PGAPPNAME").ok(),
             extra_float_digits: Some("2".into()),
             log_settings: Default::default(),
+            passfile: var("PGPASSFILE").ok(),
             options: var("PGOPTIONS").ok(),
         }
     }
@@ -178,6 +181,7 @@ impl PgConnectOptions {
                 self.port,
                 &self.username,
                 self.database.as_deref(),
+                self.passfile.as_deref(),
             );
         }
 
@@ -489,6 +493,20 @@ impl PgConnectOptions {
     /// ```
     pub fn extra_float_digits(mut self, extra_float_digits: impl Into<Option<i8>>) -> Self {
         self.extra_float_digits = extra_float_digits.into().map(|it| it.to_string().into());
+        self
+    }
+
+    /// Sets the path to the file used to store passwords. Defaults to None.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .passfile("~/.pgpass");
+    /// ```
+    pub fn passfile(mut self, passfile: &str) -> Self {
+        self.passfile = Some(passfile.to_owned());
         self
     }
 

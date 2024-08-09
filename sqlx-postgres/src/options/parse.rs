@@ -85,6 +85,8 @@ impl PgConnectOptions {
 
                 "application_name" => options = options.application_name(&value),
 
+                "passfile" => options = options.passfile(&value),
+
                 "options" => {
                     if let Some(options) = options.options.as_mut() {
                         options.push(' ');
@@ -278,6 +280,15 @@ fn it_parses_socket_correctly_with_username_percent_encoded() {
     assert_eq!(Some("/var/lib/postgres/".into()), opts.socket);
     assert_eq!(Some("database"), opts.database.as_deref());
 }
+
+#[test]
+fn it_parses_passfile_correctly_from_parameter() {
+    let url = "postgres:///?passfile=~/.some_file";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(Some("~/.some_file"), opts.passfile.as_deref());
+}
+
 #[test]
 fn it_parses_libpq_options_correctly() {
     let url = "postgres:///?options=-c%20synchronous_commit%3Doff%20--search_path%3Dpostgres";
