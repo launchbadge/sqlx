@@ -93,6 +93,9 @@ pub mod any;
 #[cfg(feature = "migrate")]
 pub mod testing;
 
+#[cfg(feature = "config")]
+pub mod config;
+
 pub use error::{Error, Result};
 
 pub use either::Either;

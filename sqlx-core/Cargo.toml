@@ -12,7 +12,7 @@ features = ["offline"]
 
 [features]
 default = []
-migrate = ["sha2", "crc"]
+migrate = ["sha2", "crc", "config-migrate"]
 
 any = []
 
@@ -29,6 +29,12 @@ _tls-none = []
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
+
+config = ["serde", "toml/parse"]
+config-macros = ["config"]
+config-migrate = ["config"]
+
+_unstable-doc = ["config-macros", "config-migrate"]
 
 [dependencies]
 # Runtimes
@@ -77,6 +83,7 @@ percent-encoding = "2.1.0"
 regex = { version = "1.5.5", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
+toml = { version = "0.8.16", optional = true }
 sha1 = { version = "0.10.1", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 sqlformat = "0.2.0"

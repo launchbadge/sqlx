@@ -23,6 +23,10 @@ derive = []
 macros = []
 migrate = ["sqlx-core/migrate"]
 
+config = ["sqlx-core/config"]
+config-macros = ["config", "sqlx-core/config-macros"]
+config-migrate = ["config", "sqlx-core/config-migrate"]
+
 # database
 mysql = ["sqlx-mysql"]
 postgres = ["sqlx-postgres"]
