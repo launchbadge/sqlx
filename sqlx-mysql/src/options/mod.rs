@@ -350,6 +350,11 @@ impl MySqlConnectOptions {
     /// substitution).
     ///
     /// <https://mariadb.com/kb/en/sql-mode/>
+    #[deprecated = "renamed to .no_engine_substitution()"]
+    pub fn no_engine_subsitution(self, flag_val: bool) -> Self {
+        self.no_engine_substitution(flag_val)
+    }
+    
     pub fn no_engine_substitution(mut self, flag_val: bool) -> Self {
         self.no_engine_substitution = flag_val;
         self
