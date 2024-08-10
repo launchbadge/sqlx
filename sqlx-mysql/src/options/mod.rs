@@ -354,7 +354,18 @@ impl MySqlConnectOptions {
     pub fn no_engine_subsitution(self, flag_val: bool) -> Self {
         self.no_engine_substitution(flag_val)
     }
-    
+
+    /// Flag that enables or disables the `NO_ENGINE_SUBSTITUTION` sql_mode setting after
+    /// connection.
+    ///
+    /// If not set, if the available storage engine specified by a `CREATE TABLE` is not available,
+    /// a warning is given and the default storage engine is used instead.
+    ///
+    /// By default, this is `true` (`NO_ENGINE_SUBSTITUTION` is passed, forbidding engine
+    /// substitution).
+    ///
+    /// <https://mariadb.com/kb/en/sql-mode/>
+    #[deprecated = "renamed to .no_engine_substitution()"]
     pub fn no_engine_substitution(mut self, flag_val: bool) -> Self {
         self.no_engine_substitution = flag_val;
         self
