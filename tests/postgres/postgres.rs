@@ -6,6 +6,7 @@ use sqlx::postgres::{
     PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx_core::connection::TransactionDepth;
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
@@ -515,6 +516,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    assert_eq!(conn.get_transaction_depth(), 0);
 
     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
         .await?;
@@ -523,6 +525,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin
     let mut tx = conn.begin().await?; // transaction
+    assert_eq!(conn.get_transaction_depth(), 1);
 
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -532,6 +535,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin once more
     let mut tx2 = tx.begin().await?; // savepoint
+    assert_eq!(conn.get_transaction_depth(), 2);
 
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -541,6 +545,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // never mind, rollback
     tx2.rollback().await?; // roll that one back
+    assert_eq!(conn.get_transaction_depth(), 1);
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
@@ -551,6 +556,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // actually, commit
     tx.commit().await?;
+    assert_eq!(conn.get_transaction_depth(), 0);
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
