@@ -1,7 +1,7 @@
 use futures_core::future::BoxFuture;
 
 use crate::any::{Any, AnyConnectOptions};
-use crate::connection::{ConnectOptions, Connection};
+use crate::connection::{AsyncTransactionDepth, ConnectOptions, Connection};
 use crate::error::Error;
 
 use crate::database::Database;
@@ -110,5 +110,11 @@ impl Connection for AnyConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         self.backend.should_flush()
+    }
+}
+
+impl AsyncTransactionDepth for AnyConnection {
+    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>> {
+        self.backend.get_transaction_depth()
     }
 }

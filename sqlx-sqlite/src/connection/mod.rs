@@ -426,3 +426,9 @@ impl Statements {
         self.temp = None;
     }
 }
+
+impl AsyncTransactionDepth for SqliteConnection {
+    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>> {
+        Box::pin(async { Ok(self.lock_handle().await?.guard.transaction_depth) })
+    }
+}

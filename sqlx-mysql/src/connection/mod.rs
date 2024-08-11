@@ -118,3 +118,9 @@ impl Connection for MySqlConnection {
         self.inner.stream.shrink_buffers();
     }
 }
+
+impl TransactionDepth for MySqlConnection {
+    fn get_transaction_depth(&self) -> usize {
+        self.inner.transaction_depth
+    }
+}

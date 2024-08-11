@@ -1,5 +1,6 @@
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
+use crate::Error;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -33,6 +34,14 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn rollback(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     fn start_rollback(&mut self);
+
+    /// Returns the current transaction depth asynchronously.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>>;
 
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize {

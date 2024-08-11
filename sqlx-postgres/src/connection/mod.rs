@@ -224,3 +224,9 @@ impl AsMut<PgConnection> for PgConnection {
         self
     }
 }
+
+impl TransactionDepth for PgConnection {
+    fn get_transaction_depth(&self) -> usize {
+        self.transaction_depth
+    }
+}

@@ -236,3 +236,23 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
             .log_slow_statements(LevelFilter::Off, Duration::default())
     }
 }
+
+pub trait TransactionDepth {
+    /// Returns the current transaction depth synchronously.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&self) -> usize;
+}
+
+pub trait AsyncTransactionDepth {
+    /// Returns the current transaction depth asynchronously.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>>;
+}

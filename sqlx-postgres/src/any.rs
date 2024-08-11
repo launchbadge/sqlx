@@ -10,12 +10,13 @@ use std::future;
 pub use sqlx_core::any::*;
 
 use crate::type_info::PgType;
-use sqlx_core::connection::Connection;
+use sqlx_core::connection::{Connection, TransactionDepth};
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::ext::ustr::UStr;
 use sqlx_core::transaction::TransactionManager;
+use sqlx_core::Error;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Postgres);
 
@@ -50,6 +51,10 @@ impl AnyConnectionBackend for PgConnection {
 
     fn start_rollback(&mut self) {
         PgTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>> {
+        Box::pin(async { Ok(TransactionDepth::get_transaction_depth(self)) })
     }
 
     fn shrink_buffers(&mut self) {
