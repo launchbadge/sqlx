@@ -40,7 +40,9 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     /// - Level 0: No active transaction.
     /// - Level 1: A transaction is active.
     /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
-    fn get_transaction_depth(&self) -> usize;
+    fn get_transaction_depth(&self) -> usize {
+        unimplemented!("get_transaction_depth() is not implemented for this backend. This is a provided method to avoid a breaking change, but it will become a required method in version 0.9 and later.");
+    }
 
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize {
