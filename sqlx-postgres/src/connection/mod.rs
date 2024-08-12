@@ -171,6 +171,10 @@ impl Connection for PgConnection {
         Transaction::begin(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        self.transaction_depth
+    }
+
     fn cached_statements_size(&self) -> usize {
         self.cache_statement.len()
     }
@@ -222,11 +226,5 @@ impl Connection for PgConnection {
 impl AsMut<PgConnection> for PgConnection {
     fn as_mut(&mut self) -> &mut PgConnection {
         self
-    }
-}
-
-impl TransactionDepth for PgConnection {
-    fn get_transaction_depth(&self) -> usize {
-        self.transaction_depth
     }
 }

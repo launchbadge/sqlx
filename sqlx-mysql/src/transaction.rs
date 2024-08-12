@@ -64,4 +64,8 @@ impl TransactionManager for MySqlTransactionManager {
             conn.inner.transaction_depth = depth - 1;
         }
     }
+
+    fn get_transaction_depth(conn: &MySqlConnection) -> usize {
+        conn.inner.transaction_depth
+    }
 }

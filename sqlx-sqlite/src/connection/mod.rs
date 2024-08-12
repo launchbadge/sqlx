@@ -210,6 +210,10 @@ impl Connection for SqliteConnection {
         Transaction::begin(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        todo!()
+    }
+
     fn cached_statements_size(&self) -> usize {
         self.worker
             .shared
@@ -424,11 +428,5 @@ impl Statements {
     fn clear(&mut self) {
         self.cached.clear();
         self.temp = None;
-    }
-}
-
-impl AsyncTransactionDepth for SqliteConnection {
-    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>> {
-        Box::pin(async { Ok(self.lock_handle().await?.guard.transaction_depth) })
     }
 }

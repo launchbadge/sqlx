@@ -12,12 +12,11 @@ use sqlx_core::any::{
 };
 
 use crate::type_info::DataType;
-use sqlx_core::connection::{AsyncTransactionDepth, ConnectOptions, Connection};
+use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
-use sqlx_core::Error;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Sqlite);
 
@@ -54,8 +53,8 @@ impl AnyConnectionBackend for SqliteConnection {
         SqliteTransactionManager::start_rollback(self)
     }
 
-    fn get_transaction_depth(&mut self) -> BoxFuture<'_, Result<usize, Error>> {
-        AsyncTransactionDepth::get_transaction_depth(self)
+    fn get_transaction_depth(&self) -> usize {
+        SqliteTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {

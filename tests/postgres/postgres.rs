@@ -6,7 +6,6 @@ use sqlx::postgres::{
     PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
-use sqlx_core::connection::TransactionDepth;
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;

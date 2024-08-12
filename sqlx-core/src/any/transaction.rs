@@ -1,6 +1,7 @@
 use futures_util::future::BoxFuture;
 
 use crate::any::{Any, AnyConnection};
+use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::TransactionManager;
 
@@ -23,5 +24,9 @@ impl TransactionManager for AnyTransactionManager {
 
     fn start_rollback(conn: &mut AnyConnection) {
         conn.backend.start_rollback()
+    }
+
+    fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize {
+        conn.backend.get_transaction_depth()
     }
 }
