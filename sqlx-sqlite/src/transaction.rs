@@ -1,5 +1,4 @@
 use futures_core::future::BoxFuture;
-use sqlx_core::database::Database;
 use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
 
@@ -27,7 +26,7 @@ impl TransactionManager for SqliteTransactionManager {
         conn.worker.start_rollback().ok();
     }
 
-    fn get_transaction_depth(_conn: &<Self::Database as Database>::Connection) -> usize {
+    fn get_transaction_depth(_conn: &SqliteConnection) -> usize {
         todo!()
     }
 }
