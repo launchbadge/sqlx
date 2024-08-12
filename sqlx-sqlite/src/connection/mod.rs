@@ -94,9 +94,6 @@ unsafe impl Send for UpdateHookHandler {}
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
 
-    // transaction status
-    pub(crate) transaction_depth: usize,
-
     pub(crate) statements: Statements,
 
     log_settings: LogSettings,
@@ -211,7 +208,7 @@ impl Connection for SqliteConnection {
     }
 
     fn get_transaction_depth(&self) -> usize {
-        todo!()
+        self.worker.shared.get_transaction_depth()
     }
 
     fn cached_statements_size(&self) -> usize {

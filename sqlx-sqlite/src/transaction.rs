@@ -26,7 +26,7 @@ impl TransactionManager for SqliteTransactionManager {
         conn.worker.start_rollback().ok();
     }
 
-    fn get_transaction_depth(_conn: &SqliteConnection) -> usize {
-        todo!()
+    fn get_transaction_depth(conn: &SqliteConnection) -> usize {
+        conn.worker.shared.get_transaction_depth()
     }
 }
