@@ -212,10 +212,7 @@ impl Connection for SqliteConnection {
     }
 
     fn cached_statements_size(&self) -> usize {
-        self.worker
-            .shared
-            .cached_statements_size
-            .load(std::sync::atomic::Ordering::Acquire)
+        self.worker.shared.get_cached_statements_size()
     }
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {

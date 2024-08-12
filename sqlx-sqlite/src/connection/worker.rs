@@ -35,13 +35,17 @@ pub(crate) struct ConnectionWorker {
 
 pub(crate) struct WorkerSharedState {
     transaction_depth: AtomicUsize,
-    pub(crate) cached_statements_size: AtomicUsize,
+    cached_statements_size: AtomicUsize,
     pub(crate) conn: Mutex<ConnectionState>,
 }
 
 impl WorkerSharedState {
     pub(crate) fn get_transaction_depth(&self) -> usize {
         self.transaction_depth.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn get_cached_statements_size(&self) -> usize {
+        self.cached_statements_size.load(Ordering::Acquire)
     }
 }
 
