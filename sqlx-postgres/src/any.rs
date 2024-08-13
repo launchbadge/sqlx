@@ -52,7 +52,7 @@ impl AnyConnectionBackend for PgConnection {
         PgTransactionManager::start_rollback(self)
     }
 
-    fn get_transaction_depth(&mut self) -> usize {
+    fn get_transaction_depth(&self) -> usize {
         PgTransactionManager::get_transaction_depth(self)
     }
 
