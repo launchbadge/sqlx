@@ -57,15 +57,6 @@ impl Type<Sqlite> for NaiveTime {
     }
 }
 
-impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
-where
-    Tz::Offset: Display,
-{
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
-    }
-}
-
 impl Encode<'_, Sqlite> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
         Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
