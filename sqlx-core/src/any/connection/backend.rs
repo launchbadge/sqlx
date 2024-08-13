@@ -44,6 +44,16 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         unimplemented!("get_transaction_depth() is not implemented for this backend. This is a provided method to avoid a breaking change, but it will become a required method in version 0.9 and later.");
     }
 
+    /// Checks if the connection is currently in a transaction.
+    ///
+    /// This method returns `true` if the current transaction depth is greater than 0,
+    /// indicating that a transaction is active. It returns `false` if the transaction depth is 0,
+    /// meaning no transaction is active.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        self.get_transaction_depth() != 0
+    }
+
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize {
         0
