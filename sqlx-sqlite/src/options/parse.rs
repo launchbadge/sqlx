@@ -1,36 +1,26 @@
+use std::borrow::Cow;
+use std::path::Path;
+use std::str::FromStr;
+
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
+use url::Url;
+
 use crate::error::Error;
 use crate::SqliteConnectOptions;
-use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
-use std::borrow::Cow;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use url::Url;
 
 // https://www.sqlite.org/uri.html
 
-static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
-
 impl SqliteConnectOptions {
     pub(crate) fn from_db_and_params(database: &str, params: Option<&str>) -> Result<Self, Error> {
-        let mut options = Self::default();
-
-        if database == ":memory:" {
-            options.in_memory = true;
-            options.shared_cache = true;
-            let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
-            options.filename = Cow::Owned(PathBuf::from(format!("file:sqlx-in-memory-{seqno}")));
+        let mut options = if database == ":memory:" {
+            Self::memory()
         } else {
-            // % decode to allow for `?` or `#` in the filename
-            options.filename = Cow::Owned(
-                Path::new(
-                    &*percent_decode_str(database)
-                        .decode_utf8()
-                        .map_err(Error::config)?,
-                )
-                .to_path_buf(),
-            );
-        }
+            Self::with_path(Path::new(
+                &*percent_decode_str(database)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            ))
+        };
 
         if let Some(params) = params {
             for (key, value) in url::form_urlencoded::parse(params.as_bytes()) {

@@ -38,6 +38,7 @@ pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::{
     SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
+    SqliteTempPath, SqliteTempPathBuilder
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;

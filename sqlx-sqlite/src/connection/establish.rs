@@ -1,16 +1,4 @@
-use crate::connection::handle::ConnectionHandle;
-use crate::connection::LogSettings;
-use crate::connection::{ConnectionState, Statements};
-use crate::error::Error;
-use crate::{SqliteConnectOptions, SqliteError};
-use libsqlite3_sys::{
-    sqlite3, sqlite3_busy_timeout, sqlite3_db_config, sqlite3_extended_result_codes, sqlite3_free,
-    sqlite3_load_extension, sqlite3_open_v2, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, SQLITE_OK,
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
-    SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
-};
-use percent_encoding::NON_ALPHANUMERIC;
-use sqlx_core::IndexMap;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::{c_void, CStr, CString};
 use std::io;
@@ -18,6 +6,24 @@ use std::os::raw::c_int;
 use std::ptr::{addr_of_mut, null, null_mut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+
+use libsqlite3_sys::{
+    sqlite3, sqlite3_busy_timeout, sqlite3_db_config, sqlite3_extended_result_codes, sqlite3_free,
+    sqlite3_load_extension, sqlite3_open_v2, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, SQLITE_OK,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
+    SQLITE_OPEN_URI,
+};
+use percent_encoding::NON_ALPHANUMERIC;
+
+use sqlx_core::IndexMap;
+
+use crate::connection::handle::ConnectionHandle;
+use crate::connection::LogSettings;
+use crate::connection::{ConnectionState, Statements};
+use crate::error::Error;
+use crate::options::{Filename, SqliteTempPath};
+use crate::{SqliteConnectOptions, SqliteError};
 
 // This was originally `AtomicU64` but that's not supported on MIPS (or PowerPC):
 // https://github.com/launchbadge/sqlx/issues/2859
@@ -42,7 +48,7 @@ impl SqliteLoadExtensionMode {
 }
 
 pub struct EstablishParams {
-    filename: CString,
+    filename: EstablishFilename,
     open_flags: i32,
     busy_timeout: Duration,
     statement_cache_capacity: usize,
@@ -54,20 +60,16 @@ pub struct EstablishParams {
     register_regexp_function: bool,
 }
 
+enum EstablishFilename {
+    Owned(CString),
+    Temp {
+        temp: SqliteTempPath,
+        query: Option<String>,
+    },
+}
+
 impl EstablishParams {
     pub fn from_options(options: &SqliteConnectOptions) -> Result<Self, Error> {
-        let mut filename = options
-            .filename
-            .to_str()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "filename passed to SQLite must be valid UTF-8",
-                )
-            })?
-            .to_owned();
-
-        // By default, we connect to an in-memory database.
         // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
         // cannot satisfy our wish for a thread-safe, lock-free connection object
 
@@ -105,21 +107,51 @@ impl EstablishParams {
             query_params.insert("vfs", vfs);
         }
 
-        if !query_params.is_empty() {
-            filename = format!(
-                "file:{}?{}",
-                percent_encoding::percent_encode(filename.as_bytes(), NON_ALPHANUMERIC),
-                serde_urlencoded::to_string(&query_params).unwrap()
-            );
-            flags |= libsqlite3_sys::SQLITE_OPEN_URI;
-        }
+        let filename = match &options.filename {
+            Filename::Owned(owned) => {
+                let filename_str = owned.to_str().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "filename passed to SQLite must be valid UTF-8",
+                    )
+                })?;
 
-        let filename = CString::new(filename).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "filename passed to SQLite must not contain nul bytes",
-            )
-        })?;
+                let filename = if !query_params.is_empty() {
+                    flags |= SQLITE_OPEN_URI;
+
+                    format!(
+                        "file:{}?{}",
+                        percent_encoding::percent_encode(filename_str.as_bytes(), NON_ALPHANUMERIC),
+                        serde_urlencoded::to_string(&query_params)
+                            .expect("BUG: failed to URL encode query parameters")
+                    )
+                } else {
+                    filename_str.to_string()
+                };
+
+                let filename = CString::new(filename).map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "filename passed to SQLite must not contain nul bytes",
+                    )
+                })?;
+
+                EstablishFilename::Owned(filename)
+            }
+            Filename::Temp(temp) => {
+                let query = (!query_params.is_empty()).then(|| {
+                    flags |= SQLITE_OPEN_URI;
+
+                    serde_urlencoded::to_string(&query_params)
+                        .expect("BUG: failed to URL encode query parameters")
+                });
+
+                EstablishFilename::Temp {
+                    temp: temp.clone(),
+                    query,
+                }
+            }
+        };
 
         let extensions = options
             .extensions
@@ -187,12 +219,43 @@ impl EstablishParams {
     }
 
     pub(crate) fn establish(&self) -> Result<ConnectionState, Error> {
+        let mut open_flags = self.open_flags;
+
+        let (filename, temp) = match &self.filename {
+            EstablishFilename::Owned(cstr) => (Cow::Borrowed(&**cstr), None),
+            EstablishFilename::Temp { temp, query } => {
+                let path = temp.force_create_blocking()?.to_str().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "filename passed to SQLite must be valid UTF-8",
+                    )
+                })?;
+
+                let filename = if let Some(query) = query {
+                    // Ensure the flag is set.
+                    open_flags |= SQLITE_OPEN_URI;
+                    format!("file:{path}?{query}")
+                } else {
+                    path.to_string()
+                };
+
+                (
+                    Cow::Owned(CString::new(filename).map_err(|_| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "filename passed to SQLite must not contain nul bytes",
+                        )
+                    })?),
+                    Some(temp)
+                )
+            }
+        };
+
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        let mut status = unsafe {
-            sqlite3_open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null())
-        };
+        let mut status =
+            unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, open_flags, null()) };
 
         if handle.is_null() {
             // Failed to allocate memory
@@ -296,6 +359,7 @@ impl EstablishParams {
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,
             update_hook_callback: None,
+            _temp: temp.cloned()
         })
     }
 }
