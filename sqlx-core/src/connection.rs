@@ -49,7 +49,7 @@ pub trait Connection: Send {
     where
         Self: Sized;
 
-    /// Returns the current transaction depth synchronously.
+    /// Returns the current transaction depth.
     ///
     /// Transaction depth indicates the level of nested transactions:
     /// - Level 0: No active transaction.
