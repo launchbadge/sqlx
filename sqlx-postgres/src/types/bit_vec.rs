@@ -8,6 +8,7 @@ use crate::{
 use bit_vec::BitVec;
 use sqlx_core::bytes::Buf;
 use std::{io, mem};
+use crate::arguments::value_size_int4_checked;
 
 impl Type<Postgres> for BitVec {
     fn type_info() -> PgTypeInfo {
@@ -31,7 +32,9 @@ impl PgHasArrayType for BitVec {
 
 impl Encode<'_, Postgres> for BitVec {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        buf.extend(&(self.len() as i32).to_be_bytes());
+        let len = value_size_int4_checked(self.len())?;
+
+        buf.extend(len.to_be_bytes());
         buf.extend(self.to_bytes());
 
         Ok(IsNull::No)
