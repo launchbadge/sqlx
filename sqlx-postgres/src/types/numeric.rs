@@ -75,6 +75,14 @@ impl PgNumericSign {
 }
 
 impl PgNumeric {
+    /// Equivalent value of `0::numeric`.
+    pub const ZERO: Self = PgNumeric::Number {
+        sign: PgNumericSign::Positive,
+        digits: vec![],
+        weight: 0,
+        scale: 0,
+    };
+
     pub(crate) fn decode(mut buf: &[u8]) -> Result<Self, BoxDynError> {
         // https://github.com/postgres/postgres/blob/bcd1c3630095e48bc3b1eb0fc8e8c8a7c851eba1/src/backend/utils/adt/numeric.c#L874
         let num_digits = buf.get_u16();
