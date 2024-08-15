@@ -188,19 +188,17 @@ impl PgListener {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::postgres::PgListener;
-    /// # use sqlx_core::error::Error;
+    /// # use sqlx::postgres::PgListener;
     /// #
-    /// # #[cfg(feature = "_rt")]
     /// # sqlx::__rt::test_block_on(async move {
-    /// # let mut listener = PgListener::connect("postgres:// ...").await?;
+    /// let mut listener = PgListener::connect("postgres:// ...").await?;
     /// loop {
     ///     // ask for next notification, re-connecting (transparently) if needed
     ///     let notification = listener.recv().await?;
     ///
     ///     // handle notification, do something interesting
     /// }
-    /// # Result::<(), Error>::Ok(())
+    /// # Result::<(), sqlx::Error>::Ok(())
     /// # }).unwrap();
     /// ```
     pub async fn recv(&mut self) -> Result<PgNotification, Error> {
@@ -219,10 +217,8 @@ impl PgListener {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::postgres::PgListener;
-    /// # use sqlx_core::error::Error;
+    /// # use sqlx::postgres::PgListener;
     /// #
-    /// # #[cfg(feature = "_rt")]
     /// # sqlx::__rt::test_block_on(async move {
     /// # let mut listener = PgListener::connect("postgres:// ...").await?;
     /// loop {
@@ -233,7 +229,7 @@ impl PgListener {
     ///
     ///     // connection lost, do something interesting
     /// }
-    /// # Result::<(), Error>::Ok(())
+    /// # Result::<(), sqlx::Error>::Ok(())
     /// # }).unwrap();
     /// ```
     pub async fn try_recv(&mut self) -> Result<Option<PgNotification>, Error> {

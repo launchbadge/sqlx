@@ -1,4 +1,6 @@
 //! **PostgreSQL** database driver.
+#![deny(clippy::cast_possible_truncation)]
+#![deny(clippy::cast_possible_wrap)]
 
 #[macro_use]
 extern crate sqlx_core;

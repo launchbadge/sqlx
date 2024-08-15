@@ -2,17 +2,17 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::message::{ParameterDescription, RowDescription};
 use crate::query_as::query_as;
-use crate::query_scalar::{query_scalar, query_scalar_with};
+use crate::query_scalar::{query_scalar};
 use crate::statement::PgStatementMetadata;
 use crate::type_info::{PgArrayOf, PgCustomType, PgType, PgTypeKind};
 use crate::types::Json;
 use crate::types::Oid;
 use crate::HashMap;
-use crate::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
+use crate::{PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
 use smallvec::SmallVec;
-use std::fmt::Write;
 use std::sync::Arc;
+use sqlx_core::query_builder::QueryBuilder;
 
 /// Describes the type of the `pg_type.typtype` column
 ///
@@ -423,29 +423,34 @@ WHERE rngtypid = $1
             return Ok(vec![]);
         }
 
-        let mut nullable_query = String::from("SELECT NOT pg_attribute.attnotnull FROM (VALUES ");
-        let mut args = PgArguments::default();
-
-        for (i, (column, bind)) in meta.columns.iter().zip((1..).step_by(3)).enumerate() {
-            if !args.buffer.is_empty() {
-                nullable_query += ", ";
-            }
-
-            let _ = write!(
-                nullable_query,
-                "(${}::int4, ${}::int4, ${}::int2)",
-                bind,
-                bind + 1,
-                bind + 2
+        if meta.columns.len() * 3 > 65535 {
+            tracing::debug!(
+                ?stmt_id,
+                num_columns=meta.columns.len(),
+                "number of columns in query is too large to pull nullability for"
             );
-
-            args.add(i as i32).map_err(Error::Encode)?;
-            args.add(column.relation_id).map_err(Error::Encode)?;
-            args.add(column.relation_attribute_no)
-                .map_err(Error::Encode)?;
         }
 
-        nullable_query.push_str(
+        // Query for NOT NULL constraints for each column in the query.
+        //
+        // This will include columns that don't have a `relation_id` (are not from a table);
+        // assuming those are a minority of columns, it's less code to _not_ work around it
+        // and just let Postgres return `NULL`.
+        let mut nullable_query = QueryBuilder::new(
+            "SELECT NOT pg_attribute.attnotnull FROM ( "
+        );
+
+        nullable_query.push_values(
+            meta.columns.iter().zip(0i32..),
+            |mut tuple, (column, i)| {
+                // ({i}::int4, {column.relation_id}::int4, {column.relation_attribute_no}::int2)
+                tuple.push_bind(i).push_unseparated("::int4");
+                tuple.push_bind(column.relation_id).push_unseparated("::int4");
+                tuple.push_bind(column.relation_attribute_no).push_bind_unseparated("::int2");
+            },
+        );
+
+        nullable_query.push(
             ") as col(idx, table_id, col_idx) \
             LEFT JOIN pg_catalog.pg_attribute \
                 ON table_id IS NOT NULL \
@@ -454,7 +459,8 @@ WHERE rngtypid = $1
             ORDER BY col.idx",
         );
 
-        let mut nullables = query_scalar_with::<_, Option<bool>, _>(&nullable_query, args)
+        let mut nullables: Vec<Option<bool>> = nullable_query
+            .build_query_scalar()
             .fetch_all(&mut *self)
             .await?;
 
