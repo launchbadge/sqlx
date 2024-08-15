@@ -294,7 +294,7 @@ impl PgTypeInfo {
     /// in quotes, e.g.:
     /// ```
     /// use sqlx::postgres::PgTypeInfo;
-    /// use sqlx::Type;
+    /// use sqlx::{Type, TypeInfo};
     ///
     /// /// `CREATE TYPE "_foo" AS ENUM ('Bar', 'Baz');`
     /// #[derive(sqlx::Type)]
