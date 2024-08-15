@@ -61,12 +61,8 @@ jobs:
       - run: cargo build --all-features
 
   test:
-    name: Unit Test
+    name: Unit Tests
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     steps:
       - uses: actions/checkout@v4
 
@@ -74,10 +70,44 @@ jobs:
         with:
           key: ${{ runner.os }}-test
 
-      - run: >
+      - name: Install Rust
+        run: rustup update
+
+      - name: Test sqlx-core
+        run: >
           cargo test
-          --manifest-path sqlx-core/Cargo.toml
-          --features json,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
+          -p sqlx-core
+          --all-features      
+
+      - name: Test sqlx-mysql
+        run: >
+          cargo test
+          -p sqlx-mysql
+          --all-features      
+
+      - name: Test sqlx-postgres
+        run: >
+          cargo test
+          -p sqlx-postgres
+          --all-features      
+
+      - name: Test sqlx-sqlite
+        run: >
+          cargo test
+          -p sqlx-sqlite
+          --all-features      
+
+      - name: Test sqlx-macros-core
+        run: >
+          cargo test
+          -p sqlx-macros-core
+          --all-features
+
+      - name: Test sqlx
+        run: >
+          cargo test
+          -p sqlx
+          --all-features
 
   sqlite:
     name: SQLite
