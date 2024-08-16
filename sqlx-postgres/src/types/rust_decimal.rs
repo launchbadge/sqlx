@@ -50,6 +50,9 @@ impl TryFrom<&'_ PgNumeric> for Decimal {
             // Postgres returns an empty digit array for 0
             return Ok(Decimal::ZERO);
         }
+        
+        let scale = u32::try_from(scale)
+            .map_err(|_| format!("invalid scale value for Pg NUMERIC: {scale}"))?;
 
         let mut value = Decimal::ZERO;
 
@@ -73,7 +76,7 @@ impl TryFrom<&'_ PgNumeric> for Decimal {
             PgNumericSign::Negative => value.set_sign_negative(true),
         }
 
-        value.rescale(scale as u32);
+        value.rescale(scale);
 
         Ok(value)
     }
