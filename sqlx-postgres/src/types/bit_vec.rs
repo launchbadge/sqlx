@@ -1,3 +1,4 @@
+use crate::arguments::value_size_int4_checked;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -8,7 +9,6 @@ use crate::{
 use bit_vec::BitVec;
 use sqlx_core::bytes::Buf;
 use std::{io, mem};
-use crate::arguments::value_size_int4_checked;
 
 impl Type<Postgres> for BitVec {
     fn type_info() -> PgTypeInfo {

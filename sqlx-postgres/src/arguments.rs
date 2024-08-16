@@ -274,6 +274,10 @@ impl DerefMut for PgArgumentBuffer {
 }
 
 pub(crate) fn value_size_int4_checked(size: usize) -> Result<i32, String> {
-    i32::try_from(size)
-        .map_err(|_| format!("value size would overflow in the binary protocol encoding: {size} > {}", i32::MAX))
+    i32::try_from(size).map_err(|_| {
+        format!(
+            "value size would overflow in the binary protocol encoding: {size} > {}",
+            i32::MAX
+        )
+    })
 }
