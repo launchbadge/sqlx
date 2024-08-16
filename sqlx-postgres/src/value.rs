@@ -1,10 +1,9 @@
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::{PgTypeInfo, Postgres};
 use sqlx_core::bytes::{Buf, Bytes};
+pub(crate) use sqlx_core::value::{Value, ValueRef};
 use std::borrow::Cow;
 use std::str::from_utf8;
-
-pub(crate) use sqlx_core::value::{Value, ValueRef};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(u8)]
@@ -31,24 +30,31 @@ pub struct PgValue {
 }
 
 impl<'r> PgValueRef<'r> {
-    pub(crate) fn get(buf: &mut &'r [u8], format: PgValueFormat, ty: PgTypeInfo) -> Self {
-        let mut element_len = buf.get_i32();
+    pub(crate) fn get(
+        buf: &mut &'r [u8],
+        format: PgValueFormat,
+        ty: PgTypeInfo,
+    ) -> Result<Self, String> {
+        let element_len = buf.get_i32();
 
         let element_val = if element_len == -1 {
-            element_len = 0;
             None
         } else {
-            Some(&buf[..(element_len as usize)])
+            let element_len: usize = element_len
+                .try_into()
+                .map_err(|_| format!("overflow converting element_len ({element_len}) to usize"))?;
+
+            let val = &buf[..element_len];
+            buf.advance(element_len);
+            Some(val)
         };
 
-        buf.advance(element_len as usize);
-
-        PgValueRef {
+        Ok(PgValueRef {
             value: element_val,
             row: None,
             type_info: ty,
             format,
-        }
+        })
     }
 
     pub fn format(&self) -> PgValueFormat {
