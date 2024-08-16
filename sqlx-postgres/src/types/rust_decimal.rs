@@ -50,7 +50,7 @@ impl TryFrom<&'_ PgNumeric> for Decimal {
             // Postgres returns an empty digit array for 0
             return Ok(Decimal::ZERO);
         }
-        
+
         let scale = u32::try_from(scale)
             .map_err(|_| format!("invalid scale value for Pg NUMERIC: {scale}"))?;
 
@@ -171,7 +171,7 @@ impl From<&'_ Decimal> for PgNumeric {
 
 impl Encode<'_, Postgres> for Decimal {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        PgNumeric::from(self).encode(buf);
+        PgNumeric::from(self).encode(buf)?;
 
         Ok(IsNull::No)
     }
