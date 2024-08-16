@@ -52,15 +52,10 @@ impl Decode<'_, Postgres> for BitVec {
                 let mut bytes = value.as_bytes()?;
                 let len = bytes.get_i32();
 
-                if len < 0 {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Negative VARBIT length.",
-                    ))?
-                }
+                let len = usize::try_from(len).map_err(|_| format!("invalid VARBIT len: {len}"))?;
 
                 // The smallest amount of data we can read is one byte
-                let bytes_len = (len as usize + 7) / 8;
+                let bytes_len = (len + 7) / 8;
 
                 if bytes.remaining() != bytes_len {
                     Err(io::Error::new(
@@ -74,7 +69,7 @@ impl Decode<'_, Postgres> for BitVec {
                 // Chop off zeroes from the back. We get bits in bytes, so if
                 // our bitvec is not in full bytes, extra zeroes are added to
                 // the end.
-                while bitvec.len() > len as usize {
+                while bitvec.len() > len {
                     bitvec.pop();
                 }
 
