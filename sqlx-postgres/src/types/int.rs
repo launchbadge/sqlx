@@ -71,6 +71,8 @@ impl Decode<'_, Postgres> for i8 {
                     return Ok(i8::from_str_radix(text.trim_start_matches('\\'), 8)?);
                 }
 
+                // Wrapping is the whole idea.
+                #[allow(clippy::cast_possible_wrap)]
                 Ok(text.as_bytes()[0] as i8)
             }
         }
