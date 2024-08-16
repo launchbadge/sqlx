@@ -26,7 +26,9 @@ impl Encode<'_, Postgres> for NaiveDate {
         let days: i32 = (*self - postgres_epoch_date())
             .num_days()
             .try_into()
-            .map_err(|_| format!("value {self:?} would overflow binary encoding for Postgres DATE"))?;
+            .map_err(|_| {
+                format!("value {self:?} would overflow binary encoding for Postgres DATE")
+            })?;
 
         Encode::<Postgres>::encode(days, buf)
     }

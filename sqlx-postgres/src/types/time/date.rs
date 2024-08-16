@@ -23,10 +23,9 @@ impl PgHasArrayType for Date {
 impl Encode<'_, Postgres> for Date {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // DATE is encoded as number of days since epoch (2000-01-01)
-        let days: i32 = (*self - PG_EPOCH)
-            .whole_days()
-            .try_into()
-            .map_err(|_| format!("value {self:?} would overflow binary encoding for Postgres DATE"))?;
+        let days: i32 = (*self - PG_EPOCH).whole_days().try_into().map_err(|_| {
+            format!("value {self:?} would overflow binary encoding for Postgres DATE")
+        })?;
         Encode::<Postgres>::encode(days, buf)
     }
 

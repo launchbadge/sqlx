@@ -147,7 +147,7 @@ impl PgCube {
                     bytes.len()
                 ),
             )
-                .into());
+            .into());
         }
 
         match (header.is_point, header.dimensions) {

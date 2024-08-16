@@ -37,9 +37,12 @@ impl PgHasArrayType for OffsetDateTime {
 impl Encode<'_, Postgres> for PrimitiveDateTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // TIMESTAMP is encoded as the microseconds since the epoch
-        let micros: i64 = (*self - PG_EPOCH.midnight()).whole_microseconds()
+        let micros: i64 = (*self - PG_EPOCH.midnight())
+            .whole_microseconds()
             .try_into()
-            .map_err(|_| format!("value {self:?} would overflow binary encoding for Postgres TIME"))?;
+            .map_err(|_| {
+                format!("value {self:?} would overflow binary encoding for Postgres TIME")
+            })?;
         Encode::<Postgres>::encode(micros, buf)
     }
 

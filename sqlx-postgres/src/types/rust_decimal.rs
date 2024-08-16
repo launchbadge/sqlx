@@ -193,15 +193,9 @@ mod tests {
     fn zero() {
         let zero: Decimal = "0".parse().unwrap();
 
-        assert_eq!(
-            PgNumeric::from(&zero),
-            PgNumeric::ZERO,
-        );
+        assert_eq!(PgNumeric::from(&zero), PgNumeric::ZERO,);
 
-        assert_eq!(
-            Decimal::try_from(&PgNumeric::ZERO).unwrap(),
-            Decimal::ZERO
-        );
+        assert_eq!(Decimal::try_from(&PgNumeric::ZERO).unwrap(), Decimal::ZERO);
     }
 
     #[test]
@@ -384,7 +378,10 @@ mod tests {
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, Decimal::MAX);
         // Value split by 10,000's to match the expected digits[]
-        assert_eq!(actual_decimal.mantissa(), 7_9228_1625_1426_4337_5935_4395_0335);
+        assert_eq!(
+            actual_decimal.mantissa(),
+            7_9228_1625_1426_4337_5935_4395_0335
+        );
         assert_eq!(actual_decimal.scale(), 0);
     }
 
@@ -406,7 +403,10 @@ mod tests {
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, max_value_max_scale);
-        assert_eq!(actual_decimal.mantissa(), 79_228_162_514_264_337_593_543_950_335);
+        assert_eq!(
+            actual_decimal.mantissa(),
+            79_228_162_514_264_337_593_543_950_335
+        );
         assert_eq!(actual_decimal.scale(), 28);
     }
 
