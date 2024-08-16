@@ -174,7 +174,14 @@ where
             }
         }
 
-        buf.extend(&(self.len() as i32).to_be_bytes()); // len
+        let array_len = i32::try_from(self.len()).map_err(|_| {
+            format!(
+                "encoded array length is too large for Postgres: {}",
+                self.len()
+            )
+        })?;
+
+        buf.extend(array_len.to_be_bytes()); // len
         buf.extend(&1_i32.to_be_bytes()); // lower bound
 
         for element in self.iter() {
