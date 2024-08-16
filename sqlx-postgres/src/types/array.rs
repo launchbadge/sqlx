@@ -242,6 +242,9 @@ where
                 // length of the array axis
                 let len = buf.get_i32();
 
+                let len = usize::try_from(len)
+                    .map_err(|_| format!("overflow converting array len ({len}) to usize"))?;
+
                 // the lower bound, we only support arrays starting from "1"
                 let lower = buf.get_i32();
 
@@ -249,14 +252,12 @@ where
                     return Err(format!("encountered an array with a lower bound of {lower} in the first dimension; only arrays starting at one are supported").into());
                 }
 
-                let mut elements = Vec::with_capacity(len as usize);
+                let mut elements = Vec::with_capacity(len);
 
                 for _ in 0..len {
-                    elements.push(T::decode(PgValueRef::get(
-                        &mut buf,
-                        format,
-                        element_type_info.clone(),
-                    ))?)
+                    let value_ref = PgValueRef::get(&mut buf, format, element_type_info.clone())?;
+
+                    elements.push(T::decode(value_ref)?);
                 }
 
                 Ok(elements)
