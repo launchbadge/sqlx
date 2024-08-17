@@ -4,8 +4,8 @@ use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Decode;
 use crate::io::MySqlBufExt;
+use crate::io::ProtocolDecode;
 use crate::protocol::Capabilities;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
@@ -134,7 +134,7 @@ impl ColumnDefinition {
     }
 }
 
-impl Decode<'_, Capabilities> for ColumnDefinition {
+impl ProtocolDecode<'_, Capabilities> for ColumnDefinition {
     fn decode_with(mut buf: Bytes, _: Capabilities) -> Result<Self, Error> {
         let catalog = buf.get_bytes_lenenc();
         let schema = buf.get_bytes_lenenc();

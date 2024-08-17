@@ -1,8 +1,8 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Encode;
-use crate::io::{BufExt, Decode};
+use crate::io::ProtocolEncode;
+use crate::io::{BufExt, ProtocolDecode};
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::Capabilities;
 
@@ -14,7 +14,7 @@ pub struct AuthSwitchRequest {
     pub data: Bytes,
 }
 
-impl Decode<'_, bool> for AuthSwitchRequest {
+impl ProtocolDecode<'_, bool> for AuthSwitchRequest {
     fn decode_with(mut buf: Bytes, enable_cleartext_plugin: bool) -> Result<Self, Error> {
         let header = buf.get_u8();
         if header != 0xfe {
@@ -58,9 +58,10 @@ impl Decode<'_, bool> for AuthSwitchRequest {
 #[derive(Debug)]
 pub struct AuthSwitchResponse(pub Vec<u8>);
 
-impl Encode<'_, Capabilities> for AuthSwitchResponse {
-    fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) {
+impl ProtocolEncode<'_, Capabilities> for AuthSwitchResponse {
+    fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) -> Result<(), Error> {
         buf.extend_from_slice(&self.0);
+        Ok(())
     }
 }
 
