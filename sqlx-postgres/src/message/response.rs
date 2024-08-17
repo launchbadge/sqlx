@@ -1,10 +1,13 @@
+use std::ops::Range;
 use std::str::from_utf8;
 
 use memchr::memchr;
+
 use sqlx_core::bytes::Bytes;
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::io::ProtocolDecode;
+use crate::message::{BackendMessage, BackendMessageFormat};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
@@ -53,8 +56,8 @@ impl TryFrom<&str> for PgSeverity {
 pub struct Notice {
     storage: Bytes,
     severity: PgSeverity,
-    message: (u16, u16),
-    code: (u16, u16),
+    message: Range<usize>,
+    code: Range<usize>,
 }
 
 impl Notice {
@@ -65,12 +68,12 @@ impl Notice {
 
     #[inline]
     pub fn code(&self) -> &str {
-        self.get_cached_str(self.code)
+        self.get_cached_str(self.code.clone())
     }
 
     #[inline]
     pub fn message(&self) -> &str {
-        self.get_cached_str(self.message)
+        self.get_cached_str(self.message.clone())
     }
 
     // Field descriptions available here:
@@ -84,7 +87,7 @@ impl Notice {
     pub fn get_raw(&self, ty: u8) -> Option<&[u8]> {
         self.fields()
             .filter(|(field, _)| *field == ty)
-            .map(|(_, (start, end))| &self.storage[start as usize..end as usize])
+            .map(|(_, range)| &self.storage[range])
             .next()
     }
 }
@@ -99,13 +102,13 @@ impl Notice {
     }
 
     #[inline]
-    fn get_cached_str(&self, cache: (u16, u16)) -> &str {
+    fn get_cached_str(&self, cache: Range<usize>) -> &str {
         // unwrap: this cannot fail at this stage
-        from_utf8(&self.storage[cache.0 as usize..cache.1 as usize]).unwrap()
+        from_utf8(&self.storage[cache]).unwrap()
     }
 }
 
-impl Decode<'_> for Notice {
+impl ProtocolDecode<'_> for Notice {
     fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
         // In order to support PostgreSQL 9.5 and older we need to parse the localized S field.
         // Newer versions additionally come with the V field that is guaranteed to be in English.
@@ -113,8 +116,8 @@ impl Decode<'_> for Notice {
         const DEFAULT_SEVERITY: PgSeverity = PgSeverity::Log;
         let mut severity_v = None;
         let mut severity_s = None;
-        let mut message = (0, 0);
-        let mut code = (0, 0);
+        let mut message = 0..0;
+        let mut code = 0..0;
 
         // we cache the three always present fields
         // this enables to keep the access time down for the fields most likely accessed
@@ -125,7 +128,7 @@ impl Decode<'_> for Notice {
         };
 
         for (field, v) in fields {
-            if message.0 != 0 && code.0 != 0 {
+            if !(message.is_empty() || code.is_empty()) {
                 // stop iterating when we have the 3 fields we were looking for
                 // we assume V (severity) was the first field as it should be
                 break;
@@ -133,7 +136,7 @@ impl Decode<'_> for Notice {
 
             match field {
                 b'S' => {
-                    severity_s = from_utf8(&buf[v.0 as usize..v.1 as usize])
+                    severity_s = from_utf8(&buf[v.clone()])
                         // If the error string is not UTF-8, we have no hope of interpreting it,
                         // localized or not. The `V` field would likely fail to parse as well.
                         .map_err(|_| notice_protocol_err())?
@@ -146,21 +149,19 @@ impl Decode<'_> for Notice {
                     // Propagate errors here, because V is not localized and
                     // thus we are missing a possible variant.
                     severity_v = Some(
-                        from_utf8(&buf[v.0 as usize..v.1 as usize])
+                        from_utf8(&buf[v.clone()])
                             .map_err(|_| notice_protocol_err())?
                             .try_into()?,
                     );
                 }
 
                 b'M' => {
-                    _ = from_utf8(&buf[v.0 as usize..v.1 as usize])
-                        .map_err(|_| notice_protocol_err())?;
+                    _ = from_utf8(&buf[v.clone()]).map_err(|_| notice_protocol_err())?;
                     message = v;
                 }
 
                 b'C' => {
-                    _ = from_utf8(&buf[v.0 as usize..v.1 as usize])
-                        .map_err(|_| notice_protocol_err())?;
+                    _ = from_utf8(&buf[v.clone()]).map_err(|_| notice_protocol_err())?;
                     code = v;
                 }
 
@@ -179,31 +180,46 @@ impl Decode<'_> for Notice {
     }
 }
 
+impl BackendMessage for Notice {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::NoticeResponse;
+
+    fn decode_body(buf: Bytes) -> Result<Self, Error> {
+        // Keeping both impls for now
+        Self::decode_with(buf, ())
+    }
+}
+
 /// An iterator over each field in the Error (or Notice) response.
 struct Fields<'a> {
     storage: &'a [u8],
-    offset: u16,
+    offset: usize,
 }
 
 impl<'a> Iterator for Fields<'a> {
-    type Item = (u8, (u16, u16));
+    type Item = (u8, Range<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
         // The fields in the response body are sequentially stored as [tag][string],
         // ending in a final, additional [nul]
 
-        let ty = self.storage[self.offset as usize];
+        let ty = *self.storage.get(self.offset)?;
 
         if ty == 0 {
             return None;
         }
 
-        let nul = memchr(b'\0', &self.storage[(self.offset + 1) as usize..])? as u16;
-        let offset = self.offset;
+        // Consume the type byte
+        self.offset = self.offset.checked_add(1)?;
 
-        self.offset += nul + 2;
+        let start = self.offset;
 
-        Some((ty, (offset + 1, offset + nul + 1)))
+        let len = memchr(b'\0', self.storage.get(start..)?)?;
+
+        // Neither can overflow as they will always be `<= self.storage.len()`.
+        let end = self.offset + len;
+        self.offset = end + 1;
+
+        Some((ty, start..end))
     }
 }
 

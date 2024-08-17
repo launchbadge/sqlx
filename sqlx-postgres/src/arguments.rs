@@ -145,6 +145,7 @@ impl<'q> Arguments<'q> for PgArguments {
         write!(writer, "${}", self.buffer.count)
     }
 
+    #[inline(always)]
     fn len(&self) -> usize {
         self.buffer.count
     }

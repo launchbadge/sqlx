@@ -3,7 +3,7 @@ use memchr::memrchr;
 use sqlx_core::bytes::Bytes;
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::message::{BackendMessage, BackendMessageFormat};
 
 #[derive(Debug)]
 pub struct CommandComplete {
@@ -12,10 +12,11 @@ pub struct CommandComplete {
     tag: Bytes,
 }
 
-impl Decode<'_> for CommandComplete {
-    #[inline]
-    fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
-        Ok(CommandComplete { tag: buf })
+impl BackendMessage for CommandComplete {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::CommandComplete;
+
+    fn decode_body(bytes: Bytes) -> Result<Self, Error> {
+        Ok(CommandComplete { tag: bytes })
     }
 }
 
@@ -35,7 +36,7 @@ impl CommandComplete {
 fn test_decode_command_complete_for_insert() {
     const DATA: &[u8] = b"INSERT 0 1214\0";
 
-    let cc = CommandComplete::decode(Bytes::from_static(DATA)).unwrap();
+    let cc = CommandComplete::decode_body(Bytes::from_static(DATA)).unwrap();
 
     assert_eq!(cc.rows_affected(), 1214);
 }
@@ -44,7 +45,7 @@ fn test_decode_command_complete_for_insert() {
 fn test_decode_command_complete_for_begin() {
     const DATA: &[u8] = b"BEGIN\0";
 
-    let cc = CommandComplete::decode(Bytes::from_static(DATA)).unwrap();
+    let cc = CommandComplete::decode_body(Bytes::from_static(DATA)).unwrap();
 
     assert_eq!(cc.rows_affected(), 0);
 }
@@ -53,7 +54,7 @@ fn test_decode_command_complete_for_begin() {
 fn test_decode_command_complete_for_update() {
     const DATA: &[u8] = b"UPDATE 5\0";
 
-    let cc = CommandComplete::decode(Bytes::from_static(DATA)).unwrap();
+    let cc = CommandComplete::decode_body(Bytes::from_static(DATA)).unwrap();
 
     assert_eq!(cc.rows_affected(), 5);
 }
@@ -64,7 +65,7 @@ fn bench_decode_command_complete(b: &mut test::Bencher) {
     const DATA: &[u8] = b"INSERT 0 1214\0";
 
     b.iter(|| {
-        let _ = CommandComplete::decode(test::black_box(Bytes::from_static(DATA)));
+        let _ = CommandComplete::decode_body(test::black_box(Bytes::from_static(DATA)));
     });
 }
 
@@ -73,7 +74,7 @@ fn bench_decode_command_complete(b: &mut test::Bencher) {
 fn bench_decode_command_complete_rows_affected(b: &mut test::Bencher) {
     const DATA: &[u8] = b"INSERT 0 1214\0";
 
-    let data = CommandComplete::decode(Bytes::from_static(DATA)).unwrap();
+    let data = CommandComplete::decode_body(Bytes::from_static(DATA)).unwrap();
 
     b.iter(|| {
         let _rows = test::black_box(&data).rows_affected();

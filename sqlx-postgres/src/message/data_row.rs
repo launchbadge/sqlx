@@ -1,10 +1,9 @@
-use std::ops::Range;
-
 use byteorder::{BigEndian, ByteOrder};
 use sqlx_core::bytes::Bytes;
+use std::ops::Range;
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::message::{BackendMessage, BackendMessageFormat};
 
 /// A row of data from the database.
 #[derive(Debug)]
@@ -26,25 +25,55 @@ impl DataRow {
     }
 }
 
-impl Decode<'_> for DataRow {
-    fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
+impl BackendMessage for DataRow {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::DataRow;
+
+    fn decode_body(buf: Bytes) -> Result<Self, Error> {
+        if buf.len() < 2 {
+            return Err(err_protocol!(
+                "expected at least 2 bytes, got {}",
+                buf.len()
+            ));
+        }
+
         let cnt = BigEndian::read_u16(&buf) as usize;
 
         let mut values = Vec::with_capacity(cnt);
-        let mut offset = 2;
+        let mut offset: u32 = 2;
 
         for _ in 0..cnt {
+            let value_start = offset
+                .checked_add(4)
+                .ok_or_else(|| err_protocol!("next value start out of range (offset: {offset})"))?;
+
+            // widen both to a larger type for a safe comparison
+            if (buf.len() as u64) < (value_start as u64) {
+                return Err(err_protocol!(
+                    "expected 4 bytes at offset {offset}, got {}",
+                    (value_start as u64) - (buf.len() as u64)
+                ));
+            }
+
             // Length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
+            //
+            // we know `offset` is within range of `buf.len()` from the above check
+            #[allow(clippy::cast_possible_truncation)]
             let length = BigEndian::read_i32(&buf[(offset as usize)..]);
-            offset += 4;
 
-            if length < 0 {
-                values.push(None);
+            if let Ok(length) = u32::try_from(length) {
+                let value_end = value_start.checked_add(length).ok_or_else(|| {
+                    err_protocol!("value_start + length out of range ({offset} + {length})")
+                })?;
+
+                values.push(Some(value_start..value_end));
+                offset = value_end;
             } else {
-                values.push(Some(offset..(offset + length as u32)));
-                offset += length as u32;
+                // Negative values signify NULL
+                values.push(None);
+                // `value_start` is actually the next value now.
+                offset = value_start;
             }
         }
 
@@ -57,9 +86,22 @@ impl Decode<'_> for DataRow {
 
 #[test]
 fn test_decode_data_row() {
-    const DATA: &[u8] = b"\x00\x08\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\n\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\x14\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00(\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00P";
+    const DATA: &[u8] = b"\
+        \x00\x08\
+        \xff\xff\xff\xff\
+        \x00\x00\x00\x04\
+        \x00\x00\x00\n\
+        \xff\xff\xff\xff\
+        \x00\x00\x00\x04\
+        \x00\x00\x00\x14\
+        \xff\xff\xff\xff\
+        \x00\x00\x00\x04\
+        \x00\x00\x00(\
+        \xff\xff\xff\xff\
+        \x00\x00\x00\x04\
+        \x00\x00\x00P";
 
-    let row = DataRow::decode(DATA.into()).unwrap();
+    let row = DataRow::decode_body(DATA.into()).unwrap();
 
     assert_eq!(row.values.len(), 8);
 
@@ -78,7 +120,7 @@ fn test_decode_data_row() {
 fn bench_data_row_get(b: &mut test::Bencher) {
     const DATA: &[u8] = b"\x00\x08\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\n\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\x14\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00(\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00P";
 
-    let row = DataRow::decode(test::black_box(Bytes::from_static(DATA))).unwrap();
+    let row = DataRow::decode_body(test::black_box(Bytes::from_static(DATA))).unwrap();
 
     b.iter(|| {
         let _value = test::black_box(&row).get(3);
@@ -91,6 +133,6 @@ fn bench_decode_data_row(b: &mut test::Bencher) {
     const DATA: &[u8] = b"\x00\x08\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\n\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00\x14\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00(\xff\xff\xff\xff\x00\x00\x00\x04\x00\x00\x00P";
 
     b.iter(|| {
-        let _ = DataRow::decode(test::black_box(Bytes::from_static(DATA)));
+        let _ = DataRow::decode_body(test::black_box(Bytes::from_static(DATA)));
     });
 }

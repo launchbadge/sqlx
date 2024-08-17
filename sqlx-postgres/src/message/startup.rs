@@ -1,5 +1,5 @@
 use crate::io::PgBufMutExt;
-use crate::io::{BufMutExt, Encode};
+use crate::io::{BufMutExt, ProtocolEncode};
 
 // To begin a session, a frontend opens a connection to the server and sends a startup message.
 // This message includes the names of the user and of the database the user wants to connect to;
@@ -19,8 +19,9 @@ pub struct Startup<'a> {
     pub params: &'a [(&'a str, &'a str)],
 }
 
-impl Encode<'_> for Startup<'_> {
-    fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
+// Startup cannot impl FrontendMessage because it doesn't have a format code.
+impl ProtocolEncode<'_> for Startup<'_> {
+    fn encode_with(&self, buf: &mut Vec<u8>, _context: ()) -> Result<(), crate::Error> {
         buf.reserve(120);
 
         buf.put_length_prefixed(|buf| {
@@ -47,7 +48,9 @@ impl Encode<'_> for Startup<'_> {
             // A zero byte is required as a terminator
             // after the last name/value pair.
             buf.push(0);
-        });
+
+            Ok(())
+        })
     }
 }
 
@@ -68,7 +71,7 @@ fn test_encode_startup() {
         params: &[],
     };
 
-    m.encode(&mut buf);
+    m.encode(&mut buf).unwrap();
 
     assert_eq!(buf, EXPECTED);
 }
