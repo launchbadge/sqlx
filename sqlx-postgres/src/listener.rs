@@ -11,7 +11,7 @@ use sqlx_core::Either;
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::message::{MessageFormat, Notification};
+use crate::message::{BackendMessageFormat, Notification};
 use crate::pool::PoolOptions;
 use crate::pool::{Pool, PoolConnection};
 use crate::{PgConnection, PgQueryResult, PgRow, PgStatement, PgTypeInfo, Postgres};
@@ -277,12 +277,12 @@ impl PgListener {
 
             match message.format {
                 // We've received an async notification, return it.
-                MessageFormat::NotificationResponse => {
+                BackendMessageFormat::NotificationResponse => {
                     return Ok(Some(PgNotification(message.decode()?)));
                 }
 
                 // Mark the connection as ready for another query
-                MessageFormat::ReadyForQuery => {
+                BackendMessageFormat::ReadyForQuery => {
                     self.connection().await?.pending_ready_for_query_count -= 1;
                 }
 

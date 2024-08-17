@@ -1,8 +1,6 @@
 use crate::connection::stream::PgStream;
 use crate::error::Error;
-use crate::message::{
-    Authentication, AuthenticationSasl, MessageFormat, SaslInitialResponse, SaslResponse,
-};
+use crate::message::{Authentication, AuthenticationSasl, SaslInitialResponse, SaslResponse};
 use crate::PgConnectOptions;
 use hmac::{Hmac, Mac};
 use rand::Rng;
@@ -76,7 +74,7 @@ pub(crate) async fn authenticate(
         })
         .await?;
 
-    let cont = match stream.recv_expect(MessageFormat::Authentication).await? {
+    let cont = match stream.recv_expect().await? {
         Authentication::SaslContinue(data) => data,
 
         auth => {
@@ -147,7 +145,7 @@ pub(crate) async fn authenticate(
 
     stream.send(SaslResponse(&client_final_message)).await?;
 
-    let data = match stream.recv_expect(MessageFormat::Authentication).await? {
+    let data = match stream.recv_expect().await? {
         Authentication::SaslFinal(data) => data,
 
         auth => {
@@ -172,10 +170,10 @@ fn gen_nonce() -> String {
     // ;; a valid "value".
     let nonce: String = std::iter::repeat(())
         .map(|()| {
-            let mut c = rng.gen_range(0x21..0x7F) as u8;
+            let mut c = rng.gen_range(0x21u8..0x7F);
 
             while c == 0x2C {
-                c = rng.gen_range(0x21..0x7F) as u8;
+                c = rng.gen_range(0x21u8..0x7F);
             }
 
             c

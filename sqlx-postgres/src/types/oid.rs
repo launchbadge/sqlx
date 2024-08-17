@@ -17,12 +17,6 @@ pub struct Oid(
     pub u32,
 );
 
-impl Oid {
-    pub(crate) fn incr_one(&mut self) {
-        self.0 = self.0.wrapping_add(1);
-    }
-}
-
 impl Type<Postgres> for Oid {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::OID

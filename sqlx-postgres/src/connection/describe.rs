@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+use crate::io::StatementId;
 use crate::message::{ParameterDescription, RowDescription};
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
@@ -27,10 +28,12 @@ enum TypType {
     Range,
 }
 
-impl TryFrom<u8> for TypType {
+impl TryFrom<i8> for TypType {
     type Error = ();
 
-    fn try_from(t: u8) -> Result<Self, Self::Error> {
+    fn try_from(t: i8) -> Result<Self, Self::Error> {
+        let t = u8::try_from(t).or(Err(()))?;
+
         let t = match t {
             b'b' => Self::Base,
             b'c' => Self::Composite,
@@ -66,10 +69,12 @@ enum TypCategory {
     Unknown,
 }
 
-impl TryFrom<u8> for TypCategory {
+impl TryFrom<i8> for TypCategory {
     type Error = ();
 
-    fn try_from(c: u8) -> Result<Self, Self::Error> {
+    fn try_from(c: i8) -> Result<Self, Self::Error> {
+        let c = u8::try_from(c).or(Err(()))?;
+
         let c = match c {
             b'A' => Self::Array,
             b'B' => Self::Boolean,
@@ -209,8 +214,8 @@ impl PgConnection {
             .fetch_one(&mut *self)
             .await?;
 
-            let typ_type = TypType::try_from(typ_type as u8);
-            let category = TypCategory::try_from(category as u8);
+            let typ_type = TypType::try_from(typ_type);
+            let category = TypCategory::try_from(category);
 
             match (typ_type, category) {
                 (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
@@ -416,7 +421,7 @@ WHERE rngtypid = $1
 
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
-        stmt_id: Oid,
+        stmt_id: StatementId,
         meta: &PgStatementMetadata,
     ) -> Result<Vec<Option<bool>>, Error> {
         if meta.columns.is_empty() {
@@ -486,13 +491,10 @@ WHERE rngtypid = $1
     /// and returns `None` for all others.
     async fn nullables_from_explain(
         &mut self,
-        stmt_id: Oid,
+        stmt_id: StatementId,
         params_len: usize,
     ) -> Result<Vec<Option<bool>>, Error> {
-        let mut explain = format!(
-            "EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}",
-            stmt_id.0
-        );
+        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id}");
         let mut comma = false;
 
         if params_len > 0 {

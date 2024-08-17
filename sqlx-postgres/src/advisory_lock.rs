@@ -414,7 +414,8 @@ impl<'lock, C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuard<'lock, C> {
             // The `async fn` versions can safely use the prepared statement protocol,
             // but this is the safest way to queue a query to execute on the next opportunity.
             conn.as_mut()
-                .queue_simple_query(self.lock.get_release_query());
+                .queue_simple_query(self.lock.get_release_query())
+                .expect("BUG: PgAdvisoryLock::get_release_query() somehow too long for protocol");
         }
     }
 }
