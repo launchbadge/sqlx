@@ -4,22 +4,22 @@ use std::ops::{Deref, DerefMut};
 use bytes::Bytes;
 
 use crate::error::Error;
-use crate::io::{Decode, Encode};
+use crate::io::{ProtocolDecode, ProtocolEncode};
 use crate::protocol::response::{EofPacket, OkPacket};
 use crate::protocol::Capabilities;
 
 #[derive(Debug)]
 pub struct Packet<T>(pub(crate) T);
 
-impl<'en, 'stream, T> Encode<'stream, (Capabilities, &'stream mut u8)> for Packet<T>
+impl<'en, 'stream, T> ProtocolEncode<'stream, (Capabilities, &'stream mut u8)> for Packet<T>
 where
-    T: Encode<'en, Capabilities>,
+    T: ProtocolEncode<'en, Capabilities>,
 {
     fn encode_with(
         &self,
         buf: &mut Vec<u8>,
         (capabilities, sequence_id): (Capabilities, &'stream mut u8),
-    ) {
+    ) -> Result<(), Error> {
         let mut next_header = |len: u32| {
             let mut buf = len.to_le_bytes();
             buf[3] = *sequence_id;
@@ -33,7 +33,7 @@ where
         buf.extend(&[0_u8; 4]);
 
         // encode the payload
-        self.0.encode_with(buf, capabilities);
+        self.0.encode_with(buf, capabilities)?;
 
         // determine the length of the encoded payload
         // and write to our reserved space
@@ -59,20 +59,22 @@ where
             buf.extend(&next_header(remainder.len() as u32));
             buf.extend(remainder);
         }
+
+        Ok(())
     }
 }
 
 impl Packet<Bytes> {
     pub(crate) fn decode<'de, T>(self) -> Result<T, Error>
     where
-        T: Decode<'de, ()>,
+        T: ProtocolDecode<'de, ()>,
     {
         self.decode_with(())
     }
 
     pub(crate) fn decode_with<'de, T, C>(self, context: C) -> Result<T, Error>
     where
-        T: Decode<'de, C>,
+        T: ProtocolDecode<'de, C>,
     {
         T::decode_with(self.0, context)
     }

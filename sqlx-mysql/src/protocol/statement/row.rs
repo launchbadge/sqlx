@@ -2,7 +2,7 @@ use bytes::{Buf, Bytes};
 
 use crate::error::Error;
 use crate::io::MySqlBufExt;
-use crate::io::{BufExt, Decode};
+use crate::io::{BufExt, ProtocolDecode};
 use crate::protocol::text::ColumnType;
 use crate::protocol::Row;
 use crate::MySqlColumn;
@@ -13,7 +13,7 @@ use crate::MySqlColumn;
 #[derive(Debug)]
 pub(crate) struct BinaryRow(pub(crate) Row);
 
-impl<'de> Decode<'de, &'de [MySqlColumn]> for BinaryRow {
+impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for BinaryRow {
     fn decode_with(mut buf: Bytes, columns: &'de [MySqlColumn]) -> Result<Self, Error> {
         let header = buf.get_u8();
         if header != 0 {
