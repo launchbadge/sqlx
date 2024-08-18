@@ -1,4 +1,7 @@
 //! **MySQL** database driver.
+#![deny(clippy::cast_possible_truncation)]
+#![deny(clippy::cast_possible_wrap)]
+#![deny(clippy::cast_sign_loss)]
 
 #[macro_use]
 extern crate sqlx_core;
