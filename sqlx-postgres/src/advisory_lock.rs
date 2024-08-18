@@ -5,6 +5,7 @@ use hkdf::Hkdf;
 use once_cell::sync::OnceCell;
 use sha2::Sha256;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 /// A mutex-like type utilizing [Postgres advisory locks].
 ///
@@ -79,6 +80,11 @@ pub enum PgAdvisoryLockKey {
 /// lock is eagerly released, you can call [`.release_now().await`][Self::release_now()].
 pub struct PgAdvisoryLockGuard<'lock, C: AsMut<PgConnection>> {
     lock: &'lock PgAdvisoryLock,
+    conn: Option<C>,
+}
+
+pub struct PgAdvisoryLockGuardOwned<C: AsMut<PgConnection>> {
+    lock: Arc<PgAdvisoryLock>,
     conn: Option<C>,
 }
 
@@ -203,22 +209,7 @@ impl PgAdvisoryLock {
         &self,
         mut conn: C,
     ) -> Result<PgAdvisoryLockGuard<'_, C>> {
-        match &self.key {
-            PgAdvisoryLockKey::BigInt(key) => {
-                crate::query::query("SELECT pg_advisory_lock($1)")
-                    .bind(key)
-                    .execute(conn.as_mut())
-                    .await?;
-            }
-            PgAdvisoryLockKey::IntPair(key1, key2) => {
-                crate::query::query("SELECT pg_advisory_lock($1, $2)")
-                    .bind(key1)
-                    .bind(key2)
-                    .execute(conn.as_mut())
-                    .await?;
-            }
-        }
-
+        self.execute_acquire(conn.as_mut()).await?;
         Ok(PgAdvisoryLockGuard::new(self, conn))
     }
 
@@ -246,26 +237,68 @@ impl PgAdvisoryLock {
         &self,
         mut conn: C,
     ) -> Result<Either<PgAdvisoryLockGuard<'_, C>, C>> {
-        let locked: bool = match &self.key {
+        let locked = self.execute_try_acquire(conn.as_mut()).await?;
+        if locked {
+            Ok(Either::Left(PgAdvisoryLockGuard::new(self, conn)))
+        } else {
+            Ok(Either::Right(conn))
+        }
+    }
+
+    pub async fn acquire_owned<C: AsMut<PgConnection>>(
+        self: Arc<Self>,
+        mut conn: C,
+    ) -> Result<PgAdvisoryLockGuardOwned<C>> {
+        self.execute_acquire(conn.as_mut()).await?;
+        Ok(PgAdvisoryLockGuardOwned::new(self, conn))
+    }
+
+    pub async fn try_acquire_owned<C: AsMut<PgConnection>>(
+        self: Arc<Self>,
+        mut conn: C,
+    ) -> Result<Either<PgAdvisoryLockGuardOwned<C>, C>> {
+        let locked = self.execute_try_acquire(conn.as_mut()).await?;
+        if locked {
+            Ok(Either::Left(PgAdvisoryLockGuardOwned::new(self, conn)))
+        } else {
+            Ok(Either::Right(conn))
+        }
+    }
+
+    async fn execute_acquire(&self, conn: &mut PgConnection) -> Result<(), sqlx_core::Error> {
+        match &self.key {
+            PgAdvisoryLockKey::BigInt(key) => {
+                crate::query::query("SELECT pg_advisory_lock($1)")
+                    .bind(key)
+                    .execute(conn.as_mut())
+                    .await?;
+            }
+            PgAdvisoryLockKey::IntPair(key1, key2) => {
+                crate::query::query("SELECT pg_advisory_lock($1, $2)")
+                    .bind(key1)
+                    .bind(key2)
+                    .execute(conn.as_mut())
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn execute_try_acquire(&self, conn: &mut PgConnection) -> Result<bool, sqlx_core::Error> {
+        match &self.key {
             PgAdvisoryLockKey::BigInt(key) => {
                 crate::query_scalar::query_scalar("SELECT pg_try_advisory_lock($1)")
                     .bind(key)
                     .fetch_one(conn.as_mut())
-                    .await?
+                    .await
             }
             PgAdvisoryLockKey::IntPair(key1, key2) => {
                 crate::query_scalar::query_scalar("SELECT pg_try_advisory_lock($1, $2)")
                     .bind(key1)
                     .bind(key2)
                     .fetch_one(conn.as_mut())
-                    .await?
+                    .await
             }
-        };
-
-        if locked {
-            Ok(Either::Left(PgAdvisoryLockGuard::new(self, conn)))
-        } else {
-            Ok(Either::Right(conn))
         }
     }
 
@@ -417,5 +450,70 @@ impl<'lock, C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuard<'lock, C> {
             conn.as_mut()
                 .queue_simple_query(self.lock.get_release_query());
         }
+    }
+}
+
+impl<C: AsMut<PgConnection>> PgAdvisoryLockGuardOwned<C> {
+    fn new(lock: Arc<PgAdvisoryLock>, conn: C) -> Self {
+        Self {
+            lock,
+            conn: Some(conn),
+        }
+    }
+
+    pub fn leak(mut self) -> C {
+        self.conn.take().expect(NONE_ERR)
+    }
+
+    pub async fn release_now(mut self) -> Result<C> {
+        let (conn, released) = self
+            .lock
+            .force_release(self.conn.take().expect(NONE_ERR))
+            .await?;
+
+        if !released {
+            tracing::warn!(
+                lock = ?self.lock.key,
+                "PgAdvisoryLockGuard: advisory lock was not held by the contained connection",
+            );
+        }
+
+        Ok(conn)
+    }
+}
+
+impl<C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuardOwned<C> {
+    fn drop(&mut self) {
+        if let Some(mut conn) = self.conn.take() {
+            conn.as_mut()
+                .queue_simple_query(self.lock.get_release_query());
+        }
+    }
+}
+
+impl<C: AsRef<PgConnection> + AsMut<PgConnection>> Deref for PgAdvisoryLockGuardOwned<C> {
+    type Target = PgConnection;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+impl<C: AsMut<PgConnection> + AsRef<PgConnection>> DerefMut for PgAdvisoryLockGuardOwned<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut()
+    }
+}
+
+impl<C: AsMut<PgConnection> + AsRef<PgConnection>> AsRef<PgConnection>
+    for PgAdvisoryLockGuardOwned<C>
+{
+    fn as_ref(&self) -> &PgConnection {
+        self.conn.as_ref().expect(NONE_ERR).as_ref()
+    }
+}
+
+impl<C: AsMut<PgConnection>> AsMut<PgConnection> for PgAdvisoryLockGuardOwned<C> {
+    fn as_mut(&mut self) -> &mut PgConnection {
+        self.conn.as_mut().expect(NONE_ERR).as_mut()
     }
 }
