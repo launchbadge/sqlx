@@ -1,11 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
+mod attributes;
 mod connect;
 mod parse;
 mod ssl_mode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
 pub use ssl_mode::MySqlSslMode;
+
+pub(crate) use self::attributes::Attributes;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
@@ -80,6 +86,7 @@ pub struct MySqlConnectOptions {
     pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
+    pub(crate) attributes: Attributes,
 }
 
 impl Default for MySqlConnectOptions {
@@ -111,6 +118,7 @@ impl MySqlConnectOptions {
             no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
+            attributes: Default::default(),
         }
     }
 
@@ -403,6 +411,28 @@ impl MySqlConnectOptions {
         self.set_names = flag_val;
         self
     }
+
+    /// Set a connection attribute.
+    ///
+    /// If a connection attribute with the same key already exists it is replaced.
+    pub fn attribute(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        _ = self
+            .attributes
+            .insert(key.into().to_string(), value.into().to_string());
+        self
+    }
+
+    /// Enable sending the default client connection attributes.
+    ///
+    /// This will set `_client_name` and `_client_version`
+    pub fn with_default_attributes(mut self) -> Self {
+        self.attributes.add_default_client_attributes();
+        self
+    }
 }
 
 impl MySqlConnectOptions {
@@ -514,5 +544,23 @@ impl MySqlConnectOptions {
     /// ```
     pub fn get_collation(&self) -> Option<&str> {
         self.collation.as_deref()
+    }
+
+    /// Get the custom connection attributes.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::MySqlConnectOptions;
+    /// let options = MySqlConnectOptions::new()
+    ///     .attribute("key", "value");
+    ///
+    /// let mut attributes = options.get_attributes().into_iter();
+    /// assert_eq!(Some(("key", "value")), attributes.next());
+    /// ```
+    pub fn get_attributes(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.attributes
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
     }
 }
