@@ -617,6 +617,8 @@ fn parse_microseconds(micros: &str) -> Result<u32, BoxDynError> {
         len @ ..=EXPECTED_DIGITS => {
             // Fewer than 6 digits, multiply to the correct magnitude
             let micros: u32 = micros.parse()?;
+            // cast cannot overflow
+            #[allow(clippy::cast_possible_truncation)]
             Ok(micros * 10u32.pow((EXPECTED_DIGITS - len) as u32))
         }
         // More digits than expected, truncate

@@ -12,6 +12,8 @@ pub struct SslRequest {
 
 impl ProtocolEncode<'_, Capabilities> for SslRequest {
     fn encode_with(&self, buf: &mut Vec<u8>, context: Capabilities) -> Result<(), crate::Error> {
+        // truncation is intended
+        #[allow(clippy::cast_possible_truncation)]
         buf.extend(&(context.bits() as u32).to_le_bytes());
         buf.extend(&self.max_packet_size.to_le_bytes());
         buf.push(self.collation);

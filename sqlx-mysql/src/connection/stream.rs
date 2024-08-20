@@ -113,17 +113,17 @@ impl<S: Socket> MySqlStream<S> {
         T: ProtocolEncode<'en, Capabilities>,
     {
         self.sequence_id = 0;
-        self.write_packet(payload);
+        self.write_packet(payload)?;
         self.flush().await?;
         Ok(())
     }
 
-    pub(crate) fn write_packet<'en, T>(&mut self, payload: T)
+    pub(crate) fn write_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
     where
         T: ProtocolEncode<'en, Capabilities>,
     {
         self.socket
-            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
+            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
     }
 
     async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
@@ -132,6 +132,8 @@ impl<S: Socket> MySqlStream<S> {
 
         let mut header: Bytes = self.socket.read(4).await?;
 
+        // cannot overflow
+        #[allow(clippy::cast_possible_truncation)]
         let packet_size = header.get_uint_le(3) as usize;
         let sequence_id = header.get_u8();
 

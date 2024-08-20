@@ -40,6 +40,8 @@ where
         let len = buf.len() - offset - 4;
         let header = &mut buf[offset..];
 
+        // // `min(.., 0xFF_FF_FF)` cannot overflow
+        #[allow(clippy::cast_possible_truncation)]
         header[..4].copy_from_slice(&next_header(min(len, 0xFF_FF_FF) as u32));
 
         // add more packets if we need to split the data
@@ -49,6 +51,9 @@ where
 
             for chunk in chunks.by_ref() {
                 buf.reserve(chunk.len() + 4);
+
+                // `chunk.len() == 0xFF_FF_FF`
+                #[allow(clippy::cast_possible_truncation)]
                 buf.extend(&next_header(chunk.len() as u32));
                 buf.extend(chunk);
             }
@@ -56,6 +61,9 @@ where
             // this will also handle adding a zero sized packet if the data size is a multiple of 0xFF_FF_FF
             let remainder = chunks.remainder();
             buf.reserve(remainder.len() + 4);
+
+            // `remainder.len() < 0xFF_FF_FF`
+            #[allow(clippy::cast_possible_truncation)]
             buf.extend(&next_header(remainder.len() as u32));
             buf.extend(remainder);
         }
