@@ -83,3 +83,6 @@ features = ["postgres", "derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
 etcetera = "0.8.0"
+
+[lints]
+workspace = true

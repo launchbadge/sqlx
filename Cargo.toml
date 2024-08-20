@@ -187,6 +187,15 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 # Enable testing with SQLCipher if specifically requested.
 libsqlite3-sys = { version = "0.30.1", features = ["bundled-sqlcipher"] }
 
+# Common lint settings for the workspace
+[workspace.lints.clippy]
+# https://github.com/launchbadge/sqlx/issues/3440
+cast_possible_truncation = 'deny'
+cast_possible_wrap = 'deny'
+cast_sign_loss = 'deny'
+# See `clippy.toml`
+disallowed_methods = 'deny'
+
 #
 # Any
 #

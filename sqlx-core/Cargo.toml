@@ -94,3 +94,6 @@ hashbrown = "0.14.5"
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
+
+[lints]
+workspace = true
