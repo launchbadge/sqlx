@@ -60,3 +60,6 @@ workspace = true
 
 [dev-dependencies]
 sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }
+
+[lints]
+workspace = true
