@@ -55,7 +55,7 @@ use crate::types::Type;
 /// If the query macros are used, it is necessary to tell the macro to use
 /// the `Json` adapter by using the type override syntax
 /// ```
-/// #[derive(sqlx::FromRow]
+/// #[derive(sqlx::FromRow)]
 /// struct Book {
 ///     title: String,
 /// }
