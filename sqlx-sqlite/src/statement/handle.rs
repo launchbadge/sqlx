@@ -34,6 +34,23 @@ pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 
 unsafe impl Send for StatementHandle {}
 
+macro_rules! expect_ret_valid {
+    ($fn_name:ident($($args:tt)*)) => {{
+        let val = $fn_name($($args)*);
+
+        TryFrom::try_from(val)
+            // This likely means UB in SQLite itself or our usage of it;
+            // signed integer overflow is UB in the C standard.
+            .unwrap_or_else(|_| panic!("{}() returned invalid value: {val:?}", stringify!($fn_name)))
+    }}
+}
+
+macro_rules! check_col_idx {
+    ($idx:ident) => {
+        c_int::try_from($idx).unwrap_or_else(|_| panic!("invalid column index: {}", $idx))
+    };
+}
+
 // might use some of this later
 #[allow(dead_code)]
 impl StatementHandle {
@@ -71,7 +88,7 @@ impl StatementHandle {
     #[inline]
     pub(crate) fn column_count(&self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
-        unsafe { sqlite3_column_count(self.0.as_ptr()) as usize }
+        unsafe { expect_ret_valid!(sqlite3_column_count(self.0.as_ptr())) }
     }
 
     #[inline]
@@ -79,14 +96,14 @@ impl StatementHandle {
         // returns the number of changes of the *last* statement; not
         // necessarily this statement.
         // https://sqlite.org/c3ref/changes.html
-        unsafe { sqlite3_changes(self.db_handle()) as u64 }
+        unsafe { expect_ret_valid!(sqlite3_changes(self.db_handle())) }
     }
 
     #[inline]
     pub(crate) fn column_name(&self, index: usize) -> &str {
         // https://sqlite.org/c3ref/column_name.html
         unsafe {
-            let name = sqlite3_column_name(self.0.as_ptr(), index as c_int);
+            let name = sqlite3_column_name(self.0.as_ptr(), check_col_idx!(index));
             debug_assert!(!name.is_null());
 
             from_utf8_unchecked(CStr::from_ptr(name).to_bytes())
@@ -107,7 +124,7 @@ impl StatementHandle {
     #[inline]
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteTypeInfo> {
         unsafe {
-            let decl = sqlite3_column_decltype(self.0.as_ptr(), index as c_int);
+            let decl = sqlite3_column_decltype(self.0.as_ptr(), check_col_idx!(index));
             if decl.is_null() {
                 // If the Nth column of the result set is an expression or subquery,
                 // then a NULL pointer is returned.
@@ -123,6 +140,8 @@ impl StatementHandle {
 
     pub(crate) fn column_nullable(&self, index: usize) -> Result<Option<bool>, Error> {
         unsafe {
+            let index = check_col_idx!(index);
+
             // https://sqlite.org/c3ref/column_database_name.html
             //
             // ### Note
@@ -130,9 +149,9 @@ impl StatementHandle {
             // sqlite3_finalize() or until the statement is automatically reprepared by the
             // first call to sqlite3_step() for a particular run or until the same information
             // is requested again in a different encoding.
-            let db_name = sqlite3_column_database_name(self.0.as_ptr(), index as c_int);
-            let table_name = sqlite3_column_table_name(self.0.as_ptr(), index as c_int);
-            let origin_name = sqlite3_column_origin_name(self.0.as_ptr(), index as c_int);
+            let db_name = sqlite3_column_database_name(self.0.as_ptr(), index);
+            let table_name = sqlite3_column_table_name(self.0.as_ptr(), index);
+            let origin_name = sqlite3_column_origin_name(self.0.as_ptr(), index);
 
             if db_name.is_null() || table_name.is_null() || origin_name.is_null() {
                 return Ok(None);
@@ -174,7 +193,7 @@ impl StatementHandle {
     #[inline]
     pub(crate) fn bind_parameter_count(&self) -> usize {
         // https://www.sqlite.org/c3ref/bind_parameter_count.html
-        unsafe { sqlite3_bind_parameter_count(self.0.as_ptr()) as usize }
+        unsafe { expect_ret_valid!(sqlite3_bind_parameter_count(self.0.as_ptr())) }
     }
 
     // Name Of A Host Parameter
@@ -183,7 +202,7 @@ impl StatementHandle {
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<&str> {
         unsafe {
             // https://www.sqlite.org/c3ref/bind_parameter_name.html
-            let name = sqlite3_bind_parameter_name(self.0.as_ptr(), index as c_int);
+            let name = sqlite3_bind_parameter_name(self.0.as_ptr(), check_col_idx!(index));
             if name.is_null() {
                 return None;
             }
@@ -200,7 +219,7 @@ impl StatementHandle {
         unsafe {
             sqlite3_bind_blob64(
                 self.0.as_ptr(),
-                index as c_int,
+                check_col_idx!(index),
                 v.as_ptr() as *const c_void,
                 v.len() as u64,
                 SQLITE_TRANSIENT(),
@@ -210,36 +229,39 @@ impl StatementHandle {
 
     #[inline]
     pub(crate) fn bind_text(&self, index: usize, v: &str) -> c_int {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let encoding = SQLITE_UTF8 as u8;
+
         unsafe {
             sqlite3_bind_text64(
                 self.0.as_ptr(),
-                index as c_int,
+                check_col_idx!(index),
                 v.as_ptr() as *const c_char,
                 v.len() as u64,
                 SQLITE_TRANSIENT(),
-                SQLITE_UTF8 as u8,
+                encoding,
             )
         }
     }
 
     #[inline]
     pub(crate) fn bind_int(&self, index: usize, v: i32) -> c_int {
-        unsafe { sqlite3_bind_int(self.0.as_ptr(), index as c_int, v as c_int) }
+        unsafe { sqlite3_bind_int(self.0.as_ptr(), check_col_idx!(index), v as c_int) }
     }
 
     #[inline]
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> c_int {
-        unsafe { sqlite3_bind_int64(self.0.as_ptr(), index as c_int, v) }
+        unsafe { sqlite3_bind_int64(self.0.as_ptr(), check_col_idx!(index), v) }
     }
 
     #[inline]
     pub(crate) fn bind_double(&self, index: usize, v: f64) -> c_int {
-        unsafe { sqlite3_bind_double(self.0.as_ptr(), index as c_int, v) }
+        unsafe { sqlite3_bind_double(self.0.as_ptr(), check_col_idx!(index), v) }
     }
 
     #[inline]
     pub(crate) fn bind_null(&self, index: usize) -> c_int {
-        unsafe { sqlite3_bind_null(self.0.as_ptr(), index as c_int) }
+        unsafe { sqlite3_bind_null(self.0.as_ptr(), check_col_idx!(index)) }
     }
 
     // result values from the query
@@ -247,39 +269,41 @@ impl StatementHandle {
 
     #[inline]
     pub(crate) fn column_type(&self, index: usize) -> c_int {
-        unsafe { sqlite3_column_type(self.0.as_ptr(), index as c_int) }
+        unsafe { sqlite3_column_type(self.0.as_ptr(), check_col_idx!(index)) }
     }
 
     #[inline]
     pub(crate) fn column_int(&self, index: usize) -> i32 {
-        unsafe { sqlite3_column_int(self.0.as_ptr(), index as c_int) as i32 }
+        unsafe { sqlite3_column_int(self.0.as_ptr(), check_col_idx!(index)) as i32 }
     }
 
     #[inline]
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
-        unsafe { sqlite3_column_int64(self.0.as_ptr(), index as c_int) as i64 }
+        unsafe { sqlite3_column_int64(self.0.as_ptr(), check_col_idx!(index)) as i64 }
     }
 
     #[inline]
     pub(crate) fn column_double(&self, index: usize) -> f64 {
-        unsafe { sqlite3_column_double(self.0.as_ptr(), index as c_int) }
+        unsafe { sqlite3_column_double(self.0.as_ptr(), check_col_idx!(index)) }
     }
 
     #[inline]
     pub(crate) fn column_value(&self, index: usize) -> *mut sqlite3_value {
-        unsafe { sqlite3_column_value(self.0.as_ptr(), index as c_int) }
+        unsafe { sqlite3_column_value(self.0.as_ptr(), check_col_idx!(index)) }
     }
 
     pub(crate) fn column_blob(&self, index: usize) -> &[u8] {
-        let index = index as c_int;
-        let len = unsafe { sqlite3_column_bytes(self.0.as_ptr(), index) } as usize;
+        let len = unsafe {
+            expect_ret_valid!(sqlite3_column_bytes(self.0.as_ptr(), check_col_idx!(index)))
+        };
 
         if len == 0 {
             // empty blobs are NULL so just return an empty slice
             return &[];
         }
 
-        let ptr = unsafe { sqlite3_column_blob(self.0.as_ptr(), index) } as *const u8;
+        let ptr =
+            unsafe { sqlite3_column_blob(self.0.as_ptr(), check_col_idx!(index)) } as *const u8;
         debug_assert!(!ptr.is_null());
 
         unsafe { from_raw_parts(ptr, len) }

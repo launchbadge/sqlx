@@ -163,7 +163,13 @@ fn prepare(
         let mut tail: *const c_char = null();
 
         let query_ptr = query.as_ptr() as *const c_char;
-        let query_len = query.len() as i32;
+        let query_len = i32::try_from(query.len()).map_err(|_| {
+            err_protocol!(
+                "query string too large for SQLite3 API ({} bytes); \
+                 try breaking it into smaller chunks (< 2 GiB), executed separately",
+                query.len()
+            )
+        })?;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
         let status = unsafe {
