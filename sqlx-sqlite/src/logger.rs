@@ -1,3 +1,11 @@
+// Bad casts in this module SHOULD NOT result in a SQL injection
+// https://github.com/launchbadge/sqlx/issues/3440
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)]
+
 use crate::connection::intmap::IntMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
