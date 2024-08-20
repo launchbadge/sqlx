@@ -34,8 +34,11 @@ impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for BinaryRow {
         for (column_idx, column) in columns.iter().enumerate() {
             // NOTE: the column index starts at the 3rd bit
             let column_null_idx = column_idx + 2;
-            let is_null =
-                null_bitmap[column_null_idx / 8] & (1 << (column_null_idx % 8) as u8) != 0;
+
+            let byte_idx = column_null_idx / 8;
+            let bit_idx = column_null_idx % 8;
+
+            let is_null = null_bitmap[byte_idx] & (1u8 << bit_idx) != 0;
 
             if is_null {
                 values.push(None);
@@ -72,7 +75,11 @@ impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for BinaryRow {
                 | ColumnType::Bit
                 | ColumnType::Decimal
                 | ColumnType::Json
-                | ColumnType::NewDecimal => buf.get_uint_lenenc() as usize,
+                | ColumnType::NewDecimal => {
+                    let size = buf.get_uint_lenenc();
+                    usize::try_from(size)
+                        .map_err(|_| err_protocol!("BLOB length out of range: {size}"))?
+                }
 
                 // Like strings and blobs, these values are variable-length.
                 // Unlike strings and blobs, however, they exclusively use one byte for length.

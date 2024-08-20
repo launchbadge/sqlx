@@ -22,7 +22,10 @@ impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for TextRow {
                 values.push(None);
                 buf.advance(1);
             } else {
-                let size = buf.get_uint_lenenc() as usize;
+                let size = buf.get_uint_lenenc();
+                let size = usize::try_from(size)
+                    .map_err(|_| err_protocol!("TextRow length out of range: {size}"))?;
+
                 let offset = offset - buf.len();
 
                 values.push(Some(offset..(offset + size)));

@@ -70,8 +70,8 @@ impl Type<MySql> for NaiveTime {
 
 impl Encode<'_, MySql> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let len = Encode::<MySql>::size_hint(self) - 1;
-        buf.push(len as u8);
+        let len = naive_time_encoded_len(self);
+        buf.push(len);
 
         // NaiveTime is not negative
         buf.push(0);
@@ -80,19 +80,13 @@ impl Encode<'_, MySql> for NaiveTime {
         // https://mariadb.com/kb/en/resultset-row/#teimstamp-binary-encoding
         buf.extend_from_slice(&[0_u8; 4]);
 
-        encode_time(self, len > 9, buf);
+        encode_time(self, len > 8, buf);
 
         Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
-        if self.nanosecond() == 0 {
-            // if micro_seconds is 0, length is 8 and micro_seconds is not sent
-            9
-        } else {
-            // otherwise length is 12
-            13
-        }
+        naive_time_encoded_len(self) as usize + 1 // plus length byte
     }
 }
 
@@ -217,38 +211,20 @@ impl Type<MySql> for NaiveDateTime {
 
 impl Encode<'_, MySql> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let len = Encode::<MySql>::size_hint(self) - 1;
-        buf.push(len as u8);
+        let len = naive_dt_encoded_len(self);
+        buf.push(len);
 
         encode_date(&self.date(), buf)?;
 
         if len > 4 {
-            encode_time(&self.time(), len > 8, buf);
+            encode_time(&self.time(), len > 7, buf);
         }
 
         Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
-        // to save space the packet can be compressed:
-        match (
-            self.hour(),
-            self.minute(),
-            self.second(),
-            #[allow(deprecated)]
-            self.timestamp_subsec_nanos(),
-        ) {
-            // if hour, minutes, seconds and micro_seconds are all 0,
-            // length is 4 and no other field is sent
-            (0, 0, 0, 0) => 5,
-
-            // if micro_seconds is 0, length is 7
-            // and micro_seconds is not sent
-            (_, _, _, 0) => 8,
-
-            // otherwise length is 11
-            (_, _, _, _) => 12,
-        }
+        naive_dt_encoded_len(self) as usize + 1 // plus length byte
     }
 }
 
@@ -284,13 +260,18 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
 }
 
 fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) -> Result<(), BoxDynError> {
-    // MySQL supports years from 1000 - 9999
+    // MySQL supports years 1000 - 9999
     let year = u16::try_from(date.year())
         .map_err(|_| format!("NaiveDateTime out of range for Mysql: {date}"))?;
 
     buf.extend_from_slice(&year.to_le_bytes());
-    buf.push(date.month() as u8);
-    buf.push(date.day() as u8);
+
+    // `NaiveDate` guarantees the ranges of these values
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        buf.push(date.month() as u8);
+        buf.push(date.day() as u8);
+    }
 
     Ok(())
 }
@@ -314,9 +295,13 @@ fn decode_date(mut buf: &[u8]) -> Result<Option<NaiveDate>, BoxDynError> {
 }
 
 fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
-    buf.push(time.hour() as u8);
-    buf.push(time.minute() as u8);
-    buf.push(time.second() as u8);
+    // `NaiveTime` API guarantees the ranges of these values
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        buf.push(time.hour() as u8);
+        buf.push(time.minute() as u8);
+        buf.push(time.second() as u8);
+    }
 
     if include_micros {
         buf.extend((time.nanosecond() / 1000).to_le_bytes());
@@ -335,6 +320,43 @@ fn decode_time(len: u8, mut buf: &[u8]) -> Result<NaiveTime, BoxDynError> {
         0
     };
 
-    NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, seconds as u32, micros as u32)
+    let micros = u32::try_from(micros)
+        .map_err(|_| format!("server returned microseconds out of range: {micros}"))?;
+
+    NaiveTime::from_hms_micro_opt(hour as u32, minute as u32, seconds as u32, micros)
         .ok_or_else(|| format!("server returned invalid time: {hour:02}:{minute:02}:{seconds:02}; micros: {micros}").into())
+}
+
+#[inline(always)]
+fn naive_dt_encoded_len(time: &NaiveDateTime) -> u8 {
+    // to save space the packet can be compressed:
+    match (
+        time.hour(),
+        time.minute(),
+        time.second(),
+        #[allow(deprecated)]
+        time.timestamp_subsec_nanos(),
+    ) {
+        // if hour, minutes, seconds and micro_seconds are all 0,
+        // length is 4 and no other field is sent
+        (0, 0, 0, 0) => 4,
+
+        // if micro_seconds is 0, length is 7
+        // and micro_seconds is not sent
+        (_, _, _, 0) => 7,
+
+        // otherwise length is 11
+        (_, _, _, _) => 11,
+    }
+}
+
+#[inline(always)]
+fn naive_time_encoded_len(time: &NaiveTime) -> u8 {
+    if time.nanosecond() == 0 {
+        // if micro_seconds is 0, length is 8 and micro_seconds is not sent
+        8
+    } else {
+        // otherwise length is 12
+        12
+    }
 }

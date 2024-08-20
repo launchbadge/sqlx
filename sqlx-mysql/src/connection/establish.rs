@@ -131,7 +131,7 @@ impl<'a> DoHandshake<'a> {
             database: options.database.as_deref(),
             auth_plugin: plugin,
             auth_response: auth_response.as_deref(),
-        });
+        })?;
 
         stream.flush().await?;
 
@@ -160,7 +160,7 @@ impl<'a> DoHandshake<'a> {
                         )
                         .await?;
 
-                    stream.write_packet(AuthSwitchResponse(response));
+                    stream.write_packet(AuthSwitchResponse(response))?;
                     stream.flush().await?;
                 }
 

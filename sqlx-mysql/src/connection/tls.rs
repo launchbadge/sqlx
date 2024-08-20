@@ -72,7 +72,7 @@ pub(super) async fn maybe_upgrade<S: Socket>(
     stream.write_packet(SslRequest {
         max_packet_size: super::MAX_PACKET_SIZE,
         collation: stream.collation as u8,
-    });
+    })?;
 
     stream.flush().await?;
 

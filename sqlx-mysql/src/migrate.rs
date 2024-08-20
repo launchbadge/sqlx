@@ -231,7 +231,9 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     WHERE version = ?
                 "#,
             )
-            .bind(elapsed.as_nanos() as i64)
+            // Unlikely unless the execution time exceeds ~292 years,
+            // then we're probably okay losing that information.
+            .bind(i64::try_from(elapsed.as_nanos()).ok())
             .bind(migration.version)
             .execute(self)
             .await?;

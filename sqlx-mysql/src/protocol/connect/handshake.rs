@@ -62,8 +62,8 @@ impl ProtocolDecode<'_> for Handshake {
         }
 
         let auth_plugin_data_2 = if capabilities.contains(Capabilities::SECURE_CONNECTION) {
-            let len = cmp::max((auth_plugin_data_len as isize) - 9, 12) as usize;
-            let v = buf.get_bytes(len);
+            let len = cmp::max(auth_plugin_data_len.saturating_sub(9), 12);
+            let v = buf.get_bytes(len as usize);
             buf.advance(1); // NUL-terminator
 
             v

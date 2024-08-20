@@ -52,7 +52,10 @@ impl ProtocolEncode<'_, Capabilities> for HandshakeResponse<'_> {
         } else if context.contains(Capabilities::SECURE_CONNECTION) {
             let response = self.auth_response.unwrap_or_default();
 
-            buf.push(response.len() as u8);
+            let response_len = u8::try_from(response.len())
+                .map_err(|_| err_protocol!("auth_response.len() too long: {}", response.len()))?;
+
+            buf.push(response_len);
             buf.extend(response);
         } else {
             buf.push(0);
