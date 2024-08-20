@@ -51,7 +51,7 @@ use crate::types::Type;
 ///   dewey_decimal: sqlx::types::Json<HashMap<String, Book>>
 /// }
 /// ```
-/// 
+///
 /// If the query macros are used, it is necessary to tell the macro to use
 /// the `Json` adapter by using the type override syntax
 /// ```
