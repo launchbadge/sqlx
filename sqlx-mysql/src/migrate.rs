@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             let elapsed = start.elapsed();
 
+            #[allow(clippy::cast_possible_truncation)]
             let _ = query(
                 r#"
     UPDATE _sqlx_migrations
@@ -231,9 +232,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     WHERE version = ?
                 "#,
             )
-            // Unlikely unless the execution time exceeds ~292 years,
-            // then we're probably okay losing that information.
-            .bind(i64::try_from(elapsed.as_nanos()).ok())
+            .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
             .execute(self)
             .await?;
