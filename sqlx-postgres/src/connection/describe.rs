@@ -500,7 +500,11 @@ WHERE rngtypid = $1
         stmt_id: StatementId,
         params_len: usize,
     ) -> Result<Vec<Option<bool>>, Error> {
-        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id}");
+        let stmt_id_display = stmt_id
+            .display()
+            .ok_or_else(|| err_protocol!("cannot EXPLAIN unnamed statement: {stmt_id:?}"))?;
+
+        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}");
         let mut comma = false;
 
         if params_len > 0 {

@@ -16,6 +16,11 @@ pub(crate) struct PortalId(IdInner);
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct IdInner(Option<NonZeroU32>);
 
+pub(crate) struct DisplayId {
+    prefix: &'static str,
+    id: NonZeroU32,
+}
+
 impl StatementId {
     #[allow(dead_code)]
     pub const UNNAMED: Self = Self(IdInner::UNNAMED);
@@ -35,16 +40,22 @@ impl StatementId {
         self.0.name_len(Self::NAME_PREFIX)
     }
 
-    // There's no common trait implemented by `Formatter` and `Vec<u8>` for this purpose;
-    // we're deliberately avoiding the formatting machinery because it's known to be slow.
-    pub fn write_name<E>(&self, write: impl FnMut(&str) -> Result<(), E>) -> Result<(), E> {
-        self.0.write_name(Self::NAME_PREFIX, write)
+    /// Get a type to format this statement ID with [`Display`].
+    ///
+    /// Returns `None` if this is the unnamed statement.
+    #[inline(always)]
+    pub fn display(&self) -> Option<DisplayId> {
+        self.0.display(Self::NAME_PREFIX)
+    }
+
+    pub fn put_name_with_nul(&self, buf: &mut Vec<u8>) {
+        self.0.put_name_with_nul(Self::NAME_PREFIX, buf)
     }
 }
 
-impl Display for StatementId {
+impl Display for DisplayId {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.write_name(|s| f.write_str(s))
+        write!(f, "{}{}", self.prefix, self.id)
     }
 }
 
@@ -67,13 +78,13 @@ impl PortalId {
         Self(self.0.next())
     }
 
-    /// Calculate the number of bytes that will be written by [`Self::write_name()`].
+    /// Calculate the number of bytes that will be written by [`Self::put_name_with_nul()`].
     pub fn name_len(&self) -> Saturating<usize> {
         self.0.name_len(Self::NAME_PREFIX)
     }
 
-    pub fn write_name<E>(&self, write: impl FnMut(&str) -> Result<(), E>) -> Result<(), E> {
-        self.0.write_name(Self::NAME_PREFIX, write)
+    pub fn put_name_with_nul(&self, buf: &mut Vec<u8>) {
+        self.0.put_name_with_nul(Self::NAME_PREFIX, buf)
     }
 }
 
@@ -91,6 +102,11 @@ impl IdInner {
             self.0
                 .map(|id| id.checked_add(1).unwrap_or(NonZeroU32::MIN)),
         )
+    }
+
+    #[inline(always)]
+    fn display(&self, prefix: &'static str) -> Option<DisplayId> {
+        self.0.map(|id| DisplayId { prefix, id })
     }
 
     #[inline(always)]
@@ -113,18 +129,28 @@ impl IdInner {
     }
 
     #[inline(always)]
-    fn write_name<E>(
-        &self,
-        name_prefix: &str,
-        mut write: impl FnMut(&str) -> Result<(), E>,
-    ) -> Result<(), E> {
+    fn put_name_with_nul(&self, name_prefix: &str, buf: &mut Vec<u8>) {
         if let Some(id) = self.0 {
-            write(name_prefix)?;
-            write(itoa::Buffer::new().format(id.get()))?;
+            buf.extend_from_slice(name_prefix.as_bytes());
+            buf.extend_from_slice(itoa::Buffer::new().format(id.get()).as_bytes());
         }
 
-        write("\0")?;
-
-        Ok(())
+        buf.push(0);
     }
+}
+
+#[test]
+fn statement_id_display_matches_encoding() {
+    const EXPECTED_STR: &str = "sqlx_s_1234567890";
+    const EXPECTED_BYTES: &[u8] = b"sqlx_s_1234567890\0";
+
+    let mut bytes = Vec::new();
+
+    StatementId::TEST_VAL.put_name_with_nul(&mut bytes);
+
+    assert_eq!(bytes, EXPECTED_BYTES);
+
+    let str = StatementId::TEST_VAL.display().unwrap().to_string();
+
+    assert_eq!(str, EXPECTED_STR);
 }
