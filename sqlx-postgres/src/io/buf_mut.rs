@@ -47,18 +47,12 @@ impl PgBufMutExt for Vec<u8> {
     // writes a statement name by ID
     #[inline]
     fn put_statement_name(&mut self, id: StatementId) {
-        let _: Result<(), ()> = id.write_name(|s| {
-            self.extend_from_slice(s.as_bytes());
-            Ok(())
-        });
+        id.put_name_with_nul(self);
     }
 
     // writes a portal name by ID
     #[inline]
     fn put_portal_name(&mut self, id: PortalId) {
-        let _: Result<(), ()> = id.write_name(|s| {
-            self.extend_from_slice(s.as_bytes());
-            Ok(())
-        });
+        id.put_name_with_nul(self);
     }
 }
