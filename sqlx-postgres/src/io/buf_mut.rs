@@ -27,7 +27,7 @@ impl PgBufMutExt for Vec<u8> {
         let size_result = write_result.and_then(|_| {
             let size = self.len() - offset;
             i32::try_from(size)
-                .map_err(|_| err_protocol!("message size out of range for Pg protocol: {size"))
+                .map_err(|_| err_protocol!("message size out of range for protocol: {size}"))
         });
 
         match size_result {
