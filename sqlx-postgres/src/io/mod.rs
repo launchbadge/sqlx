@@ -10,7 +10,6 @@ pub(crate) use sqlx_core::io::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct StatementId(IdInner);
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct PortalId(IdInner);
 
@@ -18,6 +17,7 @@ pub(crate) struct PortalId(IdInner);
 struct IdInner(Option<NonZeroU32>);
 
 impl StatementId {
+    #[allow(dead_code)]
     pub const UNNAMED: Self = Self(IdInner::UNNAMED);
 
     pub const NAMED_START: Self = Self(IdInner::NAMED_START);
