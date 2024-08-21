@@ -466,7 +466,13 @@ WHERE rngtypid = $1
         let mut nullables: Vec<Option<bool>> = nullable_query
             .build_query_scalar()
             .fetch_all(&mut *self)
-            .await?;
+            .await
+            .map_err(|e| {
+                err_protocol!(
+                    "error from nullables query: {e}; query: {:?}",
+                    nullable_query.sql()
+                )
+            })?;
 
         // If the server is CockroachDB or Materialize, skip this step (#1248).
         if !self.stream.parameter_statuses.contains_key("crdb_version")
