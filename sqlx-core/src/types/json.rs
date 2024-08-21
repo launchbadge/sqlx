@@ -54,7 +54,9 @@ use crate::types::Type;
 ///
 /// If the query macros are used, it is necessary to tell the macro to use
 /// the `Json` adapter by using the type override syntax
-/// ```
+/// ```rust,no_run
+/// # async fn example3() -> sqlx::Result<()> {
+/// # let mut conn: sqlx::PgConnection = unimplemented!();
 /// #[derive(sqlx::FromRow)]
 /// struct Book {
 ///     title: String,
@@ -73,9 +75,10 @@ use crate::types::Type;
 /// FROM authors
 ///     "#
 /// )
-/// .fetch_all(pool)
+/// .fetch_all(&mut conn)
 /// .await?;
-///
+/// # Ok(())
+/// # }
 /// ```
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
