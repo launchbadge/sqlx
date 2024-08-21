@@ -94,11 +94,12 @@ impl ProtocolDecode<'_> for Handshake {
 fn test_decode_handshake_mysql_8_0_18() {
     const HANDSHAKE_MYSQL_8_0_18: &[u8] = b"\n8.0.18\x00\x19\x00\x00\x00\x114aB0c\x06g\x00\xff\xff\xff\x02\x00\xff\xc7\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00tL\x03s\x0f[4\rl4. \x00caching_sha2_password\x00";
 
-    let mut p = Handshake::decode(HANDSHAKE_MYSQL_8_0_18.into()).unwrap();
+    let p = Handshake::decode(HANDSHAKE_MYSQL_8_0_18.into()).unwrap();
 
     assert_eq!(p.protocol_version, 10);
 
-    p.server_capabilities.toggle(
+    assert_eq!(
+        p.server_capabilities,
         Capabilities::MYSQL
             | Capabilities::FOUND_ROWS
             | Capabilities::LONG_FLAG
@@ -128,8 +129,6 @@ fn test_decode_handshake_mysql_8_0_18() {
             | Capabilities::REMEMBER_OPTIONS,
     );
 
-    assert!(p.server_capabilities.is_empty());
-
     assert_eq!(p.server_default_collation, 255);
     assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
 
@@ -148,7 +147,7 @@ fn test_decode_handshake_mysql_8_0_18() {
 fn test_decode_handshake_mariadb_10_4_7() {
     const HANDSHAKE_MARIA_DB_10_4_7: &[u8] = b"\n5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic\x00\x0b\x00\x00\x00t6L\\j\"dS\x00\xfe\xf7\x08\x02\x00\xff\x81\x15\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00U14Oph9\"<H5n\x00mysql_native_password\x00";
 
-    let mut p = Handshake::decode(HANDSHAKE_MARIA_DB_10_4_7.into()).unwrap();
+    let p = Handshake::decode(HANDSHAKE_MARIA_DB_10_4_7.into()).unwrap();
 
     assert_eq!(p.protocol_version, 10);
 
@@ -157,7 +156,8 @@ fn test_decode_handshake_mariadb_10_4_7() {
         "5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic"
     );
 
-    p.server_capabilities.toggle(
+    assert_eq!(
+        p.server_capabilities,
         Capabilities::FOUND_ROWS
             | Capabilities::LONG_FLAG
             | Capabilities::CONNECT_WITH_DB
@@ -179,10 +179,11 @@ fn test_decode_handshake_mariadb_10_4_7() {
             | Capabilities::CAN_HANDLE_EXPIRED_PASSWORDS
             | Capabilities::SESSION_TRACK
             | Capabilities::DEPRECATE_EOF
-            | Capabilities::REMEMBER_OPTIONS,
+            | Capabilities::REMEMBER_OPTIONS
+            | Capabilities::MARIADB_CLIENT_PROGRESS
+            | Capabilities::MARIADB_CLIENT_MULTI
+            | Capabilities::MARIADB_CLIENT_STMT_BULK_OPERATIONS
     );
-
-    assert!(p.server_capabilities.is_empty());
 
     assert_eq!(p.server_default_collation, 8);
     assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));

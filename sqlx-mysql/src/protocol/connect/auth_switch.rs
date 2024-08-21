@@ -81,9 +81,14 @@ fn test_decode_auth_switch_cleartext_disabled() {
 
     let e = AuthSwitchRequest::decode_with(AUTH_SWITCH_CLEARTEXT.into(), false).unwrap_err();
 
-    assert_eq!(
-        e.to_string(),
-        "encountered unexpected or invalid data: mysql_cleartext_plugin disabled"
+    let e_str = e.to_string();
+
+    let expected = "encountered unexpected or invalid data: mysql_cleartext_plugin disabled";
+
+    assert!(
+        // Don't want to assert the full string since it contains the module path now.
+        e_str.starts_with(expected),
+        "expected error string to start with {expected:?}, got {e_str:?}"
     );
 }
 
