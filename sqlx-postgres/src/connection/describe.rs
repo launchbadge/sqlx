@@ -451,7 +451,7 @@ WHERE rngtypid = $1
                 .push_unseparated("::int4");
             tuple
                 .push_bind(column.relation_attribute_no)
-                .push_bind_unseparated("::int2");
+                .push_unseparated("::int2");
         });
 
         nullable_query.push(
