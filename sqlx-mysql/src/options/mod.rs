@@ -53,9 +53,9 @@ pub use ssl_mode::MySqlSslMode;
 ///
 /// // Change the log verbosity level for queries.
 /// // Information about SQL queries is logged at `DEBUG` level by default.
-/// opts.log_statements(log::LevelFilter::Trace);
+/// opts = opts.log_statements(log::LevelFilter::Trace);
 ///
-/// let pool = MySqlPool::connect_with(&opts).await?;
+/// let pool = MySqlPool::connect_with(opts).await?;
 /// # Ok(())
 /// # }
 /// ```
