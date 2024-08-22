@@ -72,5 +72,8 @@ whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", optional = true }
 
+[dev-dependencies]
+sqlx = { workspace = true, features = ["mysql"] }
+
 [lints]
 workspace = true
