@@ -103,10 +103,12 @@ jobs:
           -p sqlx-macros-core
           --all-features
 
+      # Note: use `--lib` to not run integration tests that require a DB
       - name: Test sqlx
         run: >
           cargo test
           -p sqlx
+          --lib
           --all-features
 
   sqlite:
