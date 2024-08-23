@@ -151,8 +151,8 @@ impl PgNumeric {
                 buf.extend(&scale.to_be_bytes());
 
                 for (i, &digit) in digits.iter().enumerate() {
-                    if Self::is_valid_digit(digit) {
-                        return Err(format!("{i}th PgNumeric digit out of range {digit}"));
+                    if !Self::is_valid_digit(digit) {
+                        return Err(format!("{i}th PgNumeric digit out of range: {digit}"));
                     }
 
                     buf.extend(&digit.to_be_bytes());
