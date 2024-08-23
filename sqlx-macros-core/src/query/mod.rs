@@ -301,10 +301,13 @@ where
 
                 let mut record_tokens = quote! {
                     #[derive(Debug)]
+                    #[allow(non_snake_case)]
                     struct #record_name {
                         #(#record_fields)*
                     }
                 };
+
+
 
                 record_tokens.extend(output::quote_query_as::<DB>(
                     &input,
