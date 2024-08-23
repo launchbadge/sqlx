@@ -148,20 +148,20 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
                 (true, ColumnType::Wildcard) => quote! (
-                    #[allow(non_snake_case)]
-                    let #var_name = row.try_get(#i)?; 
-                    ),
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get(#i)?;
+                ),
                 (true, ColumnType::OptWildcard) => {
                     quote! (
-                        #[allow(non_snake_case)]
-                        let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?;
-                        )
+                    #[allow(non_snake_case)]
+                    let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?;
+                    )
                 }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
                 (false, _) => quote!(
-                    #[allow(non_snake_case)]
-                    let #var_name = row.try_get_unchecked(#i)?;
-                    ),
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get_unchecked(#i)?;
+                ),
             }
         },
     );

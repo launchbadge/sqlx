@@ -307,8 +307,6 @@ where
                     }
                 };
 
-
-
                 record_tokens.extend(output::quote_query_as::<DB>(
                     &input,
                     &record_name,
