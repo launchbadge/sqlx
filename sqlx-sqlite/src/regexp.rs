@@ -170,7 +170,7 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::{ConnectOptions, Connection, Row};
+    use sqlx::{ConnectOptions, Row};
     use std::str::FromStr;
 
     async fn test_db() -> crate::SqliteConnection {
