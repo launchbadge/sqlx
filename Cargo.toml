@@ -363,3 +363,8 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-query-builder"
 path = "tests/postgres/query_builder.rs"
 required-features = ["postgres"]
+
+[[test]]
+name = "postgres-rustsec"
+path = "tests/postgres/rustsec.rs"
+required-features = ["postgres", "macros", "migrate"]
