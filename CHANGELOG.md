@@ -2538,3 +2538,8 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@KobusEllis]: https://github.com/KobusEllis
 [@YgorSouza]: https://github.com/YgorSouza
 [@Zarthus]: https://github.com/Zarthus
+[@ckampfe]: https://github.com/ckampfe
+[@tottoto]: https://github.com/tottoto
+[@ods]: https://github.com/ods
+[@soucosmo]: https://github.com/soucosmo
+[@kolinfluence]: https://github.com/kolinfluence
