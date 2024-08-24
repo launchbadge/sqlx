@@ -534,6 +534,17 @@ test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
     "array[box('(1,2,3,4)'),box('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3., y2: 4 }, sqlx::postgres::types::Pgbox { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(path<sqlx::postgres::types::PgPath>(Postgres,
+    "path('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
+    "path('[(1.0, 2.0), (3.0,4.0)]')" @= sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(_path<Vec<sqlx::postgres::types::PgPath>>(Postgres,
+    "array[path('(1,2),(3,4)'),path('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]}, sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1.1, y: 2.2 }, sqlx::postgres::types::PgPoint { x: 3.3 , y: 4.4 } ]},],
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
