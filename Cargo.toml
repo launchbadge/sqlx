@@ -264,6 +264,11 @@ name = "sqlite-migrate"
 path = "tests/sqlite/migrate.rs"
 required-features = ["sqlite", "macros", "migrate"]
 
+[[test]]
+name = "sqlite-rustsec"
+path = "tests/sqlite/rustsec.rs"
+required-features = ["sqlite"]
+
 [[bench]]
 name = "sqlite-describe"
 path = "benches/sqlite/describe.rs"
