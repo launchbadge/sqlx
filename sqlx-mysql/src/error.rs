@@ -100,6 +100,16 @@ impl DatabaseError for MySqlDatabaseError {
 
             error_codes::ER_CHECK_CONSTRAINT_VIOLATED => ErrorKind::CheckViolation,
 
+            // https://mariadb.com/kb/en/e4025/
+            error_codes::mariadb::ER_CONSTRAINT_FAILED
+                // MySQL uses this code for a completely different error,
+                // but we can differentiate by SQLSTATE:
+                // <https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_innodb_autoextend_size_out_of_range
+                if self.0.sql_state.as_deref() == Some("23000") =>
+            {
+                ErrorKind::CheckViolation
+            }
+
             _ => ErrorKind::Other,
         }
     }
@@ -154,4 +164,14 @@ pub(crate) mod error_codes {
     ///
     /// Only available after 8.0.16.
     pub const ER_CHECK_CONSTRAINT_VIOLATED: u16 = 3819;
+
+    pub(crate) mod mariadb {
+        /// Error code emitted by MariaDB for constraint errors: <https://mariadb.com/kb/en/e4025/>
+        ///
+        /// MySQL emits this code for a completely different error:
+        /// <https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_innodb_autoextend_size_out_of_range>
+        ///
+        /// You also check that SQLSTATE is `23000`.
+        pub const ER_CONSTRAINT_FAILED: u16 = 4025;
+    }
 }
