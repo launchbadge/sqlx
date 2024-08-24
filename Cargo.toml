@@ -328,6 +328,11 @@ name = "mysql-migrate"
 path = "tests/mysql/migrate.rs"
 required-features = ["mysql", "macros", "migrate"]
 
+[[test]]
+name = "mysql-rustsec"
+path = "tests/mysql/rustsec.rs"
+required-features = ["mysql"]
+
 #
 # PostgreSQL
 #
