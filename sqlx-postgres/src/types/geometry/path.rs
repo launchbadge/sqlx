@@ -17,6 +17,7 @@ const BYTE_WIDTH: usize = 8;
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATH
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPath {
+    pub closed: bool,
     pub points: Vec<PgPoint>,
 }
 
@@ -56,6 +57,7 @@ impl FromStr for PgPath {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let closed = !s.contains("[");
         let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
         let mut parts = sanitised.splitn(4, ",");
 
@@ -70,7 +72,7 @@ impl FromStr for PgPath {
         }
 
         if !points.is_empty() {
-            return Ok(PgPath { points });
+            return Ok(PgPath { points, closed });
         }
 
         Err(Error::Decode(
@@ -82,19 +84,26 @@ impl FromStr for PgPath {
 fn pg_path_from_bytes(bytes: &[u8]) -> Result<PgPath, Error> {
     let mut points = vec![];
 
-    let steps = bytes.len() / BYTE_WIDTH;
+    let offset: usize = 5;
+    let closed = get_i8_from_bytes(bytes, 0)? == 1i8;
 
+    let steps = (bytes.len() - offset) / BYTE_WIDTH;
     for n in (0..steps).step_by(2) {
-        let x = get_f64_from_bytes(bytes, BYTE_WIDTH * n)?;
-        let y = get_f64_from_bytes(bytes, BYTE_WIDTH * (n + 1))?;
+        let x = get_f64_from_bytes(bytes, BYTE_WIDTH * n + offset)?;
+        let y = get_f64_from_bytes(bytes, BYTE_WIDTH * (n + 1) + offset)?;
         points.push(PgPoint { x, y })
     }
 
-    Ok(PgPath { points })
+    Ok(PgPath { points, closed })
 }
 
 impl PgPath {
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+        let closed = self.closed as i8;
+        let length = self.points.len() as i32;
+        buff.extend_from_slice(&closed.to_be_bytes());
+        buff.extend_from_slice(&length.to_be_bytes());
+
         for point in &self.points {
             buff.extend_from_slice(&point.x.to_be_bytes());
             buff.extend_from_slice(&point.y.to_be_bytes());
@@ -108,6 +117,17 @@ impl PgPath {
         self.serialize(&mut buff).unwrap();
         buff.to_vec()
     }
+}
+
+fn get_i8_from_bytes(bytes: &[u8], start: usize) -> Result<i8, Error> {
+    bytes
+        .get(start..start + 1)
+        .ok_or(Error::Decode(
+            format!("Could not decode path bytes: {:?}", bytes).into(),
+        ))?
+        .try_into()
+        .map(i8::from_be_bytes)
+        .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
 }
 
 fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
@@ -134,18 +154,36 @@ mod path_tests {
 
     use super::{pg_path_from_bytes, PgPath};
 
-    const LINE_SEGMENT_BYTES: &[u8] = &[
-        63, 241, 153, 153, 153, 153, 153, 154, 64, 1, 153, 153, 153, 153, 153, 154, 64, 10, 102,
-        102, 102, 102, 102, 102, 64, 17, 153, 153, 153, 153, 153, 154,
+    const PATH_CLOSED_BYTES: &[u8] = &[
+        1, 0, 0, 0, 2, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8, 0, 0, 0, 0, 0, 0,
+        64, 16, 0, 0, 0, 0, 0, 0,
+    ];
+
+    const PATH_OPEN_BYTES: &[u8] = &[
+        0, 0, 0, 0, 2, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8, 0, 0, 0, 0, 0, 0,
+        64, 16, 0, 0, 0, 0, 0, 0,
     ];
 
     #[test]
-    fn can_deserialise_path_type_byes() {
-        let path = pg_path_from_bytes(LINE_SEGMENT_BYTES).unwrap();
+    fn can_deserialise_path_type_bytes_closed() {
+        let path = pg_path_from_bytes(PATH_CLOSED_BYTES).unwrap();
         assert_eq!(
             path,
             PgPath {
-                points: vec![PgPoint { x: 1.1, y: 2.2 }, PgPoint { x: 3.3, y: 4.4 }]
+                closed: true,
+                points: vec![PgPoint { x: 1.0, y: 2.0 }, PgPoint { x: 3.0, y: 4.0 }]
+            }
+        )
+    }
+
+    #[test]
+    fn can_deserialise_path_type_bytes_open() {
+        let path = pg_path_from_bytes(PATH_OPEN_BYTES).unwrap();
+        assert_eq!(
+            path,
+            PgPath {
+                closed: false,
+                points: vec![PgPoint { x: 1.0, y: 2.0 }, PgPoint { x: 3.0, y: 4.0 }]
             }
         )
     }
@@ -156,6 +194,7 @@ mod path_tests {
         assert_eq!(
             path,
             PgPath {
+                closed: false,
                 points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }]
             }
         );
@@ -166,6 +205,7 @@ mod path_tests {
         assert_eq!(
             path,
             PgPath {
+                closed: true,
                 points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }]
             }
         );
@@ -177,6 +217,7 @@ mod path_tests {
         assert_eq!(
             path,
             PgPath {
+                closed: true,
                 points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }]
             }
         );
@@ -188,6 +229,7 @@ mod path_tests {
         assert_eq!(
             path,
             PgPath {
+                closed: true,
                 points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }]
             }
         );
@@ -199,6 +241,7 @@ mod path_tests {
         assert_eq!(
             path,
             PgPath {
+                closed: true,
                 points: vec![PgPoint { x: 1.1, y: 2.2 }, PgPoint { x: 3.3, y: 4.4 }]
             }
         );
@@ -207,8 +250,9 @@ mod path_tests {
     #[test]
     fn can_serialise_path_type() {
         let path = PgPath {
-            points: vec![PgPoint { x: 1.1, y: 2.2 }, PgPoint { x: 3.3, y: 4.4 }],
+            closed: true,
+            points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }],
         };
-        assert_eq!(path.serialize_to_vec(), LINE_SEGMENT_BYTES,)
+        assert_eq!(path.serialize_to_vec(), PATH_CLOSED_BYTES,)
     }
 }
