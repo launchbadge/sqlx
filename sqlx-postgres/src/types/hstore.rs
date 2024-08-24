@@ -1,8 +1,8 @@
 use std::{
     collections::{btree_map, BTreeMap},
-    mem::size_of,
     ops::{Deref, DerefMut},
     str,
+    mem,
 };
 
 use crate::{
@@ -214,10 +214,10 @@ impl Encode<'_, Postgres> for PgHstore {
 }
 
 fn read_length(buf: &mut &[u8]) -> Result<i32, String> {
-    if buf.len() < size_of::<i32>() {
+    if buf.len() < mem::size_of::<i32>() {
         return Err(format!(
             "expected {} bytes, got {}",
-            size_of::<i32>(),
+            mem::size_of::<i32>(),
             buf.len()
         ));
     }
