@@ -5,7 +5,7 @@ use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
-use std::str::FromStr;
+use std::{mem, str::FromStr};
 
 const BYTE_WIDTH: usize = 8;
 
@@ -304,7 +304,7 @@ fn remove_parentheses(s: &str) -> String {
 }
 
 impl Header {
-    const PACKED_WIDTH: usize = size_of::<u32>();
+    const PACKED_WIDTH: usize = mem::size_of::<u32>();
 
     fn encoded_size(&self) -> usize {
         Self::PACKED_WIDTH + self.data_size()
