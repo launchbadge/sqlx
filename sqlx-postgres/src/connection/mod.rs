@@ -102,7 +102,11 @@ impl PgConnection {
 
     #[inline(always)]
     fn handle_ready_for_query(&mut self, message: ReceivedMessage) -> Result<(), Error> {
-        self.pending_ready_for_query_count -= 1;
+        self.pending_ready_for_query_count = self
+            .pending_ready_for_query_count
+            .checked_sub(1)
+            .ok_or_else(|| err_protocol!("received more ReadyForQuery messages than expected"))?;
+
         self.transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
 
         Ok(())
