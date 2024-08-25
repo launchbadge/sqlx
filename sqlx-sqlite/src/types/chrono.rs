@@ -167,10 +167,20 @@ fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
     let epoch_in_julian_days = 2_440_587.5;
     let seconds_in_day = 86400.0;
     let timestamp = (value - epoch_in_julian_days) * seconds_in_day;
-    let seconds = timestamp as i64;
-    let nanos = (timestamp.fract() * 1E9) as u32;
 
-    Utc.fix().timestamp_opt(seconds, nanos).single()
+    if !timestamp.is_finite() {
+        return None;
+    }
+
+    // We don't really have a choice but to do lossy casts for this conversion
+    // We checked above if the value is infinite or NaN which could otherwise cause problems
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    {
+        let seconds = timestamp.trunc() as i64;
+        let nanos = (timestamp.fract() * 1E9).abs() as u32;
+
+        Utc.fix().timestamp_opt(seconds, nanos).single()
+    }
 }
 
 impl<'r> Decode<'r, Sqlite> for NaiveDateTime {

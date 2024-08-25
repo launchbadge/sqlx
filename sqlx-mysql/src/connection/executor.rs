@@ -187,7 +187,9 @@ impl MySqlConnection {
                 // otherwise, this first packet is the start of the result-set metadata,
                 *self.inner.stream.waiting.front_mut().unwrap() = Waiting::Row;
 
-                let num_columns = packet.get_uint_lenenc() as usize; // column count
+                let num_columns = packet.get_uint_lenenc(); // column count
+                let num_columns = usize::try_from(num_columns)
+                    .map_err(|_| err_protocol!("column count overflows usize: {num_columns}"))?;
 
                 if needs_metadata {
                     column_names = Arc::new(recv_result_metadata(&mut self.inner.stream, num_columns, Arc::make_mut(&mut columns)).await?);

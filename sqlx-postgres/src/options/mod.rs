@@ -82,7 +82,8 @@ mod ssl_mode;
 /// // Information about SQL queries is logged at `DEBUG` level by default.
 /// opts = opts.log_statements(log::LevelFilter::Trace);
 ///
-/// let pool = PgPool::connect_with(&opts).await?;
+/// let pool = PgPool::connect_with(opts).await?;
+/// # Ok(())
 /// # }
 /// ```
 #[derive(Debug, Clone)]

@@ -1,3 +1,10 @@
+// Bad casts in this module SHOULD NOT result in a SQL injection
+// https://github.com/launchbadge/sqlx/issues/3440
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)]
 use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
@@ -1626,147 +1633,147 @@ fn test_root_block_columns_has_types() {
     {
         let table_db_block = table_block_nums["t"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&2]
+            }),
+            root_block_cols[&table_db_block].get(&2)
         );
     }
 
     {
         let table_db_block = table_block_nums["i1"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
     }
 
     {
         let table_db_block = table_block_nums["i2"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
     }
 
     {
         let table_db_block = table_block_nums["t2"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&2]
+            }),
+            root_block_cols[&table_db_block].get(&2)
         );
     }
 
     {
         let table_db_block = table_block_nums["t2i1"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
     }
 
     {
         let table_db_block = table_block_nums["t2i2"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Integer,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
     }
 
     {
         let table_db_block = table_block_nums["t3"];
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&0]
+            }),
+            root_block_cols[&table_db_block].get(&0)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Float,
                 nullable: Some(false)
-            },
-            root_block_cols[&table_db_block][&1]
+            }),
+            root_block_cols[&table_db_block].get(&1)
         );
         assert_eq!(
-            ColumnType::Single {
+            Some(&ColumnType::Single {
                 datatype: DataType::Float,
                 nullable: Some(true)
-            },
-            root_block_cols[&table_db_block][&2]
+            }),
+            root_block_cols[&table_db_block].get(&2)
         );
     }
 }

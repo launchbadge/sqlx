@@ -301,6 +301,7 @@ where
 
                 let mut record_tokens = quote! {
                     #[derive(Debug)]
+                    #[allow(non_snake_case)]
                     struct #record_name {
                         #(#record_fields)*
                     }

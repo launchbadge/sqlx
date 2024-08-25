@@ -15,7 +15,8 @@ _rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
 _rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
 
 _tls-native-tls = ["sqlx-core/_tls-native-tls"]
-_tls-rustls = ["sqlx-core/_tls-rustls"]
+_tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs"]
+_tls-rustls-ring = ["sqlx-core/_tls-rustls-ring"]
 
 # SQLx features
 derive = []

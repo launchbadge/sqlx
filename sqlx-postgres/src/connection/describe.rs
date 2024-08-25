@@ -1,17 +1,18 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+use crate::io::StatementId;
 use crate::message::{ParameterDescription, RowDescription};
 use crate::query_as::query_as;
-use crate::query_scalar::{query_scalar, query_scalar_with};
+use crate::query_scalar::query_scalar;
 use crate::statement::PgStatementMetadata;
 use crate::type_info::{PgArrayOf, PgCustomType, PgType, PgTypeKind};
 use crate::types::Json;
 use crate::types::Oid;
 use crate::HashMap;
-use crate::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
+use crate::{PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
 use smallvec::SmallVec;
-use std::fmt::Write;
+use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
 
 /// Describes the type of the `pg_type.typtype` column
@@ -27,10 +28,12 @@ enum TypType {
     Range,
 }
 
-impl TryFrom<u8> for TypType {
+impl TryFrom<i8> for TypType {
     type Error = ();
 
-    fn try_from(t: u8) -> Result<Self, Self::Error> {
+    fn try_from(t: i8) -> Result<Self, Self::Error> {
+        let t = u8::try_from(t).or(Err(()))?;
+
         let t = match t {
             b'b' => Self::Base,
             b'c' => Self::Composite,
@@ -66,10 +69,12 @@ enum TypCategory {
     Unknown,
 }
 
-impl TryFrom<u8> for TypCategory {
+impl TryFrom<i8> for TypCategory {
     type Error = ();
 
-    fn try_from(c: u8) -> Result<Self, Self::Error> {
+    fn try_from(c: i8) -> Result<Self, Self::Error> {
+        let c = u8::try_from(c).or(Err(()))?;
+
         let c = match c {
             b'A' => Self::Array,
             b'B' => Self::Boolean,
@@ -209,8 +214,8 @@ impl PgConnection {
             .fetch_one(&mut *self)
             .await?;
 
-            let typ_type = TypType::try_from(typ_type as u8);
-            let category = TypCategory::try_from(category as u8);
+            let typ_type = TypType::try_from(typ_type);
+            let category = TypCategory::try_from(category);
 
             match (typ_type, category) {
                 (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
@@ -416,36 +421,40 @@ WHERE rngtypid = $1
 
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
-        stmt_id: Oid,
+        stmt_id: StatementId,
         meta: &PgStatementMetadata,
     ) -> Result<Vec<Option<bool>>, Error> {
         if meta.columns.is_empty() {
             return Ok(vec![]);
         }
 
-        let mut nullable_query = String::from("SELECT NOT pg_attribute.attnotnull FROM (VALUES ");
-        let mut args = PgArguments::default();
-
-        for (i, (column, bind)) in meta.columns.iter().zip((1..).step_by(3)).enumerate() {
-            if !args.buffer.is_empty() {
-                nullable_query += ", ";
-            }
-
-            let _ = write!(
-                nullable_query,
-                "(${}::int4, ${}::int4, ${}::int2)",
-                bind,
-                bind + 1,
-                bind + 2
+        if meta.columns.len() * 3 > 65535 {
+            tracing::debug!(
+                ?stmt_id,
+                num_columns = meta.columns.len(),
+                "number of columns in query is too large to pull nullability for"
             );
-
-            args.add(i as i32).map_err(Error::Encode)?;
-            args.add(column.relation_id).map_err(Error::Encode)?;
-            args.add(column.relation_attribute_no)
-                .map_err(Error::Encode)?;
         }
 
-        nullable_query.push_str(
+        // Query for NOT NULL constraints for each column in the query.
+        //
+        // This will include columns that don't have a `relation_id` (are not from a table);
+        // assuming those are a minority of columns, it's less code to _not_ work around it
+        // and just let Postgres return `NULL`.
+        let mut nullable_query = QueryBuilder::new("SELECT NOT pg_attribute.attnotnull FROM ( ");
+
+        nullable_query.push_values(meta.columns.iter().zip(0i32..), |mut tuple, (column, i)| {
+            // ({i}::int4, {column.relation_id}::int4, {column.relation_attribute_no}::int2)
+            tuple.push_bind(i).push_unseparated("::int4");
+            tuple
+                .push_bind(column.relation_id)
+                .push_unseparated("::int4");
+            tuple
+                .push_bind(column.relation_attribute_no)
+                .push_unseparated("::int2");
+        });
+
+        nullable_query.push(
             ") as col(idx, table_id, col_idx) \
             LEFT JOIN pg_catalog.pg_attribute \
                 ON table_id IS NOT NULL \
@@ -454,9 +463,16 @@ WHERE rngtypid = $1
             ORDER BY col.idx",
         );
 
-        let mut nullables = query_scalar_with::<_, Option<bool>, _>(&nullable_query, args)
+        let mut nullables: Vec<Option<bool>> = nullable_query
+            .build_query_scalar()
             .fetch_all(&mut *self)
-            .await?;
+            .await
+            .map_err(|e| {
+                err_protocol!(
+                    "error from nullables query: {e}; query: {:?}",
+                    nullable_query.sql()
+                )
+            })?;
 
         // If the server is CockroachDB or Materialize, skip this step (#1248).
         if !self.stream.parameter_statuses.contains_key("crdb_version")
@@ -481,13 +497,14 @@ WHERE rngtypid = $1
     /// and returns `None` for all others.
     async fn nullables_from_explain(
         &mut self,
-        stmt_id: Oid,
+        stmt_id: StatementId,
         params_len: usize,
     ) -> Result<Vec<Option<bool>>, Error> {
-        let mut explain = format!(
-            "EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}",
-            stmt_id.0
-        );
+        let stmt_id_display = stmt_id
+            .display()
+            .ok_or_else(|| err_protocol!("cannot EXPLAIN unnamed statement: {stmt_id:?}"))?;
+
+        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}");
         let mut comma = false;
 
         if params_len > 0 {

@@ -143,15 +143,25 @@ pub fn quote_query_as<DB: DatabaseExt>(
                     // binding to a `let` avoids confusing errors about
                     // "try expression alternatives have incompatible types"
                     // it doesn't seem to hurt inference in the other branches
+                    #[allow(non_snake_case)]
                     let #var_name = row.try_get_unchecked::<#type_, _>(#i)?.into();
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
-                (true, ColumnType::Wildcard) => quote! ( let #var_name = row.try_get(#i)?; ),
+                (true, ColumnType::Wildcard) => quote! (
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get(#i)?;
+                ),
                 (true, ColumnType::OptWildcard) => {
-                    quote! ( let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?; )
+                    quote! (
+                    #[allow(non_snake_case)]
+                    let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?;
+                    )
                 }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
-                (false, _) => quote!( let #var_name = row.try_get_unchecked(#i)?; ),
+                (false, _) => quote!(
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get_unchecked(#i)?;
+                ),
             }
         },
     );

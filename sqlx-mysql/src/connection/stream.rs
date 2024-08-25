@@ -6,7 +6,7 @@ use bytes::{Buf, Bytes, BytesMut};
 use crate::collation::{CharSet, Collation};
 use crate::error::Error;
 use crate::io::MySqlBufExt;
-use crate::io::{Decode, Encode};
+use crate::io::{ProtocolDecode, ProtocolEncode};
 use crate::net::{BufferedSocket, Socket};
 use crate::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::protocol::{Capabilities, Packet};
@@ -110,20 +110,20 @@ impl<S: Socket> MySqlStream<S> {
 
     pub(crate) async fn send_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
     where
-        T: Encode<'en, Capabilities>,
+        T: ProtocolEncode<'en, Capabilities>,
     {
         self.sequence_id = 0;
-        self.write_packet(payload);
+        self.write_packet(payload)?;
         self.flush().await?;
         Ok(())
     }
 
-    pub(crate) fn write_packet<'en, T>(&mut self, payload: T)
+    pub(crate) fn write_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
     where
-        T: Encode<'en, Capabilities>,
+        T: ProtocolEncode<'en, Capabilities>,
     {
         self.socket
-            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
+            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
     }
 
     async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
@@ -132,6 +132,8 @@ impl<S: Socket> MySqlStream<S> {
 
         let mut header: Bytes = self.socket.read(4).await?;
 
+        // cannot overflow
+        #[allow(clippy::cast_possible_truncation)]
         let packet_size = header.get_uint_le(3) as usize;
         let sequence_id = header.get_u8();
 
@@ -184,7 +186,7 @@ impl<S: Socket> MySqlStream<S> {
 
     pub(crate) async fn recv<'de, T>(&mut self) -> Result<T, Error>
     where
-        T: Decode<'de, Capabilities>,
+        T: ProtocolDecode<'de, Capabilities>,
     {
         self.recv_packet().await?.decode_with(self.capabilities)
     }

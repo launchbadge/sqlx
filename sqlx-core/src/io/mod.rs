@@ -9,8 +9,8 @@ mod read_buf;
 pub use buf::BufExt;
 pub use buf_mut::BufMutExt;
 //pub use buf_stream::BufStream;
-pub use decode::Decode;
-pub use encode::Encode;
+pub use decode::ProtocolDecode;
+pub use encode::ProtocolEncode;
 pub use read_buf::ReadBuf;
 
 #[cfg(not(feature = "_rt-tokio"))]

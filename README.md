@@ -40,6 +40,10 @@
     <a href="https://docs.rs/sqlx">
       Docs
     </a>
+    <span> | </span>
+    <a href="https://github.com/launchbadge/sqlx/wiki/Ecosystem">
+      Ecosystem
+    </a>
   </h4>
 </div>
 
@@ -75,7 +79,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 † The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
 
-†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. 
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled.
 The SQLite driver directly invokes the SQLite3 API via `libsqlite3-sys`, which requires `unsafe`.
 
 </small></small>
@@ -125,18 +129,22 @@ SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; an
 # PICK ONE OF THE FOLLOWING:
 
 # tokio (no TLS)
-sqlx = { version = "0.7", features = [ "runtime-tokio" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio" ] }
 # tokio + native-tls
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-native-tls" ] }
-# tokio + rustls
-sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" ] }
+# tokio + rustls with ring
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring" ] }
+# tokio + rustls with aws-lc-rs
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ] }
 
 # async-std (no TLS)
-sqlx = { version = "0.7", features = [ "runtime-async-std" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std" ] }
 # async-std + native-tls
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-native-tls" ] }
-# async-std + rustls
-sqlx = { version = "0.7", features = [ "runtime-async-std", "tls-rustls" ] }
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-native-tls" ] }
+# async-std + rustls with ring
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring" ] }
+# async-std + rustls with aws-lc-rs
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-aws-lc-rs" ] }
 ```
 
 #### Cargo Feature Flags
@@ -214,8 +222,7 @@ some info on) your SQL queries. This has some potentially surprising implication
 - Due to the different amount of information databases let you retrieve about queries, the extent of
   SQL verification you get from the query macros depends on the database
 
-**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`] or [`SeaORM`], which is built on top
-of SQLx.
+**If you are looking for an (asynchronous) ORM,** you can check out our new [Ecosystem wiki page](https://github.com/launchbadge/sqlx/wiki/Ecosystem#orms)!
 
 [`ormx`]: https://crates.io/crates/ormx
 [`SeaORM`]: https://github.com/SeaQL/sea-orm
@@ -387,7 +394,7 @@ Differences from `query()`:
 [dotenv]: https://github.com/dotenv-rs/dotenv#examples
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
-officially supporting anonymous records). To address that, there is a `query_as!()` macro that is 
+officially supporting anonymous records). To address that, there is a `query_as!()` macro that is
 mostly identical except that you can name the output type.
 
 ```rust

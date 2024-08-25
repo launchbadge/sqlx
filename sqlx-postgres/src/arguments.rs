@@ -79,7 +79,8 @@ impl PgArguments {
 
         // encode the value into our buffer
         if let Err(error) = self.buffer.encode(value) {
-            // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
+            // reset the value buffer to its previous value if encoding failed,
+            // so we don't leave a half-encoded value behind
             self.buffer.reset_to_snapshot(buffer_snapshot);
             return Err(error);
         };
@@ -144,6 +145,7 @@ impl<'q> Arguments<'q> for PgArguments {
         write!(writer, "${}", self.buffer.count)
     }
 
+    #[inline(always)]
     fn len(&self) -> usize {
         self.buffer.count
     }
@@ -154,13 +156,18 @@ impl PgArgumentBuffer {
     where
         T: Encode<'q, Postgres>,
     {
+        // Won't catch everything but is a good sanity check
+        value_size_int4_checked(value.size_hint())?;
+
         // reserve space to write the prefixed length of the value
         let offset = self.len();
+
         self.extend(&[0; 4]);
 
         // encode the value into our buffer
         let len = if let IsNull::No = value.encode(self)? {
-            (self.len() - offset - 4) as i32
+            // Ensure that the value size does not overflow i32
+            value_size_int4_checked(self.len() - offset - 4)?
         } else {
             // Write a -1 to indicate NULL
             // NOTE: It is illegal for [encode] to write any data
@@ -169,6 +176,7 @@ impl PgArgumentBuffer {
         };
 
         // write the len to the beginning of the value
+        // (offset + 4) cannot overflow because it would have failed at `self.extend()`.
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
 
         Ok(())
@@ -264,4 +272,13 @@ impl DerefMut for PgArgumentBuffer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.buffer
     }
+}
+
+pub(crate) fn value_size_int4_checked(size: usize) -> Result<i32, String> {
+    i32::try_from(size).map_err(|_| {
+        format!(
+            "value size would overflow in the binary protocol encoding: {size} > {}",
+            i32::MAX
+        )
+    })
 }

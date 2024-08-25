@@ -61,12 +61,8 @@ jobs:
       - run: cargo build --all-features
 
   test:
-    name: Unit Test
+    name: Unit Tests
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
     steps:
       - uses: actions/checkout@v4
 
@@ -74,10 +70,46 @@ jobs:
         with:
           key: ${{ runner.os }}-test
 
-      - run: >
+      - name: Install Rust
+        run: rustup update
+
+      - name: Test sqlx-core
+        run: >
           cargo test
-          --manifest-path sqlx-core/Cargo.toml
-          --features json,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
+          -p sqlx-core
+          --all-features      
+
+      - name: Test sqlx-mysql
+        run: >
+          cargo test
+          -p sqlx-mysql
+          --all-features      
+
+      - name: Test sqlx-postgres
+        run: >
+          cargo test
+          -p sqlx-postgres
+          --all-features      
+
+      - name: Test sqlx-sqlite
+        run: >
+          cargo test
+          -p sqlx-sqlite
+          --all-features      
+
+      - name: Test sqlx-macros-core
+        run: >
+          cargo test
+          -p sqlx-macros-core
+          --all-features
+
+      # Note: use `--lib` to not run integration tests that require a DB
+      - name: Test sqlx
+        run: >
+          cargo test
+          -p sqlx
+          --lib
+          --all-features
 
   sqlite:
     name: SQLite
@@ -147,7 +179,7 @@ jobs:
       matrix:
         postgres: [15, 11]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -172,7 +204,7 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,postgres,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,postgres,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE_DIR: .sqlx
@@ -184,7 +216,7 @@ jobs:
         run: >
           cargo test
           --no-default-features
-          --features any,postgres,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,postgres,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
           SQLX_OFFLINE_DIR: .sqlx
@@ -247,7 +279,7 @@ jobs:
       matrix:
         mysql: [8]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -335,7 +367,7 @@ jobs:
       matrix:
         mariadb: [verylatest, 11_4, 10_11, 10_4]
         runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
       - uses: actions/checkout@v4

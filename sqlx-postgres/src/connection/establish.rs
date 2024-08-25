@@ -3,11 +3,10 @@ use crate::HashMap;
 use crate::common::StatementCache;
 use crate::connection::{sasl, stream::PgStream};
 use crate::error::Error;
-use crate::io::Decode;
+use crate::io::StatementId;
 use crate::message::{
-    Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
+    Authentication, BackendKeyData, BackendMessageFormat, Password, ReadyForQuery, Startup,
 };
-use crate::types::Oid;
 use crate::{PgConnectOptions, PgConnection};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
@@ -44,13 +43,13 @@ impl PgConnection {
             params.push(("options", options));
         }
 
-        stream
-            .send(Startup {
-                username: Some(&options.username),
-                database: options.database.as_deref(),
-                params: &params,
-            })
-            .await?;
+        stream.write(Startup {
+            username: Some(&options.username),
+            database: options.database.as_deref(),
+            params: &params,
+        })?;
+
+        stream.flush().await?;
 
         // The server then uses this information and the contents of
         // its configuration files (such as pg_hba.conf) to determine whether the connection is
@@ -64,7 +63,7 @@ impl PgConnection {
         loop {
             let message = stream.recv().await?;
             match message.format {
-                MessageFormat::Authentication => match message.decode()? {
+                BackendMessageFormat::Authentication => match message.decode()? {
                     Authentication::Ok => {
                         // the authentication exchange is successfully completed
                         // do nothing; no more information is required to continue
@@ -108,7 +107,7 @@ impl PgConnection {
                     }
                 },
 
-                MessageFormat::BackendKeyData => {
+                BackendMessageFormat::BackendKeyData => {
                     // provides secret-key data that the frontend must save if it wants to be
                     // able to issue cancel requests later
 
@@ -118,10 +117,9 @@ impl PgConnection {
                     secret_key = data.secret_key;
                 }
 
-                MessageFormat::ReadyForQuery => {
+                BackendMessageFormat::ReadyForQuery => {
                     // start-up is completed. The frontend can now issue commands
-                    transaction_status =
-                        ReadyForQuery::decode(message.contents)?.transaction_status;
+                    transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
 
                     break;
                 }
@@ -142,7 +140,7 @@ impl PgConnection {
             transaction_status,
             transaction_depth: 0,
             pending_ready_for_query_count: 0,
-            next_statement_id: Oid(1),
+            next_statement_id: StatementId::NAMED_START,
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),

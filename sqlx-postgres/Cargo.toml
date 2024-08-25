@@ -15,9 +15,15 @@ json = ["sqlx-core/json"]
 migrate = ["sqlx-core/migrate"]
 offline = ["sqlx-core/offline"]
 
-# Type integration features which require additional dependencies
-rust_decimal = ["dep:rust_decimal", "rust_decimal/maths"]
-bigdecimal = ["dep:bigdecimal", "dep:num-bigint"]
+# Type Integration features
+bigdecimal = ["dep:bigdecimal", "dep:num-bigint", "sqlx-core/bigdecimal"]
+bit-vec = ["dep:bit-vec", "sqlx-core/bit-vec"]
+chrono = ["dep:chrono", "sqlx-core/chrono"]
+ipnetwork = ["dep:ipnetwork", "sqlx-core/ipnetwork"]
+mac_address = ["dep:mac_address", "sqlx-core/mac_address"]
+rust_decimal = ["dep:rust_decimal", "rust_decimal/maths", "sqlx-core/rust_decimal"]
+time = ["dep:time", "sqlx-core/time"]
+uuid = ["dep:uuid", "sqlx-core/uuid"]
 
 [dependencies]
 # Futures crates
@@ -71,8 +77,12 @@ workspace = true
 # We use JSON in the driver implementation itself so there's no reason not to enable it here.
 features = ["json"]
 
-[dev-dependencies]
-sqlx.workspace = true
+[dev-dependencies.sqlx]
+workspace = true
+features = ["postgres", "derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
 etcetera = "0.8.0"
+
+[lints]
+workspace = true

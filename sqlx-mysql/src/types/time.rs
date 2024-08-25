@@ -47,29 +47,23 @@ impl Type<MySql> for Time {
 
 impl Encode<'_, MySql> for Time {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let len = Encode::<MySql>::size_hint(self) - 1;
-        buf.push(len as u8);
+        let len = time_encoded_len(self);
+        buf.push(len);
 
-        // Time is not negative
+        // sign byte: Time is never negative
         buf.push(0);
 
         // Number of days in the interval; always 0 for time-of-day values.
         // https://mariadb.com/kb/en/resultset-row/#teimstamp-binary-encoding
         buf.extend_from_slice(&[0_u8; 4]);
 
-        encode_time(self, len > 9, buf);
+        encode_time(self, len > 8, buf);
 
         Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
-        if self.nanosecond() == 0 {
-            // if micro_seconds is 0, length is 8 and micro_seconds is not sent
-            9
-        } else {
-            // otherwise length is 12
-            13
-        }
+        time_encoded_len(self) as usize + 1 // plus length byte
     }
 }
 
@@ -99,6 +93,7 @@ impl TryFrom<MySqlTime> for Time {
             return Err(format!("MySqlTime value out of range for `time::Time`: {time}").into());
         }
 
+        #[allow(clippy::cast_possible_truncation)]
         Ok(Time::from_hms_micro(
             // `is_valid_time_of_day()` ensures this won't overflow
             time.hours() as u8,
@@ -111,6 +106,8 @@ impl TryFrom<MySqlTime> for Time {
 
 impl From<MySqlTime> for time::Duration {
     fn from(time: MySqlTime) -> Self {
+        // `subsec_nanos()` is guaranteed to be between 0 and 10^9
+        #[allow(clippy::cast_possible_wrap)]
         time::Duration::new(time.whole_seconds_signed(), time.subsec_nanos() as i32)
     }
 }
@@ -191,32 +188,20 @@ impl Type<MySql> for PrimitiveDateTime {
 
 impl Encode<'_, MySql> for PrimitiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let len = Encode::<MySql>::size_hint(self) - 1;
-        buf.push(len as u8);
+        let len = primitive_dt_encoded_len(self);
+        buf.push(len);
 
         encode_date(&self.date(), buf)?;
 
         if len > 4 {
-            encode_time(&self.time(), len > 8, buf);
+            encode_time(&self.time(), len > 7, buf);
         }
 
         Ok(IsNull::No)
     }
 
     fn size_hint(&self) -> usize {
-        // to save space the packet can be compressed:
-        match (self.hour(), self.minute(), self.second(), self.nanosecond()) {
-            // if hour, minutes, seconds and micro_seconds are all 0,
-            // length is 4 and no other field is sent
-            (0, 0, 0, 0) => 5,
-
-            // if micro_seconds is 0, length is 7
-            // and micro_seconds is not sent
-            (_, _, _, 0) => 8,
-
-            // otherwise length is 11
-            (_, _, _, _) => 12,
-        }
+        primitive_dt_encoded_len(self) as usize + 1 // plus length byte
     }
 }
 
@@ -316,6 +301,37 @@ fn decode_time(mut buf: &[u8]) -> Result<Time, BoxDynError> {
         0
     };
 
-    Time::from_hms_micro(hour, minute, seconds, micros as u32)
+    let micros = u32::try_from(micros)
+        .map_err(|_| format!("MySQL returned microseconds out of range: {micros}"))?;
+
+    Time::from_hms_micro(hour, minute, seconds, micros)
         .map_err(|e| format!("Time out of range for MySQL: {e}").into())
+}
+
+#[inline(always)]
+fn primitive_dt_encoded_len(time: &PrimitiveDateTime) -> u8 {
+    // to save space the packet can be compressed:
+    match (time.hour(), time.minute(), time.second(), time.nanosecond()) {
+        // if hour, minutes, seconds and micro_seconds are all 0,
+        // length is 4 and no other field is sent
+        (0, 0, 0, 0) => 4,
+
+        // if micro_seconds is 0, length is 7
+        // and micro_seconds is not sent
+        (_, _, _, 0) => 7,
+
+        // otherwise length is 11
+        (_, _, _, _) => 11,
+    }
+}
+
+#[inline(always)]
+fn time_encoded_len(time: &Time) -> u8 {
+    if time.nanosecond() == 0 {
+        // if micro_seconds is 0, length is 8 and micro_seconds is not sent
+        8
+    } else {
+        // otherwise length is 12
+        12
+    }
 }

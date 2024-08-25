@@ -24,6 +24,8 @@ impl<'q> Encode<'q, Sqlite> for f32 {
 
 impl<'r> Decode<'r, Sqlite> for f32 {
     fn decode(value: SqliteValueRef<'r>) -> Result<f32, BoxDynError> {
+        // Truncation is intentional
+        #[allow(clippy::cast_possible_truncation)]
         Ok(value.double() as f32)
     }
 }

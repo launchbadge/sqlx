@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.8.1"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -78,7 +78,9 @@ runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # TLS features
 tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros?/_tls-native-tls"]
-tls-rustls = ["sqlx-core/_tls-rustls", "sqlx-macros?/_tls-rustls"]
+tls-rustls = ["tls-rustls-ring"] # For backwards compatibility
+tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs", "sqlx-macros?/_tls-rustls-aws-lc-rs"]
+tls-rustls-ring = ["sqlx-core/_tls-rustls-ring", "sqlx-macros?/_tls-rustls-ring"]
 
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
@@ -86,10 +88,10 @@ tls-none = []
 # Legacy Runtime + TLS features
 
 runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
-runtime-async-std-rustls = ["runtime-async-std", "tls-rustls"]
+runtime-async-std-rustls = ["runtime-async-std", "tls-rustls-ring"]
 
 runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
-runtime-tokio-rustls = ["runtime-tokio", "tls-rustls"]
+runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
 
 # for conditional compilation
 _rt-async-std = []
@@ -116,17 +118,17 @@ regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.8.0", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.8.0", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.8.0", path = "sqlx-macros" }
+sqlx-core = { version = "=0.8.1", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.8.1", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.8.1", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.8.0", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.8.0", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.8.0", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.8.1", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.8.1", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.8.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.8.0", path = ".", default-features = false }
+sqlx = { version = "=0.8.1", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -184,6 +186,15 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 [target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]
 # Enable testing with SQLCipher if specifically requested.
 libsqlite3-sys = { version = "0.30.1", features = ["bundled-sqlcipher"] }
+
+# Common lint settings for the workspace
+[workspace.lints.clippy]
+# https://github.com/launchbadge/sqlx/issues/3440
+cast_possible_truncation = 'deny'
+cast_possible_wrap = 'deny'
+cast_sign_loss = 'deny'
+# See `clippy.toml`
+disallowed_methods = 'deny'
 
 #
 # Any
@@ -262,6 +273,11 @@ name = "sqlite-migrate"
 path = "tests/sqlite/migrate.rs"
 required-features = ["sqlite", "macros", "migrate"]
 
+[[test]]
+name = "sqlite-rustsec"
+path = "tests/sqlite/rustsec.rs"
+required-features = ["sqlite"]
+
 [[bench]]
 name = "sqlite-describe"
 path = "benches/sqlite/describe.rs"
@@ -312,6 +328,11 @@ name = "mysql-migrate"
 path = "tests/mysql/migrate.rs"
 required-features = ["mysql", "macros", "migrate"]
 
+[[test]]
+name = "mysql-rustsec"
+path = "tests/mysql/rustsec.rs"
+required-features = ["mysql"]
+
 #
 # PostgreSQL
 #
@@ -361,3 +382,8 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-query-builder"
 path = "tests/postgres/query_builder.rs"
 required-features = ["postgres"]
+
+[[test]]
+name = "postgres-rustsec"
+path = "tests/postgres/rustsec.rs"
+required-features = ["postgres", "macros", "migrate"]

@@ -15,6 +15,13 @@ any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
 
+# Type Integration features
+bigdecimal = ["dep:bigdecimal", "sqlx-core/bigdecimal"]
+chrono = ["dep:chrono", "sqlx-core/chrono"]
+rust_decimal = ["dep:rust_decimal", "rust_decimal/maths", "sqlx-core/rust_decimal"]
+time = ["dep:time", "sqlx-core/time"]
+uuid = ["dep:uuid", "sqlx-core/uuid"]
+
 [dependencies]
 sqlx-core = { workspace = true }
 
@@ -64,3 +71,9 @@ tracing = { version = "0.1.37", features = ["log"] }
 whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", optional = true }
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["mysql"] }
+
+[lints]
+workspace = true

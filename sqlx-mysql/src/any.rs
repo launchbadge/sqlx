@@ -213,6 +213,8 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for MySqlConnectOptions {
 fn map_result(result: MySqlQueryResult) -> AnyQueryResult {
     AnyQueryResult {
         rows_affected: result.rows_affected,
+        // Don't expect this to be a problem
+        #[allow(clippy::cast_possible_wrap)]
         last_insert_id: Some(result.last_insert_id as i64),
     }
 }

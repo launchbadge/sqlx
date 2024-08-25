@@ -2,14 +2,14 @@ use bytes::{Buf, Bytes};
 
 use crate::column::MySqlColumn;
 use crate::error::Error;
-use crate::io::Decode;
 use crate::io::MySqlBufExt;
+use crate::io::ProtocolDecode;
 use crate::protocol::Row;
 
 #[derive(Debug)]
 pub(crate) struct TextRow(pub(crate) Row);
 
-impl<'de> Decode<'de, &'de [MySqlColumn]> for TextRow {
+impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for TextRow {
     fn decode_with(mut buf: Bytes, columns: &'de [MySqlColumn]) -> Result<Self, Error> {
         let storage = buf.clone();
         let offset = buf.len();
@@ -22,7 +22,10 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for TextRow {
                 values.push(None);
                 buf.advance(1);
             } else {
-                let size = buf.get_uint_lenenc() as usize;
+                let size = buf.get_uint_lenenc();
+                let size = usize::try_from(size)
+                    .map_err(|_| err_protocol!("TextRow length out of range: {size}"))?;
+
                 let offset = offset - buf.len();
 
                 values.push(Some(offset..(offset + size)));

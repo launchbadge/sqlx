@@ -278,12 +278,6 @@ pub fn check_struct_attributes(
         input
     );
 
-    assert_attribute!(
-        !attributes.no_pg_array,
-        "unused #[sqlx(no_pg_array)]; derive does not emit `PgHasArrayType` impls for custom structs",
-        input
-    );
-
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
 
     for field in fields {

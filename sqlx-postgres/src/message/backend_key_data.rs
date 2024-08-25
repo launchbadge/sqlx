@@ -2,7 +2,7 @@ use byteorder::{BigEndian, ByteOrder};
 use sqlx_core::bytes::Bytes;
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::message::{BackendMessage, BackendMessageFormat};
 
 /// Contains cancellation key data. The frontend must save these values if it
 /// wishes to be able to issue `CancelRequest` messages later.
@@ -15,8 +15,10 @@ pub struct BackendKeyData {
     pub secret_key: u32,
 }
 
-impl Decode<'_> for BackendKeyData {
-    fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
+impl BackendMessage for BackendKeyData {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::BackendKeyData;
+
+    fn decode_body(buf: Bytes) -> Result<Self, Error> {
         let process_id = BigEndian::read_u32(&buf);
         let secret_key = BigEndian::read_u32(&buf[4..]);
 
@@ -31,7 +33,7 @@ impl Decode<'_> for BackendKeyData {
 fn test_decode_backend_key_data() {
     const DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
 
-    let m = BackendKeyData::decode(DATA.into()).unwrap();
+    let m = BackendKeyData::decode_body(DATA.into()).unwrap();
 
     assert_eq!(m.process_id, 10182);
     assert_eq!(m.secret_key, 2303903019);
@@ -43,6 +45,6 @@ fn bench_decode_backend_key_data(b: &mut test::Bencher) {
     const DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
 
     b.iter(|| {
-        BackendKeyData::decode(test::black_box(Bytes::from_static(DATA))).unwrap();
+        BackendKeyData::decode_body(test::black_box(Bytes::from_static(DATA))).unwrap();
     });
 }

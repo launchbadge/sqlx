@@ -9,8 +9,10 @@ use sqlx_core::bytes::{Buf, Bytes};
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
-use crate::io::{Decode, Encode};
-use crate::message::{Message, MessageFormat, Notice, Notification, ParameterStatus};
+use crate::message::{
+    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, Notification,
+    ParameterStatus, ReceivedMessage,
+};
 use crate::net::{self, BufferedSocket, Socket};
 use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
 
@@ -55,59 +57,51 @@ impl PgStream {
         })
     }
 
-    pub(crate) async fn send<'en, T>(&mut self, message: T) -> Result<(), Error>
+    #[inline(always)]
+    pub(crate) fn write_msg(&mut self, message: impl FrontendMessage) -> Result<(), Error> {
+        self.write(EncodeMessage(message))
+    }
+
+    pub(crate) async fn send<T>(&mut self, message: T) -> Result<(), Error>
     where
-        T: Encode<'en>,
+        T: FrontendMessage,
     {
-        self.write(message);
+        self.write_msg(message)?;
         self.flush().await?;
         Ok(())
     }
 
     // Expect a specific type and format
-    pub(crate) async fn recv_expect<'de, T: Decode<'de>>(
-        &mut self,
-        format: MessageFormat,
-    ) -> Result<T, Error> {
-        let message = self.recv().await?;
-
-        if message.format != format {
-            return Err(err_protocol!(
-                "expecting {:?} but received {:?}",
-                format,
-                message.format
-            ));
-        }
-
-        message.decode()
+    pub(crate) async fn recv_expect<B: BackendMessage>(&mut self) -> Result<B, Error> {
+        self.recv().await?.decode()
     }
 
-    pub(crate) async fn recv_unchecked(&mut self) -> Result<Message, Error> {
+    pub(crate) async fn recv_unchecked(&mut self) -> Result<ReceivedMessage, Error> {
         // all packets in postgres start with a 5-byte header
         // this header contains the message type and the total length of the message
         let mut header: Bytes = self.inner.read(5).await?;
 
-        let format = MessageFormat::try_from_u8(header.get_u8())?;
+        let format = BackendMessageFormat::try_from_u8(header.get_u8())?;
         let size = (header.get_u32() - 4) as usize;
 
         let contents = self.inner.read(size).await?;
 
-        Ok(Message { format, contents })
+        Ok(ReceivedMessage { format, contents })
     }
 
     // Get the next message from the server
     // May wait for more data from the server
-    pub(crate) async fn recv(&mut self) -> Result<Message, Error> {
+    pub(crate) async fn recv(&mut self) -> Result<ReceivedMessage, Error> {
         loop {
             let message = self.recv_unchecked().await?;
 
             match message.format {
-                MessageFormat::ErrorResponse => {
+                BackendMessageFormat::ErrorResponse => {
                     // An error returned from the database server.
-                    return Err(PgDatabaseError(message.decode()?).into());
+                    return Err(message.decode::<PgDatabaseError>()?.into());
                 }
 
-                MessageFormat::NotificationResponse => {
+                BackendMessageFormat::NotificationResponse => {
                     if let Some(buffer) = &mut self.notifications {
                         let notification: Notification = message.decode()?;
                         let _ = buffer.send(notification).await;
@@ -116,7 +110,7 @@ impl PgStream {
                     }
                 }
 
-                MessageFormat::ParameterStatus => {
+                BackendMessageFormat::ParameterStatus => {
                     // informs the frontend about the current (initial)
                     // setting of backend parameters
 
@@ -135,7 +129,7 @@ impl PgStream {
                     continue;
                 }
 
-                MessageFormat::NoticeResponse => {
+                BackendMessageFormat::NoticeResponse => {
                     // do we need this to be more configurable?
                     // if you are reading this comment and think so, open an issue
 

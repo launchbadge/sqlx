@@ -21,8 +21,11 @@ impl PgHasArrayType for Time {
 
 impl Encode<'_, Postgres> for Time {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        // TIME is encoded as the microseconds since midnight
-        let micros = (*self - Time::MIDNIGHT).whole_microseconds() as i64;
+        // TIME is encoded as the microseconds since midnight.
+        //
+        // A truncating cast is fine because `self - Time::MIDNIGHT` cannot exceed a span of 24 hours.
+        #[allow(clippy::cast_possible_truncation)]
+        let micros: i64 = (*self - Time::MIDNIGHT).whole_microseconds() as i64;
         Encode::<Postgres>::encode(micros, buf)
     }
 

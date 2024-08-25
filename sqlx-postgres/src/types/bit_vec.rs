@@ -1,3 +1,4 @@
+use crate::arguments::value_size_int4_checked;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -31,7 +32,9 @@ impl PgHasArrayType for BitVec {
 
 impl Encode<'_, Postgres> for BitVec {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        buf.extend(&(self.len() as i32).to_be_bytes());
+        let len = value_size_int4_checked(self.len())?;
+
+        buf.extend(len.to_be_bytes());
         buf.extend(self.to_bytes());
 
         Ok(IsNull::No)
@@ -49,15 +52,10 @@ impl Decode<'_, Postgres> for BitVec {
                 let mut bytes = value.as_bytes()?;
                 let len = bytes.get_i32();
 
-                if len < 0 {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Negative VARBIT length.",
-                    ))?
-                }
+                let len = usize::try_from(len).map_err(|_| format!("invalid VARBIT len: {len}"))?;
 
                 // The smallest amount of data we can read is one byte
-                let bytes_len = (len as usize + 7) / 8;
+                let bytes_len = (len + 7) / 8;
 
                 if bytes.remaining() != bytes_len {
                     Err(io::Error::new(
@@ -71,7 +69,7 @@ impl Decode<'_, Postgres> for BitVec {
                 // Chop off zeroes from the back. We get bits in bytes, so if
                 // our bitvec is not in full bytes, extra zeroes are added to
                 // the end.
-                while bitvec.len() > len as usize {
+                while bitvec.len() > len {
                     bitvec.pop();
                 }
 

@@ -22,6 +22,8 @@ json = ["serde", "serde_json"]
 _rt-async-std = ["async-std", "async-io"]
 _rt-tokio = ["tokio", "tokio-stream"]
 _tls-native-tls = ["native-tls"]
+_tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs"]
+_tls-rustls-ring = ["_tls-rustls", "rustls/ring"]
 _tls-rustls = ["rustls", "rustls-pemfile", "webpki-roots"]
 _tls-none = []
 
@@ -36,9 +38,9 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.21.11", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
-rustls-pemfile = { version = "1.0", optional = true }
-webpki-roots = { version = "0.25", optional = true }
+rustls = { version = "0.23.11", default-features = false, features = ["std", "tls12"], optional = true }
+rustls-pemfile = { version = "2", optional = true }
+webpki-roots = { version = "0.26", optional = true }
 
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
@@ -92,3 +94,6 @@ hashbrown = "0.14.5"
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
+
+[lints]
+workspace = true

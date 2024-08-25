@@ -16,7 +16,11 @@ json = ["sqlx-core/json", "serde"]
 offline = ["sqlx-core/offline", "serde"]
 migrate = ["sqlx-core/migrate"]
 
-chrono = ["dep:chrono"]
+# Type integrations
+chrono = ["dep:chrono", "sqlx-core/chrono"]
+time = ["dep:time", "sqlx-core/time"]
+uuid = ["dep:uuid", "sqlx-core/uuid"]
+
 regexp = ["dep:regex"]
 
 [dependencies]
@@ -59,4 +63,7 @@ features = [
 workspace = true
 
 [dev-dependencies]
-sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none"] }
+sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none", "sqlite"] }
+
+[lints]
+workspace = true
