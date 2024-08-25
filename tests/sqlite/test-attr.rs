@@ -98,8 +98,10 @@ async fn it_gets_comments(pool: SqlitePool) -> sqlx::Result<()> {
     Ok(())
 }
 
-
-#[sqlx::test(migrations = "tests/sqlite/migrations", fixtures(path="./fixtures", scripts("users", "posts")))]
+#[sqlx::test(
+    migrations = "tests/sqlite/migrations",
+    fixtures(path = "./fixtures", scripts("users", "posts"))
+)]
 async fn this_should_compile(_pool: SqlitePool) -> sqlx::Result<()> {
     Ok(())
 }
