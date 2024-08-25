@@ -181,7 +181,7 @@ async fn it_gets_comments(pool: PgPool) -> sqlx::Result<()> {
 
 #[sqlx::test(
     migrations = "tests/postgres/migrations",
-    fixtures(path = "../fixtures/postgres", scripts("posts", "users"))
+    fixtures(path = "../fixtures/postgres", scripts("users", "posts"))
 )]
 async fn this_should_compile(_pool: PgPool) -> sqlx::Result<()> {
     Ok(())
