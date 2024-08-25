@@ -1,8 +1,8 @@
 use std::{
     collections::{btree_map, BTreeMap},
+    mem,
     ops::{Deref, DerefMut},
     str,
-    mem,
 };
 
 use crate::{
