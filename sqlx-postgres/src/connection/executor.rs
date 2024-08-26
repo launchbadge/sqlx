@@ -204,7 +204,12 @@ impl PgConnection {
 
         let format = if let Some(mut arguments) = arguments {
             // Check this before we write anything to the stream.
-            let num_params = i16::try_from(arguments.len()).map_err(|_| {
+            //
+            // Note: Postgres actually interprets this value as unsigned,
+            // making the max number of parameters 65535, not 32767
+            // https://github.com/launchbadge/sqlx/issues/3464
+            // https://www.postgresql.org/docs/current/limits.html
+            let num_params = u16::try_from(arguments.len()).map_err(|_| {
                 err_protocol!(
                     "PgConnection::run(): too many arguments for query: {}",
                     arguments.len()

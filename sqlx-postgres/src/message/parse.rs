@@ -43,7 +43,9 @@ impl FrontendMessage for Parse<'_> {
 
         buf.put_str_nul(self.query);
 
-        let param_types_len = i16::try_from(self.param_types.len()).map_err(|_| {
+        // Note: actually interpreted as unsigned
+        // https://github.com/launchbadge/sqlx/issues/3464
+        let param_types_len = u16::try_from(self.param_types.len()).map_err(|_| {
             err_protocol!(
                 "param_types.len() too large for binary protocol: {}",
                 self.param_types.len()

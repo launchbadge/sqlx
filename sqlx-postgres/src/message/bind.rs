@@ -3,6 +3,12 @@ use crate::message::{FrontendMessage, FrontendMessageFormat};
 use crate::PgValueFormat;
 use std::num::Saturating;
 
+/// <https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND>
+///
+/// ## Note:
+///
+/// The integer values for number of bind parameters, number of parameter format codes,
+/// and number of result format codes all are interpreted as *unsigned*!
 #[derive(Debug)]
 pub struct Bind<'a> {
     /// The ID of the destination portal (`PortalId::UNNAMED` selects the unnamed portal).
@@ -18,10 +24,11 @@ pub struct Bind<'a> {
     /// parameters; or it can equal the actual number of parameters.
     pub formats: &'a [PgValueFormat],
 
+    // Note: interpreted as unsigned, as is `formats.len()` and `result_formats.len()`
     /// The number of parameters.
     ///
     /// May be different from `formats.len()`
-    pub num_params: i16,
+    pub num_params: u16,
 
     /// The value of each parameter, in the indicated format.
     pub params: &'a [u8],
@@ -64,7 +71,11 @@ impl FrontendMessage for Bind<'_> {
 
         buf.put_statement_name(self.statement);
 
-        let formats_len = i16::try_from(self.formats.len()).map_err(|_| {
+        // NOTE: the integer values for the number of parameters and format codes in this message
+        // are all interpreted as *unsigned*!
+        //
+        // https://github.com/launchbadge/sqlx/issues/3464
+        let formats_len = u16::try_from(self.formats.len()).map_err(|_| {
             err_protocol!("too many parameter format codes ({})", self.formats.len())
         })?;
 
@@ -78,7 +89,7 @@ impl FrontendMessage for Bind<'_> {
 
         buf.extend(self.params);
 
-        let result_formats_len = i16::try_from(self.formats.len())
+        let result_formats_len = u16::try_from(self.formats.len())
             .map_err(|_| err_protocol!("too many result format codes ({})", self.formats.len()))?;
 
         buf.extend(result_formats_len.to_be_bytes());
