@@ -187,7 +187,10 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
 #[cfg(feature = "migrate")]
 fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
-    use syn::{punctuated::Punctuated, Expr, Lit, LitStr, Meta, MetaNameValue, Token};
+    use syn::{
+        parenthesized, parse::Parse, punctuated::Punctuated, token::Comma, Expr, Lit, LitStr, Meta,
+        MetaNameValue, Token,
+    };
 
     let mut fixtures = Vec::new();
     let mut migrations = MigrationsOpt::InferredPath;
@@ -208,8 +211,9 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
                         parse_fixtures_path_args(&mut fixtures_type, val)?;
                     } else if meta.path.is_ident("scripts") {
                         //  fixtures(path = "<path>", scripts("<file_1>","<file_2>")) checking `scripts` argument
-                        let parser = <Punctuated<LitStr, Token![,]>>::parse_terminated;
-                        let list = parser.parse2(list.tokens.clone())?;
+                        let content;
+                        parenthesized!(content in meta.input);
+                        let list = content.parse_terminated(<LitStr as Parse>::parse, Comma)?;
                         parse_fixtures_scripts_args(&mut fixtures_type, list, &mut fixtures_local)?;
                     } else {
                         return Err(syn::Error::new_spanned(
