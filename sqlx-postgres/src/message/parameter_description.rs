@@ -14,6 +14,8 @@ impl BackendMessage for ParameterDescription {
     const FORMAT: BackendMessageFormat = BackendMessageFormat::ParameterDescription;
 
     fn decode_body(mut buf: Bytes) -> Result<Self, Error> {
+        // Note: this is correct, max parameters is 65535, not 32767
+        // https://github.com/launchbadge/sqlx/issues/3464
         let cnt = buf.get_u16();
         let mut types = SmallVec::with_capacity(cnt as usize);
 

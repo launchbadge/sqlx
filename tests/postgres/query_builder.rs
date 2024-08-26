@@ -1,6 +1,9 @@
 use sqlx::postgres::Postgres;
 use sqlx::query_builder::QueryBuilder;
-use sqlx::Execute;
+use sqlx::Executor;
+use sqlx::Type;
+use sqlx::{Either, Execute};
+use sqlx_test::new;
 
 #[test]
 fn test_new() {
@@ -102,4 +105,55 @@ fn test_query_builder_with_args() {
         query.sql(),
         "SELECT * FROM users WHERE id = $1 OR membership_level = $2"
     );
+}
+
+#[sqlx::test]
+async fn test_max_number_of_binds() -> anyhow::Result<()> {
+    // The maximum number of binds is 65535 (u16::MAX), not 32567 (i16::MAX)
+    // as the protocol documentation would imply
+    //
+    // https://github.com/launchbadge/sqlx/issues/3464
+
+    let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT ARRAY[");
+
+    let mut elements = qb.separated(',');
+
+    let max_bind = u16::MAX as i32;
+
+    for i in 1..=max_bind {
+        elements.push_bind(i);
+    }
+
+    qb.push("]::int4[]");
+
+    let mut conn = new::<Postgres>().await?;
+
+    // Indirectly ensures the macros support this many binds since this is what they use.
+    let describe = conn.describe(qb.sql()).await?;
+
+    match describe
+        .parameters
+        .expect("describe() returned no parameter information")
+    {
+        Either::Left(params) => {
+            assert_eq!(params.len(), 65535);
+
+            for param in params {
+                assert_eq!(param, <i32 as Type<Postgres>>::type_info())
+            }
+        }
+        Either::Right(num_params) => {
+            assert_eq!(num_params, 65535);
+        }
+    }
+
+    let values: Vec<i32> = qb.build_query_scalar().fetch_one(&mut conn).await?;
+
+    assert_eq!(values.len(), 65535);
+
+    for (idx, (i, j)) in (1..=max_bind).zip(values).enumerate() {
+        assert_eq!(i, j, "mismatch at index {idx}");
+    }
+
+    Ok(())
 }
