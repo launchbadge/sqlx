@@ -48,7 +48,7 @@ impl<S: Socket> BufferedSocket<S> {
     pub async fn read_buffered(&mut self, len: usize) -> Result<BytesMut, Error> {
         self.try_read(|buf| {
             Ok(if buf.len() < len {
-                ControlFlow::Continue(len - buf.len())
+                ControlFlow::Continue(len)
             } else {
                 ControlFlow::Break(buf.split_to(len))
             })
