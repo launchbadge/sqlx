@@ -262,8 +262,11 @@ impl PgListener {
                     if (err.kind() == io::ErrorKind::ConnectionAborted
                         || err.kind() == io::ErrorKind::UnexpectedEof) =>
                 {
-                    self.buffer_tx = self.connection().await?.stream.notifications.take();
-                    self.connection = None;
+                    if let Some(mut conn) = self.connection.take() {
+                        self.buffer_tx = conn.stream.notifications.take();
+                        // Close the connection in a background task, so we can continue.
+                        conn.close_on_drop();
+                    }
 
                     // lost connection
                     return Ok(None);
