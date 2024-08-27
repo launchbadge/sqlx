@@ -37,7 +37,7 @@ impl<'r> Decode<'r, Postgres> for PgPoint {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
             PgValueFormat::Text => Ok(PgPoint::from_str(value.as_str()?)?),
-            PgValueFormat::Binary => Ok(pg_point_from_bytes(value.as_bytes()?)?),
+            PgValueFormat::Binary => Ok(PgPoint::from_bytes(value.as_bytes()?)?),
         }
     }
 }
@@ -71,13 +71,13 @@ impl FromStr for PgPoint {
     }
 }
 
-fn pg_point_from_bytes(bytes: &[u8]) -> Result<PgPoint, Error> {
-    let x = get_f64_from_bytes(bytes, 0)?;
-    let y = get_f64_from_bytes(bytes, 8)?;
-    Ok(PgPoint { x, y })
-}
-
 impl PgPoint {
+    fn from_bytes(bytes: &[u8]) -> Result<PgPoint, Error> {
+        let x = get_f64_from_bytes(bytes, 0)?;
+        let y = get_f64_from_bytes(bytes, 8)?;
+        Ok(PgPoint { x, y })
+    }
+
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         buff.extend_from_slice(&self.x.to_be_bytes());
         buff.extend_from_slice(&self.y.to_be_bytes());
@@ -114,7 +114,7 @@ mod point_tests {
 
     use std::str::FromStr;
 
-    use super::{pg_point_from_bytes, PgPoint};
+    use super::PgPoint;
 
     const POINT_BYTES: &[u8] = &[
         64, 0, 204, 204, 204, 204, 204, 205, 64, 20, 204, 204, 204, 204, 204, 205,
@@ -122,7 +122,7 @@ mod point_tests {
 
     #[test]
     fn can_deserialise_point_type_bytes() {
-        let point = pg_point_from_bytes(POINT_BYTES).unwrap();
+        let point = PgPoint::from_bytes(POINT_BYTES).unwrap();
         assert_eq!(point, PgPoint { x: 2.1, y: 5.2 })
     }
 
