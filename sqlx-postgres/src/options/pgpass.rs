@@ -20,9 +20,9 @@ pub fn load_password(
         }
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_family = "wasm")))]
     let default_file = home::home_dir().map(|path| path.join(".pgpass"));
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", not(target_family = "wasm")))]
     let default_file = {
         use etcetera::BaseStrategy;
 
@@ -30,7 +30,13 @@ pub fn load_password(
             .ok()
             .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
     };
-    load_password_from_file(default_file?, host, port, username, database)
+
+    #[cfg(not(target_family = "wasm"))]
+    let ret = load_password_from_file(default_file?, host, port, username, database);
+    #[cfg(target_family = "wasm")]
+    let ret =  None;
+
+    ret
 }
 
 /// try to extract a password from a pgpass file
