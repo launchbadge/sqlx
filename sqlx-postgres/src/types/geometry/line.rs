@@ -3,10 +3,11 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
 use std::str::FromStr;
 
-const BYTE_WIDTH: usize = 8;
+const ERROR: &str = "error decoding LINE";
 
 /// Postgres Geometric Line type
 ///
@@ -38,7 +39,7 @@ impl<'r> Decode<'r, Postgres> for PgLine {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
             PgValueFormat::Text => Ok(PgLine::from_str(value.as_str()?)?),
-            PgValueFormat::Binary => Ok(pg_line_from_bytes(value.as_bytes()?)?),
+            PgValueFormat::Binary => Ok(PgLine::from_bytes(value.as_bytes()?)?),
         }
     }
 }
@@ -62,29 +63,39 @@ impl FromStr for PgLine {
             .trim_matches(|c| c == '{' || c == '}' || c == ' ')
             .splitn(3, ',');
 
-        if let (Some(a_str), Some(b_str), Some(c_str)) = (parts.next(), parts.next(), parts.next())
-        {
-            let a = parse_float_from_str(a_str, "could not get A")?;
-            let b = parse_float_from_str(b_str, "could not get B")?;
-            let c = parse_float_from_str(c_str, "could not get C")?;
+        let a = parts
+            .next()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .ok_or(Error::Decode(
+                format!("{}: could not get a from {}", ERROR, s).into(),
+            ))?;
 
-            return Ok(PgLine { a, b, c });
-        }
+        let b = parts
+            .next()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .ok_or(Error::Decode(
+                format!("{}: could not get b from {}", ERROR, s).into(),
+            ))?;
 
-        Err(Error::Decode(
-            format!("could not get A,B,C from {}", s).into(),
-        ))
+        let c = parts
+            .next()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .ok_or(Error::Decode(
+                format!("{}: could not get c from {}", ERROR, s).into(),
+            ))?;
+
+        Ok(PgLine { a, b, c })
     }
 }
 
-fn pg_line_from_bytes(bytes: &[u8]) -> Result<PgLine, Error> {
-    let a = get_f64_from_bytes(bytes, 0)?;
-    let b = get_f64_from_bytes(bytes, BYTE_WIDTH)?;
-    let c = get_f64_from_bytes(bytes, BYTE_WIDTH * 2)?;
-    Ok(PgLine { a, b, c })
-}
-
 impl PgLine {
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgLine, Error> {
+        let a = bytes.get_f64();
+        let b = bytes.get_f64();
+        let c = bytes.get_f64();
+        Ok(PgLine { a, b, c })
+    }
+
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         buff.extend_from_slice(&self.a.to_be_bytes());
         buff.extend_from_slice(&self.b.to_be_bytes());
@@ -100,29 +111,12 @@ impl PgLine {
     }
 }
 
-fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
-    bytes
-        .get(start..start + BYTE_WIDTH)
-        .ok_or(Error::Decode(
-            format!("Could not decode line bytes: {:?}", bytes).into(),
-        ))?
-        .try_into()
-        .map(f64::from_be_bytes)
-        .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
-}
-
-fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
-    s.trim()
-        .parse()
-        .map_err(|_| Error::Decode(error_msg.into()))
-}
-
 #[cfg(test)]
 mod line_tests {
 
     use std::str::FromStr;
 
-    use super::{pg_line_from_bytes, PgLine};
+    use super::PgLine;
 
     const LINE_BYTES: &[u8] = &[
         63, 241, 153, 153, 153, 153, 153, 154, 64, 1, 153, 153, 153, 153, 153, 154, 64, 10, 102,
@@ -131,7 +125,7 @@ mod line_tests {
 
     #[test]
     fn can_deserialise_line_type_bytes() {
-        let line = pg_line_from_bytes(LINE_BYTES).unwrap();
+        let line = PgLine::from_bytes(LINE_BYTES).unwrap();
         assert_eq!(
             line,
             PgLine {

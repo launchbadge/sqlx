@@ -69,8 +69,8 @@ impl FromStr for PgPoint {
                 format!("error decoding POINT: could not get x and y from {}", s).into(),
             ))?;
 
-        let x = parse_float_from_str(x_str, "could not get x")?;
-        let y = parse_float_from_str(y_str, "could not get x")?;
+        let x = parse_float_from_str(x_str, "error decoding POINT: could not get x")?;
+        let y = parse_float_from_str(y_str, "error decoding POINT: could not get x")?;
 
         Ok(PgPoint { x, y })
     }
