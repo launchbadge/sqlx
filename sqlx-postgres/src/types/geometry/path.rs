@@ -101,7 +101,12 @@ impl PgPath {
 
         if bytes.len() != header.data_size() {
             return Err(Error::Decode(
-                format!("error decoding PATH (length: {})", header.length).into(),
+                format!(
+                    "expected {} bytes after header, got {}",
+                    header.data_size(),
+                    bytes.len()
+                )
+                .into(),
             ));
         }
 
@@ -155,7 +160,7 @@ impl Header {
     const PACKED_WIDTH: usize = size_of::<i8>() + size_of::<i32>();
 
     fn data_size(&self) -> usize {
-        self.length * BYTE_WIDTH
+        self.length * BYTE_WIDTH * 2
     }
 
     fn try_read(buf: &mut &[u8]) -> Result<Self, String> {
