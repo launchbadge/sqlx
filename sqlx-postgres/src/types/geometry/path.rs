@@ -175,12 +175,9 @@ impl Header {
         let is_closed = buf.get_i8();
         let length = buf.get_i32();
 
-        // can only overflow on 16-bit platforms
         let length = usize::try_from(length).ok().ok_or_else(|| {
             format!("received PATH data with greater than expected length: {length}")
         })?;
-
-        // can only overflow on 16-bit platforms
 
         Ok(Self {
             is_closed: is_closed != 0,

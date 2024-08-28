@@ -40,7 +40,7 @@ impl<'r> Decode<'r, Postgres> for PgLSeg {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
             PgValueFormat::Text => Ok(PgLSeg::from_str(value.as_str()?)?),
-            PgValueFormat::Binary => Ok(pg_lseg_from_bytes(value.as_bytes()?)?),
+            PgValueFormat::Binary => Ok(PgLSeg::from_bytes(value.as_bytes()?)?),
         }
     }
 }
@@ -95,16 +95,16 @@ impl FromStr for PgLSeg {
     }
 }
 
-fn pg_lseg_from_bytes(mut bytes: &[u8]) -> Result<PgLSeg, Error> {
-    let x1 = bytes.get_f64();
-    let y1 = bytes.get_f64();
-    let x2 = bytes.get_f64();
-    let y2 = bytes.get_f64();
-
-    Ok(PgLSeg { x1, y1, x2, y2 })
-}
-
 impl PgLSeg {
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgLSeg, Error> {
+        let x1 = bytes.get_f64();
+        let y1 = bytes.get_f64();
+        let x2 = bytes.get_f64();
+        let y2 = bytes.get_f64();
+
+        Ok(PgLSeg { x1, y1, x2, y2 })
+    }
+
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         buff.extend_from_slice(&self.x1.to_be_bytes());
         buff.extend_from_slice(&self.y1.to_be_bytes());
@@ -126,7 +126,7 @@ mod lseg_tests {
 
     use std::str::FromStr;
 
-    use super::{pg_lseg_from_bytes, PgLSeg};
+    use super::PgLSeg;
 
     const LINE_SEGMENT_BYTES: &[u8] = &[
         63, 241, 153, 153, 153, 153, 153, 154, 64, 1, 153, 153, 153, 153, 153, 154, 64, 10, 102,
@@ -135,7 +135,7 @@ mod lseg_tests {
 
     #[test]
     fn can_deserialise_lseg_type_bytes() {
-        let lseg = pg_lseg_from_bytes(LINE_SEGMENT_BYTES).unwrap();
+        let lseg = PgLSeg::from_bytes(LINE_SEGMENT_BYTES).unwrap();
         assert_eq!(
             lseg,
             PgLSeg {
