@@ -3,6 +3,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::{PgPoint, Type};
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
 use std::str::FromStr;
 
@@ -21,6 +22,12 @@ pub struct PgPath {
     pub points: Vec<PgPoint>,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct Header {
+    is_closed: bool,
+    length: usize,
+}
+
 impl Type<Postgres> for PgPath {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name("path")
@@ -37,7 +44,7 @@ impl<'r> Decode<'r, Postgres> for PgPath {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match value.format() {
             PgValueFormat::Text => Ok(PgPath::from_str(value.as_str()?)?),
-            PgValueFormat::Binary => Ok(pg_path_from_bytes(value.as_bytes()?)?),
+            PgValueFormat::Binary => Ok(PgPath::from_bytes(value.as_bytes()?)?),
         }
     }
 }
@@ -81,28 +88,53 @@ impl FromStr for PgPath {
     }
 }
 
-fn pg_path_from_bytes(bytes: &[u8]) -> Result<PgPath, Error> {
-    let mut points = vec![];
-
-    let offset: usize = 5;
-    let closed = get_i8_from_bytes(bytes, 0)? == 1i8;
-
-    let steps = (bytes.len() - offset) / BYTE_WIDTH;
-    for n in (0..steps).step_by(2) {
-        let x = get_f64_from_bytes(bytes, BYTE_WIDTH * n + offset)?;
-        let y = get_f64_from_bytes(bytes, BYTE_WIDTH * (n + 1) + offset)?;
-        points.push(PgPoint { x, y })
+impl PgPath {
+    fn header(&self) -> Header {
+        Header {
+            is_closed: self.closed,
+            length: self.points.len(),
+        }
     }
 
-    Ok(PgPath { points, closed })
-}
+    fn from_bytes(mut bytes: &[u8]) -> Result<Self, Error> {
+        let header = Header::try_read(&mut bytes).map_err(|s| Error::Decode(s.into()))?;
 
-impl PgPath {
+        if bytes.len() != header.data_size() {
+            return Err(Error::Decode(
+                format!("error decoding PATH (length: {})", header.length).into(),
+            ));
+        }
+
+        if bytes.len() % BYTE_WIDTH * 2 != 0 {
+            return Err(Error::Decode(
+                format!(
+                    "data length not divisible by pairs of {BYTE_WIDTH}: {}",
+                    bytes.len()
+                )
+                .into(),
+            ));
+        }
+
+        let mut out_points = Vec::with_capacity(bytes.len() / BYTE_WIDTH * 2);
+        while bytes.has_remaining() {
+            let point = PgPoint {
+                x: bytes.get_f64(),
+                y: bytes.get_f64(),
+            };
+            out_points.push(point)
+        }
+        Ok(PgPath {
+            closed: header.is_closed,
+            points: out_points,
+        })
+    }
+
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
-        let closed = self.closed as i8;
-        let length = self.points.len() as i32;
-        buff.extend_from_slice(&closed.to_be_bytes());
-        buff.extend_from_slice(&length.to_be_bytes());
+        let header = self.header();
+        buff.reserve(header.data_size());
+        header
+            .try_write(buff)
+            .map_err(|s| Error::Encode(s.into()))?;
 
         for point in &self.points {
             buff.extend_from_slice(&point.x.to_be_bytes());
@@ -119,26 +151,56 @@ impl PgPath {
     }
 }
 
-fn get_i8_from_bytes(bytes: &[u8], start: usize) -> Result<i8, Error> {
-    bytes
-        .get(start..start + 1)
-        .ok_or(Error::Decode(
-            format!("Could not decode path bytes: {:?}", bytes).into(),
-        ))?
-        .try_into()
-        .map(i8::from_be_bytes)
-        .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
-}
+impl Header {
+    const PACKED_WIDTH: usize = size_of::<i8>() + size_of::<i32>();
 
-fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
-    bytes
-        .get(start..start + BYTE_WIDTH)
-        .ok_or(Error::Decode(
-            format!("Could not decode path bytes: {:?}", bytes).into(),
-        ))?
-        .try_into()
-        .map(f64::from_be_bytes)
-        .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
+    fn data_size(&self) -> usize {
+        self.length * BYTE_WIDTH
+    }
+
+    fn try_read(buf: &mut &[u8]) -> Result<Self, String> {
+        if buf.len() < Self::PACKED_WIDTH {
+            return Err(format!(
+                "expected PATH data to contain at least {} bytes, got {}",
+                Self::PACKED_WIDTH,
+                buf.len()
+            ));
+        }
+
+        let is_closed = buf.get_i8();
+        let length = buf.get_i32();
+
+        // can only overflow on 16-bit platforms
+        let length = usize::try_from(length).ok().ok_or_else(|| {
+            format!("received PATH data with greater than expected length: {length}")
+        })?;
+
+        // can only overflow on 16-bit platforms
+
+        Ok(Self {
+            is_closed: is_closed != 0,
+            length,
+        })
+    }
+
+    fn try_write(&self, buff: &mut PgArgumentBuffer) -> Result<(), String> {
+        let is_closed = self.is_closed as i8;
+
+        let length = i32::try_from(self.length).map_err(|_| {
+            format!(
+                "PATH length exceeds allowed maximum ({} > {})",
+                self.length,
+                i32::MAX
+            )
+        })?;
+
+        // https://github.com/postgres/postgres/blob/e3ec9dc1bf4983fcedb6f43c71ea12ee26aefc7a/contrib/cube/cubedata.h#L18-L24
+
+        buff.extend(is_closed.to_be_bytes());
+        buff.extend(length.to_be_bytes());
+
+        Ok(())
+    }
 }
 
 fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
@@ -152,7 +214,7 @@ mod path_tests {
 
     use crate::types::PgPoint;
 
-    use super::{pg_path_from_bytes, PgPath};
+    use super::PgPath;
 
     const PATH_CLOSED_BYTES: &[u8] = &[
         1, 0, 0, 0, 2, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8, 0, 0, 0, 0, 0, 0,
@@ -166,7 +228,7 @@ mod path_tests {
 
     #[test]
     fn can_deserialise_path_type_bytes_closed() {
-        let path = pg_path_from_bytes(PATH_CLOSED_BYTES).unwrap();
+        let path = PgPath::from_bytes(PATH_CLOSED_BYTES).unwrap();
         assert_eq!(
             path,
             PgPath {
@@ -178,7 +240,7 @@ mod path_tests {
 
     #[test]
     fn can_deserialise_path_type_bytes_open() {
-        let path = pg_path_from_bytes(PATH_OPEN_BYTES).unwrap();
+        let path = PgPath::from_bytes(PATH_OPEN_BYTES).unwrap();
         assert_eq!(
             path,
             PgPath {
