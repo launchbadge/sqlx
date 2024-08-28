@@ -3,10 +3,9 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
 use std::str::FromStr;
-
-const BYTE_WIDTH: usize = 8;
 
 /// Postgres Geometric Point type
 ///
@@ -53,6 +52,12 @@ impl<'q> Encode<'q, Postgres> for PgPoint {
     }
 }
 
+fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
+    s.trim()
+        .parse()
+        .map_err(|_| Error::Decode(error_msg.into()))
+}
+
 impl FromStr for PgPoint {
     type Err = Error;
 
@@ -61,7 +66,7 @@ impl FromStr for PgPoint {
             .trim_matches(|c| c == '(' || c == ')' || c == ' ')
             .split_once(',')
             .ok_or(Error::Decode(
-                format!("could not get x and y from {}", s).into(),
+                format!("error decoding POINT: could not get x and y from {}", s).into(),
             ))?;
 
         let x = parse_float_from_str(x_str, "could not get x")?;
@@ -72,13 +77,13 @@ impl FromStr for PgPoint {
 }
 
 impl PgPoint {
-    fn from_bytes(bytes: &[u8]) -> Result<PgPoint, Error> {
-        let x = get_f64_from_bytes(bytes, 0)?;
-        let y = get_f64_from_bytes(bytes, 8)?;
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgPoint, BoxDynError> {
+        let x = bytes.get_f64();
+        let y = bytes.get_f64();
         Ok(PgPoint { x, y })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), String> {
         buff.extend_from_slice(&self.x.to_be_bytes());
         buff.extend_from_slice(&self.y.to_be_bytes());
         Ok(())
@@ -90,23 +95,6 @@ impl PgPoint {
         self.serialize(&mut buff).unwrap();
         buff.to_vec()
     }
-}
-
-fn get_f64_from_bytes(bytes: &[u8], start: usize) -> Result<f64, Error> {
-    bytes
-        .get(start..start + BYTE_WIDTH)
-        .ok_or(Error::Decode(
-            format!("Could not decode point bytes: {:?}", bytes).into(),
-        ))?
-        .try_into()
-        .map(f64::from_be_bytes)
-        .map_err(|err| Error::Decode(format!("Invalid bytes slice: {:?}", err).into()))
-}
-
-fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
-    s.trim()
-        .parse()
-        .map_err(|_| Error::Decode(error_msg.into()))
 }
 
 #[cfg(test)]
