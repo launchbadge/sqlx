@@ -66,7 +66,7 @@ impl FromStr for PgPath {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let closed = !s.contains("[");
         let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
-        let mut parts = sanitised.splitn(4, ",");
+        let mut parts = sanitised.split(",");
 
         let mut points = vec![];
 
