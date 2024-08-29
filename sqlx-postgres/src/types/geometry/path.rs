@@ -13,7 +13,7 @@ const BYTE_WIDTH: usize = 8;
 ///
 /// Storage size: 16+16n bytes
 /// Description: Open path or Closed path (similar to polygon)
-/// Representation: ((x1,y1),(x2,y2))
+/// Representation: Open [(x1,y1),...], Closed ((x1,y1),...)
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
 #[derive(Debug, Clone, PartialEq)]
