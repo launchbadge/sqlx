@@ -521,7 +521,7 @@ test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_lseg<Vec<sqlx::postgres::types::PgLSeg>>(Postgres,
-    "array[lseg('(1,2,3,4)'),lseg('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgLSeg { x1: 1., y1: 2., x2: 3., y2: 4 }, sqlx::postgres::types::PgLSeg { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
+    "array[lseg('(1,2,3,4)'),lseg('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgLSeg { x1: 1., y1: 2., x2: 3., y2: 4. }, sqlx::postgres::types::PgLSeg { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
@@ -531,7 +531,7 @@ test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
-    "array[box('(1,2,3,4)'),box('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3., y2: 4 }, sqlx::postgres::types::Pgbox { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
+    "array[box('(1,2,3,4)'),box('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3., y2: 4. }, sqlx::postgres::types::Pgbox { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
