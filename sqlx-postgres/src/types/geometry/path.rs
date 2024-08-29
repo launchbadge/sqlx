@@ -15,7 +15,7 @@ const BYTE_WIDTH: usize = 8;
 /// Description: Open path or Closed path (similar to polygon)
 /// Representation: ((x1,y1),(x2,y2))
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATH
+/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPath {
     pub closed: bool,
