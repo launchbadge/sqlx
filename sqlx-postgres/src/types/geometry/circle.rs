@@ -186,7 +186,7 @@ mod circle_tests {
 
     #[test]
     fn can_deserialise_circle_type_str_fourth_syntax() {
-        let circle = PgCircle::from_str("1, 2) 3 ").unwrap();
+        let circle = PgCircle::from_str("1, 2, 3 ").unwrap();
         assert_eq!(
             circle,
             PgCircle {
