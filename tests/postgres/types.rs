@@ -551,8 +551,20 @@ test_type!(polygon<sqlx::postgres::types::PgPath>(Postgres,
             PgPoint { x: -2., y: -3. }, PgPoint { x: -1., y: -3. }, PgPoint { x: -1., y: -1. }, PgPoint { x: 1., y: 1. },
             PgPoint { x: 1., y: 3. }, PgPoint { x: 2., y: 3. }, PgPoint { x: 2., y: -3. }, PgPoint { x: 1., y: -3. },
             PgPoint { x: 1., y: 0. }, PgPoint { x: -1., y: 0. }, PgPoint { x: -1., y: -2. }, PgPoint { x: -2., y: -2. },
-
     ]},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
+    "circle('<(1.1, -2.2), 3.3>')" @= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, r: 3.3 },
+    "circle('((1.1, -2.2), 3.3)')" @= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, r: 3.3 },
+    "circle('(1.1, -2.2), 3.3')" @= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, r: 3.3 },
+    "circle('1.1, -2.2, 3.3')" @= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, r: 3.3 },
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(_circle<Vec<sqlx::postgres::types::PgCircle>>(Postgres,
+    "array[circle('<(1,2,3}'),circle('{1.1, 2.2, 3.3}')]" @= vec![sqlx::postgres::types::PgCircle { a:1., b: 2., c: 3. }, sqlx::postgres::types::PgCircle { a:1.1, b: 2.2, c: 3.3 }],
 ));
 
 #[cfg(feature = "rust_decimal")]

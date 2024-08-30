@@ -159,6 +159,45 @@ mod circle_tests {
     }
 
     #[test]
+    fn can_deserialise_circle_type_str_second_syntax() {
+        let circle = PgCircle::from_str("((1, 2), 3 )").unwrap();
+        assert_eq!(
+            circle,
+            PgCircle {
+                x: 1.0,
+                y: 2.0,
+                r: 3.0
+            }
+        );
+    }
+
+    #[test]
+    fn can_deserialise_circle_type_str_third_syntax() {
+        let circle = PgCircle::from_str("(1, 2), 3 ").unwrap();
+        assert_eq!(
+            circle,
+            PgCircle {
+                x: 1.0,
+                y: 2.0,
+                r: 3.0
+            }
+        );
+    }
+
+    #[test]
+    fn can_deserialise_circle_type_str_fourth_syntax() {
+        let circle = PgCircle::from_str("1, 2) 3 ").unwrap();
+        assert_eq!(
+            circle,
+            PgCircle {
+                x: 1.0,
+                y: 2.0,
+                r: 3.0
+            }
+        );
+    }
+
+    #[test]
     fn can_deserialise_circle_type_str_float() {
         let circle = PgCircle::from_str("<(1.1, 2.2), 3.3>").unwrap();
         assert_eq!(
