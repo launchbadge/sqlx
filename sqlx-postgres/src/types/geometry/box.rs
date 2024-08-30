@@ -116,9 +116,6 @@ impl PgBox {
         Ok(PgBox { x1, y1, x2, y2 })
     }
 
-    /// > Any two opposite corners can be supplied on input, but the values will be reordered as needed to store the upper right and lower left corners, in that order.
-    ///
-    /// see: https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-BOXES
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         let min_x = &self.x1.min(self.x2);
         let min_y = &self.y1.min(self.y2);
