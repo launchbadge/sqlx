@@ -26,6 +26,7 @@
 //! | [`PgLSeg`]                            | LSEG                                                 |
 //! | [`PgBox`]                             | BOX                                                 |
 //! | [`PgPath`]                            | PATH                                                 |
+//! | [`PgPath`]                            | PATH                                                 |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -253,6 +254,7 @@ pub use geometry::line::PgLine;
 pub use geometry::line_segment::PgLSeg;
 pub use geometry::path::PgPath;
 pub use geometry::point::PgPoint;
+pub use geometry::polygon::PgPolygon;
 pub use geometry::r#box::PgBox;
 pub use hstore::PgHstore;
 pub use interval::PgInterval;
