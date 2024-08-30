@@ -3,7 +3,7 @@ extern crate time_ as time;
 use std::net::SocketAddr;
 use std::ops::Bound;
 
-use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgPoint, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
@@ -536,18 +536,18 @@ test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(path<sqlx::postgres::types::PgPath>(Postgres,
-    "path('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
-    "path('[(1.0, 2.0), (3.0,4.0)]')" @= sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
+    "path('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgPath { closed: true, points: vec![ PgPoint { x: 1., y: 2. }, PgPoint { x: 3. , y: 4. } ]},
+    "path('[(1.0, 2.0), (3.0,4.0)]')" @= sqlx::postgres::types::PgPath { closed: false, points: vec![ PgPoint { x: 1., y: 2. }, PgPoint { x: 3. , y: 4. } ]},
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_path<Vec<sqlx::postgres::types::PgPath>>(Postgres,
-    "array[path('(1,2),(3,4)'),path('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]}, sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1.1, y: 2.2 }, sqlx::postgres::types::PgPoint { x: 3.3 , y: 4.4 } ]},],
+    "array[path('(1,2),(3,4)'),path('[(1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgPath { closed: true, points: vec![ PgPoint { x: 1., y: 2. }, PgPoint { x: 3. , y: 4. } ]}, sqlx::postgres::types::PgPath { closed: false, points: vec![ PgPoint { x: 1.1, y: 2.2 }, PgPoint { x: 3.3 , y: 4.4 } ]},],
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(polygon<sqlx::postgres::types::PgPath>(Postgres,
-    "polygon('((-2,-3),(-1,-3),(-1,-1),(1,1),(1,3),(2,3),(2,-3),(1,-3),(1,0),(-1,0),(-1,-2),(-2,-2))')" @= sqlx::postgres::types::PgPath { closed: true, points: vec![
+    "polygon('((-2,-3),(-1,-3),(-1,-1),(1,1),(1,3),(2,3),(2,-3),(1,-3),(1,0),(-1,0),(-1,-2),(-2,-2))')" @= PgPath { closed: true, points: vec![
             PgPoint { x: -2., y: -3. }, PgPoint { x: -1., y: -3. }, PgPoint { x: -1., y: -1. }, PgPoint { x: 1., y: 1. },
             PgPoint { x: 1., y: 3. }, PgPoint { x: 2., y: 3. }, PgPoint { x: 2., y: -3. }, PgPoint { x: 1., y: -3. },
             PgPoint { x: 1., y: 0. }, PgPoint { x: -1., y: 0. }, PgPoint { x: -1., y: -2. }, PgPoint { x: -2., y: -2. },
@@ -564,7 +564,7 @@ test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_circle<Vec<sqlx::postgres::types::PgCircle>>(Postgres,
-    "array[circle('<(1,2,3}'),circle('{1.1, 2.2, 3.3}')]" @= vec![sqlx::postgres::types::PgCircle { a:1., b: 2., c: 3. }, sqlx::postgres::types::PgCircle { a:1.1, b: 2.2, c: 3.3 }],
+    "array[circle('<(1,2,3}'),circle('{1.1, 2.2, 3.3}')]" @= vec![sqlx::postgres::types::PgCircle { x: 1., y: 2., r: 3. }, sqlx::postgres::types::PgCircle { x: 1.1, y: 2.2, r: 3.3 }],
 ));
 
 #[cfg(feature = "rust_decimal")]
