@@ -210,8 +210,6 @@ impl Header {
             )
         })?;
 
-        // https://github.com/postgres/postgres/blob/e3ec9dc1bf4983fcedb6f43c71ea12ee26aefc7a/contrib/cube/cubedata.h#L18-L24
-
         buff.extend(is_closed.to_be_bytes());
         buff.extend(length.to_be_bytes());
 
