@@ -26,7 +26,7 @@
 //! | [`PgLSeg`]                            | LSEG                                                 |
 //! | [`PgBox`]                             | BOX                                                 |
 //! | [`PgPath`]                            | PATH                                                 |
-//! | [`PgPath`]                            | PATH                                                 |
+//! | [`PgPolygon`]                         | POLYGON                                                 |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
