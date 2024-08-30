@@ -105,11 +105,20 @@ impl PgBox {
         Ok(PgBox { x1, y1, x2, y2 })
     }
 
+    /// > Any two opposite corners can be supplied on input, but the values will be reordered as needed to store the upper right and lower left corners, in that order.
+    ///
+    /// see: https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-BOXES
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
-        buff.extend_from_slice(&self.x1.to_be_bytes());
-        buff.extend_from_slice(&self.y1.to_be_bytes());
-        buff.extend_from_slice(&self.x2.to_be_bytes());
-        buff.extend_from_slice(&self.y2.to_be_bytes());
+        let min_x = &self.x1.min(self.x2);
+        let min_y = &self.y1.min(self.y2);
+        let max_x = &self.x1.max(self.x2);
+        let max_y = &self.y1.max(self.y2);
+
+        buff.extend_from_slice(&max_x.to_be_bytes());
+        buff.extend_from_slice(&max_y.to_be_bytes());
+        buff.extend_from_slice(&min_x.to_be_bytes());
+        buff.extend_from_slice(&min_y.to_be_bytes());
+
         Ok(())
     }
 
@@ -134,14 +143,14 @@ mod box_tests {
     ];
 
     #[test]
-    fn can_deserialise_box_type_bytes() {
+    fn can_deserialise_box_type_bytes_in_order() {
         let pg_box = PgBox::from_bytes(BOX_BYTES).unwrap();
         assert_eq!(
             pg_box,
             PgBox {
-                x1: -2.,
+                x1: 2.,
                 y1: 2.,
-                x2: 2.,
+                x2: -2.,
                 y2: -2.
             }
         )
@@ -217,11 +226,22 @@ mod box_tests {
     }
 
     #[test]
-    fn can_serialise_box_type() {
+    fn can_serialise_box_type_in_order() {
+        let pg_box = PgBox {
+            x1: 2.,
+            x2: -2.,
+            y1: -2.,
+            y2: 2.,
+        };
+        assert_eq!(pg_box.serialize_to_vec(), BOX_BYTES,)
+    }
+
+    #[test]
+    fn can_serialise_box_type_out_of_order() {
         let pg_box = PgBox {
             x1: -2.,
-            y1: 2.,
             x2: 2.,
+            y1: 2.,
             y2: -2.,
         };
         assert_eq!(pg_box.serialize_to_vec(), BOX_BYTES,)
