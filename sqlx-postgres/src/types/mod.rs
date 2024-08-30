@@ -27,6 +27,7 @@
 //! | [`PgBox`]                             | BOX                                                  |
 //! | [`PgPath`]                            | PATH                                                 |
 //! | [`PgPolygon`]                         | POLYGON                                              |
+//! | [`PgCircle`]                          | CIRCLE                                              |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -250,6 +251,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use geometry::circle::PgCircle;
 pub use geometry::line::PgLine;
 pub use geometry::line_segment::PgLSeg;
 pub use geometry::path::PgPath;
