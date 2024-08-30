@@ -254,4 +254,26 @@ mod box_tests {
         };
         assert_eq!(pg_box.serialize_to_vec(), BOX_BYTES,)
     }
+
+    #[test]
+    fn can_order_box() {
+        let pg_box = PgBox {
+            x1: -2.,
+            x2: 2.,
+            y1: 2.,
+            y2: -2.,
+        };
+        let bytes = pg_box.serialize_to_vec();
+
+        let pg_box = PgBox::from_bytes(&bytes).unwrap();
+        assert_eq!(
+            pg_box,
+            PgBox {
+                x1: 2.,
+                y1: 2.,
+                x2: -2.,
+                y2: -2.
+            }
+        )
+    }
 }
