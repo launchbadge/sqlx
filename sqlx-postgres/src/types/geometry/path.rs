@@ -13,7 +13,21 @@ const BYTE_WIDTH: usize = 8;
 ///
 /// Storage size: 16+16n bytes
 /// Description: Open path or Closed path (similar to polygon)
-/// Representation: Open [(x1,y1),...], Closed ((x1,y1),...)
+/// Representation: Open `[(x1,y1),...]`, Closed `((x1,y1),...)`
+///
+/// Paths are represented by lists of connected points. Paths can be open, where the first and last points in the list are considered not connected, or closed, where the first and last points are considered connected.
+/// Values of type path are specified using any of the following syntaxes:
+/// ```
+/// [ ( x1 , y1 ) , ... , ( xn , yn ) ]
+/// ( ( x1 , y1 ) , ... , ( xn , yn ) )
+///   ( x1 , y1 ) , ... , ( xn , yn )
+///   ( x1 , y1   , ... ,   xn , yn )
+///     x1 , y1   , ... ,   xn , yn
+/// ```
+/// where the points are the end points of the line segments comprising the path. Square brackets `([])` indicate an open path, while parentheses `(())` indicate a closed path.
+/// When the outermost parentheses are omitted, as in the third through fifth syntaxes, a closed path is assumed.
+///
+/// Paths are output using the first or second syntax, as appropriate.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
 #[derive(Debug, Clone, PartialEq)]

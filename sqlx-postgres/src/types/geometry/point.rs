@@ -11,7 +11,14 @@ use std::str::FromStr;
 ///
 /// Storage size: 16 bytes
 /// Description: Point on a plane
-/// Representation: (x, y)
+/// Representation: `(x, y)`
+///
+/// Points are the fundamental two-dimensional building block for geometric types. Values of type point are specified using either of the following syntaxes:
+/// ```
+/// ( x , y )
+///  x , y
+/// ````
+/// where x and y are the respective coordinates, as floating-point numbers.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-POINTS
 #[derive(Debug, Clone, PartialEq)]

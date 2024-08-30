@@ -13,7 +13,20 @@ const ERROR: &str = "error decoding LSEG";
 ///
 /// Storage size: 32 bytes
 /// Description: Finite line segment
-/// Representation: ((x1,y1),(x2,y2))
+/// Representation: `((x1,y1),(x2,y2))`
+///
+///
+/// Line segments are represented by pairs of points that are the endpoints of the segment. Values of type lseg are specified using any of the following syntaxes:
+/// ```
+/// [ ( x1 , y1 ) , ( x2 , y2 ) ]
+/// ( ( x1 , y1 ) , ( x2 , y2 ) )
+///   ( x1 , y1 ) , ( x2 , y2 )
+///     x1 , y1   ,   x2 , y2
+/// ```
+/// where `(x1,y1) and (x2,y2)` are the end points of the line segment.
+///
+/// Line segments are output using the first syntax.
+///
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LSEG
 #[derive(Debug, Clone, PartialEq)]

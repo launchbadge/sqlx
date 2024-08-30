@@ -9,11 +9,13 @@ use std::str::FromStr;
 
 const ERROR: &str = "error decoding LINE";
 
-/// Postgres Geometric Line type
+/// ## Postgres Geometric Line type
 ///
 /// Storage size: 24 bytes
 /// Description: Infinite line
-/// Representation: {A, B, C}
+/// Representation: `{A, B, C}`
+///
+/// Lines are represented by the linear equation Ax + By + C = 0, where A and B are not both zero. Values of type line are input and output in the following form:
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LINE
 #[derive(Debug, Clone, PartialEq)]
