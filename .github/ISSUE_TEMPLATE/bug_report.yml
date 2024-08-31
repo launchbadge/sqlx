@@ -1,6 +1,5 @@
 name: "I think I found a bug in SQLx"
 description: "Create a bug-report issue."
-title: ""
 labels: [bug]
 body:
   - type: textarea

@@ -1,6 +1,5 @@
 name: I have a feature request for SQLx
 description: Create a feature-request issue.
-title: ""
 labels: [enhancement]
 body:
   - type: textarea
