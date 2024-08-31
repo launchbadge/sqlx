@@ -1,5 +1,5 @@
 name: I have a feature request for SQLx
-description: Create a feature-request issue.
+description: Create a feature-request issue
 labels: [enhancement]
 body:
   - type: textarea
@@ -7,7 +7,7 @@ body:
     validations:
       required: true
     attributes:
-      label: "I have found these related issues/pull requests"
+      label: I have found these related issues/pull requests
       description: "Search related issues by clicking [HERE](https://github.com/launchbadge/sqlx/issues?q=) and explain what the difference between them or explain that you are unable to find any related issues"
       placeholder: "Related to #1 by also touching the ... system. They should not be merged because ..."
   - type: textarea
@@ -15,9 +15,9 @@ body:
     validations:
       required: true
     attributes:
-      label: "Description"
-      description: "A clear and concise description of what the problem is"
-      placeholder: "You should add ..."
+      label: Description
+      description: A clear and concise description of what the problem is
+      placeholder: You should add ...
   - type: textarea
     id: solution
     validations:
@@ -25,20 +25,20 @@ body:
     attributes:
       label: Prefered solution
       description: A clear and concise description of what you want to happen.
-      placeholder: "In my use-case, ..."
+      placeholder: In my use-case, ...
   - type: textarea
     id: alternatives
     validations:
       required: false
     attributes:
       label: Alternative solutions
-      description: A clear and concise description of any alternative solutions or features you've considered.
-      placeholder: "I have considered ..."
+      description: A clear and concise description of any alternative solutions or features you've considered
+      placeholder: I have considered ...
   - type: textarea
     id: additional-context
     validations:
       required: false
     attributes:
       label: Additional Context
-      description: "Add any other context or screenshots about the feature request here."
-      placeholder: "..."
+      description: Add any other context or screenshots about the feature request here
+      placeholder: ...

@@ -1,5 +1,5 @@
-name: "I think I found a bug in SQLx"
-description: "Create a bug-report issue."
+name: I think I found a bug in SQLx
+description: Create a bug-report issue
 labels: [bug]
 body:
   - type: textarea
@@ -7,36 +7,27 @@ body:
     validations:
       required: true
     attributes:
-      label: "I have found these related issues/pull requests"
+      label: I have found these related issues/pull requests
       description: "Search related issues by clicking [HERE](https://github.com/launchbadge/sqlx/issues?q=) and explain what the difference between them or explain that you are unable to find any related issues"
       placeholder: "Related to #1 by also touching the ... system. They should not be merged because ..."
-  - type: checkboxes
-    attributes:
-      label: "🛡️ Security Policy"
-      description: Please review the security policy before reporting security related issues/bugs.
-      options:
-        - label: I agree to have read this project [Security Policy](https://github.com/louislam/uptime-kuma/security/policy)
-          required: true
   - type: textarea
     id: description
     validations:
       required: true
     attributes:
-      label: "Description"
-      description: "Clear and concise description of what the bug is "
+      label: Description
+      description: Clear and concise description of what the bug is
   - type: textarea
     id: steps-to-reproduce
     validations:
       required: true
     attributes:
-      label: "Reproduction steps"
-      description: |
-        A small code snippet or a link to a Github repo or Gist, with instructions on reproducing the bug.
-        Remeber to include all important details and add logs/metrics/.. where appropriate.
+      label: Reproduction steps
+      description: A small code snippet or a link to a Github repo or Gist, with instructions on reproducing the bug.
   - type: textarea
     id: deployment-info
     attributes:
-      label: "Environment Information"
+      label: Environment Information
       value: |
         * SQLx version: [REQUIRED]
         * SQLx features enabled: [REQUIRED]
