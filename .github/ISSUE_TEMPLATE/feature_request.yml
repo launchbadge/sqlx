@@ -8,7 +8,7 @@ body:
       required: true
     attributes:
       label: I have found these related issues/pull requests
-      description: "Search related issues by clicking [HERE](https://github.com/launchbadge/sqlx/issues?q=) and explain what the difference between them or explain that you are unable to find any related issues"
+      description: "I have searched by clicking [HERE](https://github.com/launchbadge/sqlx/issues?q=) for existing issues, these are the ones I've found, and this is why I think this deserves a new issue."
       placeholder: "Related to #1 by also touching the ... system. They should not be merged because ..."
   - type: textarea
     id: feature-description
