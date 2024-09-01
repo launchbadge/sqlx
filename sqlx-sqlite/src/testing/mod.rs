@@ -18,7 +18,6 @@ impl TestSupport for Sqlite {
         Box::pin(async move { Ok(crate::fs::remove_file(db_name).await?) })
     }
 
-
     fn snapshot(
         _conn: &mut Self::Connection,
     ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
