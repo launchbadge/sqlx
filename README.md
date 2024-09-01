@@ -314,6 +314,8 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 ```rust
 // provides `try_next`
 use futures::TryStreamExt;
+// provides `try_get`
+use sqlx::Row;
 
 let mut rows = sqlx::query("SELECT * FROM users WHERE email = ?")
     .bind(email)
