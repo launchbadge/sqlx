@@ -52,22 +52,6 @@ impl TestSupport for MySql {
         })
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-            let mut conn = MySqlConnection::connect(&url).await?;
-
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap();
-
-            let num_deleted = do_cleanup(&mut conn, now).await?;
-            let _ = conn.close().await;
-            Ok(Some(num_deleted))
-        })
-    }
-
     fn snapshot(
         _conn: &mut Self::Connection,
     ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
