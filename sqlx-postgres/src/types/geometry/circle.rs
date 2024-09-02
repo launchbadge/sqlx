@@ -101,8 +101,8 @@ impl PgCircle {
     fn from_bytes(mut bytes: &[u8]) -> Result<PgCircle, Error> {
         let x = bytes.get_f64();
         let b = bytes.get_f64();
-        let r = bytes.get_f64();
-        Ok(PgCircle { x, y: b, r })
+        let y = bytes.get_f64();
+        Ok(PgCircle { x, y, r })
     }
 
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
