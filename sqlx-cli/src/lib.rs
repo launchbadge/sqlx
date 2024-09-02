@@ -123,7 +123,7 @@ where
     let db_url = opts.required_db_url()?;
 
     let (_, v) = {
-        move |(mut ctx, db_url): (F, &'a str)| async move {
+        |(mut ctx, db_url): (F, &'a str)| async move {
             let res = ctx(db_url).await;
             ((ctx, db_url), res)
         }
