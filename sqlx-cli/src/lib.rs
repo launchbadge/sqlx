@@ -2,7 +2,8 @@ use std::io;
 use std::time::Duration;
 
 use anyhow::Result;
-use futures::{Future, TryFutureExt};
+use backon::{ExponentialBuilder, RetryableWithContext};
+use futures::Future;
 
 use sqlx::{AnyConnection, Connection};
 
@@ -112,10 +113,7 @@ async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
 /// retrying up until `ops.connect_timeout`.
 ///
 /// The closure is passed `&ops.database_url` for easy composition.
-async fn retry_connect_errors<'a, F, Fut, T>(
-    opts: &'a ConnectOpts,
-    mut connect: F,
-) -> anyhow::Result<T>
+async fn retry_connect_errors<'a, F, Fut, T>(opts: &'a ConnectOpts, connect: F) -> anyhow::Result<T>
 where
     F: FnMut(&'a str) -> Fut,
     Fut: Future<Output = sqlx::Result<T>> + 'a,
@@ -124,26 +122,27 @@ where
 
     let db_url = opts.required_db_url()?;
 
-    backoff::future::retry(
-        backoff::ExponentialBackoffBuilder::new()
-            .with_max_elapsed_time(Some(Duration::from_secs(opts.connect_timeout)))
-            .build(),
-        || {
-            connect(db_url).map_err(|e| -> backoff::Error<anyhow::Error> {
-                if let sqlx::Error::Io(ref ioe) = e {
-                    match ioe.kind() {
-                        io::ErrorKind::ConnectionRefused
-                        | io::ErrorKind::ConnectionReset
-                        | io::ErrorKind::ConnectionAborted => {
-                            return backoff::Error::transient(e.into());
-                        }
-                        _ => (),
-                    }
-                }
+    let (_, v) = {
+        move |(mut ctx, db_url): (F, &'a str)| async move {
+            let res = ctx(db_url).await;
+            ((ctx, db_url), res)
+        }
+    }
+    .retry(ExponentialBuilder::default().with_max_delay(Duration::from_secs(opts.connect_timeout)))
+    .context((connect, db_url))
+    .when(|err| {
+        if let sqlx::Error::Io(ref ioe) = err {
+            matches!(
+                ioe.kind(),
+                io::ErrorKind::ConnectionRefused
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+            )
+        } else {
+            false
+        }
+    })
+    .await;
 
-                backoff::Error::permanent(e.into())
-            })
-        },
-    )
-    .await
+    Ok(v?)
 }
