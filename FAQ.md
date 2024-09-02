@@ -23,6 +23,9 @@ For each database and where applicable, we test against the latest and oldest ve
 SQLx's MSRV is the second-to-latest stable release as of the beginning of the current release cycle (`0.x.0`).
 It will remain there until the next major release (`0.{x + 1}.0`).
 
+For example, as of the `0.8.0` release of SQLx, the latest stable Rust version was `1.79.0`, so the MSRV for the
+`0.8.x` release cycle of SQLx is `1.78.0`.
+
 This guarantees that SQLx will compile with a Rust version that is _at least_ six weeks old, which should be plenty
 of time for it to make it through any packaging system that is being actively kept up to date.
 
