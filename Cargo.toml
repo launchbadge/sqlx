@@ -35,6 +35,8 @@ authors = [
     "Chloe Ross <orangesnowfox@gmail.com>",
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
+# TODO: enable this for 0.9.0
+# rust-version = "1.80.0"
 
 [package]
 name = "sqlx"
