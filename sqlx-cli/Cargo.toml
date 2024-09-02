@@ -48,7 +48,7 @@ openssl = { version = "0.10.38", optional = true }
 cargo_metadata = "0.18.1"
 filetime = "0.2"
 
-backon = "1"
+backon = { version = "1", default-features = false, features = ["tokio-sleep"] }
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]
