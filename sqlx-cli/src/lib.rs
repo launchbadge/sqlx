@@ -131,16 +131,15 @@ where
     .retry(ExponentialBuilder::default().with_max_delay(Duration::from_secs(opts.connect_timeout)))
     .context((connect, db_url))
     .when(|err| {
-        if let sqlx::Error::Io(ref ioe) = err {
-            matches!(
-                ioe.kind(),
-                io::ErrorKind::ConnectionRefused
-                    | io::ErrorKind::ConnectionReset
-                    | io::ErrorKind::ConnectionAborted
-            )
-        } else {
-            false
-        }
+        let sqlx::Error::Io(ref ioe) = err else {
+            return false;
+        };
+        matches!(
+            ioe.kind(),
+            io::ErrorKind::ConnectionRefused
+                | io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+        )
     })
     .await;
 
