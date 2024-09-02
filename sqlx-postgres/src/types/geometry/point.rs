@@ -89,7 +89,7 @@ impl PgPoint {
         Ok(PgPoint { x, y })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), String> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), BoxDynError> {
         buff.extend_from_slice(&self.x.to_be_bytes());
         buff.extend_from_slice(&self.y.to_be_bytes());
         Ok(())

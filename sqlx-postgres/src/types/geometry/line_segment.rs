@@ -108,7 +108,7 @@ impl FromStr for PgLSeg {
 }
 
 impl PgLSeg {
-    fn from_bytes(mut bytes: &[u8]) -> Result<PgLSeg, Error> {
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgLSeg, BoxDynError> {
         let x1 = bytes.get_f64();
         let y1 = bytes.get_f64();
         let x2 = bytes.get_f64();
@@ -117,7 +117,7 @@ impl PgLSeg {
         Ok(PgLSeg { x1, y1, x2, y2 })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), BoxDynError> {
         buff.extend_from_slice(&self.x1.to_be_bytes());
         buff.extend_from_slice(&self.y1.to_be_bytes());
         buff.extend_from_slice(&self.x2.to_be_bytes());

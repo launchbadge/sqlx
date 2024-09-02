@@ -105,28 +105,24 @@ impl PgPolygon {
         }
     }
 
-    fn from_bytes(mut bytes: &[u8]) -> Result<Self, Error> {
-        let header = Header::try_read(&mut bytes).map_err(|s| Error::Decode(s.into()))?;
+    fn from_bytes(mut bytes: &[u8]) -> Result<Self, BoxDynError> {
+        let header = Header::try_read(&mut bytes)?;
 
         if bytes.len() != header.data_size() {
-            return Err(Error::Decode(
-                format!(
-                    "expected {} bytes after header, got {}",
-                    header.data_size(),
-                    bytes.len()
-                )
-                .into(),
-            ));
+            return Err(format!(
+                "expected {} bytes after header, got {}",
+                header.data_size(),
+                bytes.len()
+            )
+            .into());
         }
 
         if bytes.len() % BYTE_WIDTH * 2 != 0 {
-            return Err(Error::Decode(
-                format!(
-                    "data length not divisible by pairs of {BYTE_WIDTH}: {}",
-                    bytes.len()
-                )
-                .into(),
-            ));
+            return Err(format!(
+                "data length not divisible by pairs of {BYTE_WIDTH}: {}",
+                bytes.len()
+            )
+            .into());
         }
 
         let mut out_points = Vec::with_capacity(bytes.len() / BYTE_WIDTH * 2);
@@ -140,12 +136,10 @@ impl PgPolygon {
         Ok(PgPolygon { points: out_points })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), BoxDynError> {
         let header = self.header();
         buff.reserve(header.data_size());
-        header
-            .try_write(buff)
-            .map_err(|s| Error::Encode(s.into()))?;
+        header.try_write(buff)?;
 
         for point in &self.points {
             buff.extend_from_slice(&point.x.to_be_bytes());

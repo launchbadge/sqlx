@@ -90,14 +90,14 @@ impl FromStr for PgLine {
 }
 
 impl PgLine {
-    fn from_bytes(mut bytes: &[u8]) -> Result<PgLine, Error> {
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgLine, BoxDynError> {
         let a = bytes.get_f64();
         let b = bytes.get_f64();
         let c = bytes.get_f64();
         Ok(PgLine { a, b, c })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), BoxDynError> {
         buff.extend_from_slice(&self.a.to_be_bytes());
         buff.extend_from_slice(&self.b.to_be_bytes());
         buff.extend_from_slice(&self.c.to_be_bytes());
