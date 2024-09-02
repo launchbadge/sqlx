@@ -16,12 +16,12 @@ impl MySqlBufMutExt for Vec<u8> {
         let encoded_le = v.to_le_bytes();
 
         match v {
-            ..251 => self.push(encoded_le[0]),
-            251..0x1_00_00 => {
+            0..=250 => self.push(encoded_le[0]),
+            251..=0xFF_FF => {
                 self.push(0xfc);
                 self.extend_from_slice(&encoded_le[..2]);
             }
-            0x1_00_00..0x1_00_00_00 => {
+            0x1_00_00..=0xFF_FF_FF => {
                 self.push(0xfd);
                 self.extend_from_slice(&encoded_le[..3]);
             }
