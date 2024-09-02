@@ -11,13 +11,12 @@ const ERROR: &str = "error decoding LSEG";
 
 /// Postgres Geometric Line Segment type
 ///
-/// Storage size: 32 bytes
 /// Description: Finite line segment
 /// Representation: `((x1,y1),(x2,y2))`
 ///
 ///
 /// Line segments are represented by pairs of points that are the endpoints of the segment. Values of type lseg are specified using any of the following syntaxes:
-/// ```
+/// ```text
 /// [ ( x1 , y1 ) , ( x2 , y2 ) ]
 /// ( ( x1 , y1 ) , ( x2 , y2 ) )
 ///   ( x1 , y1 ) , ( x2 , y2 )
@@ -73,7 +72,7 @@ impl FromStr for PgLSeg {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
+        let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.splitn(4, ",");
 
         let x1 = parts

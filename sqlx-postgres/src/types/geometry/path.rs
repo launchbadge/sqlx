@@ -11,13 +11,12 @@ const BYTE_WIDTH: usize = 8;
 
 /// Postgres Geometric Path type
 ///
-/// Storage size: 16+16n bytes
 /// Description: Open path or Closed path (similar to polygon)
 /// Representation: Open `[(x1,y1),...]`, Closed `((x1,y1),...)`
 ///
 /// Paths are represented by lists of connected points. Paths can be open, where the first and last points in the list are considered not connected, or closed, where the first and last points are considered connected.
 /// Values of type path are specified using any of the following syntaxes:
-/// ```
+/// ```text
 /// [ ( x1 , y1 ) , ... , ( xn , yn ) ]
 /// ( ( x1 , y1 ) , ... , ( xn , yn ) )
 ///   ( x1 , y1 ) , ... , ( xn , yn )
@@ -79,7 +78,7 @@ impl FromStr for PgPath {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let closed = !s.contains("[");
-        let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
+        let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.split(",");
 
         let mut points = vec![];

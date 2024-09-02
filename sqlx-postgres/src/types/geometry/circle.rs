@@ -11,11 +11,10 @@ const ERROR: &str = "error decoding CIRCLE";
 
 /// ## Postgres Geometric Circle type
 ///
-/// Storage size: 24 bytes
 /// Description: Circle
 /// Representation: `< (x, y), r >` (center point and radius)
 ///
-/// ```
+/// ```text
 /// < ( x , y ) , r >
 /// ( ( x , y ) , r )
 ///   ( x , y ) , r
@@ -69,7 +68,7 @@ impl FromStr for PgCircle {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let sanitised = s.replace(&['<', '>', '(', ')', ' '][..], "");
+        let sanitised = s.replace(['<', '>', '(', ')', ' '], "");
         let mut parts = sanitised.splitn(3, ',');
 
         let x = parts
@@ -100,8 +99,13 @@ impl FromStr for PgCircle {
 impl PgCircle {
     fn from_bytes(mut bytes: &[u8]) -> Result<PgCircle, Error> {
         let x = bytes.get_f64();
+<<<<<<< HEAD
         let b = bytes.get_f64();
         let y = bytes.get_f64();
+=======
+        let y = bytes.get_f64();
+        let r = bytes.get_f64();
+>>>>>>> 0c1caacd (fix: unit tests)
         Ok(PgCircle { x, y, r })
     }
 

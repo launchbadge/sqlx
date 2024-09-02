@@ -11,7 +11,6 @@ const ERROR: &str = "error decoding LINE";
 
 /// ## Postgres Geometric Line type
 ///
-/// Storage size: 24 bytes
 /// Description: Infinite line
 /// Representation: `{A, B, C}`
 ///

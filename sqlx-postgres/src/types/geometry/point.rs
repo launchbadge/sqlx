@@ -9,12 +9,11 @@ use std::str::FromStr;
 
 /// Postgres Geometric Point type
 ///
-/// Storage size: 16 bytes
 /// Description: Point on a plane
 /// Representation: `(x, y)`
 ///
 /// Points are the fundamental two-dimensional building block for geometric types. Values of type point are specified using either of the following syntaxes:
-/// ```
+/// ```text
 /// ( x , y )
 ///  x , y
 /// ````

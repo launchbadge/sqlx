@@ -11,13 +11,12 @@ const ERROR: &str = "error decoding BOX";
 
 /// Postgres Geometric Box type
 ///
-/// Storage size: 32 bytes
 /// Description: Rectangular box
 /// Representation: `((x1,y1),(x2,y2))`
 ///
 /// Boxes are represented by pairs of points that are opposite corners of the box. Values of type box are specified using any of the following syntaxes:
 ///
-/// ```
+/// ```text
 /// ( ( x1 , y1 ) , ( x2 , y2 ) )
 /// ( x1 , y1 ) , ( x2 , y2 )
 ///   x1 , y1   ,   x2 , y2
@@ -71,7 +70,7 @@ impl FromStr for PgBox {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
+        let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.splitn(4, ",");
 
         let x1 = parts
@@ -107,7 +106,7 @@ impl FromStr for PgBox {
 }
 
 impl PgBox {
-    fn from_bytes(mut bytes: &[u8]) -> Result<PgBox, Error> {
+    fn from_bytes(mut bytes: &[u8]) -> Result<PgBox, BoxDynError> {
         let x1 = bytes.get_f64();
         let y1 = bytes.get_f64();
         let x2 = bytes.get_f64();
@@ -116,7 +115,7 @@ impl PgBox {
         Ok(PgBox { x1, y1, x2, y2 })
     }
 
-    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
+    fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), String> {
         let min_x = &self.x1.min(self.x2);
         let min_y = &self.y1.min(self.y2);
         let max_x = &self.x1.max(self.x2);

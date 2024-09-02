@@ -11,7 +11,6 @@ const BYTE_WIDTH: usize = 8;
 
 /// Postgres Geometric Polygon type
 ///
-/// Storage size: 40+16n bytes
 /// Description: Polygon (similar to closed polygon)
 /// Representation: `((x1,y1),...)`
 ///
@@ -19,7 +18,7 @@ const BYTE_WIDTH: usize = 8;
 /// An important implementation difference between polygons and paths is that the stored representation of a polygon includes its smallest bounding box. This speeds up certain search operations, although computing the bounding box adds overhead while constructing new polygons.
 /// Values of type polygon are specified using any of the following syntaxes:
 ///
-/// ```
+/// ```text
 /// ( ( x1 , y1 ) , ... , ( xn , yn ) )
 ///   ( x1 , y1 ) , ... , ( xn , yn )
 ///   ( x1 , y1   , ... ,   xn , yn )
@@ -76,7 +75,7 @@ impl FromStr for PgPolygon {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let sanitised = s.replace(&['(', ')', '[', ']', ' '][..], "");
+        let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.split(",");
 
         let mut points = vec![];
