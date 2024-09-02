@@ -99,13 +99,8 @@ impl FromStr for PgCircle {
 impl PgCircle {
     fn from_bytes(mut bytes: &[u8]) -> Result<PgCircle, Error> {
         let x = bytes.get_f64();
-<<<<<<< HEAD
-        let b = bytes.get_f64();
-        let y = bytes.get_f64();
-=======
         let y = bytes.get_f64();
         let r = bytes.get_f64();
->>>>>>> 0c1caacd (fix: unit tests)
         Ok(PgCircle { x, y, r })
     }
 
