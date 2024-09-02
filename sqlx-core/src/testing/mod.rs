@@ -43,7 +43,7 @@ pub trait TestSupport: Database {
         let hash = hasher.finalize();
         let hash = STANDARD.encode(&hash[..39]);
         let db_name = format!("_sqlx_test_{}", hash);
-        debug_assert!(db_name.len() <= 63);
+        debug_assert!(db_name.len() == 63);
         db_name
     }
 }
