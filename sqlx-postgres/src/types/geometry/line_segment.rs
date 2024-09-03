@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 const ERROR: &str = "error decoding LSEG";
 
-/// Postgres Geometric Line Segment type
+/// ## Postgres Geometric Line Segment type
 ///
 /// Description: Finite line segment
 /// Representation: `((x1,y1),(x2,y2))`

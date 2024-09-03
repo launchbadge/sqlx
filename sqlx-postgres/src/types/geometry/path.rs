@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 const BYTE_WIDTH: usize = 8;
 
-/// Postgres Geometric Path type
+/// ## Postgres Geometric Path type
 ///
 /// Description: Open path or Closed path (similar to polygon)
 /// Representation: Open `[(x1,y1),...]`, Closed `((x1,y1),...)`

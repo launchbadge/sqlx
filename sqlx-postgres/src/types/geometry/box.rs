@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 const ERROR: &str = "error decoding BOX";
 
-/// Postgres Geometric Box type
+/// ## Postgres Geometric Box type
 ///
 /// Description: Rectangular box
 /// Representation: `((x1,y1),(x2,y2))`

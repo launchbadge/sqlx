@@ -7,7 +7,7 @@ use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
 use std::str::FromStr;
 
-/// Postgres Geometric Point type
+/// ## Postgres Geometric Point type
 ///
 /// Description: Point on a plane
 /// Representation: `(x, y)`

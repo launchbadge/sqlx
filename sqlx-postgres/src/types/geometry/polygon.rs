@@ -5,11 +5,12 @@ use crate::types::{PgPoint, Type};
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
+use std::mem;
 use std::str::FromStr;
 
-const BYTE_WIDTH: usize = 8;
+const BYTE_WIDTH: usize = mem::size_of::<f64>();
 
-/// Postgres Geometric Polygon type
+/// ## Postgres Geometric Polygon type
 ///
 /// Description: Polygon (similar to closed polygon)
 /// Representation: `((x1,y1),...)`
@@ -157,17 +158,17 @@ impl PgPolygon {
 }
 
 impl Header {
-    const PACKED_WIDTH: usize = size_of::<i8>() + size_of::<i32>();
+    const HEADER_WIDTH: usize = size_of::<i8>() + size_of::<i32>();
 
     fn data_size(&self) -> usize {
         self.length * BYTE_WIDTH * 2
     }
 
     fn try_read(buf: &mut &[u8]) -> Result<Self, String> {
-        if buf.len() < Self::PACKED_WIDTH {
+        if buf.len() < Self::HEADER_WIDTH {
             return Err(format!(
                 "expected polygon data to contain at least {} bytes, got {}",
-                Self::PACKED_WIDTH,
+                Self::HEADER_WIDTH,
                 buf.len()
             ));
         }
