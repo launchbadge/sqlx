@@ -113,7 +113,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     )
     .await?;
 
-    let db_name = <Postgres as TestSupport>::db_name(args);
+    let db_name = Postgres::db_name(args);
     do_cleanup(&mut conn, &db_name).await?;
 
     query(
