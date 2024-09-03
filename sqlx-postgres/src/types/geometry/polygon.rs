@@ -175,7 +175,10 @@ impl Header {
         let length = buf.get_i32();
 
         let length = usize::try_from(length).ok().ok_or_else(|| {
-            format!("received polygon data with greater than expected length: {length}")
+            format!(
+                "received polygon with length: {length}. Expected length between 0 and  {}",
+                usize::MAX
+            )
         })?;
 
         Ok(Self { length })

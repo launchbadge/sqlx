@@ -5,6 +5,7 @@ use crate::types::{PgPoint, Type};
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use sqlx_core::bytes::Buf;
 use sqlx_core::Error;
+use std::i32;
 use std::str::FromStr;
 
 const BYTE_WIDTH: usize = 8;
@@ -181,7 +182,10 @@ impl Header {
         let length = buf.get_i32();
 
         let length = usize::try_from(length).ok().ok_or_else(|| {
-            format!("received PATH data with greater than expected length: {length}")
+            format!(
+                "received PATH data length: {length}. Expected length between 0 and {}",
+                usize::MAX
+            )
         })?;
 
         Ok(Self {
