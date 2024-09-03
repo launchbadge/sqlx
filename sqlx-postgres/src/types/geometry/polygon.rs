@@ -88,6 +88,12 @@ impl FromStr for PgPolygon {
             points.push(point);
         }
 
+        if parts.next().is_some() {
+            return Err(Error::Decode(
+                format!("Unmatched pair in path: {}", s).into(),
+            ));
+        }
+
         if !points.is_empty() {
             return Ok(PgPolygon { points });
         }
