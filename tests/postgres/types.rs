@@ -526,7 +526,7 @@ test_type!(_lseg<Vec<sqlx::postgres::types::PgLSeg>>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
-    "box('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3. , y2: 4.},
+    "box('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgBox { x1: 3., y1: 4., x2: 1. , y2: 2.},
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
