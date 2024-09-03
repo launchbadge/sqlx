@@ -22,7 +22,6 @@ const ERROR: &str = "error decoding BOX";
 ///   x1 , y1   ,   x2 , y2
 /// ```
 /// where `(x1,y1) and (x2,y2)` are any two opposite corners of the box.
-/// Boxes are output using the second syntax.
 /// Any two opposite corners can be supplied on input, but the values will be reordered as needed to store the upper right and lower left corners, in that order.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-BOXES

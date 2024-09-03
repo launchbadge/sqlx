@@ -22,8 +22,6 @@ const ERROR: &str = "error decoding CIRCLE";
 /// ```
 /// where `(x,y)` is the center point and r is the radius of the circle.
 ///
-/// Circles are output using the first syntax.
-///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-CIRCLE
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgCircle {

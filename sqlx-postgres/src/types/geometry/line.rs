@@ -14,7 +14,7 @@ const ERROR: &str = "error decoding LINE";
 /// Description: Infinite line
 /// Representation: `{A, B, C}`
 ///
-/// Lines are represented by the linear equation Ax + By + C = 0, where A and B are not both zero. Values of type line are input and output in the following form:
+/// Lines are represented by the linear equation Ax + By + C = 0, where A and B are not both zero.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LINE
 #[derive(Debug, Clone, PartialEq)]

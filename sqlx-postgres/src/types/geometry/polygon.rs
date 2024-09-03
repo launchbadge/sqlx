@@ -27,7 +27,6 @@ const BYTE_WIDTH: usize = mem::size_of::<f64>();
 /// ```
 ///
 /// where the points are the end points of the line segments comprising the boundary of the polygon.
-/// Polygons are output using the first syntax.
 ///
 /// Seeh ttps://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON
 #[derive(Debug, Clone, PartialEq)]

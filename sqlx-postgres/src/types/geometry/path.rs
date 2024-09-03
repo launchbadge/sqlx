@@ -26,8 +26,6 @@ const BYTE_WIDTH: usize = 8;
 /// where the points are the end points of the line segments comprising the path. Square brackets `([])` indicate an open path, while parentheses `(())` indicate a closed path.
 /// When the outermost parentheses are omitted, as in the third through fifth syntaxes, a closed path is assumed.
 ///
-/// Paths are output using the first or second syntax, as appropriate.
-///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPath {
