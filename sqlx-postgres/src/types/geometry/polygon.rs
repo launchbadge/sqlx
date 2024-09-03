@@ -76,22 +76,24 @@ impl FromStr for PgPolygon {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let mut parts = sanitised.split(",");
+        let parts = sanitised.split(",").collect::<Vec<_>>();
 
         let mut points = vec![];
 
-        while let (Some(x_str), Some(y_str)) = (parts.next(), parts.next()) {
-            let x = parse_float_from_str(x_str, "could not get x")?;
-            let y = parse_float_from_str(y_str, "could not get y")?;
-
-            let point = PgPoint { x, y };
-            points.push(point);
-        }
-
-        if parts.next().is_some() {
+        if parts.len() % 2 != 0 {
             return Err(Error::Decode(
                 format!("Unmatched pair in path: {}", s).into(),
             ));
+        }
+
+        for chunk in parts.chunks_exact(2) {
+            if let [x_str, y_str] = chunk {
+                let x = parse_float_from_str(x_str, "could not get x")?;
+                let y = parse_float_from_str(y_str, "could not get y")?;
+
+                let point = PgPoint { x, y };
+                points.push(point);
+            }
         }
 
         if !points.is_empty() {

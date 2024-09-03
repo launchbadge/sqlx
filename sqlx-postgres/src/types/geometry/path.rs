@@ -78,22 +78,24 @@ impl FromStr for PgPath {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let closed = !s.contains("[");
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let mut parts = sanitised.split(",");
+        let parts = sanitised.split(",").collect::<Vec<_>>();
 
         let mut points = vec![];
 
-        while let (Some(x_str), Some(y_str)) = (parts.next(), parts.next()) {
-            let x = parse_float_from_str(x_str, "could not get x")?;
-            let y = parse_float_from_str(y_str, "could not get y")?;
-
-            let point = PgPoint { x, y };
-            points.push(point);
-        }
-
-        if parts.next().is_some() {
+        if parts.len() % 2 != 0 {
             return Err(Error::Decode(
                 format!("Unmatched pair in path: {}", s).into(),
             ));
+        }
+
+        for chunk in parts.chunks_exact(2) {
+            if let [x_str, y_str] = chunk {
+                let x = parse_float_from_str(x_str, "could not get x")?;
+                let y = parse_float_from_str(y_str, "could not get y")?;
+
+                let point = PgPoint { x, y };
+                points.push(point);
+            }
         }
 
         if !points.is_empty() {
@@ -242,6 +244,11 @@ mod path_tests {
         64, 16, 0, 0, 0, 0, 0, 0,
     ];
 
+    const PATH_UNEVEN_POINTS: &[u8] = &[
+        0, 0, 0, 0, 2, 63, 240, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 64, 8, 0, 0, 0, 0, 0, 0,
+        64, 16, 0, 0,
+    ];
+
     #[test]
     fn can_deserialise_path_type_bytes_closed() {
         let path = PgPath::from_bytes(PATH_CLOSED_BYTES).unwrap();
@@ -252,6 +259,19 @@ mod path_tests {
                 points: vec![PgPoint { x: 1.0, y: 2.0 }, PgPoint { x: 3.0, y: 4.0 }]
             }
         )
+    }
+
+    #[test]
+    fn cannot_deserialise_path_type_uneven_point_bytes() {
+        let path = PgPath::from_bytes(PATH_UNEVEN_POINTS);
+        assert!(path.is_err());
+
+        if let Err(err) = path {
+            assert_eq!(
+                err.to_string(),
+                format!("expected 32 bytes after header, got 28")
+            )
+        }
     }
 
     #[test]
@@ -277,6 +297,22 @@ mod path_tests {
             }
         );
     }
+
+    #[test]
+    fn cannot_deserialise_path_type_str_uneven_points_first_syntax() {
+        let input_str = "[( 1, 2), (3)]";
+        let path = PgPath::from_str(input_str);
+
+        assert!(path.is_err());
+
+        if let Err(err) = path {
+            assert_eq!(
+                err.to_string(),
+                format!("error occurred while decoding: Unmatched pair in path: {input_str}")
+            )
+        }
+    }
+
     #[test]
     fn can_deserialise_path_type_str_second_syntax() {
         let path = PgPath::from_str("(( 1, 2), (3, 4 ))").unwrap();
