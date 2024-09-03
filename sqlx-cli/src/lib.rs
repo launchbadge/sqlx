@@ -1,9 +1,9 @@
+use std::future::Future;
 use std::io;
 use std::time::Duration;
 
 use anyhow::Result;
 use backon::{ExponentialBuilder, Retryable};
-use futures::Future;
 
 use sqlx::{AnyConnection, Connection};
 
