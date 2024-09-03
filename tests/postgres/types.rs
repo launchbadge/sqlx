@@ -531,7 +531,7 @@ test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
-    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4)]')]" @= vec![sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3., y2: 4. }, sqlx::postgres::types::PgBox { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
+    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { x1: 1., y1: 2., x2: 3., y2: 4. }, sqlx::postgres::types::PgBox { x1: 1.1, y1: 2.2, x2: 3.3, y2: 4.4 }],
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
@@ -564,7 +564,7 @@ test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_circle<Vec<sqlx::postgres::types::PgCircle>>(Postgres,
-    "array[circle('<(1,2,3)>'),circle('(1.1, 2.2, 3.3)')]" @= vec![sqlx::postgres::types::PgCircle { x: 1., y: 2., r: 3. }, sqlx::postgres::types::PgCircle { x: 1.1, y: 2.2, r: 3.3 }],
+    "array[circle('<(1,2),3>'),circle('(1.1, 2.2, 3.3)')]" @= vec![sqlx::postgres::types::PgCircle { x: 1., y: 2., r: 3. }, sqlx::postgres::types::PgCircle { x: 1.1, y: 2.2, r: 3.3 }],
 ));
 
 #[cfg(feature = "rust_decimal")]
