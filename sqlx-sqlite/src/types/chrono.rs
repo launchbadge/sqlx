@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::value::ValueRef;
 use crate::{
     decode::Decode,
@@ -10,9 +8,7 @@ use crate::{
     Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
 };
 use chrono::FixedOffset;
-use chrono::{
-    DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
-};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
 
 impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
     fn type_info() -> SqliteTypeInfo {
@@ -61,12 +57,21 @@ impl Type<Sqlite> for NaiveTime {
     }
 }
 
-impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
-where
-    Tz::Offset: Display,
-{
+impl Encode<'_, Sqlite> for DateTime<Utc> {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
+        Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
+    }
+}
+
+impl Encode<'_, Sqlite> for DateTime<Local> {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+        Encode::<Sqlite>::encode(self.format("%F %T%.f%:z").to_string(), buf)
+    }
+}
+
+impl Encode<'_, Sqlite> for DateTime<FixedOffset> {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+        Encode::<Sqlite>::encode(self.format("%F %T%.f%:z").to_string(), buf)
     }
 }
 
