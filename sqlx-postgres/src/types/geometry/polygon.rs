@@ -125,7 +125,7 @@ impl PgPolygon {
             .into());
         }
 
-        let mut out_points = Vec::with_capacity(bytes.len() / BYTE_WIDTH * 2);
+        let mut out_points = Vec::with_capacity(bytes.len() / (BYTE_WIDTH * 2));
         while bytes.has_remaining() {
             let point = PgPoint {
                 x: bytes.get_f64(),
