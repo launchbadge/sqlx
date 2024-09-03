@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use futures_core::future::BoxFuture;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 pub use fixtures::FixtureSnapshot;
 use sha2::{Digest, Sha512};
 
@@ -41,7 +41,7 @@ pub trait TestSupport: Database {
         let mut hasher = Sha512::new();
         hasher.update(args.test_path.as_bytes());
         let hash = hasher.finalize();
-        let hash = STANDARD.encode(&hash[..39]);
+        let hash = URL_SAFE.encode(&hash[..39]);
         let db_name = format!("_sqlx_test_{}", hash);
         debug_assert!(db_name.len() == 63);
         db_name
