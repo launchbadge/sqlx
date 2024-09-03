@@ -84,7 +84,7 @@ impl FromStr for PgPath {
 
         if parts.len() % 2 != 0 {
             return Err(Error::Decode(
-                format!("Unmatched pair in path: {}", s).into(),
+                format!("Unmatched pair in PATH: {}", s).into(),
             ));
         }
 

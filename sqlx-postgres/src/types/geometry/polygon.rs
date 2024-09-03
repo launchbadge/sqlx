@@ -82,7 +82,7 @@ impl FromStr for PgPolygon {
 
         if parts.len() % 2 != 0 {
             return Err(Error::Decode(
-                format!("Unmatched pair in path: {}", s).into(),
+                format!("Unmatched pair in POLYGON: {}", s).into(),
             ));
         }
 
