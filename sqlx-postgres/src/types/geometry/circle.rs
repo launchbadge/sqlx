@@ -63,7 +63,7 @@ impl<'q> Encode<'q, Postgres> for PgCircle {
 }
 
 impl FromStr for PgCircle {
-    type Err = Error;
+    type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['<', '>', '(', ')', ' '], "");
@@ -72,23 +72,17 @@ impl FromStr for PgCircle {
         let x = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get x from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get x from {}", ERROR, s))?;
 
         let y = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get y from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get y from {}", ERROR, s))?;
 
         let r = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get r from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get r from {}", ERROR, s))?;
 
         Ok(PgCircle { x, y, r })
     }

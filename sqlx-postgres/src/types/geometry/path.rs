@@ -308,7 +308,7 @@ mod path_tests {
         if let Err(err) = path {
             assert_eq!(
                 err.to_string(),
-                format!("error occurred while decoding: Unmatched pair in path: {input_str}")
+                format!("error occurred while decoding: Unmatched pair in PATH: {input_str}")
             )
         }
     }

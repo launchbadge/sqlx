@@ -66,7 +66,7 @@ impl<'q> Encode<'q, Postgres> for PgBox {
 }
 
 impl FromStr for PgBox {
-    type Err = Error;
+    type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
@@ -75,30 +75,22 @@ impl FromStr for PgBox {
         let x1 = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get x1 from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get x1 from {}", ERROR, s))?;
 
         let y1 = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get y1 from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get y1 from {}", ERROR, s))?;
 
         let x2 = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get x2 from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get x2 from {}", ERROR, s))?;
 
         let y2 = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get y2 from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get y2 from {}", ERROR, s))?;
 
         Ok(PgBox { x1, y1, x2, y2 })
     }

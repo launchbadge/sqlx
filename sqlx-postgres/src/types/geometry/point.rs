@@ -65,15 +65,13 @@ fn parse_float_from_str(s: &str, error_msg: &str) -> Result<f64, Error> {
 }
 
 impl FromStr for PgPoint {
-    type Err = Error;
+    type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (x_str, y_str) = s
             .trim_matches(|c| c == '(' || c == ')' || c == ' ')
             .split_once(',')
-            .ok_or(Error::Decode(
-                format!("error decoding POINT: could not get x and y from {}", s).into(),
-            ))?;
+            .ok_or_else(|| format!("error decoding POINT: could not get x and y from {}", s))?;
 
         let x = parse_float_from_str(x_str, "error decoding POINT: could not get x")?;
         let y = parse_float_from_str(y_str, "error decoding POINT: could not get x")?;

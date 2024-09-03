@@ -57,7 +57,7 @@ impl<'q> Encode<'q, Postgres> for PgLine {
 }
 
 impl FromStr for PgLine {
-    type Err = Error;
+    type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s
@@ -67,23 +67,17 @@ impl FromStr for PgLine {
         let a = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get a from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get a from {}", ERROR, s))?;
 
         let b = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get b from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get b from {}", ERROR, s))?;
 
         let c = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or(Error::Decode(
-                format!("{}: could not get c from {}", ERROR, s).into(),
-            ))?;
+            .ok_or_else(|| format!("{}: could not get c from {}", ERROR, s))?;
 
         Ok(PgLine { a, b, c })
     }
