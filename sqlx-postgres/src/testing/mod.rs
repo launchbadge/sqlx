@@ -126,7 +126,9 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     .execute(&mut *conn)
     .await?;
 
-    conn.execute(&format!("create database {db_name:?}")[..])
+    let create_command = format!("create database {db_name:?}");
+    debug_assert!(create_command.starts_with("create database \""));
+    conn.execute(&(create_command)[..])
         .await?;
 
     Ok(TestContext {
