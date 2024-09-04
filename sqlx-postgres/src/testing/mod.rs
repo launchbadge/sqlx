@@ -31,14 +31,7 @@ impl TestSupport for Postgres {
                 .acquire()
                 .await?;
 
-            conn.execute(&format!("drop database if exists {db_name:?};")[..])
-                .await?;
-
-            query("delete from _sqlx_test.databases where db_name = $1")
-                .bind(db_name)
-                .execute(&mut *conn)
-                .await?;
-
+            do_cleanup(&mut conn, db_name).await?;
             Ok(())
         })
     }
