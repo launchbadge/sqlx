@@ -31,8 +31,7 @@ impl TestSupport for Postgres {
                 .acquire()
                 .await?;
 
-            do_cleanup(&mut conn, db_name).await?;
-            Ok(())
+            do_cleanup(&mut conn, db_name).await
         })
     }
 
@@ -114,15 +113,14 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             insert into _sqlx_test.databases(db_name, test_path) values ($1, $2)
         "#,
     )
-    .bind(&db_name)
+    .bind(db_name)
     .bind(args.test_path)
     .execute(&mut *conn)
     .await?;
 
     let create_command = format!("create database {db_name:?}");
     debug_assert!(create_command.starts_with("create database \""));
-    conn.execute(&(create_command)[..])
-        .await?;
+    conn.execute(&(create_command)[..]).await?;
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
