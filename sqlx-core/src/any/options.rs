@@ -62,4 +62,9 @@ impl ConnectOptions for AnyConnectOptions {
         self.log_settings.slow_statements_duration = duration;
         self
     }
+
+    fn set_span_level(mut self, level: LevelFilter) -> Self {
+        self.log_settings.span_level = level;
+        self
+    }
 }

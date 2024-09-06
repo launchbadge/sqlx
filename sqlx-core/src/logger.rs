@@ -54,7 +54,6 @@ macro_rules! private_tracing_dynamic_span {
     }};
 }
 
-
 #[doc(hidden)]
 pub fn private_level_filter_to_levels(
     filter: log::LevelFilter,
@@ -90,20 +89,7 @@ pub struct QueryLogger<'q> {
 
 impl<'q> QueryLogger<'q> {
     pub fn new(sql: &'q str, db_system: &'q str, settings: LogSettings) -> Self {
-        use tracing::field::Empty;
-
-        let level = private_level_filter_to_trace_level(settings.tracing_span_level()).unwrap_or(tracing::Level::TRACE);
-
-        let span = private_tracing_dynamic_span!(
-            target: "sqlx::query",
-            level, 
-            "sqlx::query",
-            summary = Empty,
-            db.statement = Empty,
-            db.system = db_system,
-            rows_affected = Empty,
-            rows_returned = Empty,
-        );
+        let span = Self::new_tracing_span(db_system, &settings);
 
         Self {
             sql,
@@ -113,6 +99,30 @@ impl<'q> QueryLogger<'q> {
             settings,
             span,
         }
+    }
+
+    fn new_tracing_span(db_system: &str, settings: &LogSettings) -> tracing::Span {
+        // only create a usable span if the span level is set (i.e. not 'OFF') and
+        // the filter would output it
+        if let Some(level) = private_level_filter_to_trace_level(settings.span_level) {
+            if private_tracing_dynamic_enabled!(target: "sqlx::query", level) {
+                use tracing::field::Empty;
+
+                return private_tracing_dynamic_span!(
+                    target: "sqlx::query",
+                    level,
+                    "sqlx::query",
+                    summary = Empty,
+                    db.statement = Empty,
+                    db.system = db_system,
+                    rows_affected = Empty,
+                    rows_returned = Empty,
+                );
+            }
+        }
+
+        // No-op span preferred over Option<Span>
+        tracing::Span::none()
     }
 
     pub fn increment_rows_returned(&mut self) {
@@ -134,58 +144,82 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
-        // only create an event if the level filter is set
-        if let Some((tracing_level, log_level)) = private_level_filter_to_levels(lvl) {
-            // The enabled level could be set from either tracing world or log world, so check both
-            // to see if logging should be enabled for our level
-            let log_is_enabled = log::log_enabled!(target: "sqlx::query", log_level)
-                || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level);
-            if log_is_enabled {
-                let mut summary = parse_query_summary(self.sql);
+        let span_level = private_level_filter_to_trace_level(self.settings.span_level);
+        let log_levels = private_level_filter_to_levels(lvl);
 
-                let sql = if summary != self.sql {
-                    summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        sqlformat::format(
-                            self.sql,
-                            &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
-                        )
+        let span_is_enabled = span_level
+            .map(|level| private_tracing_dynamic_enabled!(target: "sqlx::query", level))
+            .unwrap_or(false);
+
+        let log_is_enabled = log_levels
+            .map(|(tracing_level, log_level)| {
+                // The enabled level could be set from either tracing world or log world, so check both
+                // to see if logging should be enabled for our level
+                log::log_enabled!(target: "sqlx::query", log_level)
+                    || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
+            })
+            .unwrap_or(false);
+
+        // only do these potentially expensive operations if the span or log will record them
+        if span_is_enabled || log_is_enabled {
+            let mut summary = parse_query_summary(self.sql);
+
+            let sql = if summary != self.sql {
+                summary.push_str(" …");
+                format!(
+                    "\n\n{}\n",
+                    sqlformat::format(
+                        self.sql,
+                        &sqlformat::QueryParams::None,
+                        sqlformat::FormatOptions::default()
                     )
-                } else {
-                    String::new()
-                };
+                )
+            } else {
+                String::new()
+            };
 
-                self.span.record("summary", summary);
-                self.span.record("db.statement", sql);
-                self.span.record("rows_affected", self.rows_affected);
-                self.span.record("rows_returned", self.rows_returned);
+            // in the case where span_is_enabled is false, these will no-op
+            self.span.record("summary", &summary);
+            self.span.record("db.statement", &sql);
+            self.span.record("rows_affected", self.rows_affected);
+            self.span.record("rows_returned", self.rows_returned);
 
-                let _e = self.span.enter();
-                if was_slow { 
+            let _e = self.span.enter();
+
+            if log_is_enabled {
+                let (tracing_level, _) = log_levels.unwrap(); // previously checked to be some
+
+                if was_slow {
                     private_tracing_dynamic_event!(
                         target: "sqlx::query",
                         tracing_level,
-                        // When logging to JSON, one can trigger alerts from the presence of this field.
-                        slow_threshold=?self.settings.slow_statements_duration,
+                        summary,
+                        db.statement = sql,
+                        rows_affected = self.rows_affected,
+                        rows_returned = self.rows_returned,
                         // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
                         // Search friendly - numeric
                         elapsed_secs = elapsed.as_secs_f64(),
+                        // When logging to JSON, one can trigger alerts from the presence of this field.
+                        slow_threshold=?self.settings.slow_statements_duration,
                         // Make sure to use "slow" in the message as that's likely
                         // what people will grep for.
                         "slow statement: execution time exceeded alert threshold"
-                    )
+                    );
                 } else {
                     private_tracing_dynamic_event!(
                         target: "sqlx::query",
                         tracing_level,
+                        summary,
+                        db.statement = sql,
+                        rows_affected = self.rows_affected,
+                        rows_returned = self.rows_returned,
                         // Human-friendly - includes units (usually ms). Also kept for backward compatibility
                         ?elapsed,
                         // Search friendly - numeric
                         elapsed_secs = elapsed.as_secs_f64(),
-                    )
+                    );
                 }
             }
         }

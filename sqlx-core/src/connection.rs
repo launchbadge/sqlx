@@ -161,6 +161,7 @@ pub struct LogSettings {
     pub statements_level: LevelFilter,
     pub slow_statements_level: LevelFilter,
     pub slow_statements_duration: Duration,
+    pub span_level: LevelFilter,
 }
 
 impl Default for LogSettings {
@@ -169,6 +170,7 @@ impl Default for LogSettings {
             statements_level: LevelFilter::Debug,
             slow_statements_level: LevelFilter::Warn,
             slow_statements_duration: Duration::from_secs(1),
+            span_level: LevelFilter::Info,
         }
     }
 }
@@ -182,8 +184,8 @@ impl LogSettings {
         self.slow_statements_duration = duration;
     }
 
-    pub fn tracing_span_level(&self) -> LevelFilter {
-        std::cmp::max(self.slow_statements_level, self.statements_level)
+    pub fn set_span_level(&mut self, level: LevelFilter) {
+        self.span_level = level;
     }
 }
 
@@ -238,5 +240,8 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
     fn disable_statement_logging(self) -> Self {
         self.log_statements(LevelFilter::Off)
             .log_slow_statements(LevelFilter::Off, Duration::default())
+            .set_span_level(LevelFilter::Off)
     }
+
+    fn set_span_level(self, level: LevelFilter) -> Self;
 }
