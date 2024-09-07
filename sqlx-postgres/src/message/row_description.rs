@@ -65,7 +65,7 @@ impl BackendMessage for RowDescription {
                 ));
             }
 
-            let relation_id = Oid(buf.get_u32());
+            let relation_id = buf.get_u32();
             let relation_attribute_no = buf.get_i16();
             let data_type_id = Oid(buf.get_u32());
             let data_type_size = buf.get_i16();
