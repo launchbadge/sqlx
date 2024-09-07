@@ -74,7 +74,7 @@ impl BackendMessage for RowDescription {
 
             fields.push(Field {
                 name,
-                relation_id: if relation_id.0 == 0 {
+                relation_id: if relation_id == 0 {
                     None
                 } else {
                     Some(Oid(relation_id))
