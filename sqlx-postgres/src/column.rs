@@ -22,8 +22,8 @@ impl PgColumn {
     ///
     /// Corresponds to column `attrelid` of the `pg_catalog.pg_attribute` table:
     /// <https://www.postgresql.org/docs/current/catalog-pg-attribute.html>
-    pub fn relation_id(&self) -> Option<Oid> {
-        self.relation_id.map(|oid| oid.0)
+    pub fn relation_id(&self) -> Option<crate::types::Oid> {
+        self.relation_id
     }
 
     /// Returns the 1-based index of this column in its parent table, if applicable.
