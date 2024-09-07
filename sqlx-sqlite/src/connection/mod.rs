@@ -63,7 +63,7 @@ pub struct LockedSqliteHandle<'a> {
 pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send + 'static>);
 unsafe impl Send for Handler {}
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SqliteOperation {
     Insert,
     Update,
