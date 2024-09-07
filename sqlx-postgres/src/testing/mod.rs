@@ -113,7 +113,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             insert into _sqlx_test.databases(db_name, test_path) values ($1, $2)
         "#,
     )
-    .bind(db_name)
+    .bind(&db_name)
     .bind(args.test_path)
     .execute(&mut *conn)
     .await?;

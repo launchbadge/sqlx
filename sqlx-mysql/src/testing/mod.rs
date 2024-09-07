@@ -95,7 +95,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
     do_cleanup(&mut conn, &db_name).await?;
 
     query("insert into _sqlx_test_databases(test_path) values ($1, $2)")
-        .bind(db_name)
+        .bind(&db_name)
         .bind(args.test_path)
         .execute(&mut *conn)
         .await?;
