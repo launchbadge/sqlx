@@ -77,7 +77,7 @@ impl BackendMessage for RowDescription {
                 relation_id: if relation_id.0 == 0 {
                     None
                 } else {
-                    Some(relation_id)
+                    Some(Oid(relation_id))
                 },
                 relation_attribute_no: if relation_attribute_no == 0 {
                     None
