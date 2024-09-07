@@ -16,7 +16,13 @@ pub struct PgColumn {
 }
 
 impl PgColumn {
-    pub fn relation_id(&self) -> Option<u32> {
+    /// Returns the OID of the table this column is from, if applicable.
+    ///
+    /// This will be `None` if the column is the result of an expression.
+    ///
+    /// Corresponds to column `attrelid` of the `pg_catalog.pg_attribute` table:
+    /// <https://www.postgresql.org/docs/current/catalog-pg-attribute.html>
+    pub fn relation_id(&self) -> Option<Oid> {
         self.relation_id.map(|oid| oid.0)
     }
 
