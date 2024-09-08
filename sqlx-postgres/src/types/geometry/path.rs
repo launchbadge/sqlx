@@ -76,7 +76,7 @@ impl FromStr for PgPath {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let closed = !s.contains("[");
+        let closed = !s.contains('[');
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let parts = sanitised.split(',').collect::<Vec<_>>();
 
