@@ -115,6 +115,41 @@ pub trait Fetch<'q, DB: Database>: Sized {
         E: 'e + Executor<'c, Database = DB>,
         DB: 'e,
         Self::Output: 'e + Send + Unpin;
+
+    /// Map each row in the result to another type.
+    ///
+    /// See [`try_map`](Query::try_map) for a fallible version of this method.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    fn map<F, O>(
+        self,
+        mut f: F,
+    ) -> Map<'q, DB, Self, impl FnMut(DB::Row) -> Result<O, Error> + Send>
+    where
+        F: FnMut(DB::Row) -> O + Send,
+        O: Unpin,
+    {
+        self.try_map(move |row| Ok(f(row)))
+    }
+
+    /// Map each row in the result to another type.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    fn try_map<F, O>(self, f: F) -> Map<'q, DB, Self, F>
+    where
+        F: FnMut(DB::Row) -> Result<O, Error> + Send,
+        O: Unpin,
+    {
+        Map {
+            inner: self,
+            mapper: f,
+            inner_statement: PhantomData,
+        }
+    }
 }
 
 /// A single SQL query as a prepared statement. Returned by [`query()`].
@@ -138,9 +173,10 @@ pub struct Query<'q, DB: Database, A> {
 /// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, DB: Database, F, A> {
-    inner: Query<'q, DB, A>,
+pub struct Map<'q, DB: Database, Inner, F> {
+    inner: Inner,
     mapper: F,
+    inner_statement: PhantomData<&'q DB::Statement<'q>>,
 }
 
 impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
@@ -250,40 +286,6 @@ where
     DB: Database,
     A: 'q + IntoArguments<'q, DB>,
 {
-    /// Map each row in the result to another type.
-    ///
-    /// See [`try_map`](Query::try_map) for a fallible version of this method.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn map<F, O>(
-        self,
-        mut f: F,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send, A>
-    where
-        F: FnMut(DB::Row) -> O + Send,
-        O: Unpin,
-    {
-        self.try_map(move |row| Ok(f(row)))
-    }
-
-    /// Map each row in the result to another type.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
-    where
-        F: FnMut(DB::Row) -> Result<O, Error> + Send,
-        O: Unpin,
-    {
-        Map {
-            inner: self,
-            mapper: f,
-        }
-    }
-
     /// Execute the query and return the total number of rows affected.
     #[inline]
     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
@@ -341,10 +343,9 @@ impl<'q, DB: Database, A: 'q + IntoArguments<'q, DB> + Send> Fetch<'q, DB> for Q
     }
 }
 
-impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
+impl<'q, DB, Inner: Execute<'q, DB>, F: Send> Execute<'q, DB> for Map<'q, DB, Inner, F>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
@@ -363,62 +364,16 @@ where
 
     #[inline]
     fn persistent(&self) -> bool {
-        self.inner.arguments.is_some()
+        self.inner.persistent()
     }
 }
 
-impl<'q, DB, F, O, A> Map<'q, DB, F, A>
+impl<'q, DB, Inner: Fetch<'q, DB>, F, O> Fetch<'q, DB> for Map<'q, DB, Inner, F>
 where
     DB: Database,
-    F: FnMut(DB::Row) -> Result<O, Error> + Send,
+    F: FnMut(Inner::Output) -> Result<O, Error> + Send + 'q,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q, DB>,
-{
-    /// Map each row in the result to another type.
-    ///
-    /// See [`try_map`](Map::try_map) for a fallible version of this method.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn map<G, P>(
-        self,
-        mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
-    where
-        G: FnMut(O) -> P + Send,
-        P: Unpin,
-    {
-        self.try_map(move |data| Ok(g(data)))
-    }
-
-    /// Map each row in the result to another type.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn try_map<G, P>(
-        self,
-        mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
-    where
-        G: FnMut(O) -> Result<P, Error> + Send,
-        P: Unpin,
-    {
-        let mut f = self.mapper;
-        Map {
-            inner: self.inner,
-            mapper: move |row| f(row).and_then(&mut g),
-        }
-    }
-}
-
-impl<'q, DB, F, O, A> Fetch<'q, DB> for Map<'q, DB, F, A>
-where
-    DB: Database,
-    F: FnMut(DB::Row) -> Result<O, Error> + Send + 'q,
-    O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q, DB>,
+    Inner: Send + 'q,
 {
     type Output = O;
 
@@ -433,7 +388,8 @@ where
         Self::Output: 'e,
     {
         Box::pin(try_stream! {
-            let mut s = executor.fetch_many(self.inner);
+            #[allow(deprecated)]
+            let mut s = self.inner.fetch_many(executor);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(match v {
@@ -459,7 +415,7 @@ where
         Self::Output: 'e + Send + Unpin,
     {
         async move {
-            let row = executor.fetch_optional(self.inner).await?;
+            let row = self.inner.fetch_optional(executor).await?;
 
             if let Some(row) = row {
                 (self.mapper)(row).map(Some)
