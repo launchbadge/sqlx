@@ -11,25 +11,25 @@ const ERROR: &str = "error decoding BOX";
 /// ## Postgres Geometric Box type
 ///
 /// Description: Rectangular box
-/// Representation: `((x_upper_right,y_upper_right),(x_lower_left,y_lower_left))`
+/// Representation: `((upper_right_x,upper_right_y),(lower_left_x,lower_left_y))`
 ///
 /// Boxes are represented by pairs of points that are opposite corners of the box. Values of type box are specified using any of the following syntaxes:
 ///
 /// ```text
-/// ( ( x_upper_right , y_upper_right ) , ( x_lower_left , y_lower_left ) )
-/// ( x_upper_right , y_upper_right ) , ( x_lower_left , y_lower_left )
-///   x_upper_right , y_upper_right   ,   x_lower_left , y_lower_left
+/// ( ( upper_right_x , upper_right_y ) , ( lower_left_x , lower_left_y ) )
+/// ( upper_right_x , upper_right_y ) , ( lower_left_x , lower_left_y )
+///   upper_right_x , upper_right_y   ,   lower_left_x , lower_left_y
 /// ```
-/// where `(x_upper_right,y_upper_right) and (x_lower_left,y_lower_left)` are any two opposite corners of the box.
+/// where `(upper_right_x,upper_right_y) and (lower_left_x,lower_left_y)` are any two opposite corners of the box.
 /// Any two opposite corners can be supplied on input, but the values will be reordered as needed to store the upper right and lower left corners, in that order.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-BOXES
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgBox {
-    pub x_upper_right: f64,
-    pub y_upper_right: f64,
-    pub x_lower_left: f64,
-    pub y_lower_left: f64,
+    pub upper_right_x: f64,
+    pub upper_right_y: f64,
+    pub lower_left_x: f64,
+    pub lower_left_y: f64,
 }
 
 impl Type<Postgres> for PgBox {
@@ -71,59 +71,59 @@ impl FromStr for PgBox {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.split(',');
 
-        let x_upper_right = parts
+        let upper_right_x = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get x_upper_right from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get upper_right_x from {}", ERROR, s))?;
 
-        let y_upper_right = parts
+        let upper_right_y = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get y_upper_right from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get upper_right_y from {}", ERROR, s))?;
 
-        let x_lower_left = parts
+        let lower_left_x = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get x_lower_left from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get lower_left_x from {}", ERROR, s))?;
 
-        let y_lower_left = parts
+        let lower_left_y = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get y_lower_left from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get lower_left_y from {}", ERROR, s))?;
 
         if parts.next().is_some() {
             return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
         Ok(PgBox {
-            x_upper_right,
-            y_upper_right,
-            x_lower_left,
-            y_lower_left,
+            upper_right_x,
+            upper_right_y,
+            lower_left_x,
+            lower_left_y,
         })
     }
 }
 
 impl PgBox {
     fn from_bytes(mut bytes: &[u8]) -> Result<PgBox, BoxDynError> {
-        let x_upper_right = bytes.get_f64();
-        let y_upper_right = bytes.get_f64();
-        let x_lower_left = bytes.get_f64();
-        let y_lower_left = bytes.get_f64();
+        let upper_right_x = bytes.get_f64();
+        let upper_right_y = bytes.get_f64();
+        let lower_left_x = bytes.get_f64();
+        let lower_left_y = bytes.get_f64();
 
         Ok(PgBox {
-            x_upper_right,
-            y_upper_right,
-            x_lower_left,
-            y_lower_left,
+            upper_right_x,
+            upper_right_y,
+            lower_left_x,
+            lower_left_y,
         })
     }
 
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), String> {
-        let min_x = &self.x_upper_right.min(self.x_lower_left);
-        let min_y = &self.y_upper_right.min(self.y_lower_left);
-        let max_x = &self.x_upper_right.max(self.x_lower_left);
-        let max_y = &self.y_upper_right.max(self.y_lower_left);
+        let min_x = &self.upper_right_x.min(self.lower_left_x);
+        let min_y = &self.upper_right_y.min(self.lower_left_y);
+        let max_x = &self.upper_right_x.max(self.lower_left_x);
+        let max_y = &self.upper_right_y.max(self.lower_left_y);
 
         buff.extend_from_slice(&max_x.to_be_bytes());
         buff.extend_from_slice(&max_y.to_be_bytes());
@@ -159,10 +159,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 2.,
-                y_upper_right: 2.,
-                x_lower_left: -2.,
-                y_lower_left: -2.
+                upper_right_x: 2.,
+                upper_right_y: 2.,
+                lower_left_x: -2.,
+                lower_left_y: -2.
             }
         )
     }
@@ -173,10 +173,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 1.,
-                y_upper_right: 2.,
-                x_lower_left: 3.,
-                y_lower_left: 4.
+                upper_right_x: 1.,
+                upper_right_y: 2.,
+                lower_left_x: 3.,
+                lower_left_y: 4.
             }
         );
     }
@@ -186,10 +186,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 1.,
-                y_upper_right: 2.,
-                x_lower_left: 3.,
-                y_lower_left: 4.
+                upper_right_x: 1.,
+                upper_right_y: 2.,
+                lower_left_x: 3.,
+                lower_left_y: 4.
             }
         );
     }
@@ -200,10 +200,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 1.,
-                y_upper_right: 2.,
-                x_lower_left: 3.,
-                y_lower_left: 4.
+                upper_right_x: 1.,
+                upper_right_y: 2.,
+                lower_left_x: 3.,
+                lower_left_y: 4.
             }
         );
     }
@@ -214,10 +214,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 1.,
-                y_upper_right: 2.,
-                x_lower_left: 3.,
-                y_lower_left: 4.
+                upper_right_x: 1.,
+                upper_right_y: 2.,
+                lower_left_x: 3.,
+                lower_left_y: 4.
             }
         );
     }
@@ -243,7 +243,7 @@ mod box_tests {
         if let Err(err) = pg_box {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding BOX: could not get y_lower_left from {input_str}")
+                format!("error decoding BOX: could not get lower_left_y from {input_str}")
             )
         }
     }
@@ -256,7 +256,7 @@ mod box_tests {
         if let Err(err) = pg_box {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding BOX: could not get y_lower_left from {input_str}")
+                format!("error decoding BOX: could not get lower_left_y from {input_str}")
             )
         }
     }
@@ -267,10 +267,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 1.1,
-                y_upper_right: 2.2,
-                x_lower_left: 3.3,
-                y_lower_left: 4.4
+                upper_right_x: 1.1,
+                upper_right_y: 2.2,
+                lower_left_x: 3.3,
+                lower_left_y: 4.4
             }
         );
     }
@@ -278,10 +278,10 @@ mod box_tests {
     #[test]
     fn can_serialise_box_type_in_order() {
         let pg_box = PgBox {
-            x_upper_right: 2.,
-            x_lower_left: -2.,
-            y_upper_right: -2.,
-            y_lower_left: 2.,
+            upper_right_x: 2.,
+            lower_left_x: -2.,
+            upper_right_y: -2.,
+            lower_left_y: 2.,
         };
         assert_eq!(pg_box.serialize_to_vec(), BOX_BYTES,)
     }
@@ -289,10 +289,10 @@ mod box_tests {
     #[test]
     fn can_serialise_box_type_out_of_order() {
         let pg_box = PgBox {
-            x_upper_right: -2.,
-            x_lower_left: 2.,
-            y_upper_right: 2.,
-            y_lower_left: -2.,
+            upper_right_x: -2.,
+            lower_left_x: 2.,
+            upper_right_y: 2.,
+            lower_left_y: -2.,
         };
         assert_eq!(pg_box.serialize_to_vec(), BOX_BYTES,)
     }
@@ -300,10 +300,10 @@ mod box_tests {
     #[test]
     fn can_order_box() {
         let pg_box = PgBox {
-            x_upper_right: -2.,
-            x_lower_left: 2.,
-            y_upper_right: 2.,
-            y_lower_left: -2.,
+            upper_right_x: -2.,
+            lower_left_x: 2.,
+            upper_right_y: 2.,
+            lower_left_y: -2.,
         };
         let bytes = pg_box.serialize_to_vec();
 
@@ -311,10 +311,10 @@ mod box_tests {
         assert_eq!(
             pg_box,
             PgBox {
-                x_upper_right: 2.,
-                y_upper_right: 2.,
-                x_lower_left: -2.,
-                y_lower_left: -2.
+                upper_right_x: 2.,
+                upper_right_y: 2.,
+                lower_left_x: -2.,
+                lower_left_y: -2.
             }
         )
     }

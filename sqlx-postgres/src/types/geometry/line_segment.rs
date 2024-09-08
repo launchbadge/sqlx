@@ -11,25 +11,25 @@ const ERROR: &str = "error decoding LSEG";
 /// ## Postgres Geometric Line Segment type
 ///
 /// Description: Finite line segment
-/// Representation: `((x1,y1),(x2,y2))`
+/// Representation: `((start_x,start_y),(end_x,end_y))`
 ///
 ///
 /// Line segments are represented by pairs of points that are the endpoints of the segment. Values of type lseg are specified using any of the following syntaxes:
 /// ```text
-/// [ ( x1 , y1 ) , ( x2 , y2 ) ]
-/// ( ( x1 , y1 ) , ( x2 , y2 ) )
-///   ( x1 , y1 ) , ( x2 , y2 )
-///     x1 , y1   ,   x2 , y2
+/// [ ( start_x , start_y ) , ( end_x , end_y ) ]
+/// ( ( start_x , start_y ) , ( end_x , end_y ) )
+///   ( start_x , start_y ) , ( end_x , end_y )
+///     start_x , start_y   ,   end_x , end_y
 /// ```
-/// where `(x1,y1) and (x2,y2)` are the end points of the line segment.
+/// where `(start_x,start_y) and (end_x,end_y)` are the end points of the line segment.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LSEG
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgLSeg {
-    pub x1: f64,
-    pub y1: f64,
-    pub x2: f64,
-    pub y2: f64,
+    pub start_x: f64,
+    pub start_y: f64,
+    pub end_x: f64,
+    pub end_y: f64,
 }
 
 impl Type<Postgres> for PgLSeg {
@@ -71,49 +71,59 @@ impl FromStr for PgLSeg {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
         let mut parts = sanitised.split(',');
 
-        let x1 = parts
+        let start_x = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get x1 from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get start_x from {}", ERROR, s))?;
 
-        let y1 = parts
+        let start_y = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get y1 from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get start_y from {}", ERROR, s))?;
 
-        let x2 = parts
+        let end_x = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get x2 from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get end_x from {}", ERROR, s))?;
 
-        let y2 = parts
+        let end_y = parts
             .next()
             .and_then(|s| s.parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get y2 from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get end_y from {}", ERROR, s))?;
 
         if parts.next().is_some() {
             return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
-        Ok(PgLSeg { x1, y1, x2, y2 })
+        Ok(PgLSeg {
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+        })
     }
 }
 
 impl PgLSeg {
     fn from_bytes(mut bytes: &[u8]) -> Result<PgLSeg, BoxDynError> {
-        let x1 = bytes.get_f64();
-        let y1 = bytes.get_f64();
-        let x2 = bytes.get_f64();
-        let y2 = bytes.get_f64();
+        let start_x = bytes.get_f64();
+        let start_y = bytes.get_f64();
+        let end_x = bytes.get_f64();
+        let end_y = bytes.get_f64();
 
-        Ok(PgLSeg { x1, y1, x2, y2 })
+        Ok(PgLSeg {
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+        })
     }
 
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), BoxDynError> {
-        buff.extend_from_slice(&self.x1.to_be_bytes());
-        buff.extend_from_slice(&self.y1.to_be_bytes());
-        buff.extend_from_slice(&self.x2.to_be_bytes());
-        buff.extend_from_slice(&self.y2.to_be_bytes());
+        buff.extend_from_slice(&self.start_x.to_be_bytes());
+        buff.extend_from_slice(&self.start_y.to_be_bytes());
+        buff.extend_from_slice(&self.end_x.to_be_bytes());
+        buff.extend_from_slice(&self.end_y.to_be_bytes());
         Ok(())
     }
 
@@ -143,10 +153,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.1,
-                y1: 2.2,
-                x2: 3.3,
-                y2: 4.4
+                start_x: 1.1,
+                start_y: 2.2,
+                end_x: 3.3,
+                end_y: 4.4
             }
         )
     }
@@ -157,10 +167,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.,
-                y1: 2.,
-                x2: 3.,
-                y2: 4.
+                start_x: 1.,
+                start_y: 2.,
+                end_x: 3.,
+                end_y: 4.
             }
         );
     }
@@ -170,10 +180,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.,
-                y1: 2.,
-                x2: 3.,
-                y2: 4.
+                start_x: 1.,
+                start_y: 2.,
+                end_x: 3.,
+                end_y: 4.
             }
         );
     }
@@ -184,10 +194,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.,
-                y1: 2.,
-                x2: 3.,
-                y2: 4.
+                start_x: 1.,
+                start_y: 2.,
+                end_x: 3.,
+                end_y: 4.
             }
         );
     }
@@ -198,10 +208,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.,
-                y1: 2.,
-                x2: 3.,
-                y2: 4.
+                start_x: 1.,
+                start_y: 2.,
+                end_x: 3.,
+                end_y: 4.
             }
         );
     }
@@ -227,7 +237,7 @@ mod lseg_tests {
         if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding LSEG: could not get y2 from {input_str}")
+                format!("error decoding LSEG: could not get end_y from {input_str}")
             )
         }
     }
@@ -240,7 +250,7 @@ mod lseg_tests {
         if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding LSEG: could not get y2 from {input_str}")
+                format!("error decoding LSEG: could not get end_y from {input_str}")
             )
         }
     }
@@ -251,10 +261,10 @@ mod lseg_tests {
         assert_eq!(
             lseg,
             PgLSeg {
-                x1: 1.1,
-                y1: 2.2,
-                x2: 3.3,
-                y2: 4.4
+                start_x: 1.1,
+                start_y: 2.2,
+                end_x: 3.3,
+                end_y: 4.4
             }
         );
     }
@@ -262,10 +272,10 @@ mod lseg_tests {
     #[test]
     fn can_serialise_lseg_type() {
         let lseg = PgLSeg {
-            x1: 1.1,
-            y1: 2.2,
-            x2: 3.3,
-            y2: 4.4,
+            start_x: 1.1,
+            start_y: 2.2,
+            end_x: 3.3,
+            end_y: 4.4,
         };
         assert_eq!(lseg.serialize_to_vec(), LINE_SEGMENT_BYTES,)
     }
