@@ -92,7 +92,7 @@ impl FromStr for PgLSeg {
             .ok_or_else(|| format!("{}: could not get y2 from {}", ERROR, s))?;
 
         if parts.next().is_some() {
-            return Err(format!("{}: too many points in {}", ERROR, s).into());
+            return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
         Ok(PgLSeg { x1, y1, x2, y2 })
@@ -214,7 +214,7 @@ mod lseg_tests {
         if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding LSEG: too many points in {input_str}")
+                format!("error decoding LSEG: too many numbers inputted in {input_str}")
             )
         }
     }

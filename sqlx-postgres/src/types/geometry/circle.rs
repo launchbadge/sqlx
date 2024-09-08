@@ -85,7 +85,7 @@ impl FromStr for PgCircle {
             .ok_or_else(|| format!("{}: could not get radius from {}", ERROR, s))?;
 
         if parts.next().is_some() {
-            return Err(format!("{}: too many points in {}", ERROR, s).into());
+            return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
         if radius < 0. {

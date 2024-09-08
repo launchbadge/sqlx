@@ -79,7 +79,7 @@ impl FromStr for PgLine {
             .ok_or_else(|| format!("{}: could not get c from {}", ERROR, s))?;
 
         if parts.next().is_some() {
-            return Err(format!("{}: too many points in {}", ERROR, s).into());
+            return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
         Ok(PgLine { a, b, c })
@@ -168,7 +168,7 @@ mod line_tests {
         if let Err(err) = line {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding LINE: could not get c from {input_str}")
+                format!("error decoding LINE: too many numbers inputted in {input_str}")
             )
         }
     }

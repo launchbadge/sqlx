@@ -92,7 +92,7 @@ impl FromStr for PgBox {
             .ok_or_else(|| format!("{}: could not get y_lower_left from {}", ERROR, s))?;
 
         if parts.next().is_some() {
-            return Err(format!("{}: too many points in {}", ERROR, s).into());
+            return Err(format!("{}: too many numbers inputted in {}", ERROR, s).into());
         }
 
         Ok(PgBox {
@@ -230,7 +230,7 @@ mod box_tests {
         if let Err(err) = pg_box {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding BOX: too many points in {input_str}")
+                format!("error decoding BOX: too many numbers inputted in {input_str}")
             )
         }
     }
