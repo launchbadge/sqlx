@@ -12,22 +12,22 @@ const ERROR: &str = "error decoding CIRCLE";
 /// ## Postgres Geometric Circle type
 ///
 /// Description: Circle
-/// Representation: `< (x, y), r >` (center point and radius)
+/// Representation: `< (x, y), radius >` (center point and radius)
 ///
 /// ```text
-/// < ( x , y ) , r >
-/// ( ( x , y ) , r )
-///   ( x , y ) , r
-///     x , y   , r
+/// < ( x , y ) , radius >
+/// ( ( x , y ) , radius )
+///   ( x , y ) , radius
+///     x , y   , radius
 /// ```
-/// where `(x,y)` is the center point and r is the radius of the circle.
+/// where `(x,y)` is the center point.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-CIRCLE
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgCircle {
     pub x: f64,
     pub y: f64,
-    pub r: f64,
+    pub radius: f64,
 }
 
 impl Type<Postgres> for PgCircle {
@@ -84,7 +84,7 @@ impl FromStr for PgCircle {
             .and_then(|s| s.trim().parse::<f64>().ok())
             .ok_or_else(|| format!("{}: could not get r from {}", ERROR, s))?;
 
-        Ok(PgCircle { x, y, r })
+        Ok(PgCircle { x, y, radius: r })
     }
 }
 
@@ -93,13 +93,13 @@ impl PgCircle {
         let x = bytes.get_f64();
         let y = bytes.get_f64();
         let r = bytes.get_f64();
-        Ok(PgCircle { x, y, r })
+        Ok(PgCircle { x, y, radius: r })
     }
 
     fn serialize(&self, buff: &mut PgArgumentBuffer) -> Result<(), Error> {
         buff.extend_from_slice(&self.x.to_be_bytes());
         buff.extend_from_slice(&self.y.to_be_bytes());
-        buff.extend_from_slice(&self.r.to_be_bytes());
+        buff.extend_from_slice(&self.radius.to_be_bytes());
         Ok(())
     }
 
@@ -131,7 +131,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.1,
                 y: 2.2,
-                r: 3.3
+                radius: 3.3
             }
         )
     }
@@ -144,7 +144,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.0,
                 y: 2.0,
-                r: 3.0
+                radius: 3.0
             }
         );
     }
@@ -157,7 +157,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.0,
                 y: 2.0,
-                r: 3.0
+                radius: 3.0
             }
         );
     }
@@ -170,7 +170,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.0,
                 y: 2.0,
-                r: 3.0
+                radius: 3.0
             }
         );
     }
@@ -183,7 +183,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.0,
                 y: 2.0,
-                r: 3.0
+                radius: 3.0
             }
         );
     }
@@ -196,7 +196,7 @@ mod circle_tests {
             PgCircle {
                 x: 1.1,
                 y: 2.2,
-                r: 3.3
+                radius: 3.3
             }
         );
     }
@@ -206,7 +206,7 @@ mod circle_tests {
         let circle = PgCircle {
             x: 1.1,
             y: 2.2,
-            r: 3.3,
+            radius: 3.3,
         };
         assert_eq!(circle.serialize_to_vec(), CIRCLE_BYTES,)
     }
