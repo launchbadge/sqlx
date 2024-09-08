@@ -67,7 +67,7 @@ impl FromStr for PgCircle {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['<', '>', '(', ')', ' '], "");
-        let mut parts = sanitised.splitn(3, ',');
+        let mut parts = sanitised.split(',');
 
         let x = parts
             .next()
@@ -83,6 +83,10 @@ impl FromStr for PgCircle {
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
             .ok_or_else(|| format!("{}: could not get radius from {}", ERROR, s))?;
+
+        if parts.next().is_some() {
+            return Err(format!("{}: too many points in {}", ERROR, s).into());
+        }
 
         if radius < 0. {
             return Err(format!("{}: cannot have negative radius: {}", ERROR, s).into());
