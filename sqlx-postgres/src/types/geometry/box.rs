@@ -69,7 +69,7 @@ impl FromStr for PgBox {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let mut parts = sanitised.splitn(4, ",");
+        let mut parts = sanitised.splitn(4, ',');
 
         let x1 = parts
             .next()
@@ -206,6 +206,21 @@ mod box_tests {
                 y2: 4.
             }
         );
+    }
+
+    #[test]
+    fn can_deserialise_too_many_numbers() {
+        let input_str = "1, 2, 3, 4, 5";
+        let pg_box = PgBox::from_str(input_str);
+
+        assert!(pg_box.is_err());
+
+        if let Err(err) = pg_box {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding BOX: could not get y2 from 1, 2, 3, 4, 5")
+            )
+        }
     }
 
     #[test]

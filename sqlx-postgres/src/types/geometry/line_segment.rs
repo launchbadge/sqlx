@@ -69,7 +69,7 @@ impl FromStr for PgLSeg {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let mut parts = sanitised.splitn(4, ",");
+        let mut parts = sanitised.splitn(4, ',');
 
         let x1 = parts
             .next()
