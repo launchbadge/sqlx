@@ -61,7 +61,7 @@ impl FromStr for PgLine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s
             .trim_matches(|c| c == '{' || c == '}' || c == ' ')
-            .splitn(3, ',');
+            .split(',');
 
         let a = parts
             .next()
@@ -77,6 +77,10 @@ impl FromStr for PgLine {
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
             .ok_or_else(|| format!("{}: could not get c from {}", ERROR, s))?;
+
+        if parts.next().is_some() {
+            return Err(format!("{}: too many points in {}", ERROR, s).into());
+        }
 
         Ok(PgLine { a, b, c })
     }
