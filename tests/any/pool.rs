@@ -1,5 +1,5 @@
 use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
-use sqlx::Executor;
+use sqlx::{Executor, Fetch};
 use std::sync::{
     atomic::{AtomicI32, AtomicUsize, Ordering},
     Arc, Mutex,

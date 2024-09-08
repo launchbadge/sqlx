@@ -13,7 +13,7 @@ use crate::connection::Connection;
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
-use crate::query::query;
+use crate::query::{query, Fetch};
 use crate::query_scalar::query_scalar;
 use crate::{PgConnectOptions, PgConnection, Postgres};
 

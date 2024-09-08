@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
 use crate::message::{ParameterDescription, RowDescription};
+use crate::query::Fetch;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
 use crate::statement::PgStatementMetadata;

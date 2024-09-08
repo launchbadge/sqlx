@@ -2,7 +2,7 @@ use sqlx::postgres::Postgres;
 use sqlx::query_builder::QueryBuilder;
 use sqlx::Executor;
 use sqlx::Type;
-use sqlx::{Either, Execute};
+use sqlx::{Either, Execute, Fetch};
 use sqlx_test::new;
 
 #[test]

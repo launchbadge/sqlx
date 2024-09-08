@@ -4,6 +4,7 @@ use crate::PgConnection;
 use hkdf::Hkdf;
 use once_cell::sync::OnceCell;
 use sha2::Sha256;
+use sqlx_core::query::Fetch;
 use std::ops::{Deref, DerefMut};
 
 /// A mutex-like type utilizing [Postgres advisory locks].
