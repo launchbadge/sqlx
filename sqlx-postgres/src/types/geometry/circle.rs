@@ -79,12 +79,16 @@ impl FromStr for PgCircle {
             .and_then(|s| s.trim().parse::<f64>().ok())
             .ok_or_else(|| format!("{}: could not get y from {}", ERROR, s))?;
 
-        let r = parts
+        let radius = parts
             .next()
             .and_then(|s| s.trim().parse::<f64>().ok())
-            .ok_or_else(|| format!("{}: could not get r from {}", ERROR, s))?;
+            .ok_or_else(|| format!("{}: could not get radius from {}", ERROR, s))?;
 
-        Ok(PgCircle { x, y, radius: r })
+        if radius < 0. {
+            return Err(format!("{}: cannot have negative radius: {}", ERROR, s).into());
+        }
+
+        Ok(PgCircle { x, y, radius })
     }
 }
 
@@ -186,6 +190,32 @@ mod circle_tests {
                 radius: 3.0
             }
         );
+    }
+
+    #[test]
+    fn cannot_deserialise_circle_invalid_numbers() {
+        let input_str = "1, 2, Three";
+        let circle = PgCircle::from_str(input_str);
+        assert!(circle.is_err());
+        if let Err(err) = circle {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding CIRCLE: could not get radius from {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_circle_negative_radius() {
+        let input_str = "1, 2, -3";
+        let circle = PgCircle::from_str(input_str);
+        assert!(circle.is_err());
+        if let Err(err) = circle {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding CIRCLE: cannot have negative radius: {input_str}")
+            )
+        }
     }
 
     #[test]

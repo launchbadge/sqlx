@@ -69,7 +69,7 @@ impl FromStr for PgBox {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let mut parts = sanitised.splitn(4, ',');
+        let mut parts = sanitised.split(',');
 
         let x1 = parts
             .next()
@@ -90,6 +90,10 @@ impl FromStr for PgBox {
             .next()
             .and_then(|s| s.parse::<f64>().ok())
             .ok_or_else(|| format!("{}: could not get y2 from {}", ERROR, s))?;
+
+        if parts.next().is_some() {
+            return Err(format!("{}: too many points in {}", ERROR, s).into());
+        }
 
         Ok(PgBox { x1, y1, x2, y2 })
     }
@@ -209,16 +213,40 @@ mod box_tests {
     }
 
     #[test]
-    fn can_deserialise_too_many_numbers() {
+    fn cannot_deserialise_too_many_numbers() {
         let input_str = "1, 2, 3, 4, 5";
         let pg_box = PgBox::from_str(input_str);
-
         assert!(pg_box.is_err());
-
         if let Err(err) = pg_box {
             assert_eq!(
                 err.to_string(),
-                format!("error decoding BOX: could not get y2 from 1, 2, 3, 4, 5")
+                format!("error decoding BOX: too many points in {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_too_few_numbers() {
+        let input_str = "1, 2, 3 ";
+        let pg_box = PgBox::from_str(input_str);
+        assert!(pg_box.is_err());
+        if let Err(err) = pg_box {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding BOX: could not get y2 from {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_invalid_numbers() {
+        let input_str = "1, 2, 3, FOUR";
+        let pg_box = PgBox::from_str(input_str);
+        assert!(pg_box.is_err());
+        if let Err(err) = pg_box {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding BOX: could not get y2 from {input_str}")
             )
         }
     }
