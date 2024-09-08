@@ -531,7 +531,7 @@ test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
-    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1., lower_left_y: 2. }, sqlx::postgres::types::PgBox { upper_right_x: 3.3, y1: 4.4, lower_left_x: 1.1, lower_left_y: 2.2 }],
+    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1., lower_left_y: 2. }, sqlx::postgres::types::PgBox { upper_right_x: 3.3, upper_right_y: 4.4, lower_left_x: 1.1, lower_left_y: 2.2 }],
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
