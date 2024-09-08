@@ -165,7 +165,7 @@ impl PgPolygon {
 }
 
 impl Header {
-    const HEADER_WIDTH: usize = size_of::<i8>() + size_of::<i32>();
+    const HEADER_WIDTH: usize = mem::size_of::<i8>() + mem::size_of::<i32>();
 
     fn data_size(&self) -> usize {
         self.length * BYTE_WIDTH * 2
