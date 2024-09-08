@@ -209,9 +209,9 @@ mod lseg_tests {
     #[test]
     fn can_deserialise_too_many_numbers() {
         let input_str = "1, 2, 3, 4, 5";
-        let pg_box = PgLSeg::from_str(input_str);
-        assert!(pg_box.is_err());
-        if let Err(err) = pg_box {
+        let lseg = PgLSeg::from_str(input_str);
+        assert!(lseg.is_err());
+        if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
                 format!("error decoding LSEG: too many points in {input_str}")
@@ -222,9 +222,9 @@ mod lseg_tests {
     #[test]
     fn can_deserialise_too_few_numbers() {
         let input_str = "1, 2, 3";
-        let pg_box = PgLSeg::from_str(input_str);
-        assert!(pg_box.is_err());
-        if let Err(err) = pg_box {
+        let lseg = PgLSeg::from_str(input_str);
+        assert!(lseg.is_err());
+        if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
                 format!("error decoding LSEG: could not get y2 from {input_str}")
@@ -235,9 +235,9 @@ mod lseg_tests {
     #[test]
     fn can_deserialise_invalid_numbers() {
         let input_str = "1, 2, 3, FOUR";
-        let pg_box = PgLSeg::from_str(input_str);
-        assert!(pg_box.is_err());
-        if let Err(err) = pg_box {
+        let lseg = PgLSeg::from_str(input_str);
+        assert!(lseg.is_err());
+        if let Err(err) = lseg {
             assert_eq!(
                 err.to_string(),
                 format!("error decoding LSEG: could not get y2 from {input_str}")

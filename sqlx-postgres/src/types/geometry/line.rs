@@ -144,6 +144,45 @@ mod line_tests {
     }
 
     #[test]
+    fn cannot_deserialise_line_too_few_numbers() {
+        let input_str = "{ 1, 2 }";
+        let line = PgLine::from_str(input_str);
+        assert!(line.is_err());
+        if let Err(err) = line {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding LINE: could not get c from {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_line_too_many_numbers() {
+        let input_str = "{ 1, 2, 3, 4 }";
+        let line = PgLine::from_str(input_str);
+        assert!(line.is_err());
+        if let Err(err) = line {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding LINE: could not get c from {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_line_invalid_numbers() {
+        let input_str = "{ 1, 2, three }";
+        let line = PgLine::from_str(input_str);
+        assert!(line.is_err());
+        if let Err(err) = line {
+            assert_eq!(
+                err.to_string(),
+                format!("error decoding LINE: could not get c from {input_str}")
+            )
+        }
+    }
+
+    #[test]
     fn can_deserialise_line_type_str_float() {
         let line = PgLine::from_str("{1.1, 2.2, 3.3}").unwrap();
         assert_eq!(
