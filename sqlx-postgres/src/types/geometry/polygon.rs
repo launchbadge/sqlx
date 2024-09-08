@@ -76,7 +76,7 @@ impl FromStr for PgPolygon {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let sanitised = s.replace(['(', ')', '[', ']', ' '], "");
-        let parts = sanitised.split(",").collect::<Vec<_>>();
+        let parts = sanitised.split(',').collect::<Vec<_>>();
 
         let mut points = vec![];
 
@@ -265,6 +265,7 @@ mod polygon_tests {
             }
         );
     }
+
     #[test]
     fn can_deserialise_polygon_type_str_second_syntax() {
         let polygon = PgPolygon::from_str("(( 1, 2), (3, 4 ))").unwrap();
@@ -274,6 +275,36 @@ mod polygon_tests {
                 points: vec![PgPoint { x: 1., y: 2. }, PgPoint { x: 3., y: 4. }]
             }
         );
+    }
+
+    #[test]
+    fn cannot_deserialise_polygon_type_str_uneven_points_first_syntax() {
+        let input_str = "[( 1, 2), (3)]";
+        let polygon = PgPolygon::from_str(input_str);
+
+        assert!(polygon.is_err());
+
+        if let Err(err) = polygon {
+            assert_eq!(
+                err.to_string(),
+                format!("error occurred while decoding: Unmatched pair in POLYGON: {input_str}")
+            )
+        }
+    }
+
+    #[test]
+    fn cannot_deserialise_polygon_type_str_invalid_numbers() {
+        let input_str = "[( 1, 2), (2, three)]";
+        let polygon = PgPolygon::from_str(input_str);
+
+        assert!(polygon.is_err());
+
+        if let Err(err) = polygon {
+            assert_eq!(
+                err.to_string(),
+                format!("error occurred while decoding: could not get y")
+            )
+        }
     }
 
     #[test]
