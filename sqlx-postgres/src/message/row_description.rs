@@ -17,7 +17,7 @@ pub struct Field {
 
     /// If the field can be identified as a column of a specific table, the
     /// object ID of the table; otherwise zero.
-    pub relation_id: Option<i32>,
+    pub relation_id: Option<Oid>,
 
     /// If the field can be identified as a column of a specific table, the attribute number of
     /// the column; otherwise zero.
@@ -65,7 +65,7 @@ impl BackendMessage for RowDescription {
                 ));
             }
 
-            let relation_id = buf.get_i32();
+            let relation_id = buf.get_u32();
             let relation_attribute_no = buf.get_i16();
             let data_type_id = Oid(buf.get_u32());
             let data_type_size = buf.get_i16();
@@ -77,7 +77,7 @@ impl BackendMessage for RowDescription {
                 relation_id: if relation_id == 0 {
                     None
                 } else {
-                    Some(relation_id)
+                    Some(Oid(relation_id))
                 },
                 relation_attribute_no: if relation_attribute_no == 0 {
                     None
