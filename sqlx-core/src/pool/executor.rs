@@ -32,6 +32,9 @@ where
                 r#yield!(v);
             }
 
+            drop(s);
+            conn.close().await?;
+
             Ok(())
         })
     }
@@ -45,7 +48,12 @@ where
     {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            let o = conn.fetch_optional(query).await;
+            conn.close().await?;
+            o
+        })
     }
 
     fn prepare_with<'e, 'q: 'e>(
@@ -55,7 +63,12 @@ where
     ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            let o = conn.prepare_with(sql, parameters).await;
+            conn.close().await?;
+            o
+        })
     }
 
     #[doc(hidden)]
@@ -65,7 +78,12 @@ where
     ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.describe(sql).await })
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            let o = conn.describe(sql).await;
+            conn.close().await?;
+            o
+        })
     }
 }
 
