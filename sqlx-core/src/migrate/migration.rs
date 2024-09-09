@@ -76,7 +76,7 @@ pub fn checksum_fragments<'a>(fragments: impl Iterator<Item = &'a str>) -> Vec<u
 fn fragments_checksum_equals_full_checksum() {
     // Copied from `examples/postgres/axum-social-with-tests/migrations/3_comment.sql`
     let sql = "\
-        create table comment (\r\n\
+        \u{FEFF}create table comment (\r\n\
             \tcomment_id uuid primary key default gen_random_uuid(),\r\n\
             \tpost_id uuid not null references post(post_id),\r\n\
             \tuser_id uuid not null references \"user\"(user_id),\r\n\

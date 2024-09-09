@@ -52,9 +52,9 @@ impl MigrationSource<'static> for PathBuf {
 }
 
 /// A [`MigrationSource`] implementation with configurable resolution.
-/// 
+///
 /// `S` may be `PathBuf`, `&Path` or any type that implements `Into<PathBuf>`.
-/// 
+///
 /// See [`ResolveConfig`] for details.
 #[derive(Debug)]
 pub struct ResolveWith<S>(pub S, pub ResolveConfig);
@@ -97,20 +97,20 @@ impl ResolveConfig {
     }
 
     /// Ignore a character when hashing migrations.
-    /// 
+    ///
     /// The migration SQL string itself will still contain the character,
     /// but it will not be included when calculating the checksum.
-    /// 
+    ///
     /// This can be used to ignore whitespace characters so changing formatting
     /// does not change the checksum.
-    /// 
+    ///
     /// Adding the same `char` more than once is a no-op.
-    /// 
+    ///
     /// ### Note: Changes Migration Checksum
-    /// This will change the checksum of resolved migrations, 
+    /// This will change the checksum of resolved migrations,
     /// which may cause problems with existing deployments.
     ///
-    /// **Use at your own risk.** 
+    /// **Use at your own risk.**
     pub fn ignore_char(&mut self, c: char) -> &mut Self {
         self.ignored_chars.insert(c);
         self
@@ -123,21 +123,21 @@ impl ResolveConfig {
     ///
     /// This can be used to ignore whitespace characters so changing formatting
     /// does not change the checksum.
-    /// 
+    ///
     /// Adding the same `char` more than once is a no-op.
     ///
     /// ### Note: Changes Migration Checksum
-    /// This will change the checksum of resolved migrations, 
+    /// This will change the checksum of resolved migrations,
     /// which may cause problems with existing deployments.
     ///
-    /// **Use at your own risk.** 
+    /// **Use at your own risk.**
     pub fn ignore_chars(&mut self, chars: impl IntoIterator<Item = char>) -> &mut Self {
         self.ignored_chars.extend(chars);
         self
     }
 
     /// Iterate over the set of ignored characters.
-    /// 
+    ///
     /// Duplicate `char`s are not included.
     pub fn ignored_chars(&self) -> impl Iterator<Item = char> + '_ {
         self.ignored_chars.iter().copied()
@@ -266,11 +266,17 @@ fn checksum_with(sql: &str, ignored_chars: &BTreeSet<char>) -> Vec<u8> {
 fn checksum_with_ignored_chars() {
     // Ensure that `checksum_with` returns the same digest for a given set of ignored chars
     // as the equivalent string with the characters removed.
-    let ignored_chars = [' ', '\t', '\r', '\n'];
+    let ignored_chars = [
+        ' ', '\t', '\r', '\n',
+        // Zero-width non-breaking space (ZWNBSP), often added as a magic-number at the beginning
+        // of UTF-8 encoded files as a byte-order mark (BOM):
+        // https://en.wikipedia.org/wiki/Byte_order_mark
+        '\u{FEFF}',
+    ];
 
     // Copied from `examples/postgres/axum-social-with-tests/migrations/3_comment.sql`
     let sql = "\
-        create table comment (\r\n\
+        \u{FEFF}create table comment (\r\n\
             \tcomment_id uuid primary key default gen_random_uuid(),\r\n\
             \tpost_id uuid not null references post(post_id),\r\n\
             \tuser_id uuid not null references \"user\"(user_id),\r\n\
