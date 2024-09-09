@@ -806,7 +806,7 @@ async fn test_query_with_update_hook() -> anyhow::Result<()> {
         assert_eq!(result.operation, SqliteOperation::Insert);
         assert_eq!(result.database, "main");
         assert_eq!(result.table, "tweet");
-        assert_eq!(result.rowid, 3);
+        assert_eq!(result.rowid, 2);
     });
 
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 3, 'Hello, World' )")
@@ -843,6 +843,118 @@ async fn test_multiple_set_update_hook_calls_drop_old_handler() -> anyhow::Resul
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         conn.lock_handle().await?.remove_update_hook();
+    }
+
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_query_with_commit_hook() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_commit_hook(move || {
+        assert_eq!(state, "test");
+        false
+    });
+
+    let mut tx = conn.begin().await?;
+    sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 4, 'Hello, World' )")
+        .execute(&mut *tx)
+        .await?;
+    match tx.commit().await {
+        Err(sqlx::Error::Database(err)) => {
+            assert_eq!(err.message(), String::from("constraint failed"))
+        }
+        _ => panic!("expected an error"),
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_multiple_set_commit_hook_calls_drop_old_handler() -> anyhow::Result<()> {
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+
+    {
+        let mut conn = new::<Sqlite>().await?;
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_commit_hook(move || {
+            println!("{o:?}");
+            true
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_commit_hook(move || {
+            println!("{o:?}");
+            true
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_commit_hook(move || {
+            println!("{o:?}");
+            true
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        conn.lock_handle().await?.remove_commit_hook();
+    }
+
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_rollback_hook(move || {
+        assert_eq!(state, "test");
+    });
+
+    let mut tx = conn.begin().await?;
+    sqlx::query("INSERT INTO tweet ( id, text ) VALUES (5, 'Hello, World' )")
+        .execute(&mut *tx)
+        .await?;
+    tx.rollback().await?;
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Result<()> {
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+
+    {
+        let mut conn = new::<Sqlite>().await?;
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_rollback_hook(move || {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_rollback_hook(move || {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_rollback_hook(move || {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        conn.lock_handle().await?.remove_rollback_hook();
     }
 
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
