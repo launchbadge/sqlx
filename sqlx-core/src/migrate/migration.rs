@@ -1,6 +1,5 @@
-use std::borrow::Cow;
-
 use sha2::{Digest, Sha384};
+use std::borrow::Cow;
 
 use super::MigrationType;
 
@@ -22,8 +21,26 @@ impl Migration {
         sql: Cow<'static, str>,
         no_tx: bool,
     ) -> Self {
-        let checksum = Cow::Owned(Vec::from(Sha384::digest(sql.as_bytes()).as_slice()));
+        let checksum = checksum(&sql);
 
+        Self::with_checksum(
+            version,
+            description,
+            migration_type,
+            sql,
+            checksum.into(),
+            no_tx,
+        )
+    }
+
+    pub(crate) fn with_checksum(
+        version: i64,
+        description: Cow<'static, str>,
+        migration_type: MigrationType,
+        sql: Cow<'static, str>,
+        checksum: Cow<'static, [u8]>,
+        no_tx: bool,
+    ) -> Self {
         Migration {
             version,
             description,
@@ -39,4 +56,40 @@ impl Migration {
 pub struct AppliedMigration {
     pub version: i64,
     pub checksum: Cow<'static, [u8]>,
+}
+
+pub fn checksum(sql: &str) -> Vec<u8> {
+    Vec::from(Sha384::digest(sql).as_slice())
+}
+
+pub fn checksum_fragments<'a>(fragments: impl Iterator<Item = &'a str>) -> Vec<u8> {
+    let mut digest = Sha384::new();
+
+    for fragment in fragments {
+        digest.update(fragment);
+    }
+
+    digest.finalize().to_vec()
+}
+
+#[test]
+fn fragments_checksum_equals_full_checksum() {
+    // Copied from `examples/postgres/axum-social-with-tests/migrations/3_comment.sql`
+    let sql = "\
+        create table comment (\r\n\
+            \tcomment_id uuid primary key default gen_random_uuid(),\r\n\
+            \tpost_id uuid not null references post(post_id),\r\n\
+            \tuser_id uuid not null references \"user\"(user_id),\r\n\
+            \tcontent text not null,\r\n\
+            \tcreated_at timestamptz not null default now()\r\n\
+        );\r\n\
+        \r\n\
+        create index on comment(post_id, created_at);\r\n\
+    ";
+
+    // Should yield a string for each character
+    let fragments_checksum = checksum_fragments(sql.split(""));
+    let full_checksum = checksum(sql);
+
+    assert_eq!(fragments_checksum, full_checksum);
 }
