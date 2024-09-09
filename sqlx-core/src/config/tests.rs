@@ -81,7 +81,7 @@ fn assert_migrate_config(config: &config::migrate::Config) {
     assert_eq!(config.table_name.as_deref(), Some("foo._sqlx_migrations"));
     assert_eq!(config.migrations_dir.as_deref(), Some("foo/migrations"));
 
-    let ignored_chars = BTreeSet::from([' ', '\t', '\r', '\n']);
+    let ignored_chars = BTreeSet::from([' ', '\t', '\r', '\n', '\u{FEFF}']);
 
     assert_eq!(config.ignored_chars, ignored_chars);
 
