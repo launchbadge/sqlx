@@ -144,7 +144,7 @@ async fn do_cleanup(conn: &mut PgConnection, db_name: &str) -> Result<(), Error>
     let delete_db_command = format!("drop database if exists {db_name:?};");
     conn.execute(&*delete_db_command).await?;
     query("delete from _sqlx_test.databases where db_name = $1::text")
-        .bind(&db_name)
+        .bind(db_name)
         .execute(&mut *conn)
         .await?;
 
