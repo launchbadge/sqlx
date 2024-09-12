@@ -296,6 +296,8 @@ impl EstablishParams {
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,
             update_hook_callback: None,
+            commit_hook_callback: None,
+            rollback_hook_callback: None,
         })
     }
 }
