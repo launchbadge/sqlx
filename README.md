@@ -43,6 +43,10 @@
     <span> | </span>
     <a href="https://github.com/launchbadge/sqlx/wiki/Ecosystem">
       Ecosystem
+    </a>    
+    <span> | </span>
+    <a href="https://discord.gg/uuruzJ7">
+      Discord
     </a>
   </h4>
 </div>
