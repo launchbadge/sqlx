@@ -183,7 +183,9 @@ be removed in the future.
 
 -   `mssql`: Add support for the MSSQL database server.
 
--   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
+-   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine with SQLite bundled and statically-linked.
+
+-   `sqlite-unbundled`: The same as above (`sqlite`) but use the SQLite shared library on the system instead of bundling a copy. This requires a recent version of SQLite library installed when building and running, and allows for updating the shared SQLite library for security fixes, replacing it with another compatible forks, or using SQLite's loadable extensions.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
