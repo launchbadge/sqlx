@@ -23,6 +23,9 @@ uuid = ["dep:uuid", "sqlx-core/uuid"]
 
 regexp = ["dep:regex"]
 
+bundled = ["libsqlite3-sys/bundled"]
+unbundled = ["libsqlite3-sys/buildtime_bindgen"]
+
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
@@ -55,7 +58,6 @@ default-features = false
 features = [
     "pkg-config",
     "vcpkg",
-    "bundled",
     "unlock_notify"
 ]
 

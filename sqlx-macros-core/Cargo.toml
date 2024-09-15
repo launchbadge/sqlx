@@ -26,7 +26,8 @@ migrate = ["sqlx-core/migrate"]
 # database
 mysql = ["sqlx-mysql"]
 postgres = ["sqlx-postgres"]
-sqlite = ["sqlx-sqlite"]
+sqlite = ["sqlx-sqlite/bundled"]
+sqlite-unbundled = ["sqlx-sqlite/unbundled"]
 
 # type integrations
 json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
