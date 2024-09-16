@@ -10,7 +10,12 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::type_checking::TypeChecking;
 
-#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"), feature = "sqlite-unbundled"))]
+#[cfg(any(
+    feature = "postgres",
+    feature = "mysql",
+    feature = "sqlite",
+    feature = "sqlite-unbundled"
+))]
 mod impls;
 
 pub trait DatabaseExt: Database + TypeChecking {
