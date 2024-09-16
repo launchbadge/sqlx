@@ -185,7 +185,11 @@ be removed in the future.
 
 -   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine with SQLite bundled and statically-linked.
 
--   `sqlite-unbundled`: The same as above (`sqlite`) but use the SQLite shared library on the system instead of bundling a copy. This requires a recent version of SQLite library installed when building and running, and allows for updating the shared SQLite library for security fixes, replacing it with another compatible forks, or using SQLite's loadable extensions.
+-   `sqlite-unbundled`: The same as above (`sqlite`), but link SQLite from the system instead of the bundled version.
+    * Allows updating SQLite independently of SQLx or using forked versions.
+    * You must have SQLite installed on the system or provide a path to the library at build time.
+       See [the `rusqlite` README](https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys) for details.
+    * May result in link errors if the SQLite version is too old. Version `3.20.0` or newer is recommended.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
