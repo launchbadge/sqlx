@@ -100,7 +100,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(&format!("create database {db_name}")[..])
+    conn.execute(&format!("create database {db_name:?}")[..])
         .await?;
 
     eprintln!("created database {db_name}");
