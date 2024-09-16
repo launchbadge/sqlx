@@ -190,6 +190,7 @@ be removed in the future.
     * You must have SQLite installed on the system or provide a path to the library at build time.
        See [the `rusqlite` README](https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys) for details.
     * May result in link errors if the SQLite version is too old. Version `3.20.0` or newer is recommended.
+    * Can increase build time due to the use of bindgen.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
