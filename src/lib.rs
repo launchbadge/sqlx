@@ -45,7 +45,7 @@ pub use sqlx_mysql::{self as mysql, MySql, MySqlConnection, MySqlExecutor, MySql
 pub use sqlx_postgres::{self as postgres, PgConnection, PgExecutor, PgPool, Postgres};
 
 #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))))]
 #[doc(inline)]
 pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
 
