@@ -41,7 +41,7 @@ pub fn install_default_drivers() {
             sqlx_mysql::any::DRIVER,
             #[cfg(feature = "postgres")]
             sqlx_postgres::any::DRIVER,
-            #[cfg(feature = "sqlite")]
+            #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
             sqlx_sqlite::any::DRIVER,
         ])
         .expect("non-default drivers already installed")

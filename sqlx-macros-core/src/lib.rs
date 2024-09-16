@@ -47,7 +47,7 @@ pub const FOSS_DRIVERS: &[QueryDriver] = &[
     QueryDriver::new::<sqlx_mysql::MySql>(),
     #[cfg(feature = "postgres")]
     QueryDriver::new::<sqlx_postgres::Postgres>(),
-    #[cfg(feature = "sqlite")]
+    #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
     QueryDriver::new::<sqlx_sqlite::Sqlite>(),
 ];
 
