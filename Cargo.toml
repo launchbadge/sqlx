@@ -252,6 +252,11 @@ path = "tests/sqlite/macros.rs"
 required-features = ["sqlite", "macros"]
 
 [[test]]
+name = "sqlite-unbundled-macros"
+path = "tests/sqlite/macros.rs"
+required-features = ["sqlite-unbundled", "macros"]
+
+[[test]]
 name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]

@@ -156,7 +156,7 @@ jobs:
       - run: >
           cargo build
           --no-default-features
-          --test sqlite-macros
+          --test ${{ matrix.linking }}-macros
           --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
         env:
           SQLX_OFFLINE: true
@@ -168,7 +168,7 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --test sqlite-macros
+          --test ${{ matrix.linking }}-macros
           --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
         env:
           DATABASE_URL: sqlite://tests/sqlite/sqlite.db
