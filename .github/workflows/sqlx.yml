@@ -117,6 +117,7 @@ jobs:
     strategy:
       matrix:
         runtime: [async-std, tokio]
+        linking: [sqlite, sqlite-unbundled]
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -125,7 +126,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: "${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}"
+          key: "${{ runner.os }}-${{ matrix.linking }}-${{ matrix.runtime }}-${{ matrix.tls }}"
+
+      - name: Install system sqlite library
+        if: ${{ matrix.linking == 'sqlite-unbundled' }}
+        run: sudo apt-get install -y libsqlite3-dev
 
       - run: echo "using ${DATABASE_URL}"
 
@@ -135,7 +140,7 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,macros,sqlite,_unstable-all-types,runtime-${{ matrix.runtime }}
+          --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
           --
           --test-threads=1
         env:
@@ -152,7 +157,7 @@ jobs:
           cargo build
           --no-default-features
           --test sqlite-macros
-          --features any,macros,sqlite,_unstable-all-types,runtime-${{ matrix.runtime }}
+          --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
@@ -164,7 +169,7 @@ jobs:
           cargo test
           --no-default-features
           --test sqlite-macros
-          --features any,macros,sqlite,_unstable-all-types,runtime-${{ matrix.runtime }}
+          --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
         env:
           DATABASE_URL: sqlite://tests/sqlite/sqlite.db
           SQLX_OFFLINE: true
