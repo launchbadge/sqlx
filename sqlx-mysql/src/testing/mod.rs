@@ -5,6 +5,10 @@ use std::time::Duration;
 use futures_core::future::BoxFuture;
 
 use once_cell::sync::OnceCell;
+use sqlx_core::connection::Connection;
+use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::query_scalar::query_scalar;
+use std::fmt::Write;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -31,6 +35,58 @@ impl TestSupport for MySql {
                 .await?;
 
             do_cleanup(&mut conn, db_name).await
+        })
+    }
+
+    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
+        Box::pin(async move {
+            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+            let mut conn = MySqlConnection::connect(&url).await?;
+
+            let delete_db_ids: Vec<u64> = query_scalar("select db_id from _sqlx_test_databases")
+                .fetch_all(&mut conn)
+                .await?;
+
+            if delete_db_ids.is_empty() {
+                return Ok(None);
+            }
+
+            let mut deleted_db_ids = Vec::with_capacity(delete_db_ids.len());
+
+            let mut command = String::new();
+
+            for db_id in &delete_db_ids {
+                command.clear();
+
+                let db_name = format!("_sqlx_test_database_{db_id}");
+
+                writeln!(command, "drop database if exists {db_name}").ok();
+                match conn.execute(&*command).await {
+                    Ok(_deleted) => {
+                        deleted_db_ids.push(db_id);
+                    }
+                    // Assume a database error just means the DB is still in use.
+                    Err(Error::Database(dbe)) => {
+                        eprintln!("could not clean test database {db_id:?}: {dbe}")
+                    }
+                    // Bubble up other errors
+                    Err(e) => return Err(e),
+                }
+            }
+
+            let mut query = QueryBuilder::new("delete from _sqlx_test_databases where db_id in (");
+
+            let mut separated = query.separated(",");
+
+            for db_id in &deleted_db_ids {
+                separated.push_bind(db_id);
+            }
+
+            query.push(")").build().execute(&mut conn).await?;
+
+            let _ = conn.close().await;
+            Ok(Some(delete_db_ids.len()))
         })
     }
 

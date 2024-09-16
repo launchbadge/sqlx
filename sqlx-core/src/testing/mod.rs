@@ -30,6 +30,14 @@ pub trait TestSupport: Database {
 
     fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>>;
 
+    /// Cleanup any test databases that are no longer in-use.
+    ///
+    /// Returns a count of the databases deleted, if possible.
+    ///
+    /// The implementation may require `DATABASE_URL` to be set in order to manage databases.
+    /// The user credentials it contains must have the privilege to create and drop databases.
+    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>>;
+
     /// Take a snapshot of the current state of the database (data only).
     ///
     /// This snapshot can then be used to generate test fixtures.

@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::time::Duration;
@@ -5,6 +6,8 @@ use std::time::Duration;
 use futures_core::future::BoxFuture;
 
 use once_cell::sync::OnceCell;
+use sqlx_core::connection::Connection;
+use sqlx_core::query_scalar::query_scalar;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -32,6 +35,51 @@ impl TestSupport for Postgres {
                 .await?;
 
             do_cleanup(&mut conn, db_name).await
+        })
+    }
+
+    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
+        Box::pin(async move {
+            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+            let mut conn = PgConnection::connect(&url).await?;
+
+            let delete_db_names: Vec<String> =
+                query_scalar("select db_name from _sqlx_test.databases")
+                    .fetch_all(&mut conn)
+                    .await?;
+
+            if delete_db_names.is_empty() {
+                return Ok(None);
+            }
+
+            let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
+
+            let mut command = String::new();
+
+            for db_name in &delete_db_names {
+                command.clear();
+                writeln!(command, "drop database if exists {db_name:?};").ok();
+                match conn.execute(&*command).await {
+                    Ok(_deleted) => {
+                        deleted_db_names.push(db_name);
+                    }
+                    // Assume a database error just means the DB is still in use.
+                    Err(Error::Database(dbe)) => {
+                        eprintln!("could not clean test database {db_name:?}: {dbe}")
+                    }
+                    // Bubble up other errors
+                    Err(e) => return Err(e),
+                }
+            }
+
+            query("delete from _sqlx_test.databases where db_name = any($1::text[])")
+                .bind(&deleted_db_names)
+                .execute(&mut conn)
+                .await?;
+
+            let _ = conn.close().await;
+            Ok(Some(delete_db_names.len()))
         })
     }
 
