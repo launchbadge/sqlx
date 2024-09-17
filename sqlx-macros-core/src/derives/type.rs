@@ -211,7 +211,7 @@ fn expand_derive_has_sql_type_strong_enum(
         }
     }
 
-    if cfg!(any(feature = "sqlite", feature = "sqlite-unbundled")) {
+    if cfg!(feature = "_sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
             impl sqlx::Type<::sqlx::Sqlite> for #ident {

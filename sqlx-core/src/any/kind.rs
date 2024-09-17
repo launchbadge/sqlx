@@ -16,7 +16,7 @@ pub enum AnyKind {
     #[cfg(feature = "mysql")]
     MySql,
 
-    #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+    #[cfg(feature = "_sqlite")]
     Sqlite,
 
     #[cfg(feature = "mssql")]
@@ -48,12 +48,12 @@ impl FromStr for AnyKind {
                 Err(Error::Configuration("database URL has the scheme of a MySQL database but the `mysql` feature is not enabled".into()))
             }
 
-            #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+            #[cfg(feature = "_sqlite")]
             _ if url.starts_with("sqlite:") => {
                 Ok(AnyKind::Sqlite)
             }
 
-            #[cfg(not(any(feature = "sqlite", feature = "sqlite-unbundled")))]
+            #[cfg(not(feature = "_sqlite"))]
             _ if url.starts_with("sqlite:") => {
                 Err(Error::Configuration("database URL has the scheme of a SQLite database but the `sqlite` feature is not enabled".into()))
             }

@@ -98,13 +98,14 @@ runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
 # for conditional compilation
 _rt-async-std = []
 _rt-tokio = []
+_sqlite = []
 
 # database
 any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/any"]
 postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
-sqlite = ["sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
-sqlite-unbundled = ["sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+sqlite = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
+sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
 
 # types
 json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]

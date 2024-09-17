@@ -44,7 +44,7 @@ mod sqlx {
     #[cfg(feature = "postgres")]
     pub use sqlx_postgres as postgres;
 
-    #[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+    #[cfg(feature = "_sqlite")]
     pub use sqlx_sqlite as sqlite;
 }
 
@@ -61,7 +61,7 @@ impl_database_ext! {
     row: sqlx::postgres::PgRow,
 }
 
-#[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+#[cfg(feature = "_sqlite")]
 impl_database_ext! {
     sqlx::sqlite::Sqlite,
     row: sqlx::sqlite::SqliteRow,
