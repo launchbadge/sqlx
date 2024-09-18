@@ -20,7 +20,6 @@ fn assert_common_config(config: &config::common::Config) {
     assert_eq!(config.database_url_var.as_deref(), Some("FOO_DATABASE_URL"));
 }
 
-#[cfg(feature = "config-macros")]
 fn assert_macros_config(config: &config::macros::Config) {
     use config::macros::*;
 
@@ -74,7 +73,6 @@ fn assert_macros_config(config: &config::macros::Config) {
     );
 }
 
-#[cfg(feature = "config-migrate")]
 fn assert_migrate_config(config: &config::migrate::Config) {
     use config::migrate::*;
 

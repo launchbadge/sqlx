@@ -12,8 +12,8 @@ use std::collections::BTreeSet;
 /// if the proper precautions are not taken.
 ///
 /// Be sure you know what you are doing and that you read all relevant documentation _thoroughly_.
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "sqlx-toml", derive(serde::Deserialize), serde(default))]
 pub struct Config {
     /// Override the name of the table used to track executed migrations.
     ///
@@ -118,8 +118,12 @@ pub struct Config {
 }
 
 /// The default type of migration that `sqlx migrate create` should create by default.
-#[derive(Debug, Default, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(rename_all = "snake_case")
+)]
 pub enum DefaultMigrationType {
     /// Create the same migration type as that of the latest existing migration,
     /// or `Simple` otherwise.
@@ -134,8 +138,12 @@ pub enum DefaultMigrationType {
 }
 
 /// The default scheme that `sqlx migrate create` should use for version integers.
-#[derive(Debug, Default, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(rename_all = "snake_case")
+)]
 pub enum DefaultVersioning {
     /// Infer the versioning scheme from existing migrations:
     ///

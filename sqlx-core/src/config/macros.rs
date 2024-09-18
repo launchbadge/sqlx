@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 /// Configuration for the `query!()` family of macros.
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "sqlx-toml", derive(serde::Deserialize), serde(default))]
 pub struct Config {
     /// Specify the crate to use for mapping date/time types to Rust.
     ///
@@ -235,8 +235,12 @@ pub struct Config {
 }
 
 /// The crate to use for mapping date/time types to Rust.
-#[derive(Debug, Default, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(rename_all = "snake_case")
+)]
 pub enum DateTimeCrate {
     /// Use whichever crate is enabled (`time` then `chrono`).
     #[default]

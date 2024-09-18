@@ -16,6 +16,7 @@ use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
 use url::Url;
+use sqlx_core::config::Config;
 
 mod args;
 mod data;
@@ -138,8 +139,12 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
     let offline = env("SQLX_OFFLINE")
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
-
-    let database_url = env("DATABASE_URL").ok();
+    
+    let var_name = Config::from_crate()
+        .common
+        .database_url_var();
+    
+    let database_url = env(var_name).ok();
 
     Metadata {
         manifest_dir,
