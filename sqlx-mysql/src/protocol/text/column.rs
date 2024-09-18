@@ -1,4 +1,4 @@
-use std::str::from_utf8;
+use std::str;
 
 use bitflags::bitflags;
 use bytes::{Buf, Bytes};
@@ -104,11 +104,9 @@ pub enum ColumnType {
 pub(crate) struct ColumnDefinition {
     #[allow(unused)]
     catalog: Bytes,
-    #[allow(unused)]
     schema: Bytes,
     #[allow(unused)]
     table_alias: Bytes,
-    #[allow(unused)]
     table: Bytes,
     alias: Bytes,
     name: Bytes,
@@ -125,12 +123,20 @@ impl ColumnDefinition {
     // NOTE: strings in-protocol are transmitted according to the client character set
     //       as this is UTF-8, all these strings should be UTF-8
 
+    pub(crate) fn schema(&self) -> Result<&str, Error> {
+        str::from_utf8(&self.schema).map_err(Error::protocol)
+    }
+
+    pub(crate) fn table(&self) -> Result<&str, Error> {
+        str::from_utf8(&self.table).map_err(Error::protocol)
+    }
+    
     pub(crate) fn name(&self) -> Result<&str, Error> {
-        from_utf8(&self.name).map_err(Error::protocol)
+        str::from_utf8(&self.name).map_err(Error::protocol)
     }
 
     pub(crate) fn alias(&self) -> Result<&str, Error> {
-        from_utf8(&self.alias).map_err(Error::protocol)
+        str::from_utf8(&self.alias).map_err(Error::protocol)
     }
 }
 

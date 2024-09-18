@@ -2,6 +2,7 @@ use crate::database::Database;
 use crate::error::Error;
 
 use std::fmt::Debug;
+use std::sync::Arc;
 
 pub trait Column: 'static + Send + Sync + Debug {
     type Database: Database<Column = Self>;
@@ -20,6 +21,59 @@ pub trait Column: 'static + Send + Sync + Debug {
 
     /// Gets the type information for the column.
     fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
+
+    /// If this column comes from a table, return the table and original column name.
+    /// 
+    /// Returns [`ColumnOrigin::Expression`] if the column is the result of an expression
+    /// or else the source table could not be determined.
+    /// 
+    /// Returns [`ColumnOrigin::Unknown`] if the database driver does not have that information,
+    /// or has not overridden this method.
+    // This method returns an owned value instead of a reference, 
+    // to give the implementor more flexibility.
+    fn origin(&self) -> ColumnOrigin { ColumnOrigin::Unknown }
+}
+
+/// A [`Column`] that originates from a table.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+pub struct TableColumn {
+    /// The name of the table (optionally schema-qualified) that the column comes from.
+    pub table: Arc<str>,
+    /// The original name of the column.
+    pub name: Arc<str>,
+}
+
+/// The possible statuses for our knowledge of the origin of a [`Column`]. 
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+pub enum ColumnOrigin {
+    /// The column is known to originate from a table. 
+    /// 
+    /// Included is the table name and original column name. 
+    Table(TableColumn),
+    /// The column originates from an expression, or else its origin could not be determined.
+    Expression,
+    /// The database driver does not know the column origin at this time.
+    /// 
+    /// This may happen if:
+    /// * The connection is in the middle of executing a query, 
+    ///   and cannot query the catalog to fetch this information.
+    /// * The connection does not have access to the database catalog.
+    /// * The implementation of [`Column`] did not override [`Column::origin()`].
+    #[default]
+    Unknown,
+}
+
+impl ColumnOrigin {
+    /// Returns the true column origin, if known.
+    pub fn table_column(&self) -> Option<&TableColumn> {
+        if let Self::Table(table_column) = self {
+            Some(table_column)
+        } else {
+            None
+        }
+    }
 }
 
 /// A type that can be used to index into a [`Row`] or [`Statement`].

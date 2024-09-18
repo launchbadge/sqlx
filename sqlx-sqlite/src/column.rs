@@ -9,6 +9,9 @@ pub struct SqliteColumn {
     pub(crate) name: UStr,
     pub(crate) ordinal: usize,
     pub(crate) type_info: SqliteTypeInfo,
+
+    #[cfg_attr(feature = "offline", serde(default))]
+    pub(crate) origin: ColumnOrigin
 }
 
 impl Column for SqliteColumn {
@@ -24,5 +27,9 @@ impl Column for SqliteColumn {
 
     fn type_info(&self) -> &SqliteTypeInfo {
         &self.type_info
+    }
+
+    fn origin(&self) -> ColumnOrigin {
+        self.origin.clone()
     }
 }
