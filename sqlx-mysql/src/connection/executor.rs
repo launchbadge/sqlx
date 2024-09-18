@@ -21,9 +21,9 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::{pin_mut, TryStreamExt};
+use futures_util::TryStreamExt;
+use std::{borrow::Cow, pin::pin, sync::Arc};
 use sqlx_core::column::{ColumnOrigin, TableColumn};
-use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
     async fn prepare_statement(

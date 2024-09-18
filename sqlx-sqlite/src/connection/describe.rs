@@ -49,6 +49,8 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
 
         for col in 0..num {
             let name = stmt.handle.column_name(col).to_owned();
+            
+            let origin = stmt.handle.column_origin(col);
 
             let origin = stmt.handle.column_origin(col);
 
