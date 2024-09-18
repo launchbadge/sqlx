@@ -23,6 +23,7 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use std::{borrow::Cow, sync::Arc};
+use sqlx_core::column::{ColumnOrigin, TableColumn};
 
 impl MySqlConnection {
     async fn prepare_statement<'c>(
@@ -382,11 +383,30 @@ async fn recv_result_columns(
 fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MySqlColumn, Error> {
     // if the alias is empty, use the alias
     // only then use the name
+    let column_name = def.name()?;
+
     let name = match (def.name()?, def.alias()?) {
         (_, alias) if !alias.is_empty() => UStr::new(alias),
         (name, _) => UStr::new(name),
     };
 
+    let table = def.table()?;
+    
+    let origin = if table.is_empty() {
+        ColumnOrigin::Expression
+    } else {
+        let schema = def.schema()?;
+
+        ColumnOrigin::Table(TableColumn {
+            table: if !schema.is_empty() {
+                format!("{schema}.{table}").into()
+            } else {
+                table.into()
+            },
+            name: column_name.into(),
+        })
+    };
+    
     let type_info = MySqlTypeInfo::from_column(def);
 
     Ok(MySqlColumn {
@@ -394,6 +414,7 @@ fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MyS
         type_info,
         ordinal,
         flags: Some(def.flags),
+        origin,
     })
 }
 

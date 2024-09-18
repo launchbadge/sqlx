@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
@@ -61,6 +62,7 @@ pub struct PgConnectionInner {
     cache_type_info: HashMap<Oid, PgTypeInfo>,
     cache_type_oid: HashMap<UStr, Oid>,
     cache_elem_type_to_array: HashMap<Oid, Oid>,
+    cache_table_to_column_names: HashMap<Oid, TableColumns>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,
@@ -70,6 +72,12 @@ pub struct PgConnectionInner {
     pub(crate) transaction_depth: usize,
 
     log_settings: LogSettings,
+}
+
+pub(crate) struct TableColumns {
+    table_name: Arc<str>,
+    /// Attribute number -> name.
+    columns: BTreeMap<i16, Arc<str>>,
 }
 
 impl PgConnection {

@@ -1,3 +1,4 @@
+use std::collections::btree_map;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
@@ -13,6 +14,9 @@ use crate::{PgColumn, PgConnection, PgTypeInfo};
 use smallvec::SmallVec;
 use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
+use sqlx_core::column::{ColumnOrigin, TableColumn};
+use sqlx_core::hash_map;
+use crate::connection::TableColumns;
 
 /// Describes the type of the `pg_type.typtype` column
 ///
@@ -121,6 +125,12 @@ impl PgConnection {
             let type_info = self
                 .maybe_fetch_type_info_by_oid(field.data_type_id, should_fetch)
                 .await?;
+            
+            let origin = if let (Some(relation_oid), Some(attribute_no)) = (field.relation_id, field.relation_attribute_no) {
+                self.maybe_fetch_column_origin(relation_oid, attribute_no, should_fetch).await?
+            } else {
+                ColumnOrigin::Expression
+            };
 
             let column = PgColumn {
                 ordinal: index,
@@ -128,6 +138,7 @@ impl PgConnection {
                 type_info,
                 relation_id: field.relation_id,
                 relation_attribute_no: field.relation_attribute_no,
+                origin,
             };
 
             columns.push(column);
@@ -188,6 +199,54 @@ impl PgConnection {
             // fallback work correctly for complex user-defined types for the TEXT protocol
             Ok(PgTypeInfo(PgType::DeclareWithOid(oid)))
         }
+    }
+    
+    async fn maybe_fetch_column_origin(
+        &mut self, 
+        relation_id: Oid, 
+        attribute_no: i16,
+        should_fetch: bool,
+    ) -> Result<ColumnOrigin, Error> {
+        let mut table_columns = match self.cache_table_to_column_names.entry(relation_id) {
+            hash_map::Entry::Occupied(table_columns) => {
+                table_columns.into_mut()
+            },
+            hash_map::Entry::Vacant(vacant) => {
+                if !should_fetch { return Ok(ColumnOrigin::Unknown); }
+                
+                let table_name: String = query_scalar("SELECT $1::oid::regclass::text")
+                    .bind(relation_id)
+                    .fetch_one(&mut *self)
+                    .await?;
+                
+                vacant.insert(TableColumns {
+                    table_name: table_name.into(),
+                    columns: Default::default(),
+                })
+            }
+        };
+        
+        let column_name = match table_columns.columns.entry(attribute_no) {
+            btree_map::Entry::Occupied(occupied) => Arc::clone(occupied.get()),
+            btree_map::Entry::Vacant(vacant) => {
+                if !should_fetch { return Ok(ColumnOrigin::Unknown); }
+                
+                let column_name: String = query_scalar(
+                    "SELECT attname FROM pg_attribute WHERE attrelid = $1 AND attnum = $2"
+                )
+                    .bind(relation_id)
+                    .bind(attribute_no)
+                    .fetch_one(&mut *self)
+                    .await?;
+                
+                Arc::clone(vacant.insert(column_name.into()))
+            }
+        };
+        
+        Ok(ColumnOrigin::Table(TableColumn {
+            table: table_columns.table_name.clone(),
+            name: column_name
+        }))
     }
 
     async fn fetch_type_by_oid(&mut self, oid: Oid) -> Result<PgTypeInfo, Error> {

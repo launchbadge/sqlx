@@ -2,6 +2,7 @@ use crate::ext::ustr::UStr;
 use crate::{PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::column::{Column, ColumnIndex};
+use sqlx_core::column::ColumnOrigin;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
@@ -9,6 +10,10 @@ pub struct PgColumn {
     pub(crate) ordinal: usize,
     pub(crate) name: UStr,
     pub(crate) type_info: PgTypeInfo,
+
+    #[cfg_attr(feature = "offline", serde(default))]
+    pub(crate) origin: ColumnOrigin,
+    
     #[cfg_attr(feature = "offline", serde(skip))]
     pub(crate) relation_id: Option<crate::types::Oid>,
     #[cfg_attr(feature = "offline", serde(skip))]
@@ -50,5 +55,9 @@ impl Column for PgColumn {
 
     fn type_info(&self) -> &PgTypeInfo {
         &self.type_info
+    }
+
+    fn origin(&self) -> ColumnOrigin {
+        self.origin.clone()
     }
 }
