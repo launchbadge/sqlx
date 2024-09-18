@@ -150,7 +150,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
     let db_name = MySql::db_name(args);
     do_cleanup(&mut conn, &db_name).await?;
 
-    query("insert into _sqlx_test_databases(test_path) values ($1, $2)")
+    query("insert into _sqlx_test_databases(db_name, test_path) values (?, ?)")
         .bind(&db_name)
         .bind(args.test_path)
         .execute(&mut *conn)
