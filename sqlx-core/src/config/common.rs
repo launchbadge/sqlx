@@ -1,5 +1,6 @@
 /// Configuration shared by multiple components.
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "sqlx-toml", derive(serde::Deserialize))]
 pub struct Config {
     /// Override the database URL environment variable.
     ///
@@ -70,4 +71,10 @@ pub struct SQLite {
     /// load_extensions = ["uuid", "vsv"]
     /// ```
     pub load_extensions: Vec<String>,
+}
+
+impl Config {
+    pub fn database_url_var(&self) -> &str {
+        self.database_url_var.as_deref().unwrap_or("DATABASE_URL")    
+    }
 }
