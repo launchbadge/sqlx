@@ -5,7 +5,7 @@ use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use jiff::civil::DateTime;
 use jiff::tz::{Offset, TimeZone};
-use jiff::{SignedDuration, Timestamp, Zoned};
+use jiff::{SignedDuration, Timestamp};
 use std::mem;
 use std::str::FromStr;
 
@@ -15,7 +15,7 @@ impl Type<Postgres> for DateTime {
     }
 }
 
-impl Type<Postgres> for Zoned {
+impl Type<Postgres> for Timestamp {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMPTZ
     }
@@ -27,7 +27,7 @@ impl PgHasArrayType for DateTime {
     }
 }
 
-impl PgHasArrayType for Zoned {
+impl PgHasArrayType for Timestamp {
     fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMPTZ_ARRAY
     }
