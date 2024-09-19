@@ -1,12 +1,11 @@
 use std::mem;
 
-use jiff::civil::Date;
-use jiff::ToSpan;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use jiff::civil::Date;
 
 impl Type<Postgres> for Date {
     fn type_info() -> PgTypeInfo {
@@ -38,7 +37,10 @@ impl<'r> Decode<'r, Postgres> for Date {
             PgValueFormat::Binary => {
                 // DATE is encoded as the days since epoch
                 let days: i32 = Decode::<Postgres>::decode(value)?;
-                postgres_epoch_date() + days.days()
+                let days = jiff::Span::new()
+                    .try_days(days)
+                    .map_err(|err| format!("value {days} overflow Postgres DATE: {err:?}"))?;
+                postgres_epoch_date() + days
             }
             PgValueFormat::Text => Date::strptime("%Y-%m-%d", value.as_str()?)?,
         })
