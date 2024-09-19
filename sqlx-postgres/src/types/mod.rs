@@ -218,6 +218,9 @@ mod numeric;
 #[cfg(feature = "rust_decimal")]
 mod rust_decimal;
 
+#[cfg(feature = "jiff")]
+mod jiff;
+
 #[cfg(feature = "chrono")]
 mod chrono;
 
