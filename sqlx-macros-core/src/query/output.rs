@@ -2,7 +2,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::Type;
 
-use sqlx_core::column::Column;
+use sqlx_core::column::{Column, ColumnOrigin};
 use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
@@ -12,6 +12,8 @@ use sqlx_core::type_checking::TypeChecking;
 use std::fmt::{self, Display, Formatter};
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
+use sqlx_core::config::Config;
+use sqlx_core::type_info::TypeInfo;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
@@ -229,8 +231,24 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
 }
 
 fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
+    if let ColumnOrigin::Table(origin) = column.origin() {
+        if let Some(column_override) = Config::from_crate()
+            .macros
+            .column_override(&origin.table, &origin.name) 
+        {
+            return column_override.parse().unwrap();
+        }
+    }
+    
     let type_info = column.type_info();
 
+    if let Some(type_override) = Config::from_crate()
+        .macros
+        .type_override(type_info.name()) 
+    {
+        return type_override.parse().unwrap();    
+    }
+    
     <DB as TypeChecking>::return_type_for_id(type_info).map_or_else(
         || {
             let message =
