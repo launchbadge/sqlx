@@ -138,6 +138,7 @@ bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
 ipnetwork = "0.20.0"
+jiff = { version = "0.1.13" }
 mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
 time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }

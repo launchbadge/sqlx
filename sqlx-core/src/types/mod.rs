@@ -46,6 +46,15 @@ pub mod chrono {
     };
 }
 
+#[cfg(feature = "jiff")]
+#[cfg_attr(docsrs, doc(cfg(feature = "jiff")))]
+pub mod jiff {
+    #[doc(no_inline)]
+    pub use jiff::{
+        Zoned, Timestamp, tz::TimeZone, tz::Offset, civil::Date, civil::Time, civil::DateTime,
+    };
+}
+
 #[cfg(feature = "bit-vec")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bit-vec")))]
 #[doc(no_inline)]
