@@ -4,9 +4,10 @@ use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use jiff::civil::DateTime;
-use jiff::tz::TimeZone;
-use jiff::{SignedDuration, Zoned};
+use jiff::tz::{Offset, TimeZone};
+use jiff::{SignedDuration, Timestamp, Zoned};
 use std::mem;
+use std::str::FromStr;
 
 impl Type<Postgres> for DateTime {
     fn type_info() -> PgTypeInfo {
@@ -75,9 +76,10 @@ impl<'r> Decode<'r, Postgres> for DateTime {
     }
 }
 
-impl Encode<'_, Postgres> for Zoned {
+impl Encode<'_, Postgres> for Timestamp {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        Encode::<Postgres>::encode(self.timestamp(), buf)
+        let datetime = Offset::UTC.to_datetime(*self);
+        Encode::<Postgres>::encode(datetime, buf)
     }
 
     fn size_hint(&self) -> usize {
@@ -85,17 +87,14 @@ impl Encode<'_, Postgres> for Zoned {
     }
 }
 
-impl<'r> Decode<'r, Postgres> for Zoned {
+impl<'r> Decode<'r, Postgres> for Timestamp {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
                 let naive = <DateTime as Decode<Postgres>>::decode(value)?;
-                naive.to_zoned(TimeZone::UTC)?
+                naive.to_zoned(TimeZone::UTC)?.timestamp()
             }
-            PgValueFormat::Text => {
-                let input = value.as_str()?;
-                Zoned::strptime("%Y-%m-%d %H:%M:%S%.f%#z", input)?
-            }
+            PgValueFormat::Text => Timestamp::from_str(value.as_str()?)?,
         })
     }
 }

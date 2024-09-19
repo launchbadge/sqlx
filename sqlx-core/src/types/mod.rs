@@ -50,9 +50,7 @@ pub mod chrono {
 #[cfg_attr(docsrs, doc(cfg(feature = "jiff")))]
 pub mod jiff {
     #[doc(no_inline)]
-    pub use jiff::{
-        Zoned, Timestamp, tz::TimeZone, tz::Offset, civil::Date, civil::Time, civil::DateTime,
-    };
+    pub use jiff::{civil::Date, civil::DateTime, civil::Time, Timestamp};
 }
 
 #[cfg(feature = "bit-vec")]
