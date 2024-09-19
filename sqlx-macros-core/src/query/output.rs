@@ -15,6 +15,8 @@ use sqlx_core::type_info::TypeInfo;
 use std::fmt::{self, Display, Formatter};
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
+use sqlx_core::config::Config;
+use sqlx_core::type_info::TypeInfo;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
@@ -239,92 +241,53 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     })
 }
 
-fn get_column_type<DB: DatabaseExt>(config: &Config, i: usize, column: &DB::Column) -> TokenStream {
+fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
     if let ColumnOrigin::Table(origin) = column.origin() {
-        if let Some(column_override) = config.macros.column_override(&origin.table, &origin.name) {
+        if let Some(column_override) = Config::from_crate()
+            .macros
+            .column_override(&origin.table, &origin.name) 
+        {
             return column_override.parse().unwrap();
         }
     }
-
+    
     let type_info = column.type_info();
 
-    if let Some(type_override) = config.macros.type_override(type_info.name()) {
-        return type_override.parse().unwrap();
+    if let Some(type_override) = Config::from_crate()
+        .macros
+        .type_override(type_info.name()) 
+    {
+        return type_override.parse().unwrap();    
     }
-
-    let err = match <DB as TypeChecking>::return_type_for_id(
-        type_info,
-        &config.macros.preferred_crates,
-    ) {
-        Ok(t) => return t.parse().unwrap(),
-        Err(e) => e,
-    };
-
-    let message = match err {
-        type_checking::Error::NoMappingFound => {
-            if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
-                format!(
-                    "SQLx feature `{feat}` required for type {ty} of {col}",
-                    ty = &type_info,
-                    feat = feature_gate,
-                    col = DisplayColumn {
-                        idx: i,
-                        name: column.name()
-                    }
-                )
-            } else {
-                format!(
-                    "no built-in mapping found for type {ty} of {col}; \
-                     a type override may be required, see documentation for details",
-                    ty = type_info,
-                    col = DisplayColumn {
-                        idx: i,
-                        name: column.name()
-                    }
-                )
-            }
-        }
-        type_checking::Error::DateTimeCrateFeatureNotEnabled => {
-            let feature_gate = config
-                .macros
-                .preferred_crates
-                .date_time
-                .crate_name()
-                .expect("BUG: got feature-not-enabled error for DateTimeCrate::Inferred");
-
-            format!(
-                "SQLx feature `{feat}` required for type {ty} of {col} \
-                 (configured by `macros.preferred-crates.date-time` in sqlx.toml)",
-                ty = &type_info,
-                feat = feature_gate,
-                col = DisplayColumn {
-                    idx: i,
-                    name: column.name()
-                }
-            )
-        }
-        type_checking::Error::NumericCrateFeatureNotEnabled => {
-            let feature_gate = config
-                .macros
-                .preferred_crates
-                .numeric
-                .crate_name()
-                .expect("BUG: got feature-not-enabled error for NumericCrate::Inferred");
-
-            format!(
-                "SQLx feature `{feat}` required for type {ty} of {col} \
-                 (configured by `macros.preferred-crates.numeric` in sqlx.toml)",
-                ty = &type_info,
-                feat = feature_gate,
-                col = DisplayColumn {
-                    idx: i,
-                    name: column.name()
-                }
-            )
-        }
-    };
-
-    syn::Error::new(Span::call_site(), message).to_compile_error()
+    
+    <DB as TypeChecking>::return_type_for_id(type_info).map_or_else(
+        || {
+            let message =
+                if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
+                    format!(
+                        "SQLx feature `{feat}` required for type {ty} of {col}",
+                        ty = &type_info,
+                        feat = feature_gate,
+                        col = DisplayColumn {
+                            idx: i,
+                            name: column.name()
+                        }
+                    )
+                } else {
+                    format!(
+                        "no built in mapping found for type {ty} of {col}; \
+                        a type override may be required, see documentation for details",
+                        ty = type_info,
+                        col = DisplayColumn {
+                            idx: i,
+                            name: column.name()
+                        }
+                    )
+                };
+            syn::Error::new(Span::call_site(), message).to_compile_error()
+        },
+        |t| t.parse().unwrap(),
+    )
 }
 
 impl ColumnDecl {
