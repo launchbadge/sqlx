@@ -1,11 +1,13 @@
+use std::env;
 use std::ops::{Deref, Not};
-
+use anyhow::Context;
 use clap::{
     builder::{styling::AnsiColor, Styles},
     Args, Parser,
 };
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
+use sqlx::config::Config;
 
 const HELP_STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().bold())
@@ -259,7 +261,7 @@ pub struct ConnectOpts {
     pub no_dotenv: NoDotenvOpt,
 
     /// Location of the DB, by default will be read from the DATABASE_URL env var or `.env` files.
-    #[clap(long, short = 'D', env)]
+    #[clap(long, short = 'D')]
     pub database_url: Option<String>,
 
     /// The maximum time, in seconds, to try connecting to the database server before
@@ -293,12 +295,41 @@ pub struct NoDotenvOpt {
 impl ConnectOpts {
     /// Require a database URL to be provided, otherwise
     /// return an error.
-    pub fn required_db_url(&self) -> anyhow::Result<&str> {
-        self.database_url.as_deref().ok_or_else(
-            || anyhow::anyhow!(
-                "the `--database-url` option or the `DATABASE_URL` environment variable must be provided"
-            )
-        )
+    pub fn expect_db_url(&self) -> anyhow::Result<&str> {
+        self.database_url.as_deref().context("BUG: database_url not populated")
+    }
+
+    /// Populate `database_url` from the environment, if not set.
+    pub fn populate_db_url(&mut self, config: &Config) -> anyhow::Result<()> {
+        if self.database_url.is_some() {
+            return Ok(());
+        }
+
+        let var = config.common.database_url_var();
+
+        let context = if var != "DATABASE_URL" {
+            " (`common.database-url-var` in `sqlx.toml`)"
+        } else {
+            ""
+        };
+
+        match env::var(var) {
+            Ok(url) => {
+                if !context.is_empty() {
+                    eprintln!("Read database url from `{var}`{context}");
+                }
+
+                self.database_url = Some(url)
+            },
+            Err(env::VarError::NotPresent) => {
+                anyhow::bail!("`--database-url` or `{var}`{context} must be set")
+            }
+            Err(env::VarError::NotUnicode(_)) => {
+                anyhow::bail!("`{var}`{context} is not valid UTF-8");
+            }
+        }
+
+        Ok(())
     }
 }
 

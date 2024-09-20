@@ -152,25 +152,7 @@ impl Config {
     /// ### Panics
     /// If the file exists but an unrecoverable error was encountered while parsing it.
     pub fn from_crate() -> &'static Self {
-        Self::try_from_crate().unwrap_or_else(|e| {
-            match e {
-                ConfigError::NotFound { path } => {
-                    // Non-fatal
-                    tracing::debug!("Not reading config, file {path:?} not found");
-                    CACHE.get_or_init(Config::default)
-                }
-                // FATAL ERRORS BELOW:
-                // In the case of migrations,
-                // we can't proceed with defaults as they may be completely wrong.
-                e @ ConfigError::ParseDisabled { .. } => {
-                    // Only returned if the file exists but the feature is not enabled.
-                    panic!("{e}")
-                }
-                e => {
-                    panic!("failed to read sqlx config: {e}")
-                }
-            }
-        })
+        Self::read_with_or_default(get_crate_path)
     }
 
     /// Get the cached config, or to read `$CARGO_MANIFEST_DIR/sqlx.toml`.
@@ -179,11 +161,7 @@ impl Config {
     ///
     /// Errors if `CARGO_MANIFEST_DIR` is not set, or if the config file could not be read.
     pub fn try_from_crate() -> Result<&'static Self, ConfigError> {
-        Self::try_get_with(|| {
-            let mut path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
-            path.push("sqlx.toml");
-            Ok(path)
-        })
+        Self::try_read_with(get_crate_path)
     }
 
     /// Get the cached config, or attempt to read `sqlx.toml` from the current working directory.
@@ -192,7 +170,7 @@ impl Config {
     ///
     /// Errors if the config file does not exist, or could not be read.
     pub fn try_from_current_dir() -> Result<&'static Self, ConfigError> {
-        Self::try_get_with(|| Ok("sqlx.toml".into()))
+        Self::try_read_with(|| Ok("sqlx.toml".into()))
     }
 
     /// Get the cached config, or attempt to read it from the path returned by the closure.
@@ -200,12 +178,42 @@ impl Config {
     /// On success, the config is cached in a `static` and returned by future calls.
     ///
     /// Errors if the config file does not exist, or could not be read.
-    pub fn try_get_with(
+    pub fn try_read_with(
         make_path: impl FnOnce() -> Result<PathBuf, ConfigError>,
     ) -> Result<&'static Self, ConfigError> {
         CACHE.get_or_try_init(|| {
             let path = make_path()?;
             Self::read_from(path)
+        })
+    }
+
+    /// Get the cached config, or attempt to read it from the path returned by the closure.
+    ///
+    /// On success, the config is cached in a `static` and returned by future calls.
+    ///
+    /// Returns `Config::default()` if the file does not exist.
+    pub fn read_with_or_default(
+        make_path: impl FnOnce() -> Result<PathBuf, ConfigError>,
+    ) -> &'static Self {
+        CACHE.get_or_init(|| {
+            match make_path().and_then(Self::read_from) {
+                Ok(config) => config,
+                Err(ConfigError::NotFound { path }) => {
+                    // Non-fatal
+                    tracing::debug!("Not reading config, file {path:?} not found");
+                    Config::default()
+                }
+                // FATAL ERRORS BELOW:
+                // In the case of migrations,
+                // we can't proceed with defaults as they may be completely wrong.
+                Err(e @ ConfigError::ParseDisabled { .. }) => {
+                    // Only returned if the file exists but the feature is not enabled.
+                    panic!("{e}")
+                }
+                Err(e) => {
+                    panic!("failed to read sqlx config: {e}")
+                }
+            }
         })
     }
 
@@ -237,4 +245,10 @@ impl Config {
             Err(e) => Err(ConfigError::from_io(path, e)),
         }
     }
+}
+
+fn get_crate_path() -> Result<PathBuf, ConfigError> {
+    let mut path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
+    path.push("sqlx.toml");
+    Ok(path)
 }
