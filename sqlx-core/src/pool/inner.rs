@@ -290,7 +290,6 @@ impl<DB: Database> PoolInner<DB> {
                         }
                     };
 
-
                     // Attempt to connect...
                     let pool = self.clone();
                     return crate::rt::spawn(async move {
