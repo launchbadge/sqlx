@@ -17,7 +17,6 @@ use crate::query::input::RecordType;
 use either::Either;
 use sqlx_core::config::Config;
 use url::Url;
-use sqlx_core::config::Config;
 
 mod args;
 mod data;
@@ -124,11 +123,9 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
         .or(offline)
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
-    
-    let var_name = Config::from_crate()
-        .common
-        .database_url_var();
-    
+
+    let var_name = Config::from_crate().common.database_url_var();
+
     let database_url = env(var_name).ok();
 
     let database_url = env(config.common.database_url_var()).ok().or(database_url);
@@ -265,6 +262,8 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
+    let config = Config::from_crate();
+
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {
         Some(Either::Left(params)) => Some(params.len()),
@@ -281,9 +280,7 @@ where
         }
     }
 
-    let mut warnings = Warnings::default();
-
-    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe)?;
+    let args_tokens = args::quote_args(&input, config, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
@@ -302,7 +299,7 @@ where
     } else {
         match input.record_type {
             RecordType::Generated => {
-                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
@@ -338,32 +335,28 @@ where
                 record_tokens
             }
             RecordType::Given(ref out_ty) => {
-                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
-            RecordType::Scalar => output::quote_query_scalar::<DB>(
-                &input,
-                config,
-                &mut warnings,
-                &query_args,
-                &data.describe,
-            )?,
+            RecordType::Scalar => {
+                output::quote_query_scalar::<DB>(&input, config, &query_args, &data.describe)?
+            }
         }
     };
 
-    let mut warnings_out = TokenStream::new();
+    let mut warnings = TokenStream::new();
 
-    if warnings.ambiguous_datetime {
+    if config.macros.preferred_crates.date_time.is_inferred() {
         // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
-        warnings_out.extend(quote! {
+        warnings.extend(quote! {
             ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
         });
     }
 
-    if warnings.ambiguous_numeric {
+    if config.macros.preferred_crates.numeric.is_inferred() {
         // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
-        warnings_out.extend(quote! {
+        warnings.extend(quote! {
             ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
         });
     }
@@ -374,7 +367,7 @@ where
             {
                 use ::sqlx::Arguments as _;
 
-                #warnings_out
+                #warnings
 
                 #args_tokens
 

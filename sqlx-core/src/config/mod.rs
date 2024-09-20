@@ -86,9 +86,7 @@ pub enum ConfigError {
 
     /// No configuration file was found. Not necessarily fatal.
     #[error("config file {path:?} not found")]
-    NotFound {
-        path: PathBuf,
-    },
+    NotFound { path: PathBuf },
 
     /// An I/O error occurred while attempting to read the config file at `path`.
     ///
@@ -103,7 +101,7 @@ pub enum ConfigError {
     /// An error in the TOML was encountered while parsing the config file at `path`.
     ///
     /// The error gives line numbers and context when printed with `Display`/`ToString`.
-    /// 
+    ///
     /// Only returned if the `sqlx-toml` feature is enabled.
     #[error("error parsing config file {path:?}")]
     Parse {
@@ -115,14 +113,12 @@ pub enum ConfigError {
 
     /// A `sqlx.toml` file was found or specified, but the `sqlx-toml` feature is not enabled.
     #[error("SQLx found config file at {path:?} but the `sqlx-toml` feature was not enabled")]
-    ParseDisabled {
-        path: PathBuf
-    },
+    ParseDisabled { path: PathBuf },
 }
 
 impl ConfigError {
     /// Create a [`ConfigError`] from a [`std::io::Error`].
-    /// 
+    ///
     /// Maps to either `NotFound` or `Io`.
     pub fn from_io(path: PathBuf, error: io::Error) -> Self {
         if error.kind() == io::ErrorKind::NotFound {
@@ -131,7 +127,7 @@ impl ConfigError {
             Self::Io { path, error }
         }
     }
-    
+
     /// If this error means the file was not found, return the path that was attempted.
     pub fn not_found_path(&self) -> Option<&Path> {
         if let Self::NotFound { path } = self {
@@ -227,15 +223,18 @@ impl Config {
         // Motivation: https://github.com/toml-rs/toml/issues/761
         tracing::debug!("read config TOML from {path:?}:\n{toml_s}");
 
-        toml::from_str(&toml_s).map_err(|error| ConfigError::Parse { path, error: Box::new(error) })
+        toml::from_str(&toml_s).map_err(|error| ConfigError::Parse {
+            path,
+            error: Box::new(error),
+        })
     }
-    
+
     #[cfg(not(feature = "sqlx-toml"))]
     fn read_from(path: PathBuf) -> Result<Self, ConfigError> {
         match path.try_exists() {
             Ok(true) => Err(ConfigError::ParseDisabled { path }),
             Ok(false) => Err(ConfigError::NotFound { path }),
-            Err(e) => Err(ConfigError::from_io(path, e))
+            Err(e) => Err(ConfigError::from_io(path, e)),
         }
     }
 }

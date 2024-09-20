@@ -44,6 +44,6 @@ pub struct Config {
 
 impl Config {
     pub fn database_url_var(&self) -> &str {
-        self.database_url_var.as_deref().unwrap_or("DATABASE_URL")    
+        self.database_url_var.as_deref().unwrap_or("DATABASE_URL")
     }
 }

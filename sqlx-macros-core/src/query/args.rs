@@ -15,7 +15,6 @@ use syn::{Expr, ExprCast, ExprGroup, Type};
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
     config: &Config,
-    warnings: &mut Warnings,
     info: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
@@ -60,7 +59,7 @@ pub fn quote_args<DB: DatabaseExt>(
                         return Ok(quote!());
                     }
 
-                    let param_ty = get_param_type::<DB>(param_ty, config, warnings, i)?;
+                    let param_ty = get_param_type::<DB>(param_ty, config, i)?;
 
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
@@ -108,7 +107,6 @@ pub fn quote_args<DB: DatabaseExt>(
 fn get_param_type<DB: DatabaseExt>(
     param_ty: &DB::TypeInfo,
     config: &Config,
-    warnings: &mut Warnings,
     i: usize,
 ) -> crate::Result<TokenStream> {
     if let Some(type_override) = config.macros.type_override(param_ty.name()) {
@@ -129,10 +127,7 @@ fn get_param_type<DB: DatabaseExt>(
                     "optional sqlx feature `{feature_gate}` required for type {param_ty} of param #{param_num}",
                 )
             } else {
-                format!(
-                    "no built-in mapping for type {param_ty} of param #{param_num}; \
-                         a type override may be required, see documentation for details"
-                )
+                format!("unsupported type {param_ty} for param #{param_num}")
             }
         }
         type_checking::Error::DateTimeCrateFeatureNotEnabled => {
@@ -160,16 +155,6 @@ fn get_param_type<DB: DatabaseExt>(
                 "SQLx feature `{feature_gate}` required for type {param_ty} of param #{param_num} \
                  (configured by `macros.preferred-crates.numeric` in sqlx.toml)",
             )
-        }
-
-        type_checking::Error::AmbiguousDateTimeType { fallback } => {
-            warnings.ambiguous_datetime = true;
-            return Ok(fallback.parse()?);
-        }
-
-        type_checking::Error::AmbiguousNumericType { fallback } => {
-            warnings.ambiguous_numeric = true;
-            return Ok(fallback.parse()?);
         }
     };
 
