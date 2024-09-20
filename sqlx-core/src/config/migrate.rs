@@ -13,7 +13,11 @@ use std::collections::BTreeSet;
 ///
 /// Be sure you know what you are doing and that you read all relevant documentation _thoroughly_.
 #[derive(Debug, Default)]
-#[cfg_attr(feature = "sqlx-toml", derive(serde::Deserialize), serde(default))]
+#[cfg_attr(
+    feature = "sqlx-toml", 
+    derive(serde::Deserialize), 
+    serde(default, rename_all = "kebab-case")
+)]
 pub struct Config {
     /// Override the name of the table used to track executed migrations.
     ///
@@ -35,7 +39,7 @@ pub struct Config {
     /// ```toml
     /// [migrate]
     /// # Put `_sqlx_migrations` in schema `foo`
-    /// table_name = "foo._sqlx_migrations"
+    /// table-name = "foo._sqlx_migrations"
     /// ```
     pub table_name: Option<Box<str>>,
 
@@ -63,7 +67,7 @@ pub struct Config {
     /// `sqlx.toml`:
     /// ```toml
     /// [migrate]
-    /// ignored_chars = ["\r"]
+    /// ignored-chars = ["\r"]
     /// ```
     ///
     /// For projects using Git, this can also be addressed using [`.gitattributes`]:
@@ -91,33 +95,44 @@ pub struct Config {
     /// ```toml
     /// [migrate]
     /// # Ignore common whitespace characters when hashing
-    /// ignored_chars = [" ", "\t", "\r", "\n"]  # Space, tab, CR, LF
+    /// ignored-chars = [" ", "\t", "\r", "\n"]  # Space, tab, CR, LF
     /// ```
     // Likely lower overhead for small sets than `HashSet`.
     pub ignored_chars: BTreeSet<char>,
 
-    /// Specify the default type of migration that `sqlx migrate create` should create by default.
+    /// Specify default options for new migrations created with `sqlx migrate add`.
+    pub defaults: MigrationDefaults,
+}
+
+#[derive(Debug, Default)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(default, rename_all = "kebab-case")
+)]
+pub struct MigrationDefaults {
+    /// Specify the default type of migration that `sqlx migrate add` should create by default.
     ///
     /// ### Example: Use Reversible Migrations by Default
     /// `sqlx.toml`:
     /// ```toml
-    /// [migrate]
-    /// default_type = "reversible"
+    /// [migrate.defaults]
+    /// migration-type = "reversible"
     /// ```
-    pub default_type: DefaultMigrationType,
+    pub migration_type: DefaultMigrationType,
 
-    /// Specify the default scheme that `sqlx migrate create` should use for version integers.
+    /// Specify the default scheme that `sqlx migrate add` should use for version integers.
     ///
     /// ### Example: Use Sequential Versioning by Default
     /// `sqlx.toml`:
     /// ```toml
-    /// [migrate]
-    /// default_versioning = "sequential"
+    /// [migrate.defaults]
+    /// migration-versioning = "sequential"
     /// ```
-    pub default_versioning: DefaultVersioning,
+    pub migration_versioning: DefaultVersioning,
 }
 
-/// The default type of migration that `sqlx migrate create` should create by default.
+/// The default type of migration that `sqlx migrate add` should create by default.
 #[derive(Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "sqlx-toml",
@@ -130,14 +145,14 @@ pub enum DefaultMigrationType {
     #[default]
     Inferred,
 
-    /// Create a non-reversible migration (`<VERSION>_<DESCRIPTION>.sql`).
+    /// Create non-reversible migrations (`<VERSION>_<DESCRIPTION>.sql`) by default.
     Simple,
 
-    /// Create a reversible migration (`<VERSION>_<DESCRIPTION>.up.sql` and `[...].down.sql`).
+    /// Create reversible migrations (`<VERSION>_<DESCRIPTION>.up.sql` and `[...].down.sql`) by default.
     Reversible,
 }
 
-/// The default scheme that `sqlx migrate create` should use for version integers.
+/// The default scheme that `sqlx migrate add` should use for version integers.
 #[derive(Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "sqlx-toml",
