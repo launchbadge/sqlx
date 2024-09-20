@@ -15,6 +15,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use sqlx_core::bytes::Buf;
 
+use super::PgHasArrayType;
+
 /// Key-value support (`hstore`) for Postgres.
 ///
 /// SQLx currently maps `hstore` to a `BTreeMap<String, Option<String>>` but this may be expanded in
@@ -135,6 +137,12 @@ impl IntoIterator for PgHstore {
 impl Type<Postgres> for PgHstore {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name("hstore")
+    }
+}
+
+impl PgHasArrayType for PgHstore {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::array_of("hstore")
     }
 }
 

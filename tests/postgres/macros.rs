@@ -21,6 +21,49 @@ async fn test_query() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_hstores() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _ = sqlx::query!(
+        "INSERT INTO test_hstores(stores) VALUES ($1);",
+        &[
+            sqlx::postgres::types::PgHstore::from_iter([("key1".to_string(), "value".to_string())]),
+            sqlx::postgres::types::PgHstore::from_iter([("key2".to_string(), "value".to_string())]),
+        ]
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let record = sqlx::query!("SELECT stores FROM test_hstores LIMIT 1;")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.stores.unwrap()[1]["key2"], Some("value".to_string()));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_hstore() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _ = sqlx::query!(
+        "INSERT INTO test_hstore(store) VALUES ($1);",
+        sqlx::postgres::types::PgHstore::from_iter([("key".to_string(), "value".to_string())])
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let record = sqlx::query!("SELECT store FROM test_hstore LIMIT 1;")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.store.unwrap()["key"], Some("value".to_string()));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_non_null() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
     let mut tx = conn.begin().await?;

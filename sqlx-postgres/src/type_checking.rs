@@ -209,6 +209,9 @@ impl_type_checking!(
         #[cfg(feature = "time")]
         Vec<sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>> |
             &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
+
+        sqlx::postgres::types::PgHstore,
+        Vec<sqlx::postgres::types::PgHstore> | &[sqlx::postgres::types::PgHstore],
     },
     ParamChecking::Strong,
     feature-types: info => info.__type_feature_gate(),
