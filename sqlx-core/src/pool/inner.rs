@@ -290,8 +290,16 @@ impl<DB: Database> PoolInner<DB> {
                         }
                     };
 
+
                     // Attempt to connect...
-                    return self.connect(deadline, guard).await;
+                    let pool = self.clone();
+                    return crate::rt::spawn(async move {
+                        crate::rt::timeout(pool.options.connect_timeout, async move {
+                            pool.connect(deadline, guard).await
+                        })
+                    }).await
+                    .await
+                    .map_err(|_| Error::PoolTimedOut)?;
                 }
             }
         )

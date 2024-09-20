@@ -79,6 +79,7 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) acquire_slow_level: LevelFilter,
     pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
+    pub(crate) connect_timeout: Duration,
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
@@ -102,6 +103,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             acquire_slow_threshold: self.acquire_slow_threshold,
             acquire_slow_level: self.acquire_slow_level,
             acquire_timeout: self.acquire_timeout,
+            connect_timeout: self.connect_timeout,
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
             idle_timeout: self.idle_timeout,
@@ -158,6 +160,7 @@ impl<DB: Database> PoolOptions<DB> {
             // to not flag typical time to add a new connection to a pool.
             acquire_slow_threshold: Duration::from_secs(2),
             acquire_timeout: Duration::from_secs(30),
+            connect_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
             fair: true,
