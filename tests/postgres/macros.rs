@@ -638,21 +638,23 @@ async fn test_to_from_citext() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test(migrations = "tests/postgres/migrations")]
-async fn pghstore_tests(pool: PgPool) -> Result<(), sqlx::Error> {
+#[sqlx_macros::test]
+async fn pghstore_tests() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
     let mut store = PgHstore::default();
     let stores = vec![store.clone(), store.clone()];
 
     store.insert("key".into(), Some("value".to_string()));
     sqlx::query!("         insert into mytable(f) values ($1)", store)
-        .execute(&pool)
+        .execute(&mut conn)
         .await?;
 
     sqlx::query!(
         "         insert into mytable(f) select * from unnest($1::hstore[])",
         &stores
     )
-    .execute(&pool)
+    .execute(&mut conn)
     .await?;
 
     Ok(())
