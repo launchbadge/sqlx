@@ -8,11 +8,7 @@ fn reference_parses_as_config() {
         .unwrap_or_else(|e| panic!("expected reference.toml to parse as Config: {e}"));
 
     assert_common_config(&config.common);
-
-    #[cfg(feature = "config-macros")]
     assert_macros_config(&config.macros);
-
-    #[cfg(feature = "config-migrate")]
     assert_migrate_config(&config.migrate);
 }
 
@@ -23,7 +19,7 @@ fn assert_common_config(config: &config::common::Config) {
 fn assert_macros_config(config: &config::macros::Config) {
     use config::macros::*;
 
-    assert_eq!(config.datetime_crate, DateTimeCrate::Chrono);
+    assert_eq!(config.preferred_crates.date_time, DateTimeCrate::Chrono);
 
     // Type overrides
     // Don't need to cover everything, just some important canaries.
@@ -83,6 +79,6 @@ fn assert_migrate_config(config: &config::migrate::Config) {
 
     assert_eq!(config.ignored_chars, ignored_chars);
 
-    assert_eq!(config.default_type, DefaultMigrationType::Reversible);
-    assert_eq!(config.default_versioning, DefaultVersioning::Sequential);
+    assert_eq!(config.defaults.migration_type, DefaultMigrationType::Reversible);
+    assert_eq!(config.defaults.migration_versioning, DefaultVersioning::Sequential);
 }

@@ -13,20 +13,24 @@
 # This is used by both the macros and `sqlx-cli`.
 #
 # If not specified, defaults to `DATABASE_URL`
-database_url_var = "FOO_DATABASE_URL"
+database-url-var = "FOO_DATABASE_URL"
 
 ###############################################################################################
 
 # Configuration for the `query!()` family of macros.
 [macros]
+
+[macros.preferred-crates]
 # Force the macros to use the `chrono` crate for date/time types, even if `time` is enabled.
 #
 # Defaults to "inferred": use whichever crate is enabled (`time` takes precedence over `chrono`).
-datetime_crate = "chrono"
+date-time = "chrono"
 
 # Or, ensure the macros always prefer `time`
 # in case new date/time crates are added in the future:
-# datetime_crate = "time"
+# date-time = "time"
+
+
 
 # Set global overrides for mapping SQL types to Rust types.
 #
@@ -38,7 +42,7 @@ datetime_crate = "chrono"
 # ### Note: Orthogonal to Nullability
 # These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
 # or not. They only override the inner type used.
-[macros.type_overrides]
+[macros.type-overrides]
 # Override a built-in type (map all `UUID` columns to `crate::types::MyUuid`)
 'uuid' = "crate::types::MyUuid"
 
@@ -67,7 +71,7 @@ datetime_crate = "chrono"
 # Quoted schema and type name
 '"Foo"."Bar"' = "crate::schema::foo::Bar"
 
-# Set per-column overrides for mapping SQL types to Rust types.
+# Set per-table and per-column overrides for mapping SQL types to Rust types.
 #
 # Note: table name is required in the header.
 #
@@ -76,7 +80,7 @@ datetime_crate = "chrono"
 # ### Note: Orthogonal to Nullability
 # These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
 # or not. They only override the inner type used.
-[macros.column_overrides.'foo']
+[macros.table-overrides.'foo']
 # Map column `bar` of table `foo` to Rust type `crate::types::Foo`:
 'bar' = "crate::types::Bar"
 
@@ -88,17 +92,17 @@ datetime_crate = "chrono"
 # "Bar" = "crate::types::Bar"
 
 # Table name may be quoted (note the wrapping single-quotes)
-[macros.column_overrides.'"Foo"']
+[macros.table-overrides.'"Foo"']
 'bar' = "crate::types::Bar"
 '"Bar"' = "crate::types::Bar"
 
 # Table name may also be schema-qualified.
 # Note how the dot is inside the quotes.
-[macros.column_overrides.'my_schema.my_table']
+[macros.table-overrides.'my_schema.my_table']
 'my_column' = "crate::types::MyType"
 
 # Quoted schema, table, and column names
-[macros.column_overrides.'"My Schema"."My Table"']
+[macros.table-overrides.'"My Schema"."My Table"']
 '"My Column"' = "crate::types::MyType"
 
 ###############################################################################################
@@ -130,12 +134,12 @@ datetime_crate = "chrono"
 # You should create the new table as a copy of the existing migrations table (with contents!),
 # and be sure all instances of your application have been migrated to the new
 # table before deleting the old one.
-table_name = "foo._sqlx_migrations"
+table-name = "foo._sqlx_migrations"
 
 # Override the directory used for migrations files.
 #
 # Relative to the crate root for `sqlx::migrate!()`, or the current directory for `sqlx-cli`.
-migrations_dir = "foo/migrations"
+migrations-dir = "foo/migrations"
 
 # Specify characters that should be ignored when hashing migrations.
 #
@@ -148,32 +152,34 @@ migrations_dir = "foo/migrations"
 # change the output of the hash.
 #
 # This may require manual rectification for deployed databases.
-# ignored_chars = []
+# ignored-chars = []
 
 # Ignore Carriage Returns (`<CR>` | `\r`)
 # Note that the TOML format requires double-quoted strings to process escapes.
-# ignored_chars = ["\r"]
+# ignored-chars = ["\r"]
 
 # Ignore common whitespace characters (beware syntatically significant whitespace!)
 # Space, tab, CR, LF, zero-width non-breaking space (U+FEFF)
 #
 # U+FEFF is added by some editors as a magic number at the beginning of a text file indicating it is UTF-8 encoded,
 # where it is known as a byte-order mark (BOM): https://en.wikipedia.org/wiki/Byte_order_mark
-ignored_chars = [" ", "\t", "\r", "\n", "\uFEFF"]
+ignored-chars = [" ", "\t", "\r", "\n", "\uFEFF"]
 
+# Set default options for new migrations.
+[migrate.defaults]
 # Specify reversible migrations by default (for `sqlx migrate create`).
 #
 # Defaults to "inferred": uses the type of the last migration, or "simple" otherwise.
-default_type = "reversible"
+migration-type = "reversible"
 
 # Specify simple (non-reversible) migrations by default.
-# default_type = "simple"
+# migration-type = "simple"
 
 # Specify sequential versioning by default (for `sqlx migrate create`).
 #
 # Defaults to "inferred": guesses the versioning scheme from the latest migrations,
 # or "timestamp" otherwise.
-default_versioning = "sequential"
+migration-versioning = "sequential"
 
 # Specify timestamp versioning by default.
-# default_versioning = "timestamp"
+# migration-versioning = "timestamp"
