@@ -1,23 +1,10 @@
-use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
-use crate::config::Config;
-use anyhow::Context;
-use chrono::Utc;
-use clap::{
-    builder::{styling::AnsiColor, Styles},
-    Args, Parser,
-};
-#[cfg(feature = "completions")]
-use clap_complete::Shell;
-use sqlx::migrate::{MigrateError, Migrator, ResolveWith};
 use std::env;
 use std::ops::{Deref, Not};
-use std::path::PathBuf;
-
-const HELP_STYLES: Styles = Styles::styled()
-    .header(AnsiColor::Blue.on_default().bold())
-    .usage(AnsiColor::Blue.on_default().bold())
-    .literal(AnsiColor::White.on_default())
-    .placeholder(AnsiColor::Green.on_default());
+use anyhow::Context;
+use clap::{Args, Parser};
+#[cfg(feature = "completions")]
+use clap_complete::Shell;
+use sqlx::config::Config;
 
 #[derive(Parser, Debug)]
 #[clap(version, about, author, styles = HELP_STYLES)]
@@ -415,9 +402,7 @@ impl ConnectOpts {
     /// Require a database URL to be provided, otherwise
     /// return an error.
     pub fn expect_db_url(&self) -> anyhow::Result<&str> {
-        self.database_url
-            .as_deref()
-            .context("BUG: database_url not populated")
+        self.database_url.as_deref().context("BUG: database_url not populated")
     }
 
     /// Populate `database_url` from the environment, if not set.
@@ -441,7 +426,7 @@ impl ConnectOpts {
                 }
 
                 self.database_url = Some(url)
-            }
+            },
             Err(env::VarError::NotPresent) => {
                 anyhow::bail!("`--database-url` or `{var}`{context} must be set")
             }
@@ -451,31 +436,6 @@ impl ConnectOpts {
         }
 
         Ok(())
-    }
-}
-
-impl ConfigOpt {
-    pub async fn load_config(&self) -> anyhow::Result<Config> {
-        let path = self.config.clone();
-
-        // Tokio does file I/O on a background task anyway
-        tokio::task::spawn_blocking(|| {
-            if let Some(path) = path {
-                let err_str = format!("error reading config from {path:?}");
-                Config::try_from_path(path).context(err_str)
-            } else {
-                let path = PathBuf::from("sqlx.toml");
-
-                if path.exists() {
-                    eprintln!("Found `sqlx.toml` in current directory; reading...");
-                    Ok(Config::try_from_path(path)?)
-                } else {
-                    Ok(Config::default())
-                }
-            }
-        })
-        .await
-        .context("unexpected error loading config")?
     }
 }
 

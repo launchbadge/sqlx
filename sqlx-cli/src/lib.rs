@@ -1,8 +1,10 @@
 use std::future::Future;
 use std::io;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use futures_util::TryFutureExt;
+use anyhow::{Context, Result};
+use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
 use tokio::{select, signal};
@@ -21,38 +23,12 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
-pub use sqlx::_unstable::config::{self, Config};
+pub use sqlx::_unstable::config;
+use crate::config::Config;
 
-/// Check arguments for `--no-dotenv` _before_ Clap parsing, and apply `.env` if not set.
-pub fn maybe_apply_dotenv() {
-    if std::env::args().any(|arg| arg == "--no-dotenv") {
-        return;
-    }
+pub async fn run(opt: Opt) -> Result<()> {
+    let config = config_from_current_dir()?;
 
-    dotenvy::dotenv().ok();
-}
-
-pub async fn run(opt: Opt) -> anyhow::Result<()> {
-    // This `select!` is here so that when the process receives a `SIGINT` (CTRL + C),
-    // the futures currently running on this task get dropped before the program exits.
-    // This is currently necessary for the consumers of the `dialoguer` crate to restore
-    // the user's terminal if the process is interrupted while a dialog is being displayed.
-
-    let ctrlc_fut = signal::ctrl_c();
-    let do_run_fut = do_run(opt);
-
-    select! {
-        biased;
-        _ = ctrlc_fut => {
-            Ok(())
-        },
-        do_run_outcome = do_run_fut => {
-            do_run_outcome
-        }
-    }
-}
-
-async fn do_run(opt: Opt) -> anyhow::Result<()> {
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add(opts) => migrate::add(opts).await?,
@@ -64,9 +40,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                 mut connect_opts,
                 target_version,
             } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
+                connect_opts.populate_db_url(config)?;
 
                 migrate::run(
                     &config,
@@ -86,9 +60,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                 mut connect_opts,
                 target_version,
             } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
+                connect_opts.populate_db_url(config)?;
 
                 migrate::revert(
                     &config,
@@ -102,69 +74,44 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             }
             MigrateCommand::Info {
                 source,
-                config,
                 mut connect_opts,
             } => {
-                let config = config.load_config().await?;
+                connect_opts.populate_db_url(config)?;
 
-                connect_opts.populate_db_url(&config)?;
-
-                migrate::info(&config, &source, &connect_opts).await?
-            }
-            MigrateCommand::BuildScript {
-                source,
-                config,
-                force,
-            } => {
-                let config = config.load_config().await?;
-
-                migrate::build_script(&config, &source, force)?
-            }
+                migrate::info(&source, &connect_opts).await?
+            },
+            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
         },
 
         Command::Database(database) => match database.command {
-            DatabaseCommand::Create {
-                config,
-                mut connect_opts,
-            } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
+            DatabaseCommand::Create { mut connect_opts } => {
+                connect_opts.populate_db_url(config)?;
                 database::create(&connect_opts).await?
-            }
+            },
             DatabaseCommand::Drop {
                 confirmation,
-                config,
                 mut connect_opts,
                 force,
             } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
+                connect_opts.populate_db_url(config)?;
                 database::drop(&connect_opts, !confirmation.yes, force).await?
-            }
+            },
             DatabaseCommand::Reset {
                 confirmation,
                 source,
-                config,
                 mut connect_opts,
                 force,
             } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
-                database::reset(&config, &source, &connect_opts, !confirmation.yes, force).await?
-            }
+                connect_opts.populate_db_url(config)?;
+                database::reset(&source, &connect_opts, !confirmation.yes, force).await?
+            },
             DatabaseCommand::Setup {
                 source,
-                config,
                 mut connect_opts,
             } => {
-                let config = config.load_config().await?;
-
-                connect_opts.populate_db_url(&config)?;
-                database::setup(&config, &source, &connect_opts).await?
-            }
+                connect_opts.populate_db_url(config)?;
+                database::setup(&source, &connect_opts).await?
+            },
         },
 
         Command::Prepare {
@@ -173,12 +120,10 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             workspace,
             mut connect_opts,
             args,
-            config,
         } => {
-            let config = config.load_config().await?;
-            connect_opts.populate_db_url(&config)?;
+            connect_opts.populate_db_url(config)?;
             prepare::run(check, all, workspace, connect_opts, args).await?
-        }
+        },
 
         #[cfg(feature = "completions")]
         Command::Completions { shell } => completions::run(shell),
@@ -230,4 +175,19 @@ where
         },
     )
     .await
+}
+
+async fn config_from_current_dir() -> anyhow::Result<&'static Config> {
+    // Tokio does file I/O on a background task anyway
+    tokio::task::spawn_blocking(|| {
+        let path = PathBuf::from("sqlx.toml");
+
+        if path.exists() {
+            eprintln!("Found `sqlx.toml` in current directory; reading...");
+        }
+
+        Config::read_with_or_default(move || Ok(path))
+    })
+        .await
+        .context("unexpected error loading config")
 }
