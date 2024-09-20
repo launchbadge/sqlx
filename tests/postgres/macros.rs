@@ -1,4 +1,4 @@
-use sqlx::{Connection, PgConnection, PgPool, Postgres, Transaction};
+use sqlx::{Connection, PgConnection, Postgres, Transaction};
 use sqlx_postgres::types::PgHstore;
 use sqlx_test::new;
 
