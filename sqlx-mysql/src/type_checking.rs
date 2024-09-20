@@ -25,41 +25,39 @@ impl_type_checking!(
         // BINARY, VAR_BINARY, BLOB
         Vec<u8>,
 
-        // Types from third-party crates need to be referenced at a known path
-        // for the macros to work, but we don't want to require the user to add extra dependencies.
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveTime,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDate,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDateTime,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::Time,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::Date,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::PrimitiveDateTime,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::OffsetDateTime,
-
-        #[cfg(feature = "bigdecimal")]
-        sqlx::types::BigDecimal,
-
-        #[cfg(feature = "rust_decimal")]
-        sqlx::types::Decimal,
-
         #[cfg(feature = "json")]
         sqlx::types::JsonValue,
     },
     ParamChecking::Weak,
     feature-types: info => info.__type_feature_gate(),
+    // The expansion of the macro automatically applies the correct feature name
+    // and checks `[macros.preferred-crates]`
+    datetime-types: {
+        chrono: {
+            sqlx::types::chrono::NaiveTime,
+
+            sqlx::types::chrono::NaiveDate,
+
+            sqlx::types::chrono::NaiveDateTime,
+
+            sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
+        },
+        time: {
+            sqlx::types::time::Time,
+
+            sqlx::types::time::Date,
+
+            sqlx::types::time::PrimitiveDateTime,
+
+            sqlx::types::time::OffsetDateTime,
+        },
+    },
+    numeric-types: {
+        bigdecimal: {
+            sqlx::types::BigDecimal,
+        },
+        rust_decimal: {
+            sqlx::types::Decimal,
+        },
+    },
 );

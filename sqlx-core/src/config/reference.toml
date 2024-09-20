@@ -30,7 +30,14 @@ date-time = "chrono"
 # in case new date/time crates are added in the future:
 # date-time = "time"
 
+# Force the macros to use the `rust_decimal` crate for `NUMERIC`, even if `bigdecimal` is enabled.
+#
+# Defaults to "inferred": use whichever crate is enabled (`bigdecimal` takes precedence over `rust_decimal`).
+numeric = "rust_decimal"
 
+# Or, ensure the macros always prefer `bigdecimal`
+# in case new decimal crates are added in the future:
+# numeric = "bigdecimal"
 
 # Set global overrides for mapping SQL types to Rust types.
 #
@@ -44,7 +51,9 @@ date-time = "chrono"
 # or not. They only override the inner type used.
 [macros.type-overrides]
 # Override a built-in type (map all `UUID` columns to `crate::types::MyUuid`)
-'uuid' = "crate::types::MyUuid"
+# Note: currently, the case of the type name MUST match. 
+# Built-in types are spelled in all-uppercase to match SQL convention. 
+'UUID' = "crate::types::MyUuid"
 
 # Support an external or custom wrapper type (e.g. from the `isn` Postgres extension)
 # (NOTE: FOR DOCUMENTATION PURPOSES ONLY; THIS CRATE/TYPE DOES NOT EXIST AS OF WRITING)

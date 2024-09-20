@@ -11,7 +11,7 @@ pub struct SqliteColumn {
     pub(crate) type_info: SqliteTypeInfo,
 
     #[cfg_attr(feature = "offline", serde(default))]
-    pub(crate) origin: ColumnOrigin
+    pub(crate) origin: ColumnOrigin,
 }
 
 impl Column for SqliteColumn {

@@ -23,15 +23,17 @@ pub trait Column: 'static + Send + Sync + Debug {
     fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 
     /// If this column comes from a table, return the table and original column name.
-    /// 
+    ///
     /// Returns [`ColumnOrigin::Expression`] if the column is the result of an expression
     /// or else the source table could not be determined.
-    /// 
+    ///
     /// Returns [`ColumnOrigin::Unknown`] if the database driver does not have that information,
     /// or has not overridden this method.
-    // This method returns an owned value instead of a reference, 
+    // This method returns an owned value instead of a reference,
     // to give the implementor more flexibility.
-    fn origin(&self) -> ColumnOrigin { ColumnOrigin::Unknown }
+    fn origin(&self) -> ColumnOrigin {
+        ColumnOrigin::Unknown
+    }
 }
 
 /// A [`Column`] that originates from a table.
@@ -44,20 +46,20 @@ pub struct TableColumn {
     pub name: Arc<str>,
 }
 
-/// The possible statuses for our knowledge of the origin of a [`Column`]. 
+/// The possible statuses for our knowledge of the origin of a [`Column`].
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub enum ColumnOrigin {
-    /// The column is known to originate from a table. 
-    /// 
-    /// Included is the table name and original column name. 
+    /// The column is known to originate from a table.
+    ///
+    /// Included is the table name and original column name.
     Table(TableColumn),
     /// The column originates from an expression, or else its origin could not be determined.
     Expression,
     /// The database driver does not know the column origin at this time.
-    /// 
+    ///
     /// This may happen if:
-    /// * The connection is in the middle of executing a query, 
+    /// * The connection is in the middle of executing a query,
     ///   and cannot query the catalog to fetch this information.
     /// * The connection does not have access to the database catalog.
     /// * The implementation of [`Column`] did not override [`Column::origin()`].

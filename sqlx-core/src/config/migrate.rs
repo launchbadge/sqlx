@@ -14,8 +14,8 @@ use std::collections::BTreeSet;
 /// Be sure you know what you are doing and that you read all relevant documentation _thoroughly_.
 #[derive(Debug, Default)]
 #[cfg_attr(
-    feature = "sqlx-toml", 
-    derive(serde::Deserialize), 
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
     serde(default, rename_all = "kebab-case")
 )]
 pub struct Config {
