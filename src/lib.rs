@@ -169,6 +169,12 @@ pub mod prelude {
 #[cfg(feature = "_unstable-doc")]
 pub use sqlx_core::config;
 
+// NOTE: APIs exported in this module are SemVer-exempt.
+#[doc(hidden)]
+pub mod _unstable {
+    pub use sqlx_core::config;
+}
+
 #[doc(hidden)]
 #[cfg_attr(
     all(feature = "chrono", feature = "time"),

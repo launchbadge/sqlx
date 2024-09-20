@@ -1,7 +1,8 @@
 use std::io;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
@@ -20,7 +21,12 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
+pub use sqlx::_unstable::config;
+use crate::config::Config;
+
 pub async fn run(opt: Opt) -> Result<()> {
+    let config = config_from_current_dir()?;
+
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add {
@@ -34,9 +40,11 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 dry_run,
                 ignore_missing,
-                connect_opts,
+                mut connect_opts,
                 target_version,
             } => {
+                connect_opts.populate_db_url(config)?;
+
                 migrate::run(
                     &source,
                     &connect_opts,
@@ -50,9 +58,11 @@ pub async fn run(opt: Opt) -> Result<()> {
                 source,
                 dry_run,
                 ignore_missing,
-                connect_opts,
+                mut connect_opts,
                 target_version,
             } => {
+                connect_opts.populate_db_url(config)?;
+
                 migrate::revert(
                     &source,
                     &connect_opts,
@@ -64,37 +74,56 @@ pub async fn run(opt: Opt) -> Result<()> {
             }
             MigrateCommand::Info {
                 source,
-                connect_opts,
-            } => migrate::info(&source, &connect_opts).await?,
+                mut connect_opts,
+            } => {
+                connect_opts.populate_db_url(config)?;
+
+                migrate::info(&source, &connect_opts).await?
+            },
             MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
         },
 
         Command::Database(database) => match database.command {
-            DatabaseCommand::Create { connect_opts } => database::create(&connect_opts).await?,
+            DatabaseCommand::Create { mut connect_opts } => {
+                connect_opts.populate_db_url(config)?;
+                database::create(&connect_opts).await?
+            },
             DatabaseCommand::Drop {
                 confirmation,
-                connect_opts,
+                mut connect_opts,
                 force,
-            } => database::drop(&connect_opts, !confirmation.yes, force).await?,
+            } => {
+                connect_opts.populate_db_url(config)?;
+                database::drop(&connect_opts, !confirmation.yes, force).await?
+            },
             DatabaseCommand::Reset {
                 confirmation,
                 source,
-                connect_opts,
+                mut connect_opts,
                 force,
-            } => database::reset(&source, &connect_opts, !confirmation.yes, force).await?,
+            } => {
+                connect_opts.populate_db_url(config)?;
+                database::reset(&source, &connect_opts, !confirmation.yes, force).await?
+            },
             DatabaseCommand::Setup {
                 source,
-                connect_opts,
-            } => database::setup(&source, &connect_opts).await?,
+                mut connect_opts,
+            } => {
+                connect_opts.populate_db_url(config)?;
+                database::setup(&source, &connect_opts).await?
+            },
         },
 
         Command::Prepare {
             check,
             all,
             workspace,
-            connect_opts,
+            mut connect_opts,
             args,
-        } => prepare::run(check, all, workspace, connect_opts, args).await?,
+        } => {
+            connect_opts.populate_db_url(config)?;
+            prepare::run(check, all, workspace, connect_opts, args).await?
+        },
 
         #[cfg(feature = "completions")]
         Command::Completions { shell } => completions::run(shell),
@@ -122,7 +151,7 @@ where
 {
     sqlx::any::install_default_drivers();
 
-    let db_url = opts.required_db_url()?;
+    let db_url = opts.expect_db_url()?;
 
     backoff::future::retry(
         backoff::ExponentialBackoffBuilder::new()
@@ -146,4 +175,19 @@ where
         },
     )
     .await
+}
+
+async fn config_from_current_dir() -> anyhow::Result<&'static Config> {
+    // Tokio does file I/O on a background task anyway
+    tokio::task::spawn_blocking(|| {
+        let path = PathBuf::from("sqlx.toml");
+
+        if path.exists() {
+            eprintln!("Found `sqlx.toml` in current directory; reading...");
+        }
+
+        Config::read_with_or_default(move || Ok(path))
+    })
+        .await
+        .context("unexpected error loading config")
 }
