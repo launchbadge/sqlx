@@ -1,13 +1,19 @@
-use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
-use crate::config::Config;
-use anyhow::Context;
-use chrono::Utc;
-use clap::{Args, Parser};
-#[cfg(feature = "completions")]
-use clap_complete::Shell;
-use sqlx::migrate::Migrator;
 use std::env;
 use std::ops::{Deref, Not};
+use anyhow::Context;
+use clap::{
+    builder::{styling::AnsiColor, Styles},
+    Args, Parser,
+};
+#[cfg(feature = "completions")]
+use clap_complete::Shell;
+use sqlx::config::Config;
+
+const HELP_STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Blue.on_default().bold())
+    .usage(AnsiColor::Blue.on_default().bold())
+    .literal(AnsiColor::White.on_default())
+    .placeholder(AnsiColor::Green.on_default());
 
 #[derive(Parser, Debug)]
 #[clap(version, about, author, styles = HELP_STYLES)]
@@ -376,9 +382,7 @@ impl ConnectOpts {
     /// Require a database URL to be provided, otherwise
     /// return an error.
     pub fn expect_db_url(&self) -> anyhow::Result<&str> {
-        self.database_url
-            .as_deref()
-            .context("BUG: database_url not populated")
+        self.database_url.as_deref().context("BUG: database_url not populated")
     }
 
     /// Populate `database_url` from the environment, if not set.
@@ -402,7 +406,7 @@ impl ConnectOpts {
                 }
 
                 self.database_url = Some(url)
-            }
+            },
             Err(env::VarError::NotPresent) => {
                 anyhow::bail!("`--database-url` or `{var}`{context} must be set")
             }

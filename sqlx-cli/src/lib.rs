@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -23,10 +23,37 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
-pub use sqlx::_unstable::config::{self, Config};
+pub use sqlx::_unstable::config;
+use crate::config::Config;
+
+/// Check arguments for `--no-dotenv` _before_ Clap parsing, and apply `.env` if not set.
+pub fn maybe_apply_dotenv() {
+    if std::env::args().any(|arg| arg == "--no-dotenv") {
+        return;
+    }
+
+    dotenvy::dotenv().ok();
+}
 
 pub async fn run(opt: Opt) -> Result<()> {
     let config = config_from_current_dir().await?;
+
+    let ctrlc_fut = signal::ctrl_c();
+    let do_run_fut = do_run(opt);
+
+    select! {
+        biased;
+        _ = ctrlc_fut => {
+            Ok(())
+        },
+        do_run_outcome = do_run_fut => {
+            do_run_outcome
+        }
+    }
+}
+
+async fn do_run(opt: Opt) -> Result<()> {
+    let config = config_from_current_dir()?;
 
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
@@ -77,18 +104,16 @@ pub async fn run(opt: Opt) -> Result<()> {
             } => {
                 connect_opts.populate_db_url(config)?;
 
-                migrate::info(config, &source, &connect_opts).await?
-            }
-            MigrateCommand::BuildScript { source, force } => {
-                migrate::build_script(config, &source, force)?
-            }
+                migrate::info(&source, &connect_opts).await?
+            },
+            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
         },
 
         Command::Database(database) => match database.command {
             DatabaseCommand::Create { mut connect_opts } => {
                 connect_opts.populate_db_url(config)?;
                 database::create(&connect_opts).await?
-            }
+            },
             DatabaseCommand::Drop {
                 confirmation,
                 mut connect_opts,
@@ -96,7 +121,7 @@ pub async fn run(opt: Opt) -> Result<()> {
             } => {
                 connect_opts.populate_db_url(config)?;
                 database::drop(&connect_opts, !confirmation.yes, force).await?
-            }
+            },
             DatabaseCommand::Reset {
                 confirmation,
                 source,
@@ -104,15 +129,15 @@ pub async fn run(opt: Opt) -> Result<()> {
                 force,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::reset(config, &source, &connect_opts, !confirmation.yes, force).await?
-            }
+                database::reset(&source, &connect_opts, !confirmation.yes, force).await?
+            },
             DatabaseCommand::Setup {
                 source,
                 mut connect_opts,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::setup(config, &source, &connect_opts).await?
-            }
+                database::setup(&source, &connect_opts).await?
+            },
         },
 
         Command::Prepare {
@@ -124,7 +149,7 @@ pub async fn run(opt: Opt) -> Result<()> {
         } => {
             connect_opts.populate_db_url(config)?;
             prepare::run(check, all, workspace, connect_opts, args).await?
-        }
+        },
 
         #[cfg(feature = "completions")]
         Command::Completions { shell } => completions::run(shell),
@@ -189,6 +214,6 @@ async fn config_from_current_dir() -> anyhow::Result<&'static Config> {
 
         Config::read_with_or_default(move || Ok(path))
     })
-    .await
-    .context("unexpected error loading config")
+        .await
+        .context("unexpected error loading config")
 }
