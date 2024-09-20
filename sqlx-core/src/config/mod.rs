@@ -45,7 +45,11 @@ mod tests;
 
 /// The parsed structure of a `sqlx.toml` file.
 #[derive(Debug, Default)]
-#[cfg_attr(feature = "sqlx-toml", derive(serde::Deserialize))]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(default, rename_all = "kebab-case")
+)]
 pub struct Config {
     /// Configuration shared by multiple components.
     ///
