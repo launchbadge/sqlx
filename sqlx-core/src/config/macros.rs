@@ -3,13 +3,13 @@ use std::collections::BTreeMap;
 /// Configuration for the `query!()` family of macros.
 #[derive(Debug, Default)]
 #[cfg_attr(
-    feature = "sqlx-toml", 
-    derive(serde::Deserialize), 
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
     serde(default, rename_all = "kebab-case")
 )]
 pub struct Config {
     /// Specify which crates' types to use when types from multiple crates apply.
-    /// 
+    ///
     /// See [`PreferredCrates`] for details.
     pub preferred_crates: PreferredCrates,
 
@@ -17,6 +17,12 @@ pub struct Config {
     ///
     /// Default type mappings are defined by the database driver.
     /// Refer to the `sqlx::types` module for details.
+    ///
+    /// ## Note: Case-Sensitive
+    /// Currently, the case of the type name MUST match the name SQLx knows it by.
+    /// Built-in types are spelled in all-uppercase to match SQL convention.
+    ///
+    /// However, user-created types in Postgres are all-lowercase unless quoted.
     ///
     /// ## Note: Orthogonal to Nullability
     /// These overrides do not affect whether `query!()` decides to wrap a column in `Option<_>`
@@ -63,7 +69,7 @@ pub struct Config {
     /// ```toml
     /// [macros.type-overrides]
     /// # Override a built-in type
-    /// 'uuid' = "crate::types::MyUuid"
+    /// 'UUID' = "crate::types::MyUuid"
     ///
     /// # Support an external or custom wrapper type (e.g. from the `isn` Postgres extension)
     /// # (NOTE: FOR DOCUMENTATION PURPOSES ONLY; THIS CRATE/TYPE DOES NOT EXIST AS OF WRITING)
@@ -132,6 +138,8 @@ pub struct Config {
     /// ```
     ///
     /// (See `Note` section above for details.)
+    // TODO: allow specifying different types for input vs output
+    // e.g. to accept `&[T]` on input but output `Vec<T>`
     pub type_overrides: BTreeMap<SqlType, RustType>,
 
     /// Specify per-table and per-column overrides for mapping SQL types to Rust types.
@@ -221,7 +229,7 @@ pub struct Config {
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
-    serde(rename_all = "kebab-case")
+    serde(default, rename_all = "kebab-case")
 )]
 pub struct PreferredCrates {
     /// Specify the crate to use for mapping date/time types to Rust.
@@ -360,6 +368,7 @@ pub type RustType = Box<str>;
 impl Config {
     /// Get the override for a given type name (optionally schema-qualified).
     pub fn type_override(&self, type_name: &str) -> Option<&str> {
+        // TODO: make this case-insensitive
         self.type_overrides.get(type_name).map(|s| &**s)
     }
 
@@ -378,6 +387,15 @@ impl DateTimeCrate {
     pub fn is_inferred(&self) -> bool {
         *self == Self::Inferred
     }
+
+    #[inline(always)]
+    pub fn crate_name(&self) -> Option<&str> {
+        match self {
+            Self::Inferred => None,
+            Self::Chrono => Some("chrono"),
+            Self::Time => Some("time"),
+        }
+    }
 }
 
 impl NumericCrate {
@@ -385,5 +403,14 @@ impl NumericCrate {
     #[inline(always)]
     pub fn is_inferred(&self) -> bool {
         *self == Self::Inferred
+    }
+
+    #[inline(always)]
+    pub fn crate_name(&self) -> Option<&str> {
+        match self {
+            Self::Inferred => None,
+            Self::BigDecimal => Some("bigdecimal"),
+            Self::RustDecimal => Some("rust_decimal"),
+        }
     }
 }

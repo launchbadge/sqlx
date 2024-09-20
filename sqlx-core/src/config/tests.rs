@@ -20,9 +20,12 @@ fn assert_macros_config(config: &config::macros::Config) {
     use config::macros::*;
 
     assert_eq!(config.preferred_crates.date_time, DateTimeCrate::Chrono);
+    assert_eq!(config.preferred_crates.numeric, NumericCrate::RustDecimal);
 
     // Type overrides
     // Don't need to cover everything, just some important canaries.
+    assert_eq!(config.type_override("UUID"), Some("crate::types::MyUuid"));
+
     assert_eq!(config.type_override("foo"), Some("crate::types::Foo"));
 
     assert_eq!(config.type_override(r#""Bar""#), Some("crate::types::Bar"),);
@@ -79,6 +82,12 @@ fn assert_migrate_config(config: &config::migrate::Config) {
 
     assert_eq!(config.ignored_chars, ignored_chars);
 
-    assert_eq!(config.defaults.migration_type, DefaultMigrationType::Reversible);
-    assert_eq!(config.defaults.migration_versioning, DefaultVersioning::Sequential);
+    assert_eq!(
+        config.defaults.migration_type,
+        DefaultMigrationType::Reversible
+    );
+    assert_eq!(
+        config.defaults.migration_versioning,
+        DefaultVersioning::Sequential
+    );
 }

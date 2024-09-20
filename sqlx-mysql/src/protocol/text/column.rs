@@ -130,7 +130,7 @@ impl ColumnDefinition {
     pub(crate) fn table(&self) -> Result<&str, Error> {
         str::from_utf8(&self.table).map_err(Error::protocol)
     }
-    
+
     pub(crate) fn name(&self) -> Result<&str, Error> {
         str::from_utf8(&self.name).map_err(Error::protocol)
     }

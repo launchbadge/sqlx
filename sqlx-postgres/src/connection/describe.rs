@@ -1,4 +1,4 @@
-use std::collections::btree_map;
+use crate::connection::TableColumns;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
@@ -15,9 +15,6 @@ use smallvec::SmallVec;
 use sqlx_core::column::{ColumnOrigin, TableColumn};
 use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
-use sqlx_core::column::{ColumnOrigin, TableColumn};
-use sqlx_core::hash_map;
-use crate::connection::TableColumns;
 
 /// Describes the type of the `pg_type.typtype` column
 ///
@@ -127,9 +124,12 @@ impl PgConnection {
             let type_info = self
                 .maybe_fetch_type_info_by_oid(field.data_type_id, fetch_type_info)
                 .await?;
-            
-            let origin = if let (Some(relation_oid), Some(attribute_no)) = (field.relation_id, field.relation_attribute_no) {
-                self.maybe_fetch_column_origin(relation_oid, attribute_no, should_fetch).await?
+
+            let origin = if let (Some(relation_oid), Some(attribute_no)) =
+                (field.relation_id, field.relation_attribute_no)
+            {
+                self.maybe_fetch_column_origin(relation_oid, attribute_no, should_fetch)
+                    .await?
             } else {
                 ColumnOrigin::Expression
             };
@@ -220,52 +220,65 @@ impl PgConnection {
             Ok(PgTypeInfo(PgType::DeclareWithOid(oid)))
         }
     }
-    
+
     async fn maybe_fetch_column_origin(
-        &mut self, 
-        relation_id: Oid, 
+        &mut self,
+        relation_id: Oid,
         attribute_no: i16,
         should_fetch: bool,
     ) -> Result<ColumnOrigin, Error> {
-        let mut table_columns = match self.cache_table_to_column_names.entry(relation_id) {
-            hash_map::Entry::Occupied(table_columns) => {
-                table_columns.into_mut()
-            },
-            hash_map::Entry::Vacant(vacant) => {
-                if !should_fetch { return Ok(ColumnOrigin::Unknown); }
-                
-                let table_name: String = query_scalar("SELECT $1::oid::regclass::text")
-                    .bind(relation_id)
-                    .fetch_one(&mut *self)
-                    .await?;
-                
-                vacant.insert(TableColumns {
-                    table_name: table_name.into(),
-                    columns: Default::default(),
+        if let Some(origin) =
+            self.cache_table_to_column_names
+                .get(&relation_id)
+                .and_then(|table_columns| {
+                    let column_name = table_columns.columns.get(&attribute_no).cloned()?;
+
+                    Some(ColumnOrigin::Table(TableColumn {
+                        table: table_columns.table_name.clone(),
+                        name: column_name,
+                    }))
                 })
-            }
+        {
+            return Ok(origin);
+        }
+
+        if !should_fetch {
+            return Ok(ColumnOrigin::Unknown);
+        }
+
+        // Looking up the table name _may_ end up being redundant,
+        // but the round-trip to the server is by far the most expensive part anyway.
+        let Some((table_name, column_name)): Option<(String, String)> = query_as(
+            // language=PostgreSQL
+            "SELECT $1::oid::regclass::text, attname \
+                 FROM pg_catalog.pg_attribute \
+                 WHERE attrelid = $1 AND attnum = $2",
+        )
+        .bind(relation_id)
+        .bind(attribute_no)
+        .fetch_optional(&mut *self)
+        .await?
+        else {
+            // The column/table doesn't exist anymore for whatever reason.
+            return Ok(ColumnOrigin::Unknown);
         };
-        
-        let column_name = match table_columns.columns.entry(attribute_no) {
-            btree_map::Entry::Occupied(occupied) => Arc::clone(occupied.get()),
-            btree_map::Entry::Vacant(vacant) => {
-                if !should_fetch { return Ok(ColumnOrigin::Unknown); }
-                
-                let column_name: String = query_scalar(
-                    "SELECT attname FROM pg_attribute WHERE attrelid = $1 AND attnum = $2"
-                )
-                    .bind(relation_id)
-                    .bind(attribute_no)
-                    .fetch_one(&mut *self)
-                    .await?;
-                
-                Arc::clone(vacant.insert(column_name.into()))
-            }
-        };
-        
+
+        let table_columns = self
+            .cache_table_to_column_names
+            .entry(relation_id)
+            .or_insert_with(|| TableColumns {
+                table_name: table_name.into(),
+                columns: Default::default(),
+            });
+
+        let column_name = table_columns
+            .columns
+            .entry(attribute_no)
+            .or_insert(column_name.into());
+
         Ok(ColumnOrigin::Table(TableColumn {
             table: table_columns.table_name.clone(),
-            name: column_name
+            name: Arc::clone(column_name),
         }))
     }
 

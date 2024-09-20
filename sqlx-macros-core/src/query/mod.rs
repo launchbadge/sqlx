@@ -17,7 +17,6 @@ use crate::query::input::RecordType;
 use either::Either;
 use sqlx_core::config::Config;
 use url::Url;
-use sqlx_core::config::Config;
 
 mod args;
 mod data;
@@ -125,9 +124,7 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let var_name = Config::from_crate()
-        .common
-        .database_url_var();
+    let var_name = Config::from_crate().common.database_url_var();
 
     let database_url = env(var_name).ok().or(database_url);
 
