@@ -1,0 +1,2 @@
+CREATE EXTENSION hstore WITH SCHEMA public;
+CREATE TABLE mytable(f HSTORE);

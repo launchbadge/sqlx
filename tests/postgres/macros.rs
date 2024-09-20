@@ -1,4 +1,5 @@
-use sqlx::{Connection, PgConnection, Postgres, Transaction};
+use sqlx::{Connection, PgConnection, PgPool, Postgres, Transaction};
+use sqlx_postgres::types::PgHstore;
 use sqlx_test::new;
 
 use futures::TryStreamExt;
@@ -633,6 +634,26 @@ async fn test_to_from_citext() -> anyhow::Result<()> {
     assert_eq!(foo_in, foo_out);
 
     tx.rollback().await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test(migrations = "tests/postgres/migrations")]
+async fn pghstore_tests(pool: PgPool) -> Result<(), sqlx::Error> {
+    let mut store = PgHstore::default();
+    let stores = vec![store.clone(), store.clone()];
+
+    store.insert("key".into(), Some("value".to_string()));
+    sqlx::query!("         insert into mytable(f) values ($1)", store)
+        .execute(&pool)
+        .await?;
+
+    sqlx::query!(
+        "         insert into mytable(f) select * from unnest($1::hstore[])",
+        &stores
+    )
+    .execute(&pool)
+    .await?;
 
     Ok(())
 }
