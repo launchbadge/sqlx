@@ -3490,6 +3490,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
+ "toml",
  "tracing",
  "url",
  "uuid",
