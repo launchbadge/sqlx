@@ -15,8 +15,8 @@ use crate::database::DatabaseExt;
 use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
-use url::Url;
 use sqlx_core::config::Config;
+use url::Url;
 
 mod args;
 mod data;
@@ -139,11 +139,9 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
     let offline = env("SQLX_OFFLINE")
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
-    
-    let var_name = Config::from_crate()
-        .common
-        .database_url_var();
-    
+
+    let var_name = Config::from_crate().common.database_url_var();
+
     let database_url = env(var_name).ok();
 
     Metadata {
@@ -251,6 +249,8 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
+    let config = Config::from_crate();
+
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {
         Some(Either::Left(params)) => Some(params.len()),
@@ -267,7 +267,7 @@ where
         }
     }
 
-    let args_tokens = args::quote_args(&input, &data.describe)?;
+    let args_tokens = args::quote_args(&input, config, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
@@ -286,7 +286,7 @@ where
     } else {
         match input.record_type {
             RecordType::Generated => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
@@ -322,21 +322,39 @@ where
                 record_tokens
             }
             RecordType::Given(ref out_ty) => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
             RecordType::Scalar => {
-                output::quote_query_scalar::<DB>(&input, &query_args, &data.describe)?
+                output::quote_query_scalar::<DB>(&input, config, &query_args, &data.describe)?
             }
         }
     };
+
+    let mut warnings = TokenStream::new();
+
+    if config.macros.preferred_crates.date_time.is_inferred() {
+        // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
+        warnings.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
+        });
+    }
+
+    if config.macros.preferred_crates.numeric.is_inferred() {
+        // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
+        warnings.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
+        });
+    }
 
     let ret_tokens = quote! {
         {
             #[allow(clippy::all)]
             {
                 use ::sqlx::Arguments as _;
+
+                #warnings
 
                 #args_tokens
 

@@ -104,6 +104,7 @@ impl VirtualStatement {
                         ordinal: i,
                         name: name.clone(),
                         type_info,
+                        origin: statement.column_origin(i),
                     });
 
                     column_names.insert(name, i);

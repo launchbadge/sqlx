@@ -22,8 +22,8 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
-use std::{borrow::Cow, sync::Arc};
 use sqlx_core::column::{ColumnOrigin, TableColumn};
+use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
     async fn prepare_statement<'c>(
@@ -391,7 +391,7 @@ fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MyS
     };
 
     let table = def.table()?;
-    
+
     let origin = if table.is_empty() {
         ColumnOrigin::Expression
     } else {
@@ -406,7 +406,7 @@ fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MyS
             name: column_name.into(),
         })
     };
-    
+
     let type_info = MySqlTypeInfo::from_column(def);
 
     Ok(MySqlColumn {
