@@ -293,7 +293,7 @@ impl<DB: Database> PoolInner<DB> {
                     let pool2 = self.clone();
 
                     // Future that tries to get a live idle connection.
-                    let idle_fut = std::pin::pin!(pool.get_idle_conn(connect_deadline.clone()));
+                    let idle_fut = std::pin::pin!(pool.get_idle_conn(connect_deadline));
 
                     // Future that tries to open a new connection.
                     let conn_fut = crate::rt::spawn(async move {
@@ -408,21 +408,17 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     // Tries to get a live connection that was idle in a loop.
-    pub async fn get_idle_conn(
+    async fn get_idle_conn(
         self: &Arc<Self>,
         deadline: Instant,
     ) -> Result<Floating<DB, Live<DB>>, Error> {
-
         let mut backoff = Duration::from_millis(10);
         let max_backoff = deadline_as_timeout(deadline)? / 5;
 
         loop {
             let new_permit = self.acquire_permit().await?;
-            match self.get_live_idle(new_permit).await {
-                Ok(Either::Left(live)) => {
-                        return Ok(live)
-                },
-                _ => (),
+            if let Ok(Either::Left(live)) = self.get_live_idle(new_permit).await {
+                return Ok(live);
             };
             crate::rt::sleep(backoff).await;
             backoff = cmp::min(backoff * 2, max_backoff);
@@ -454,17 +450,21 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     // Tries to get a live idle connection.
-    pub async fn get_live_idle<'a>(self: &'a Arc<Self>, permit: AsyncSemaphoreReleaser<'a>) -> Result<Either<Floating<DB, Live<DB>>, AsyncSemaphoreReleaser<'a>>, DecrementSizeGuard<DB>> {
-            match self.pop_idle(permit) {
-                Ok(conn) => match check_idle_conn(conn, &self.options).await {
-                    // All good!
-                    Ok(live) => Ok(Either::Left(live)),
-                    // if the connection isn't usable for one reason or another,
-                    // we get the `DecrementSizeGuard` back to open a new one
-                    Err(guard) =>  Err(guard)
-                },
-                Err(permit) => Ok(Either::Right(permit))
-            }
+    async fn get_live_idle<'a>(
+        self: &'a Arc<Self>,
+        permit: AsyncSemaphoreReleaser<'a>,
+    ) -> Result<Either<Floating<DB, Live<DB>>, AsyncSemaphoreReleaser<'a>>, DecrementSizeGuard<DB>>
+    {
+        match self.pop_idle(permit) {
+            Ok(conn) => match check_idle_conn(conn, &self.options).await {
+                // All good!
+                Ok(live) => Ok(Either::Left(live)),
+                // if the connection isn't usable for one reason or another,
+                // we get the `DecrementSizeGuard` back to open a new one
+                Err(guard) => Err(guard),
+            },
+            Err(permit) => Ok(Either::Right(permit)),
+        }
     }
 
     /// Attempt to maintain `min_connections`, logging if unable.
