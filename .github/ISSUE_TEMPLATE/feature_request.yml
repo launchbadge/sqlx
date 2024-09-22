@@ -8,8 +8,10 @@ body:
       required: true
     attributes:
       label: I have found these related issues/pull requests
-      description: "I have searched by clicking [HERE](https://github.com/launchbadge/sqlx/issues?q=) for existing issues, these are the ones I've found, and this is why I think this deserves a new issue."
-      placeholder: "Related to #1 by also touching the ... system. They should not be merged because ..."
+      description: "Provide context for your pull request."
+      placeholder: |
+          Closes \#...
+          Relates to \#...
   - type: textarea
     id: feature-description
     validations:
