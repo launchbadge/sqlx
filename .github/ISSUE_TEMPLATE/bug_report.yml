@@ -53,7 +53,7 @@ body:
     validations:
       required: true
   - type: input
-    id: os-type
+    id: rust-version
     attributes:
       label: Rust version
       description: You can get this via running `rustc --version`
