@@ -27,15 +27,35 @@ body:
     attributes:
       label: Reproduction steps
       description: A small code snippet or a link to a Github repo or Gist, with instructions on reproducing the bug.
-  - type: textarea
-    id: deployment-info
+  - type: input
+    id: sqlx-version
     attributes:
-      label: Environment Information
-      value: |
-        * SQLx version: [REQUIRED]
-        * SQLx features enabled: [REQUIRED]
-        * Database server and version: [REQUIRED] (MySQL / Postgres / SQLite <x.y.z>)
-        * Operating system: [REQUIRED]
-        * `rustc --version`: [REQUIRED]
+      label: SQLx version
+    validations:
+      required: true
+  - type: input
+    id: sqlx-features
+    attributes:
+      label: Enabled SQLx features
+    validations:
+      required: true
+  - type: input
+    id: db-server-and-version
+    attributes:
+      label: Database server and version
+      placeholder: MySQL / Postgres / SQLite <x.y.z>
+    validations:
+      required: true
+  - type: input
+    id: os-type
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: input
+    id: os-type
+    attributes:
+      label: Rust version
+      description: You can get this via running `rustc --version`
     validations:
       required: true
