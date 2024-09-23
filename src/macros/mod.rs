@@ -814,6 +814,6 @@ macro_rules! migrate {
     }};
 
     () => {{
-        $crate::sqlx_macros::migrate!("./migrations")
+        $crate::sqlx_macros::migrate!()
     }};
 }

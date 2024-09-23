@@ -3,11 +3,14 @@ extern crate proc_macro;
 
 use std::path::{Path, PathBuf};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::LitStr;
-
+use syn::spanned::Spanned;
+use sqlx_core::config::Config;
 use sqlx_core::migrate::{Migration, MigrationType};
+
+pub const DEFAULT_PATH: &str = "./migrations";
 
 pub struct QuoteMigrationType(MigrationType);
 
@@ -81,20 +84,26 @@ impl ToTokens for QuoteMigration {
     }
 }
 
-pub fn expand_migrator_from_lit_dir(dir: LitStr) -> crate::Result<TokenStream> {
-    expand_migrator_from_dir(&dir.value(), dir.span())
+pub fn default_path(config: &Config) -> &str {
+    config.migrate.migrations_dir
+        .as_deref()
+        .unwrap_or(DEFAULT_PATH)
 }
 
-pub(crate) fn expand_migrator_from_dir(
-    dir: &str,
-    err_span: proc_macro2::Span,
-) -> crate::Result<TokenStream> {
-    let path = crate::common::resolve_path(dir, err_span)?;
+pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
+    let config = Config::from_crate();
 
-    expand_migrator(&path)
+   let path = match path_arg {
+       Some(path_arg) => crate::common::resolve_path(path_arg.value(), path_arg.span())?,
+       None => {
+           crate::common::resolve_path(default_path(config), Span::call_site())
+       }?
+   };
+
+    expand_with_path(config, &path)
 }
 
-pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
+pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStream> {
     let path = path.canonicalize().map_err(|e| {
         format!(
             "error canonicalizing migration directory {}: {e}",
@@ -119,11 +128,19 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
         proc_macro::tracked_path::path(path);
     }
 
+    let table_name = config.migrate.table_name
+        .as_deref()
+        .map_or_else(
+            || quote! {},
+            |name| quote! { table_name: Some(::std::borrow::Cow::Borrowed(#name)), }
+        );
+
     Ok(quote! {
         ::sqlx::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(&[
                     #(#migrations),*
             ]),
+            #table_name
             ..::sqlx::migrate::Migrator::DEFAULT
         }
     })
