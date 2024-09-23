@@ -8,7 +8,7 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use syn::LitStr;
 use syn::spanned::Spanned;
 use sqlx_core::config::Config;
-use sqlx_core::migrate::{Migration, MigrationType};
+use sqlx_core::migrate::{Migration, MigrationType, ResolveConfig};
 
 pub const DEFAULT_PATH: &str = "./migrations";
 
@@ -111,8 +111,11 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
         )
     })?;
 
+    let mut resolve_config = ResolveConfig::new();
+    resolve_config.ignore_chars(&config.migrate.ignored_chars);
+
     // Use the same code path to resolve migrations at compile time and runtime.
-    let migrations = sqlx_core::migrate::resolve_blocking(&path)?
+    let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
         .into_iter()
         .map(|(migration, path)| QuoteMigration { migration, path });
 
