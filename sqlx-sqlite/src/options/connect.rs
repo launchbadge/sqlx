@@ -59,6 +59,11 @@ impl ConnectOptions for SqliteConnectOptions {
         self.log_settings.log_slow_statements(level, duration);
         self
     }
+
+    fn set_span_level(mut self, level: LevelFilter) -> Self {
+        self.log_settings.span_level = level;
+        self
+    }
 }
 
 impl SqliteConnectOptions {

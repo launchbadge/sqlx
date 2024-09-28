@@ -4,7 +4,9 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
+use crate::private_tracing_dynamic_span;
 use crossbeam_queue::ArrayQueue;
+use tracing::Instrument;
 
 use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
@@ -245,6 +247,10 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
+    pub fn tracing_span_level(&self) -> Level {
+        std::cmp::max(self.acquire_slow_level, self.acquire_time_level).unwrap_or(Level::TRACE)
+    }
+
     pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<DB, Live<DB>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
@@ -252,6 +258,13 @@ impl<DB: Database> PoolInner<DB> {
 
         let acquire_started_at = Instant::now();
         let deadline = acquire_started_at + self.options.acquire_timeout;
+
+        let span = private_tracing_dynamic_span!(
+            target: "sqlx::pool::acquire",
+            self.tracing_span_level(),
+            "sqlx::pool::acquire",
+            db.system = DB::NAME_LOWERCASE,
+        );
 
         let acquired = crate::rt::timeout(
             self.options.acquire_timeout,
@@ -295,6 +308,7 @@ impl<DB: Database> PoolInner<DB> {
                 }
             }
         )
+            .instrument(span.clone())
             .await
             .map_err(|_| Error::PoolTimedOut)??;
 
@@ -303,6 +317,8 @@ impl<DB: Database> PoolInner<DB> {
         let acquire_slow_level = self
             .acquire_slow_level
             .filter(|_| acquired_after > self.options.acquire_slow_threshold);
+
+        let _e = span.enter();
 
         if let Some(level) = acquire_slow_level {
             private_tracing_dynamic_event!(

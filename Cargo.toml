@@ -142,6 +142,7 @@ mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
 time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
+tracing-futures = { version = "0.2.5", features = ["futures-03", "std-future"] }
 
 # Common utility crates
 dotenvy = { version = "0.15.0", default-features = false }

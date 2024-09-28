@@ -39,6 +39,22 @@ macro_rules! private_tracing_dynamic_event {
 }
 
 #[doc(hidden)]
+#[macro_export]
+macro_rules! private_tracing_dynamic_span {
+    (target: $target:expr, $level:expr, $($args:tt)*) => {{
+        use ::tracing::Level;
+
+        match $level {
+            Level::ERROR => ::tracing::span!(target: $target, Level::ERROR, $($args)*),
+            Level::WARN => ::tracing::span!(target: $target, Level::WARN, $($args)*),
+            Level::INFO => ::tracing::span!(target: $target, Level::INFO, $($args)*),
+            Level::DEBUG => ::tracing::span!(target: $target, Level::DEBUG, $($args)*),
+            Level::TRACE => ::tracing::span!(target: $target, Level::TRACE, $($args)*),
+        }
+    }};
+}
+
+#[doc(hidden)]
 pub fn private_level_filter_to_levels(
     filter: log::LevelFilter,
 ) -> Option<(tracing::Level, log::Level)> {
@@ -68,17 +84,45 @@ pub struct QueryLogger<'q> {
     rows_affected: u64,
     start: Instant,
     settings: LogSettings,
+    pub span: tracing::Span,
 }
 
 impl<'q> QueryLogger<'q> {
-    pub fn new(sql: &'q str, settings: LogSettings) -> Self {
+    pub fn new(sql: &'q str, db_system: &'q str, settings: LogSettings) -> Self {
+        let span = Self::new_tracing_span(db_system, &settings);
+
         Self {
             sql,
             rows_returned: 0,
             rows_affected: 0,
             start: Instant::now(),
             settings,
+            span,
         }
+    }
+
+    fn new_tracing_span(db_system: &str, settings: &LogSettings) -> tracing::Span {
+        // only create a usable span if the span level is set (i.e. not 'OFF') and
+        // the filter would output it
+        if let Some(level) = private_level_filter_to_trace_level(settings.span_level) {
+            if private_tracing_dynamic_enabled!(target: "sqlx::query", level) {
+                use tracing::field::Empty;
+
+                return private_tracing_dynamic_span!(
+                    target: "sqlx::query",
+                    level,
+                    "sqlx::query",
+                    summary = Empty,
+                    db.statement = Empty,
+                    db.system = db_system,
+                    rows_affected = Empty,
+                    rows_returned = Empty,
+                );
+            }
+        }
+
+        // No-op span preferred over Option<Span>
+        tracing::Span::none()
     }
 
     pub fn increment_rows_returned(&mut self) {
@@ -100,27 +144,50 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
-        if let Some((tracing_level, log_level)) = private_level_filter_to_levels(lvl) {
-            // The enabled level could be set from either tracing world or log world, so check both
-            // to see if logging should be enabled for our level
-            let log_is_enabled = log::log_enabled!(target: "sqlx::query", log_level)
-                || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level);
-            if log_is_enabled {
-                let mut summary = parse_query_summary(self.sql);
+        let span_level = private_level_filter_to_trace_level(self.settings.span_level);
+        let log_levels = private_level_filter_to_levels(lvl);
 
-                let sql = if summary != self.sql {
-                    summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        sqlformat::format(
-                            self.sql,
-                            &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
-                        )
+        let span_is_enabled = span_level
+            .map(|level| private_tracing_dynamic_enabled!(target: "sqlx::query", level))
+            .unwrap_or(false);
+
+        let log_is_enabled = log_levels
+            .map(|(tracing_level, log_level)| {
+                // The enabled level could be set from either tracing world or log world, so check both
+                // to see if logging should be enabled for our level
+                log::log_enabled!(target: "sqlx::query", log_level)
+                    || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
+            })
+            .unwrap_or(false);
+
+        // only do these potentially expensive operations if the span or log will record them
+        if span_is_enabled || log_is_enabled {
+            let mut summary = parse_query_summary(self.sql);
+
+            let sql = if summary != self.sql {
+                summary.push_str(" …");
+                format!(
+                    "\n\n{}\n",
+                    sqlformat::format(
+                        self.sql,
+                        &sqlformat::QueryParams::None,
+                        sqlformat::FormatOptions::default()
                     )
-                } else {
-                    String::new()
-                };
+                )
+            } else {
+                String::new()
+            };
+
+            // in the case where span_is_enabled is false, these will no-op
+            self.span.record("summary", &summary);
+            self.span.record("db.statement", &sql);
+            self.span.record("rows_affected", self.rows_affected);
+            self.span.record("rows_returned", self.rows_returned);
+
+            let _e = self.span.enter();
+
+            if log_is_enabled {
+                let (tracing_level, _) = log_levels.unwrap(); // previously checked to be some
 
                 if was_slow {
                     private_tracing_dynamic_event!(

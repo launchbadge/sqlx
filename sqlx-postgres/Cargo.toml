@@ -30,6 +30,7 @@ uuid = ["dep:uuid", "sqlx-core/uuid"]
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.19", default-features = false }
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
+tracing-futures.workspace = true
 
 # Cryptographic Primitives
 crc = "3.0.0"
