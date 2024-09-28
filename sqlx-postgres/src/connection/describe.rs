@@ -163,7 +163,7 @@ impl PgConnection {
         }
 
         // next we check a local cache for user-defined type names <-> object id
-        if let Some(info) = self.cache_type_info.get(&oid) {
+        if let Some(info) = self.inner.cache_type_info.get(&oid) {
             return Ok(info.clone());
         }
 
@@ -173,8 +173,8 @@ impl PgConnection {
 
             // cache the type name <-> oid relationship in a paired hashmap
             // so we don't come down this road again
-            self.cache_type_info.insert(oid, info.clone());
-            self.cache_type_oid
+            self.inner.cache_type_info.insert(oid, info.clone());
+            self.inner.cache_type_oid
                 .insert(info.0.name().to_string().into(), oid);
 
             Ok(info)
@@ -374,7 +374,7 @@ WHERE rngtypid = $1
     }
 
     pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<Oid, Error> {
-        if let Some(oid) = self.cache_type_oid.get(name) {
+        if let Some(oid) = self.inner.cache_type_oid.get(name) {
             return Ok(*oid);
         }
 
@@ -387,15 +387,16 @@ WHERE rngtypid = $1
                 type_name: name.into(),
             })?;
 
-        self.cache_type_oid.insert(name.to_string().into(), oid);
+        self.inner.cache_type_oid.insert(name.to_string().into(), oid);
         Ok(oid)
     }
 
     pub(crate) async fn fetch_array_type_id(&mut self, array: &PgArrayOf) -> Result<Oid, Error> {
         if let Some(oid) = self
+            .inner
             .cache_type_oid
             .get(&array.elem_name)
-            .and_then(|elem_oid| self.cache_elem_type_to_array.get(elem_oid))
+            .and_then(|elem_oid| self.inner.cache_elem_type_to_array.get(elem_oid))
         {
             return Ok(*oid);
         }
@@ -411,10 +412,10 @@ WHERE rngtypid = $1
                 })?;
 
         // Avoids copying `elem_name` until necessary
-        self.cache_type_oid
+        self.inner.cache_type_oid
             .entry_ref(&array.elem_name)
             .insert(elem_oid);
-        self.cache_elem_type_to_array.insert(elem_oid, array_oid);
+        self.inner.cache_elem_type_to_array.insert(elem_oid, array_oid);
 
         Ok(array_oid)
     }
@@ -475,8 +476,8 @@ WHERE rngtypid = $1
             })?;
 
         // If the server is CockroachDB or Materialize, skip this step (#1248).
-        if !self.stream.parameter_statuses.contains_key("crdb_version")
-            && !self.stream.parameter_statuses.contains_key("mz_version")
+        if !self.inner.stream.parameter_statuses.contains_key("crdb_version")
+            && !self.inner.stream.parameter_statuses.contains_key("mz_version")
         {
             // patch up our null inference with data from EXPLAIN
             let nullable_patch = self

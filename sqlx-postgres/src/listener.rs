@@ -58,7 +58,7 @@ impl PgListener {
 
         // Setup a notification buffer
         let (sender, receiver) = mpsc::unbounded();
-        connection.stream.notifications = Some(sender);
+        connection.inner.stream.notifications = Some(sender);
 
         Ok(Self {
             pool: pool.clone(),
@@ -155,7 +155,7 @@ impl PgListener {
     async fn connect_if_needed(&mut self) -> Result<(), Error> {
         if self.connection.is_none() {
             let mut connection = self.pool.acquire().await?;
-            connection.stream.notifications = self.buffer_tx.take();
+            connection.inner.stream.notifications = self.buffer_tx.take();
 
             connection
                 .execute(&*build_listen_all_query(&self.channels))
@@ -243,7 +243,7 @@ impl PgListener {
         let mut close_event = (!self.ignore_close_event).then(|| self.pool.close_event());
 
         loop {
-            let next_message = self.connection().await?.stream.recv_unchecked();
+            let next_message = self.connection().await?.inner.stream.recv_unchecked();
 
             let res = if let Some(ref mut close_event) = close_event {
                 // cancels the wait and returns `Err(PoolClosed)` if the pool is closed
@@ -263,7 +263,7 @@ impl PgListener {
                         || err.kind() == io::ErrorKind::UnexpectedEof) =>
                 {
                     if let Some(mut conn) = self.connection.take() {
-                        self.buffer_tx = conn.stream.notifications.take();
+                        self.buffer_tx = conn.inner.stream.notifications.take();
                         // Close the connection in a background task, so we can continue.
                         conn.close_on_drop();
                     }
@@ -286,7 +286,7 @@ impl PgListener {
 
                 // Mark the connection as ready for another query
                 BackendMessageFormat::ReadyForQuery => {
-                    self.connection().await?.pending_ready_for_query_count -= 1;
+                    self.connection().await?.inner.pending_ready_for_query_count -= 1;
                 }
 
                 // Ignore unexpected messages
