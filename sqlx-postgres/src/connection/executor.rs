@@ -51,7 +51,9 @@ async fn prepare(
 
     if metadata.is_none() {
         // get the statement columns and parameters
-        conn.inner.stream.write_msg(message::Describe::Statement(id))?;
+        conn.inner
+            .stream
+            .write_msg(message::Describe::Statement(id))?;
     }
 
     // we ask for the server to immediately send us the result of the PARSE command
@@ -148,7 +150,8 @@ impl PgConnection {
 
     #[inline(always)]
     pub(crate) fn write_sync(&mut self) {
-        self.inner.stream
+        self.inner
+            .stream
             .write_msg(message::Sync)
             .expect("BUG: Sync should not be too big for protocol");
 
@@ -255,7 +258,9 @@ impl PgConnection {
 
             // we ask the database server to close the unnamed portal and free the associated resources
             // earlier - after the execution of the current query.
-            self.inner.stream.write_msg(Close::Portal(PortalId::UNNAMED))?;
+            self.inner
+                .stream
+                .write_msg(Close::Portal(PortalId::UNNAMED))?;
 
             // finally, [Sync] asks postgres to process the messages that we sent and respond with
             // a [ReadyForQuery] message when it's completely done. Theoretically, we could send

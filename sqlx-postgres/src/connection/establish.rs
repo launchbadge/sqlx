@@ -136,8 +136,7 @@ impl PgConnection {
         }
 
         Ok(PgConnection {
-            inner: Box::new(
-               PgConnectionInner {
+            inner: Box::new(PgConnectionInner {
                 stream,
                 process_id,
                 secret_key,
@@ -149,8 +148,8 @@ impl PgConnection {
                 cache_type_oid: HashMap::new(),
                 cache_type_info: HashMap::new(),
                 cache_elem_type_to_array: HashMap::new(),
-                log_settings: options.log_settings.clone()
-                })
+                log_settings: options.log_settings.clone(),
+            }),
         })
     }
 }

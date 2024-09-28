@@ -42,8 +42,10 @@ impl TransactionManager for PgTransactionManager {
     fn rollback(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             if conn.inner.transaction_depth > 0 {
-                conn.execute(&*rollback_ansi_transaction_sql(conn.inner.transaction_depth))
-                    .await?;
+                conn.execute(&*rollback_ansi_transaction_sql(
+                    conn.inner.transaction_depth,
+                ))
+                .await?;
 
                 conn.inner.transaction_depth -= 1;
             }

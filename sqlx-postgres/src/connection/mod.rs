@@ -29,11 +29,9 @@ mod sasl;
 mod stream;
 mod tls;
 
-
-
 /// A connection to a PostgreSQL database.
 pub struct PgConnection {
-    pub(crate) inner: Box<PgConnectionInner>
+    pub(crate) inner: Box<PgConnectionInner>,
 }
 
 pub struct PgConnectionInner {
