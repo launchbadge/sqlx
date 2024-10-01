@@ -124,24 +124,24 @@ where
 
     let db_url = opts.required_db_url()?;
 
-    backoff::future::retry(
-        backoff::ExponentialBackoffBuilder::new()
-            .with_max_elapsed_time(Some(Duration::from_secs(opts.connect_timeout)))
-            .build(),
+    tokio_retry2::Retry::spawn(
+        tokio_retry2::ExponentialBackoff::from_millis(500)
+            .max_duration(Some(Duration::from_secs(opts.connect_timeout)))
+            .map(jitter),
         || {
-            connect(db_url).map_err(|e| -> backoff::Error<anyhow::Error> {
+            connect(db_url).map_err(|e| -> tokio_retry2::RetryError<anyhow::Error> {
                 if let sqlx::Error::Io(ref ioe) = e {
                     match ioe.kind() {
                         io::ErrorKind::ConnectionRefused
                         | io::ErrorKind::ConnectionReset
                         | io::ErrorKind::ConnectionAborted => {
-                            return backoff::Error::transient(e.into());
+                            return tokio_retry2::RetryError::transient(e.into());
                         }
                         _ => (),
                     }
                 }
 
-                backoff::Error::permanent(e.into())
+                tokio_retry2::RetryError::permanent(e.into())
             })
         },
     )
