@@ -5,6 +5,7 @@ use anyhow::Result;
 use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
+use tokio_retry2::strategy::{jitter, ExponentialBackoff, MaxInterval};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
@@ -125,8 +126,8 @@ where
     let db_url = opts.required_db_url()?;
 
     tokio_retry2::Retry::spawn(
-        tokio_retry2::ExponentialBackoff::from_millis(500)
-            .max_duration(Some(Duration::from_secs(opts.connect_timeout)))
+        ExponentialBackoff::from_millis(500)
+            .max_duration(Duration::from_secs(opts.connect_timeout))
             .map(jitter),
         || {
             connect(db_url).map_err(|e| -> tokio_retry2::RetryError<anyhow::Error> {
