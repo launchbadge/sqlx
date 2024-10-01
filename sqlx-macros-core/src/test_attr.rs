@@ -257,7 +257,7 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
                 }
 
                 let Some(lit) = recurse_lit_lookup(value.value) else {
-                    return Err(syn::Error::new_spanned(path, "expected string for `false`"));
+                    return Err(syn::Error::new_spanned(path, "expected string or `false`"));
                 };
 
                 migrations = match lit {
