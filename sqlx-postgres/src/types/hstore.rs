@@ -10,7 +10,7 @@ use crate::{
     encode::{Encode, IsNull},
     error::BoxDynError,
     types::Type,
-    PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres,
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef, Postgres,
 };
 use serde::{Deserialize, Serialize};
 use sqlx_core::bytes::Buf;
@@ -135,6 +135,12 @@ impl IntoIterator for PgHstore {
 impl Type<Postgres> for PgHstore {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name("hstore")
+    }
+}
+
+impl PgHasArrayType for PgHstore {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::array_of("hstore")
     }
 }
 
