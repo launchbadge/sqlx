@@ -31,6 +31,10 @@ mod tls;
 
 /// A connection to a PostgreSQL database.
 pub struct PgConnection {
+    pub(crate) inner: Box<PgConnectionInner>,
+}
+
+pub struct PgConnectionInner {
     // underlying TCP or UDS stream,
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
@@ -71,17 +75,17 @@ pub struct PgConnection {
 impl PgConnection {
     /// the version number of the server in `libpq` format
     pub fn server_version_num(&self) -> Option<u32> {
-        self.stream.server_version_num
+        self.inner.stream.server_version_num
     }
 
     // will return when the connection is ready for another query
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.stream.write_buffer_mut().is_empty() {
-            self.stream.flush().await?;
+        if !self.inner.stream.write_buffer_mut().is_empty() {
+            self.inner.stream.flush().await?;
         }
 
-        while self.pending_ready_for_query_count > 0 {
-            let message = self.stream.recv().await?;
+        while self.inner.pending_ready_for_query_count > 0 {
+            let message = self.inner.stream.recv().await?;
 
             if let BackendMessageFormat::ReadyForQuery = message.format {
                 self.handle_ready_for_query(message)?;
@@ -92,22 +96,23 @@ impl PgConnection {
     }
 
     async fn recv_ready_for_query(&mut self) -> Result<(), Error> {
-        let r: ReadyForQuery = self.stream.recv_expect().await?;
+        let r: ReadyForQuery = self.inner.stream.recv_expect().await?;
 
-        self.pending_ready_for_query_count -= 1;
-        self.transaction_status = r.transaction_status;
+        self.inner.pending_ready_for_query_count -= 1;
+        self.inner.transaction_status = r.transaction_status;
 
         Ok(())
     }
 
     #[inline(always)]
     fn handle_ready_for_query(&mut self, message: ReceivedMessage) -> Result<(), Error> {
-        self.pending_ready_for_query_count = self
+        self.inner.pending_ready_for_query_count = self
+            .inner
             .pending_ready_for_query_count
             .checked_sub(1)
             .ok_or_else(|| err_protocol!("received more ReadyForQuery messages than expected"))?;
 
-        self.transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
+        self.inner.transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
 
         Ok(())
     }
@@ -117,8 +122,8 @@ impl PgConnection {
     /// Used for rolling back transactions and releasing advisory locks.
     #[inline(always)]
     pub(crate) fn queue_simple_query(&mut self, query: &str) -> Result<(), Error> {
-        self.stream.write_msg(Query(query))?;
-        self.pending_ready_for_query_count += 1;
+        self.inner.stream.write_msg(Query(query))?;
+        self.inner.pending_ready_for_query_count += 1;
 
         Ok(())
     }
@@ -143,8 +148,8 @@ impl Connection for PgConnection {
         // connection and terminates.
 
         Box::pin(async move {
-            self.stream.send(Terminate).await?;
-            self.stream.shutdown().await?;
+            self.inner.stream.send(Terminate).await?;
+            self.inner.stream.shutdown().await?;
 
             Ok(())
         })
@@ -152,7 +157,7 @@ impl Connection for PgConnection {
 
     fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
-            self.stream.shutdown().await?;
+            self.inner.stream.shutdown().await?;
 
             Ok(())
         })
@@ -178,25 +183,25 @@ impl Connection for PgConnection {
     }
 
     fn cached_statements_size(&self) -> usize {
-        self.cache_statement.len()
+        self.inner.cache_statement.len()
     }
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            self.cache_type_oid.clear();
+            self.inner.cache_type_oid.clear();
 
             let mut cleared = 0_usize;
 
             self.wait_until_ready().await?;
 
-            while let Some((id, _)) = self.cache_statement.remove_lru() {
-                self.stream.write_msg(Close::Statement(id))?;
+            while let Some((id, _)) = self.inner.cache_statement.remove_lru() {
+                self.inner.stream.write_msg(Close::Statement(id))?;
                 cleared += 1;
             }
 
             if cleared > 0 {
                 self.write_sync();
-                self.stream.flush().await?;
+                self.inner.stream.flush().await?;
 
                 self.wait_for_close_complete(cleared).await?;
                 self.recv_ready_for_query().await?;
@@ -207,7 +212,7 @@ impl Connection for PgConnection {
     }
 
     fn shrink_buffers(&mut self) {
-        self.stream.shrink_buffers();
+        self.inner.stream.shrink_buffers();
     }
 
     #[doc(hidden)]
@@ -217,7 +222,7 @@ impl Connection for PgConnection {
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
-        !self.stream.write_buffer().is_empty()
+        !self.inner.stream.write_buffer().is_empty()
     }
 }
 
