@@ -30,6 +30,7 @@ migrate = ["sqlx-macros-core/migrate"]
 mysql = ["sqlx-macros-core/mysql"]
 postgres = ["sqlx-macros-core/postgres"]
 sqlite = ["sqlx-macros-core/sqlite"]
+sqlite-unbundled = ["sqlx-macros-core/sqlite-unbundled"]
 
 # type
 bigdecimal = ["sqlx-macros-core/bigdecimal"]

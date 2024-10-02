@@ -18,6 +18,8 @@ _tls-native-tls = ["sqlx-core/_tls-native-tls"]
 _tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs"]
 _tls-rustls-ring = ["sqlx-core/_tls-rustls-ring"]
 
+_sqlite = []
+
 # SQLx features
 derive = []
 macros = []
@@ -26,7 +28,8 @@ migrate = ["sqlx-core/migrate"]
 # database
 mysql = ["sqlx-mysql"]
 postgres = ["sqlx-postgres"]
-sqlite = ["sqlx-sqlite"]
+sqlite = ["_sqlite", "sqlx-sqlite/bundled"]
+sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled"]
 
 # type integrations
 json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]

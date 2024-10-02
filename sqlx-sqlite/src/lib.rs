@@ -2,7 +2,8 @@
 //!
 //! ### Note: linkage is semver-exempt.
 //! This driver uses the `libsqlite3-sys` crate which links the native library for SQLite 3.
-//! For portability, we enable the `bundled` feature which builds and links SQLite from source.
+//! With the "sqlite" feature, we enable the `bundled` feature which builds and links SQLite from
+//! source.
 //!
 //! We reserve the right to upgrade the version of `libsqlite3-sys` as necessary to pick up new
 //! `3.x.y` versions of SQLite.
@@ -20,6 +21,18 @@
 //! ```
 //!
 //! and then upgrade these crates in lockstep when necessary.
+//!
+//! ### Dynamic linking
+//! To dynamically link to a system SQLite library, the "sqlite-unbundled" feature can be used
+//! instead.
+//!
+//! This allows updating SQLite independently of SQLx or using forked versions, but you must have
+//! SQLite installed on the system or provide a path to the library at build time (See
+//! [the `rusqlite` README](https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys)
+//! for details).
+//!
+//! It may result in link errors if the SQLite version is too old. Version `3.20.0` or newer is
+//! recommended. It can increase build time due to the use of bindgen.
 
 // SQLite is a C library. All interactions require FFI which is unsafe.
 // All unsafe blocks should have comments pointing to SQLite docs and ensuring that we maintain
