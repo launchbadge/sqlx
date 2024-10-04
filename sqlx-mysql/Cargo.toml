@@ -14,6 +14,7 @@ json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
+_rt-tokio = ["sqlx-core/_rt-tokio", "tokio"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "sqlx-core/bigdecimal"]
@@ -24,6 +25,9 @@ uuid = ["dep:uuid", "sqlx-core/uuid"]
 
 [dependencies]
 sqlx-core = { workspace = true }
+
+# Support for tokio::io::AsyncWrite in mysql::infile
+tokio = { workspace = true, optional = true }
 
 # Futures crates
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
