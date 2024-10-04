@@ -186,3 +186,16 @@ async fn it_gets_comments(pool: PgPool) -> sqlx::Result<()> {
 async fn this_should_compile(_pool: PgPool) -> sqlx::Result<()> {
     Ok(())
 }
+
+macro_rules! macro_using_test {
+    ($migrations: literal) => {
+        #[sqlx::test(
+                            migrations = $migrations,
+                            fixtures(path = "../fixtures/postgres", scripts("users", "posts"))
+                        )]
+        async fn macro_using_macro(_pool: PgPool) -> sqlx::Result<()> {
+            Ok(())
+        }
+    };
+}
+macro_using_test!("tests/postgres/migrations");

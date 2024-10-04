@@ -19,6 +19,9 @@ $ cargo install sqlx-cli --features openssl-vendored
 
 # use Rustls rather than OpenSSL (be sure to add the features for the databases you intend to use!)
 $ cargo install sqlx-cli --no-default-features --features rustls
+
+# only for sqlite and use the system sqlite library
+$ cargo install sqlx-cli --no-default-features --features sqlite-unbundled
 ```
 
 ## Usage

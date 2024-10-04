@@ -286,20 +286,20 @@ dependencies = [
 
 [[package]]
 name = "async-std"
-version = "1.12.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62565bb4402e926b29953c785397c6dc0391b7b446e45008b0049eb43cec6f5d"
+checksum = "c634475f29802fde2b8f0b505b1bd00dfe4df7d4a000f0b36f7671197d5c3615"
 dependencies = [
  "async-attributes",
  "async-channel 1.9.0",
  "async-global-executor",
- "async-io 1.13.0",
- "async-lock 2.8.0",
+ "async-io 2.3.2",
+ "async-lock 3.3.0",
  "crossbeam-utils",
  "futures-channel",
  "futures-core",
  "futures-io",
- "futures-lite 1.13.0",
+ "futures-lite 2.2.0",
  "gloo-timers",
  "kv-log-macro",
  "log",
@@ -514,7 +514,7 @@ dependencies = [
  "bitflags 2.4.2",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "lazy_static",
  "lazycell",
  "log",
@@ -1209,15 +1209,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
-name = "encoding_rs"
-version = "0.8.33"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
 name = "endian-type"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1606,9 +1597,9 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "gloo-timers"
-version = "0.2.6"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b995a66bb87bebce9a0f4a95aed01daca4872c050bfcb21653361c03bc35e5c"
+checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1978,7 +1969,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e310b3a6b5907f99202fcdb4960ff45b93735d7c7d96b760fcff8db2dc0e103d"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -3328,7 +3319,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "async-std",
@@ -3358,7 +3349,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3375,50 +3366,40 @@ dependencies = [
  "glob",
  "openssl",
  "promptly",
- "serde",
  "serde_json",
  "sqlx",
  "tempfile",
  "tokio",
- "url",
 ]
 
 [[package]]
 name = "sqlx-core"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-io 1.13.0",
  "async-std",
- "atoi",
  "bigdecimal",
  "bit-vec",
  "bstr",
- "byteorder",
  "bytes",
  "chrono",
  "crc",
  "crossbeam-queue",
- "digest",
  "either",
- "encoding_rs",
  "event-listener 5.2.0",
- "futures-channel",
  "futures-core",
  "futures-intrusive",
  "futures-io",
  "futures-util",
  "hashbrown 0.14.5",
  "hashlink",
- "hex",
  "indexmap 2.2.5",
  "ipnetwork",
  "log",
  "mac_address",
  "memchr",
  "native-tls",
- "num-bigint",
  "once_cell",
- "paste",
  "percent-encoding",
  "regex",
  "rust_decimal",
@@ -3426,7 +3407,6 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_json",
- "sha1",
  "sha2",
  "smallvec",
  "sqlformat",
@@ -3569,7 +3549,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3580,7 +3560,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros-core"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-std",
  "dotenvy",
@@ -3605,7 +3585,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-mysql"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "atoi",
  "base64 0.22.0",
@@ -3651,7 +3631,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-postgres"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "atoi",
  "base64 0.22.0",
@@ -3665,7 +3645,6 @@ dependencies = [
  "etcetera",
  "futures-channel",
  "futures-core",
- "futures-io",
  "futures-util",
  "hex",
  "hkdf",
@@ -3697,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-sqlite"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "atoi",
  "chrono",

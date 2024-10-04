@@ -1,6 +1,4 @@
-# NOTE: this does NOT indicate a Minimum Supported Rust Version (MSRV) of SQLx.
-# We reserve the right to increase this version at any time without considering it to be a breaking change.
-# See the answer in FAQ.md for details.
+# Note: should NOT increase during a minor/patch release cycle
 [toolchain]
-channel = "1.80"
+channel = "1.78"
 profile = "minimal"

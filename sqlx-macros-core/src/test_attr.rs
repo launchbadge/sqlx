@@ -244,8 +244,20 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
                     ));
                 }
 
-                let Expr::Lit(syn::ExprLit { lit, .. }) = value.value else {
-                    return Err(syn::Error::new_spanned(path, "expected string for `false`"));
+                fn recurse_lit_lookup(expr: Expr) -> Option<Lit> {
+                    match expr {
+                        Expr::Lit(syn::ExprLit { lit, .. }) => {
+                            return Some(lit);
+                        }
+                        Expr::Group(syn::ExprGroup { expr, .. }) => {
+                            return recurse_lit_lookup(*expr);
+                        }
+                        _ => return None,
+                    }
+                }
+
+                let Some(lit) = recurse_lit_lookup(value.value) else {
+                    return Err(syn::Error::new_spanned(path, "expected string or `false`"));
                 };
 
                 migrations = match lit {

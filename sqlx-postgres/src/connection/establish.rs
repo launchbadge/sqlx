@@ -9,6 +9,8 @@ use crate::message::{
 };
 use crate::{PgConnectOptions, PgConnection};
 
+use super::PgConnectionInner;
+
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
 
@@ -134,18 +136,20 @@ impl PgConnection {
         }
 
         Ok(PgConnection {
-            stream,
-            process_id,
-            secret_key,
-            transaction_status,
-            transaction_depth: 0,
-            pending_ready_for_query_count: 0,
-            next_statement_id: StatementId::NAMED_START,
-            cache_statement: StatementCache::new(options.statement_cache_capacity),
-            cache_type_oid: HashMap::new(),
-            cache_type_info: HashMap::new(),
-            cache_elem_type_to_array: HashMap::new(),
-            log_settings: options.log_settings.clone(),
+            inner: Box::new(PgConnectionInner {
+                stream,
+                process_id,
+                secret_key,
+                transaction_status,
+                transaction_depth: 0,
+                pending_ready_for_query_count: 0,
+                next_statement_id: StatementId::NAMED_START,
+                cache_statement: StatementCache::new(options.statement_cache_capacity),
+                cache_type_oid: HashMap::new(),
+                cache_type_info: HashMap::new(),
+                cache_elem_type_to_array: HashMap::new(),
+                log_settings: options.log_settings.clone(),
+            }),
         })
     }
 }
