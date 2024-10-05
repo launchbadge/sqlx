@@ -1,13 +1,17 @@
 use std::env;
 use std::ops::{Deref, Not};
+use std::path::Path;
 use anyhow::Context;
+use chrono::Utc;
 use clap::{
     builder::{styling::AnsiColor, Styles},
     Args, Parser,
 };
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
-use sqlx::config::Config;
+use crate::config::Config;
+use sqlx::migrate::Migrator;
+use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
 
 const HELP_STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().bold())
@@ -283,6 +287,35 @@ pub struct AddMigrationOpts {
     pub description: String,
 
     #[clap(flatten)]
+    pub source: Source,
+
+    /// If set, create an up-migration only. Conflicts with `--reversible`.
+    #[clap(long, conflicts_with = "reversible")]
+    simple: bool,
+
+    /// If set, create a pair of up and down migration files with same version.
+    ///
+    /// Conflicts with `--simple`.
+    #[clap(short, long, conflicts_with = "simple")]
+    reversible: bool,
+
+    /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
+    ///
+    /// Timestamp format: `YYYYMMDDHHMMSS`
+    #[clap(short, long, conflicts_with = "sequential")]
+    timestamp: bool,
+
+    /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
+    #[clap(short, long, conflicts_with = "timestamp")]
+    sequential: bool,
+}
+
+/// Argument for the migration scripts source.
+#[derive(Args, Debug)]
+pub struct AddMigrationOpts {
+    pub description: String,
+
+    #[clap(flatten)]
     pub source: MigrationSourceOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
@@ -323,6 +356,12 @@ impl MigrationSourceOpt {
         }
 
         config.migrate.migrations_dir()
+    }
+}
+
+impl AsRef<Path> for Source {
+    fn as_ref(&self) -> &Path {
+        Path::new(&self.source)
     }
 }
 
@@ -454,20 +493,22 @@ impl Not for IgnoreMissing {
 
 impl AddMigrationOpts {
     pub fn reversible(&self, config: &Config, migrator: &Migrator) -> bool {
-        if self.reversible {
-            return true;
-        }
-        if self.simple {
-            return false;
-        }
+        if self.reversible { return true; }
+        if self.simple { return false; }
 
         match config.migrate.defaults.migration_type {
-            DefaultMigrationType::Inferred => migrator
-                .iter()
-                .last()
-                .is_some_and(|m| m.migration_type.is_reversible()),
-            DefaultMigrationType::Simple => false,
-            DefaultMigrationType::Reversible => true,
+            DefaultMigrationType::Inferred => {
+                migrator
+                    .iter()
+                    .last()
+                    .is_some_and(|m| m.migration_type.is_reversible())
+            }
+            DefaultMigrationType::Simple => {
+                false
+            }
+            DefaultMigrationType::Reversible => {
+                true
+            }
         }
     }
 
@@ -479,7 +520,8 @@ impl AddMigrationOpts {
         }
 
         if self.sequential || matches!(default_versioning, DefaultVersioning::Sequential) {
-            return next_sequential(migrator).unwrap_or_else(|| fmt_sequential(1));
+            return next_sequential(migrator)
+                .unwrap_or_else(|| fmt_sequential(1));
         }
 
         next_sequential(migrator).unwrap_or_else(next_timestamp)
@@ -499,11 +541,13 @@ fn next_sequential(migrator: &Migrator) -> Option<String> {
             match migrations {
                 [previous, latest] => {
                     // If the latest two versions differ by 1, infer sequential.
-                    (latest.version - previous.version == 1).then_some(latest.version + 1)
-                }
+                    (latest.version - previous.version == 1)
+                        .then_some(latest.version + 1)
+                },
                 [latest] => {
                     // If only one migration exists and its version is 0 or 1, infer sequential
-                    matches!(latest.version, 0 | 1).then_some(latest.version + 1)
+                    matches!(latest.version, 0 | 1)
+                        .then_some(latest.version + 1)
                 }
                 _ => unreachable!(),
             }
