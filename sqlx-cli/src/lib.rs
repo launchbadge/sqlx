@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -23,8 +23,7 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
-pub use sqlx::_unstable::config;
-use crate::config::Config;
+pub use sqlx::_unstable::config::{self, Config};
 
 /// Check arguments for `--no-dotenv` _before_ Clap parsing, and apply `.env` if not set.
 pub fn maybe_apply_dotenv() {
@@ -56,17 +55,11 @@ pub async fn run(opt: Opt) -> Result<()> {
 }
 
 async fn do_run(opt: Opt) -> Result<()> {
-    let config = config_from_current_dir()?;
+    let config = config_from_current_dir().await?;
 
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
-            MigrateCommand::Add {
-                source,
-                description,
-                reversible,
-                sequential,
-                timestamp,
-            } => migrate::add(&source, &description, reversible, sequential, timestamp).await?,
+            MigrateCommand::Add(opts)=> migrate::add(config, opts).await?,
             MigrateCommand::Run {
                 source,
                 dry_run,
