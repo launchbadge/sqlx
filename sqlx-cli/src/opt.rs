@@ -1,10 +1,14 @@
 use std::env;
 use std::ops::{Deref, Not};
+use std::path::Path;
 use anyhow::Context;
+use chrono::Utc;
 use clap::{Args, Parser};
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
-use sqlx::config::Config;
+use crate::config::Config;
+use sqlx::migrate::Migrator;
+use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
 
 #[derive(Parser, Debug)]
 #[clap(version, about, author)]
@@ -125,8 +129,55 @@ pub struct MigrateOpt {
 pub enum MigrateCommand {
     /// Create a new migration with the given description.
     ///
+    /// --------------------------------
+    /// 
+    /// Migrations may either be simple, or reversible.
+    ///
+    /// Reversible migrations can be reverted with `sqlx migrate revert`, simple migrations cannot.
+    ///
+    /// Reversible migrations are created as a pair of two files with the same filename but
+    /// extensions `.up.sql` and `.down.sql` for the up-migration and down-migration, respectively.
+    ///
+    /// The up-migration should contain the commands to be used when applying the migration,
+    /// while the down-migration should contain the commands to reverse the changes made by the
+    /// up-migration.
+    ///
+    /// When writing down-migrations, care should be taken to ensure that they
+    /// do not leave the database in an inconsistent state.
+    ///
+    /// Simple migrations have just `.sql` for their extension and represent an up-migration only.
+    ///
+    /// Note that reverting a migration is **destructive** and will likely result in data loss.
+    /// Reverting a migration will not restore any data discarded by commands in the up-migration.
+    ///
+    /// It is recommended to always back up the database before running migrations.
+    ///
+    /// --------------------------------
+    /// 
+    /// For convenience, this command attempts to detect if reversible migrations are in-use.
+    ///
+    /// If the latest existing migration is reversible, the new migration will also be reversible.
+    ///
+    /// Otherwise, a simple migration is created.
+    ///
+    /// This behavior can be overridden by `--simple` or `--reversible`, respectively.
+    ///
+    /// The default type to use can also be set in `sqlx.toml`.
+    ///
+    /// --------------------------------
+    /// 
     /// A version number will be automatically assigned to the migration.
     ///
+    /// Migrations are applied in ascending order by version number.
+    /// Version numbers do not need to be strictly consecutive.
+    ///
+    /// The migration process will abort if SQLx encounters a migration with a version number
+    /// less than _any_ previously applied migration.
+    ///
+    /// Migrations should only be created with increasing version number.
+    /// 
+    /// --------------------------------
+    /// 
     /// For convenience, this command will attempt to detect if sequential versioning is in use,
     /// and if so, continue the sequence.
     ///
@@ -136,28 +187,12 @@ pub enum MigrateCommand {
     ///
     /// * only one migration exists and its version number is either 0 or 1.
     ///
-    /// Otherwise timestamp versioning is assumed.
+    /// Otherwise, timestamp versioning (`YYYYMMDDHHMMSS`) is assumed.
     ///
-    /// This behavior can overridden by `--sequential` or `--timestamp`, respectively.
-    Add {
-        description: String,
-
-        #[clap(flatten)]
-        source: Source,
-
-        /// If true, creates a pair of up and down migration files with same version
-        /// else creates a single sql file
-        #[clap(short)]
-        reversible: bool,
-
-        /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
-        #[clap(short, long)]
-        timestamp: bool,
-
-        /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
-        #[clap(short, long, conflicts_with = "timestamp")]
-        sequential: bool,
-    },
+    /// This behavior can be overridden by `--timestamp` or `--sequential`, respectively.
+    ///
+    /// The default versioning to use can also be set in `sqlx.toml`.
+    Add(AddMigrationOpts),
 
     /// Run all pending migrations.
     Run {
@@ -224,6 +259,34 @@ pub enum MigrateCommand {
     },
 }
 
+#[derive(Args, Debug)]
+pub struct AddMigrationOpts {
+    pub description: String,
+
+    #[clap(flatten)]
+    pub source: Source,
+
+    /// If set, create an up-migration only. Conflicts with `--reversible`.
+    #[clap(long, conflicts_with = "reversible")]
+    simple: bool,
+
+    /// If set, create a pair of up and down migration files with same version.
+    ///
+    /// Conflicts with `--simple`.
+    #[clap(short, long, conflicts_with = "simple")]
+    reversible: bool,
+
+    /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
+    ///
+    /// Timestamp format: `YYYYMMDDHHMMSS`
+    #[clap(short, long, conflicts_with = "sequential")]
+    timestamp: bool,
+
+    /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
+    #[clap(short, long, conflicts_with = "timestamp")]
+    sequential: bool,
+}
+
 /// Argument for the migration scripts source.
 #[derive(Args, Debug)]
 pub struct Source {
@@ -237,6 +300,12 @@ impl Deref for Source {
 
     fn deref(&self) -> &Self::Target {
         &self.source
+    }
+}
+
+impl AsRef<Path> for Source {
+    fn as_ref(&self) -> &Path {
+        Path::new(&self.source)
     }
 }
 
@@ -337,4 +406,73 @@ impl Not for IgnoreMissing {
     fn not(self) -> Self::Output {
         !self.ignore_missing
     }
+}
+
+impl AddMigrationOpts {
+    pub fn reversible(&self, config: &Config, migrator: &Migrator) -> bool {
+        if self.reversible { return true; }
+        if self.simple { return false; }
+
+        match config.migrate.defaults.migration_type {
+            DefaultMigrationType::Inferred => {
+                migrator
+                    .iter()
+                    .last()
+                    .is_some_and(|m| m.migration_type.is_reversible())
+            }
+            DefaultMigrationType::Simple => {
+                false
+            }
+            DefaultMigrationType::Reversible => {
+                true
+            }
+        }
+    }
+
+    pub fn version_prefix(&self, config: &Config, migrator: &Migrator) -> String {
+        let default_versioning = &config.migrate.defaults.migration_versioning;
+
+        if self.timestamp || matches!(default_versioning, DefaultVersioning::Timestamp) {
+            return next_timestamp();
+        }
+
+        if self.sequential || matches!(default_versioning, DefaultVersioning::Sequential) {
+            return next_sequential(migrator)
+                .unwrap_or_else(|| fmt_sequential(1));
+        }
+
+        next_sequential(migrator).unwrap_or_else(next_timestamp)
+    }
+}
+
+fn next_timestamp() -> String {
+    Utc::now().format("%Y%m%d%H%M%S").to_string()
+}
+
+fn next_sequential(migrator: &Migrator) -> Option<String> {
+    let next_version = migrator
+        .migrations
+        .windows(2)
+        .last()
+        .and_then(|migrations| {
+            match migrations {
+                [previous, latest] => {
+                    // If the latest two versions differ by 1, infer sequential.
+                    (latest.version - previous.version == 1)
+                        .then_some(latest.version + 1)
+                },
+                [latest] => {
+                    // If only one migration exists and its version is 0 or 1, infer sequential
+                    matches!(latest.version, 0 | 1)
+                        .then_some(latest.version + 1)
+                }
+                _ => unreachable!(),
+            }
+        });
+    
+    next_version.map(fmt_sequential)
+}
+
+fn fmt_sequential(version: i64) -> String {
+    format!("{version:04}")
 }
