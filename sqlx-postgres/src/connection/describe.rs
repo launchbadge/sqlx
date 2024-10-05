@@ -524,7 +524,8 @@ WHERE rngtypid = $1
         let mut comma = false;
 
         if params_len > 0 {
-            self.execute("set plan_cache_mode = force_generic_plan;").await?;
+            self.execute("set plan_cache_mode = force_generic_plan;")
+                .await?;
 
             explain += "(";
 
