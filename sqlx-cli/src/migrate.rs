@@ -1,5 +1,4 @@
-use crate::config::Config;
-use crate::opt::{AddMigrationOpts, ConnectOpts, MigrationSourceOpt};
+use crate::opt::{AddMigrationOpts, ConnectOpts};
 use anyhow::{bail, Context};
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
@@ -10,6 +9,7 @@ use std::fmt::Write;
 use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
+use crate::config::Config;
 
 pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
     let config = opts.config.load_config().await?;
@@ -22,22 +22,37 @@ pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
 
     let version_prefix = opts.version_prefix(&config, &migrator);
 
-    if opts.reversible(&config, &migrator) {
+    std::io::Write::write_all(&mut file, migration_type.file_content().as_bytes())?;
+
+    Ok(())
+}
+
+pub async fn add(
+    config: &Config,
+    opts: AddMigrationOpts,
+) -> anyhow::Result<()> {
+    fs::create_dir_all(&opts.source).context("Unable to create migrations directory")?;
+
+    let migrator = Migrator::new(opts.source.as_ref()).await?;
+
+    let version_prefix = opts.version_prefix(config, &migrator);
+
+    if opts.reversible(config, &migrator) {
         create_file(
-            source,
+            &opts.source,
             &version_prefix,
             &opts.description,
             MigrationType::ReversibleUp,
         )?;
         create_file(
-            source,
+            &opts.source,
             &version_prefix,
             &opts.description,
             MigrationType::ReversibleDown,
         )?;
     } else {
         create_file(
-            source,
+            &opts.source,
             &version_prefix,
             &opts.description,
             MigrationType::Simple,
@@ -45,13 +60,13 @@ pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
     }
 
     // if the migrations directory is empty
-    let has_existing_migrations = fs::read_dir(source)
+    let has_existing_migrations = fs::read_dir(&opts.source)
         .map(|mut dir| dir.next().is_some())
         .unwrap_or(false);
 
     if !has_existing_migrations {
-        let quoted_source = if opts.source.source.is_some() {
-            format!("{source:?}")
+        let quoted_source = if *opts.source != "migrations" {
+            format!("{:?}", *opts.source)
         } else {
             "".to_string()
         };
