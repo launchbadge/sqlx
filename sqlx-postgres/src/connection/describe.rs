@@ -12,6 +12,7 @@ use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
 use smallvec::SmallVec;
+use sqlx_core::acquire::Acquire;
 use sqlx_core::executor::Executor;
 use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
@@ -522,9 +523,10 @@ WHERE rngtypid = $1
 
         let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}");
         let mut comma = false;
+        let mut tx = self.begin().await?;
 
         if params_len > 0 {
-            self.execute("set plan_cache_mode = force_generic_plan;")
+            tx.execute("set local plan_cache_mode = force_generic_plan;")
                 .await?;
 
             explain += "(";
@@ -543,7 +545,9 @@ WHERE rngtypid = $1
         }
 
         let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
-            query_as(&explain).fetch_one(self).await?;
+            query_as(&explain).fetch_one(&mut *tx).await?;
+
+        tx.rollback().await?;
 
         let mut nullables = Vec::new();
 
