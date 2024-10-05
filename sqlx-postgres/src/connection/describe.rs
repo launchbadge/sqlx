@@ -12,6 +12,7 @@ use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
 use smallvec::SmallVec;
+use sqlx_core::executor::Executor;
 use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
 
@@ -523,6 +524,8 @@ WHERE rngtypid = $1
         let mut comma = false;
 
         if params_len > 0 {
+            self.execute("set plan_cache_mode = force_generic_plan;").await?;
+
             explain += "(";
 
             // fill the arguments list with NULL, which should theoretically be valid
