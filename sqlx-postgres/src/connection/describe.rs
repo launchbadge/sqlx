@@ -526,8 +526,19 @@ WHERE rngtypid = $1
         let mut tx = self.begin().await?;
 
         if params_len > 0 {
-            tx.execute("set local plan_cache_mode = force_generic_plan;")
-                .await?;
+            tx.execute(
+                " DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1
+                        FROM pg_settings
+                        WHERE name = 'plan_cache_mode'
+                      ) THEN
+                        SET LOCAL plan_cache_mode = 'force_generic_plan';
+                      END IF;
+                    END $$;",
+            )
+            .await?;
 
             explain += "(";
 
