@@ -35,42 +35,6 @@ impl_type_checking!(
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveTime,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDate,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDateTime,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::postgres::types::PgTimeTz<sqlx::types::chrono::NaiveTime, sqlx::types::chrono::FixedOffset>,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::Time,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::Date,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::PrimitiveDateTime,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::OffsetDateTime,
-
-        #[cfg(feature = "time")]
-        sqlx::postgres::types::PgTimeTz<sqlx::types::time::Time, sqlx::types::time::UtcOffset>,
-
-        #[cfg(feature = "bigdecimal")]
-        sqlx::types::BigDecimal,
-
-        #[cfg(feature = "rust_decimal")]
-        sqlx::types::Decimal,
-
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
 
@@ -101,36 +65,6 @@ impl_type_checking!(
         #[cfg(feature = "uuid")]
         Vec<sqlx::types::Uuid> | &[sqlx::types::Uuid],
 
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::types::chrono::NaiveTime> | &[sqlx::types::chrono::NaiveTime],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::types::chrono::NaiveDate> | &[sqlx::types::chrono::NaiveDate],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::types::chrono::NaiveDateTime> | &[sqlx::types::chrono::NaiveDateTime],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::types::time::Time> | &[sqlx::types::time::Time],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::types::time::Date> | &[sqlx::types::time::Date],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::types::time::PrimitiveDateTime> | &[sqlx::types::time::PrimitiveDateTime],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::types::time::OffsetDateTime> | &[sqlx::types::time::OffsetDateTime],
-
-        #[cfg(feature = "bigdecimal")]
-        Vec<sqlx::types::BigDecimal> | &[sqlx::types::BigDecimal],
-
-        #[cfg(feature = "rust_decimal")]
-        Vec<sqlx::types::Decimal> | &[sqlx::types::Decimal],
-
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
 
@@ -147,72 +81,114 @@ impl_type_checking!(
         sqlx::postgres::types::PgRange<i32>,
         sqlx::postgres::types::PgRange<i64>,
 
-        #[cfg(feature = "bigdecimal")]
-        sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>,
-
-        #[cfg(feature = "rust_decimal")]
-        sqlx::postgres::types::PgRange<sqlx::types::Decimal>,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> |
-            sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>,
-
-        #[cfg(feature = "time")]
-        sqlx::postgres::types::PgRange<sqlx::types::time::Date>,
-
-        #[cfg(feature = "time")]
-        sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>,
-
-        #[cfg(feature = "time")]
-        sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>,
-
         // Range arrays
 
         Vec<sqlx::postgres::types::PgRange<i32>> | &[sqlx::postgres::types::PgRange<i32>],
         Vec<sqlx::postgres::types::PgRange<i64>> | &[sqlx::postgres::types::PgRange<i64>],
-
-        #[cfg(feature = "bigdecimal")]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>],
-
-        #[cfg(feature = "rust_decimal")]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::Decimal>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::Decimal>],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>],
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::Date>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::time::Date>],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>],
-
-        #[cfg(feature = "time")]
-        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>> |
-            &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
     },
     ParamChecking::Strong,
     feature-types: info => info.__type_feature_gate(),
+    // The expansion of the macro automatically applies the correct feature name
+    // and checks `[macros.preferred-crates]`
+    datetime-types: {
+        chrono: {
+            // Scalar types
+            sqlx::types::chrono::NaiveTime,
+
+            sqlx::types::chrono::NaiveDate,
+
+            sqlx::types::chrono::NaiveDateTime,
+
+            sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
+
+            sqlx::postgres::types::PgTimeTz<sqlx::types::chrono::NaiveTime, sqlx::types::chrono::FixedOffset>,
+
+            // Array types
+            Vec<sqlx::types::chrono::NaiveTime> | &[sqlx::types::chrono::NaiveTime],
+
+            Vec<sqlx::types::chrono::NaiveDate> | &[sqlx::types::chrono::NaiveDate],
+
+            Vec<sqlx::types::chrono::NaiveDateTime> | &[sqlx::types::chrono::NaiveDateTime],
+
+            Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
+
+            // Range types
+            sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>,
+
+            sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>,
+
+            sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> |
+                sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>,
+
+            // Arrays of ranges
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>],
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>],
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>],
+        },
+        time: {
+            // Scalar types
+            sqlx::types::time::Time,
+
+            sqlx::types::time::Date,
+
+            sqlx::types::time::PrimitiveDateTime,
+
+            sqlx::types::time::OffsetDateTime,
+
+            sqlx::postgres::types::PgTimeTz<sqlx::types::time::Time, sqlx::types::time::UtcOffset>,
+
+            // Array types
+            Vec<sqlx::types::time::Time> | &[sqlx::types::time::Time],
+
+            Vec<sqlx::types::time::Date> | &[sqlx::types::time::Date],
+
+            Vec<sqlx::types::time::PrimitiveDateTime> | &[sqlx::types::time::PrimitiveDateTime],
+
+            Vec<sqlx::types::time::OffsetDateTime> | &[sqlx::types::time::OffsetDateTime],
+
+            // Range types
+            sqlx::postgres::types::PgRange<sqlx::types::time::Date>,
+
+            sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>,
+
+            sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>,
+
+            // Arrays of ranges
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::time::Date>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::time::Date>],
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>],
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
+        },
+    },
+    numeric-types: {
+        bigdecimal: {
+            sqlx::types::BigDecimal,
+
+            Vec<sqlx::types::BigDecimal> | &[sqlx::types::BigDecimal],
+
+            sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>,
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>],
+        },
+        rust_decimal: {
+            sqlx::types::Decimal,
+
+            Vec<sqlx::types::Decimal> | &[sqlx::types::Decimal],
+
+            sqlx::postgres::types::PgRange<sqlx::types::Decimal>,
+
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::Decimal>> |
+                &[sqlx::postgres::types::PgRange<sqlx::types::Decimal>],
+        },
+    },
 );

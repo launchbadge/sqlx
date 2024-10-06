@@ -77,6 +77,8 @@ fn expand_simple(input: syn::ItemFn) -> TokenStream {
 
 #[cfg(feature = "migrate")]
 fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<TokenStream> {
+    let config = sqlx_core::config::Config::from_crate();
+
     let ret = &input.sig.output;
     let name = &input.sig.ident;
     let inputs = &input.sig.inputs;
@@ -143,15 +145,17 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
     let migrations = match args.migrations {
         MigrationsOpt::ExplicitPath(path) => {
-            let migrator = crate::migrate::expand_migrator_from_lit_dir(path)?;
+            let migrator = crate::migrate::expand(Some(path))?;
             quote! { args.migrator(&#migrator); }
         }
         MigrationsOpt::InferredPath if !inputs.is_empty() => {
-            let migrations_path =
-                crate::common::resolve_path("./migrations", proc_macro2::Span::call_site())?;
+            let path = crate::migrate::default_path(config);
 
-            if migrations_path.is_dir() {
-                let migrator = crate::migrate::expand_migrator(&migrations_path)?;
+            let resolved_path =
+                crate::common::resolve_path(path, proc_macro2::Span::call_site())?;
+
+            if resolved_path.is_dir() {
+                let migrator = crate::migrate::expand_with_path(config, &resolved_path)?;
                 quote! { args.migrator(&#migrator); }
             } else {
                 quote! {}

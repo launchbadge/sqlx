@@ -1,6 +1,5 @@
-use crate::opt::ConnectOpts;
+use crate::opt::{AddMigrationOpts, ConnectOpts};
 use anyhow::{bail, Context};
-use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
 use sqlx::Connection;
@@ -10,6 +9,7 @@ use std::fmt::Write;
 use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
+use crate::config::Config;
 
 fn create_file(
     migration_source: &str,
@@ -37,116 +37,46 @@ fn create_file(
     Ok(())
 }
 
-enum MigrationOrdering {
-    Timestamp(String),
-    Sequential(String),
-}
-
-impl MigrationOrdering {
-    fn timestamp() -> MigrationOrdering {
-        Self::Timestamp(Utc::now().format("%Y%m%d%H%M%S").to_string())
-    }
-
-    fn sequential(version: i64) -> MigrationOrdering {
-        Self::Sequential(format!("{version:04}"))
-    }
-
-    fn file_prefix(&self) -> &str {
-        match self {
-            MigrationOrdering::Timestamp(prefix) => prefix,
-            MigrationOrdering::Sequential(prefix) => prefix,
-        }
-    }
-
-    fn infer(sequential: bool, timestamp: bool, migrator: &Migrator) -> Self {
-        match (timestamp, sequential) {
-            (true, true) => panic!("Impossible to specify both timestamp and sequential mode"),
-            (true, false) => MigrationOrdering::timestamp(),
-            (false, true) => MigrationOrdering::sequential(
-                migrator
-                    .iter()
-                    .last()
-                    .map_or(1, |last_migration| last_migration.version + 1),
-            ),
-            (false, false) => {
-                // inferring the naming scheme
-                let migrations = migrator
-                    .iter()
-                    .filter(|migration| migration.migration_type.is_up_migration())
-                    .rev()
-                    .take(2)
-                    .collect::<Vec<_>>();
-                if let [last, pre_last] = &migrations[..] {
-                    // there are at least two migrations, compare the last twothere's only one existing migration
-                    if last.version - pre_last.version == 1 {
-                        // their version numbers differ by 1, infer sequential
-                        MigrationOrdering::sequential(last.version + 1)
-                    } else {
-                        MigrationOrdering::timestamp()
-                    }
-                } else if let [last] = &migrations[..] {
-                    // there is only one existing migration
-                    if last.version == 0 || last.version == 1 {
-                        // infer sequential if the version number is 0 or 1
-                        MigrationOrdering::sequential(last.version + 1)
-                    } else {
-                        MigrationOrdering::timestamp()
-                    }
-                } else {
-                    MigrationOrdering::timestamp()
-                }
-            }
-        }
-    }
-}
-
 pub async fn add(
-    migration_source: &str,
-    description: &str,
-    reversible: bool,
-    sequential: bool,
-    timestamp: bool,
+    config: &Config,
+    opts: AddMigrationOpts,
 ) -> anyhow::Result<()> {
-    fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
+    fs::create_dir_all(&opts.source).context("Unable to create migrations directory")?;
 
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // Type of newly created migration will be the same as the first one
-    // or reversible flag if this is the first migration
-    let migration_type = MigrationType::infer(&migrator, reversible);
+    let migrator = Migrator::new(opts.source.as_ref()).await?;
 
-    let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
-    let file_prefix = ordering.file_prefix();
+    let version_prefix = opts.version_prefix(config, &migrator);
 
-    if migration_type.is_reversible() {
+    if opts.reversible(config, &migrator) {
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            &opts.source,
+            &version_prefix,
+            &opts.description,
             MigrationType::ReversibleUp,
         )?;
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            &opts.source,
+            &version_prefix,
+            &opts.description,
             MigrationType::ReversibleDown,
         )?;
     } else {
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            &opts.source,
+            &version_prefix,
+            &opts.description,
             MigrationType::Simple,
         )?;
     }
 
     // if the migrations directory is empty
-    let has_existing_migrations = fs::read_dir(migration_source)
+    let has_existing_migrations = fs::read_dir(&opts.source)
         .map(|mut dir| dir.next().is_some())
         .unwrap_or(false);
 
     if !has_existing_migrations {
-        let quoted_source = if migration_source != "migrations" {
-            format!("{migration_source:?}")
+        let quoted_source = if *opts.source != "migrations" {
+            format!("{:?}", *opts.source)
         } else {
             "".to_string()
         };

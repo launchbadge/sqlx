@@ -148,8 +148,8 @@ impl PgConnection {
                 cache_type_oid: HashMap::new(),
                 cache_type_info: HashMap::new(),
                 cache_elem_type_to_array: HashMap::new(),
-                log_settings: options.log_settings.clone(),
-            }),
+                cache_table_to_column_names: HashMap::new(),
+            log_settings: options.log_settings.clone(),}),
         })
     }
 }

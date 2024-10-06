@@ -69,7 +69,7 @@ pub fn migrate(input: TokenStream) -> TokenStream {
     use syn::LitStr;
 
     let input = syn::parse_macro_input!(input as LitStr);
-    match migrate::expand_migrator_from_lit_dir(input) {
+    match migrate::expand(input) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {

@@ -49,7 +49,8 @@ filetime = "0.2"
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
-default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]
+default = ["postgres", "sqlite", "mysql", "native-tls", "completions", "sqlx-toml"]
+
 rustls = ["sqlx/runtime-tokio-rustls"]
 native-tls = ["sqlx/runtime-tokio-native-tls"]
 
@@ -63,6 +64,8 @@ sqlite-unbundled = ["sqlx/sqlite-unbundled"]
 openssl-vendored = ["openssl/vendored"]
 
 completions = ["dep:clap_complete"]
+
+sqlx-toml = ["sqlx/sqlx-toml"]
 
 [dev-dependencies]
 assert_cmd = "2.0.11"

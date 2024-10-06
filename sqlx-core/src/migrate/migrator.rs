@@ -23,6 +23,8 @@ pub struct Migrator {
     pub locking: bool,
     #[doc(hidden)]
     pub no_tx: bool,
+    #[doc(hidden)]
+    pub table_name: Cow<'static, str>,
 }
 
 fn validate_applied_migrations(
@@ -51,6 +53,7 @@ impl Migrator {
         ignore_missing: false,
         no_tx: false,
         locking: true,
+        table_name: Cow::Borrowed("_sqlx_migrations"),
     };
 
     /// Creates a new instance with the given source.
@@ -79,6 +82,25 @@ impl Migrator {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ..Self::DEFAULT
         })
+    }
+
+    /// Override the name of the table used to track executed migrations.
+    ///
+    /// May be schema-qualified and/or contain quotes. Defaults to `_sqlx_migrations`.
+    ///
+    /// Potentially useful for multi-tenant databases.
+    ///
+    /// ### Warning: Potential Data Loss or Corruption!
+    /// Changing this option for a production database will likely result in data loss or corruption
+    /// as the migration machinery will no longer be aware of what migrations have been applied
+    /// and will attempt to re-run them.
+    ///
+    /// You should create the new table as a copy of the existing migrations table (with contents!),
+    /// and be sure all instances of your application have been migrated to the new
+    /// table before deleting the old one.
+    pub fn dangerous_set_table_name(&mut self, table_name: impl Into<Cow<'static, str>>) -> &Self {
+        self.table_name = table_name.into();
+        self
     }
 
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.

@@ -17,14 +17,14 @@ pub async fn create(connect_opts: &ConnectOpts) -> anyhow::Result<()> {
             std::sync::atomic::Ordering::Release,
         );
 
-        Any::create_database(connect_opts.required_db_url()?).await?;
+        Any::create_database(connect_opts.expect_db_url()?).await?;
     }
 
     Ok(())
 }
 
 pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> anyhow::Result<()> {
-    if confirm && !ask_to_continue_drop(connect_opts.required_db_url()?) {
+    if confirm && !ask_to_continue_drop(connect_opts.expect_db_url()?) {
         return Ok(());
     }
 
@@ -34,9 +34,9 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> any
 
     if exists {
         if force {
-            Any::force_drop_database(connect_opts.required_db_url()?).await?;
+            Any::force_drop_database(connect_opts.expect_db_url()?).await?;
         } else {
-            Any::drop_database(connect_opts.required_db_url()?).await?;
+            Any::drop_database(connect_opts.expect_db_url()?).await?;
         }
     }
 
