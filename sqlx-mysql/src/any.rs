@@ -53,6 +53,10 @@ impl AnyConnectionBackend for MySqlConnection {
         MySqlTransactionManager::start_rollback(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        MySqlTransactionManager::get_transaction_depth(self)
+    }
+
     fn shrink_buffers(&mut self) {
         Connection::shrink_buffers(self);
     }

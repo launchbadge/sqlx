@@ -114,6 +114,10 @@ impl Connection for MySqlConnection {
         Transaction::begin(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        self.inner.transaction_depth
+    }
+
     fn shrink_buffers(&mut self) {
         self.inner.stream.shrink_buffers();
     }
