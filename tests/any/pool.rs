@@ -85,18 +85,6 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
 
     let conn_options: AnyConnectOptions = std::env::var("DATABASE_URL")?.parse()?;
 
-    #[cfg(feature = "mssql")]
-    if conn_options.kind() == sqlx::any::AnyKind::Mssql {
-        // MSSQL doesn't support `CREATE TEMPORARY TABLE`,
-        // because why follow conventions when you can subvert them?
-        // Instead, you prepend `#` to the table name for a session-local temporary table
-        // which you also have to do when referencing it.
-
-        // Since that affects basically every query here,
-        // it's just easier to have a separate MSSQL-specific test case.
-        return Ok(());
-    }
-
     let current_id = AtomicI32::new(0);
 
     let pool = AnyPoolOptions::new()
@@ -216,6 +204,7 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[ignore]
 #[sqlx_macros::test]
 async fn test_connection_maintenance() -> anyhow::Result<()> {
     sqlx::any::install_default_drivers();

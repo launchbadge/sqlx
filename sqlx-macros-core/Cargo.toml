@@ -15,7 +15,10 @@ _rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
 _rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
 
 _tls-native-tls = ["sqlx-core/_tls-native-tls"]
-_tls-rustls = ["sqlx-core/_tls-rustls"]
+_tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs"]
+_tls-rustls-ring = ["sqlx-core/_tls-rustls-ring"]
+
+_sqlite = []
 
 # SQLx features
 derive = []
@@ -25,10 +28,11 @@ migrate = ["sqlx-core/migrate"]
 # database
 mysql = ["sqlx-mysql"]
 postgres = ["sqlx-postgres"]
-sqlite = ["sqlx-sqlite"]
+sqlite = ["_sqlite", "sqlx-sqlite/bundled"]
+sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled"]
 
 # type integrations
-json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-sqlite?/json"]
+json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
 
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-postgres?/bit-vec"]
@@ -59,6 +63,11 @@ serde = { version = "1.0.132", features = ["derive"] }
 serde_json = { version = "1.0.73" }
 sha2 = { version = "0.10.0" }
 syn = { version = "2.0.52", default-features = false, features = ["full", "derive", "parsing", "printing", "clone-impls"] }
-tempfile = { version = "3.3.0" }
+tempfile = { version = "3.10.1" }
 quote = { version = "1.0.26", default-features = false }
 url = { version = "2.2.2", default-features = false }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+# 1.80 will warn without this
+check-cfg = ['cfg(sqlx_macros_unstable)', 'cfg(procmacro2_semver_exempt)']

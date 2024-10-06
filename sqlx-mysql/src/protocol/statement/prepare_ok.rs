@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::io::ProtocolDecode;
 use crate::protocol::Capabilities;
 
 // https://dev.mysql.com/doc/internals/en/com-stmt-prepare-response.html#packet-COM_STMT_PREPARE_OK
@@ -15,7 +15,7 @@ pub(crate) struct PrepareOk {
     pub(crate) warnings: u16,
 }
 
-impl Decode<'_, Capabilities> for PrepareOk {
+impl ProtocolDecode<'_, Capabilities> for PrepareOk {
     fn decode_with(buf: Bytes, _: Capabilities) -> Result<Self, Error> {
         const SIZE: usize = 12;
 

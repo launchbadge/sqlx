@@ -1,4 +1,4 @@
-use crate::io::Encode;
+use crate::io::ProtocolEncode;
 use crate::protocol::text::ColumnFlags;
 use crate::protocol::Capabilities;
 use crate::MySqlArguments;
@@ -11,8 +11,8 @@ pub struct Execute<'q> {
     pub arguments: &'q MySqlArguments,
 }
 
-impl<'q> Encode<'_, Capabilities> for Execute<'q> {
-    fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) {
+impl<'q> ProtocolEncode<'_, Capabilities> for Execute<'q> {
+    fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) -> Result<(), crate::Error> {
         buf.push(0x17); // COM_STMT_EXECUTE
         buf.extend(&self.statement.to_le_bytes());
         buf.push(0); // NO_CURSOR
@@ -34,5 +34,7 @@ impl<'q> Encode<'_, Capabilities> for Execute<'q> {
 
             buf.extend(&*self.arguments.values);
         }
+
+        Ok(())
     }
 }

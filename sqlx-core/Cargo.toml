@@ -22,6 +22,8 @@ json = ["serde", "serde_json"]
 _rt-async-std = ["async-std", "async-io"]
 _rt-tokio = ["tokio", "tokio-stream"]
 _tls-native-tls = ["native-tls"]
+_tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs"]
+_tls-rustls-ring = ["_tls-rustls", "rustls/ring"]
 _tls-rustls = ["rustls", "rustls-pemfile", "webpki-roots"]
 _tls-none = []
 
@@ -36,9 +38,9 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.21.11", default-features = false, features = ["dangerous_configuration", "tls12"], optional = true }
-rustls-pemfile = { version = "1.0", optional = true }
-webpki-roots = { version = "0.25", optional = true }
+rustls = { version = "0.23.11", default-features = false, features = ["std", "tls12"], optional = true }
+rustls-pemfile = { version = "2", optional = true }
+webpki-roots = { version = "0.26", optional = true }
 
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
@@ -50,35 +52,24 @@ mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "1.9.0", optional = true }
-paste = "1.0.6"
-ahash = "0.8.7"
-atoi = "2.0"
-
 bytes = "1.1.0"
-byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
-chrono = { version = "0.4.19", default-features = false, features = ["clock"], optional = true }
+chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }
 crc = { version = "3", optional = true }
 crossbeam-queue = "0.3.2"
-digest = { version = "0.10.0", default-features = false, optional = true, features = ["std"] }
-encoding_rs = { version = "0.8.30", optional = true }
 either = "1.6.1"
-futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
 futures-intrusive = "0.5.0"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
-hex = "0.4.3"
-log = { version = "0.4.14", default-features = false }
+log = { version = "0.4.18", default-features = false }
 memchr = { version = "2.4.1", default-features = false }
-num-bigint = { version = "0.4.0", default-features = false, optional = true, features = ["std"] }
 once_cell = "1.9.0"
 percent-encoding = "2.1.0"
 regex = { version = "1.5.5", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
-sha1 = { version = "0.10.1", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
-sqlformat = "0.2.0"
+#sqlformat = "0.2.0"
 thiserror = "1.0.30"
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 tracing = { version = "0.1.37", features = ["log"] }
@@ -88,7 +79,11 @@ bstr = { version = "1.0", default-features = false, features = ["std"], optional
 hashlink = "0.9.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
+hashbrown = "0.14.5"
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
+
+[lints]
+workspace = true

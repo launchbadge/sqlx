@@ -59,6 +59,7 @@ impl Decode<'_, MySql> for f32 {
                     4 => LittleEndian::read_f32(buf),
                     // MySQL can return 8-byte DOUBLE values for a FLOAT
                     // We take and truncate to f32 as that's the same behavior as *in* MySQL,
+                    #[allow(clippy::cast_possible_truncation)]
                     8 => LittleEndian::read_f64(buf) as f32,
                     other => {
                         // Users may try to decode a DECIMAL as floating point;

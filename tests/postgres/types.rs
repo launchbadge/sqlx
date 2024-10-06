@@ -260,51 +260,49 @@ mod chrono {
     type PgTimeTz = sqlx::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
 
     test_type!(chrono_date<NaiveDate>(Postgres,
-        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
-        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+        "DATE '2001-01-05'" == NaiveDate::from_ymd_opt(2001, 1, 5).unwrap(),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd_opt(2050, 11, 23).unwrap()
     ));
 
     test_type!(chrono_time<NaiveTime>(Postgres,
-        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time<NaiveDateTime>(Postgres,
-        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
     ));
 
     test_type!(chrono_date_time_vec<Vec<NaiveDateTime>>(Postgres,
         "array['2019-01-02 05:10:20']::timestamp[]"
-            == vec![NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)]
+            == vec![NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()]
     ));
 
     test_type!(chrono_date_time_tz_utc<DateTime::<Utc>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100'"
-            == DateTime::<Utc>::from_utc(
-                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
-                Utc,
+            == Utc.from_utc_datetime(
+                &NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_micro_opt(5, 10, 20, 115100).unwrap(),
             )
     ));
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east(60 * 60 * 6 + 1800).ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100)
+            == FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap().ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
         "array['2019-01-02 05:10:20.115100']::timestamptz[]"
             == vec![
-                DateTime::<Utc>::from_utc(
-                    NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
-                    Utc,
+                Utc.from_utc_datetime(
+                    &NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_micro_opt(5, 10, 20, 115100).unwrap(),
                 )
             ]
     ));
 
     test_type!(chrono_time_tz<PgTimeTz>(Postgres,
-        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(0) },
-        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(60 * 60 * 6 + 1800) },
-        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::west(60 * 60 * 5) },
-        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms(5, 10, 20), offset: FixedOffset::east(60 * 60 * 2 )}
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(0).unwrap() },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap() },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro_opt(5, 10, 20, 115100).unwrap(), offset: FixedOffset::west_opt(60 * 60 * 5).unwrap() },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms_opt(5, 10, 20).unwrap(), offset: FixedOffset::east_opt(60 * 60 * 2 ).unwrap() }
     ));
 }
 
@@ -477,6 +475,23 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
+#[cfg(any(postgres_14, postgres_15))]
+test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
+    "cube(2)" == sqlx::postgres::types::PgCube::Point(2.),
+    "cube(2.1)" == sqlx::postgres::types::PgCube::Point(2.1),
+    "cube(2,3)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2., 3.),
+    "cube(2.2,-3.4)" == sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4),
+    "cube(array[2,3])" == sqlx::postgres::types::PgCube::ZeroVolume(vec![2., 3.]),
+    "cube(array[2,3],array[4,5])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.],vec![4.,5.]]),
+    "cube(array[2,3,4],array[4,5,6])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.,4.],vec![4.,5.,6.]]),
+));
+
+#[cfg(any(postgres_14, postgres_15))]
+test_type!(_cube<Vec<sqlx::postgres::types::PgCube>>(Postgres,
+    "array[cube(2),cube(2)]" == vec![sqlx::postgres::types::PgCube::Point(2.), sqlx::postgres::types::PgCube::Point(2.)],
+    "array[cube(2.2,-3.4)]" == vec![sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4)],
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
@@ -569,7 +584,7 @@ test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
 #[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
     "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
-    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
+    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
 ));
 
 // FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
@@ -579,7 +594,7 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
     "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
         vec![
             sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
-            sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
+            sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
 

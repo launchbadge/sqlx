@@ -1,8 +1,6 @@
-use futures::StreamExt;
 use futures::TryStreamExt;
 use sqlx::postgres::PgListener;
 use sqlx::{Executor, PgPool};
-use std::pin;
 use std::pin::pin;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;

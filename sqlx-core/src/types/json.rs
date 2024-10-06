@@ -51,6 +51,35 @@ use crate::types::Type;
 ///   dewey_decimal: sqlx::types::Json<HashMap<String, Book>>
 /// }
 /// ```
+///
+/// If the query macros are used, it is necessary to tell the macro to use
+/// the `Json` adapter by using the type override syntax
+/// ```rust,ignore
+/// # async fn example3() -> sqlx::Result<()> {
+/// # let mut conn: sqlx::PgConnection = unimplemented!();
+/// #[derive(sqlx::FromRow)]
+/// struct Book {
+///     title: String,
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct Author {
+///     name: String,
+///     books: sqlx::types::Json<Book>,
+/// }
+/// // Note the type override in the query string
+/// let authors = sqlx::query_as!(
+///     Author,
+///     r#"
+/// SELECT name, books as "books: Json<Book>"
+/// FROM authors
+///     "#
+/// )
+/// .fetch_all(&mut conn)
+/// .await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
 )]

@@ -14,28 +14,27 @@ use syn::{
 pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
     let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
+        // Newtype structs:
+        // struct Foo(i32);
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
-        }) if unnamed.len() == 1 => {
-            expand_derive_has_sql_type_transparent(input, unnamed.first().unwrap())
+        }) => {
+            if unnamed.len() == 1 {
+                expand_derive_has_sql_type_transparent(input, unnamed.first().unwrap())
+            } else {
+                Err(syn::Error::new_spanned(
+                    input,
+                    "structs with zero or more than one unnamed field are not supported",
+                ))
+            }
         }
-        Data::Enum(DataEnum { variants, .. }) => match attrs.repr {
-            Some(_) => expand_derive_has_sql_type_weak_enum(input, variants),
-            None => expand_derive_has_sql_type_strong_enum(input, variants),
-        },
+        // Record types
+        // struct Foo { foo: i32, bar: String }
         Data::Struct(DataStruct {
             fields: Fields::Named(FieldsNamed { named, .. }),
             ..
         }) => expand_derive_has_sql_type_struct(input, named),
-        Data::Union(_) => Err(syn::Error::new_spanned(input, "unions are not supported")),
-        Data::Struct(DataStruct {
-            fields: Fields::Unnamed(..),
-            ..
-        }) => Err(syn::Error::new_spanned(
-            input,
-            "structs with zero or more than one unnamed field are not supported",
-        )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
             ..
@@ -43,6 +42,14 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
             input,
             "unit structs are not supported",
         )),
+
+        Data::Enum(DataEnum { variants, .. }) => match attrs.repr {
+            // Enums that encode to/from integers (weak enums)
+            Some(_) => expand_derive_has_sql_type_weak_enum(input, variants),
+            // Enums that decode to/from strings (strong enums)
+            None => expand_derive_has_sql_type_strong_enum(input, variants),
+        },
+        Data::Union(_) => Err(syn::Error::new_spanned(input, "unions are not supported")),
     }
 }
 
@@ -127,10 +134,10 @@ fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
-    let attr = check_weak_enum_attributes(input, variants)?;
-    let repr = attr.repr.unwrap();
+    let attrs = check_weak_enum_attributes(input, variants)?;
+    let repr = attrs.repr.unwrap();
     let ident = &input.ident;
-    let ts = quote!(
+    let mut ts = quote!(
         #[automatically_derived]
         impl<DB: ::sqlx::Database> ::sqlx::Type<DB> for #ident
         where
@@ -145,6 +152,17 @@ fn expand_derive_has_sql_type_weak_enum(
             }
         }
     );
+
+    if cfg!(feature = "postgres") && !attrs.no_pg_array {
+        ts.extend(quote!(
+            #[automatically_derived]
+            impl ::sqlx::postgres::PgHasArrayType for #ident  {
+                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    <#repr as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+                }
+            }
+        ));
+    }
 
     Ok(ts)
 }
@@ -165,10 +183,6 @@ fn expand_derive_has_sql_type_strong_enum(
                 fn type_info() -> ::sqlx::mysql::MySqlTypeInfo {
                     ::sqlx::mysql::MySqlTypeInfo::__enum()
                 }
-
-                fn compatible(ty: &::sqlx::mysql::MySqlTypeInfo) -> ::std::primitive::bool {
-                    *ty == ::sqlx::mysql::MySqlTypeInfo::__enum()
-                }
             }
         ));
     }
@@ -184,9 +198,20 @@ fn expand_derive_has_sql_type_strong_enum(
                 }
             }
         ));
+
+        if !attributes.no_pg_array {
+            tts.extend(quote!(
+                #[automatically_derived]
+                impl ::sqlx::postgres::PgHasArrayType for #ident  {
+                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                        ::sqlx::postgres::PgTypeInfo::array_of(#ty_name)
+                    }
+                }
+            ));
+        }
     }
 
-    if cfg!(feature = "sqlite") {
+    if cfg!(feature = "_sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
             impl sqlx::Type<::sqlx::Sqlite> for #ident {
@@ -224,6 +249,17 @@ fn expand_derive_has_sql_type_struct(
                 }
             }
         ));
+
+        if !attributes.no_pg_array {
+            tts.extend(quote!(
+                #[automatically_derived]
+                impl ::sqlx::postgres::PgHasArrayType for #ident  {
+                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                        ::sqlx::postgres::PgTypeInfo::array_of(#ty_name)
+                    }
+                }
+            ));
+        }
     }
 
     Ok(tts)

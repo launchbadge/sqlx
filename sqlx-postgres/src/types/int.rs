@@ -1,4 +1,5 @@
 use byteorder::{BigEndian, ByteOrder};
+use std::num::{NonZeroI16, NonZeroI32, NonZeroI64};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -70,6 +71,8 @@ impl Decode<'_, Postgres> for i8 {
                     return Ok(i8::from_str_radix(text.trim_start_matches('\\'), 8)?);
                 }
 
+                // Wrapping is the whole idea.
+                #[allow(clippy::cast_possible_wrap)]
                 Ok(text.as_bytes()[0] as i8)
             }
         }
@@ -151,5 +154,23 @@ impl Encode<'_, Postgres> for i64 {
 impl Decode<'_, Postgres> for i64 {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         int_decode(value)
+    }
+}
+
+impl PgHasArrayType for NonZeroI16 {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::INT2_ARRAY
+    }
+}
+
+impl PgHasArrayType for NonZeroI32 {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::INT4_ARRAY
+    }
+}
+
+impl PgHasArrayType for NonZeroI64 {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::INT8_ARRAY
     }
 }

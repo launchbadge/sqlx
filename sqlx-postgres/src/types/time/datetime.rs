@@ -37,8 +37,13 @@ impl PgHasArrayType for OffsetDateTime {
 impl Encode<'_, Postgres> for PrimitiveDateTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // TIMESTAMP is encoded as the microseconds since the epoch
-        let us = (*self - PG_EPOCH.midnight()).whole_microseconds() as i64;
-        Encode::<Postgres>::encode(&us, buf)
+        let micros: i64 = (*self - PG_EPOCH.midnight())
+            .whole_microseconds()
+            .try_into()
+            .map_err(|_| {
+                format!("value {self:?} would overflow binary encoding for Postgres TIME")
+            })?;
+        Encode::<Postgres>::encode(micros, buf)
     }
 
     fn size_hint(&self) -> usize {
@@ -69,10 +74,10 @@ impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
                 // This is given for timestamptz for some reason
                 // Postgres already guarantees this to always be UTC
                 if s.contains('+') {
-                    PrimitiveDateTime::parse(&*s, &format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour]"))?
+                    PrimitiveDateTime::parse(&s, &format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour]"))?
                 } else {
                     PrimitiveDateTime::parse(
-                        &*s,
+                        &s,
                         &format_description!(
                             "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
                         ),
@@ -88,7 +93,7 @@ impl Encode<'_, Postgres> for OffsetDateTime {
         let utc = self.to_offset(offset!(UTC));
         let primitive = PrimitiveDateTime::new(utc.date(), utc.time());
 
-        Encode::<Postgres>::encode(&primitive, buf)
+        Encode::<Postgres>::encode(primitive, buf)
     }
 
     fn size_hint(&self) -> usize {

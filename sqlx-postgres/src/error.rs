@@ -3,10 +3,10 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use atoi::atoi;
 use smallvec::alloc::borrow::Cow;
-
+use sqlx_core::bytes::Bytes;
 pub(crate) use sqlx_core::error::*;
 
-use crate::message::{Notice, PgSeverity};
+use crate::message::{BackendMessage, BackendMessageFormat, Notice, PgSeverity};
 
 /// An error returned from the PostgreSQL database.
 pub struct PgDatabaseError(pub(crate) Notice);
@@ -216,6 +216,16 @@ impl DatabaseError for PgDatabaseError {
             error_codes::CHECK_VIOLATION => ErrorKind::CheckViolation,
             _ => ErrorKind::Other,
         }
+    }
+}
+
+// ErrorResponse is the same structure as NoticeResponse but a different format code.
+impl BackendMessage for PgDatabaseError {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::ErrorResponse;
+
+    #[inline(always)]
+    fn decode_body(buf: Bytes) -> std::result::Result<Self, Error> {
+        Ok(Self(Notice::decode_body(buf)?))
     }
 }
 

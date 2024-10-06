@@ -20,6 +20,8 @@
 //! | [`PgLTree`]                           | LTREE                                                |
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
+//! | [`PgCube`]                            | CUBE                                                 |
+//! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
 //! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
@@ -186,6 +188,7 @@ mod bool;
 mod bytes;
 mod citext;
 mod float;
+mod hstore;
 mod int;
 mod interval;
 mod lquery;
@@ -206,6 +209,8 @@ mod time_tz;
 
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
+
+mod cube;
 
 #[cfg(any(feature = "bigdecimal", feature = "rust_decimal"))]
 mod numeric;
@@ -236,6 +241,8 @@ mod bit_vec;
 
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
+pub use cube::PgCube;
+pub use hstore::PgHstore;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;
 pub use lquery::PgLQueryLevel;
@@ -261,7 +268,7 @@ fn array_compatible<E: Type<Postgres> + ?Sized>(ty: &PgTypeInfo) -> bool {
     // we require the declared type to be an _array_ with an
     // element type that is acceptable
     if let PgTypeKind::Array(element) = &ty.kind() {
-        return E::compatible(&element);
+        return E::compatible(element);
     }
 
     false

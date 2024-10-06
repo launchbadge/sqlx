@@ -53,9 +53,9 @@ pub use ssl_mode::MySqlSslMode;
 ///
 /// // Change the log verbosity level for queries.
 /// // Information about SQL queries is logged at `DEBUG` level by default.
-/// opts.log_statements(log::LevelFilter::Trace);
+/// opts = opts.log_statements(log::LevelFilter::Trace);
 ///
-/// let pool = MySqlPool::connect_with(&opts).await?;
+/// let pool = MySqlPool::connect_with(opts).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -77,7 +77,7 @@ pub struct MySqlConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) pipes_as_concat: bool,
     pub(crate) enable_cleartext_plugin: bool,
-    pub(crate) no_engine_subsitution: bool,
+    pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
 }
@@ -108,7 +108,7 @@ impl MySqlConnectOptions {
             log_settings: Default::default(),
             pipes_as_concat: true,
             enable_cleartext_plugin: false,
-            no_engine_subsitution: true,
+            no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
         }
@@ -119,7 +119,7 @@ impl MySqlConnectOptions {
     /// The default behavior when the host is not specified,
     /// is to connect to localhost.
     pub fn host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+        host.clone_into(&mut self.host);
         self
     }
 
@@ -142,7 +142,7 @@ impl MySqlConnectOptions {
 
     /// Sets the username to connect as.
     pub fn username(mut self, username: &str) -> Self {
-        self.username = username.to_owned();
+        username.clone_into(&mut self.username);
         self
     }
 
@@ -302,7 +302,7 @@ impl MySqlConnectOptions {
     /// The default character set is `utf8mb4`. This is supported from MySQL 5.5.3.
     /// If you need to connect to an older version, we recommend you to change this to `utf8`.
     pub fn charset(mut self, charset: &str) -> Self {
-        self.charset = charset.to_owned();
+        charset.clone_into(&mut self.charset);
         self
     }
 
@@ -340,6 +340,11 @@ impl MySqlConnectOptions {
         self
     }
 
+    #[deprecated = "renamed to .no_engine_substitution()"]
+    pub fn no_engine_subsitution(self, flag_val: bool) -> Self {
+        self.no_engine_substitution(flag_val)
+    }
+
     /// Flag that enables or disables the `NO_ENGINE_SUBSTITUTION` sql_mode setting after
     /// connection.
     ///
@@ -349,9 +354,9 @@ impl MySqlConnectOptions {
     /// By default, this is `true` (`NO_ENGINE_SUBSTITUTION` is passed, forbidding engine
     /// substitution).
     ///
-    /// https://mariadb.com/kb/en/sql-mode/
-    pub fn no_engine_subsitution(mut self, flag_val: bool) -> Self {
-        self.no_engine_subsitution = flag_val;
+    /// <https://mariadb.com/kb/en/sql-mode/>
+    pub fn no_engine_substitution(mut self, flag_val: bool) -> Self {
+        self.no_engine_substitution = flag_val;
         self
     }
 

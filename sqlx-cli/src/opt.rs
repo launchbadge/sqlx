@@ -31,6 +31,10 @@ pub enum Command {
         #[clap(long)]
         check: bool,
 
+        /// Prepare query macros in dependencies that exist outside the current crate or workspace.
+        #[clap(long)]
+        all: bool,
+
         /// Generate a single workspace-level `.sqlx` folder.
         ///
         /// This option is intended for workspaces where multiple crates use SQLx. If there is only
@@ -254,7 +258,7 @@ pub struct ConnectOpts {
     /// However, if your application sets a `journal_mode` on `SqliteConnectOptions` to something
     /// other than `Wal`, then it will have to take the database file out of WAL mode on connecting,
     /// which requires an exclusive lock and may return a `database is locked` (`SQLITE_BUSY`) error.
-    #[cfg(feature = "sqlite")]
+    #[cfg(feature = "_sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
 }
@@ -265,7 +269,7 @@ impl ConnectOpts {
     pub fn required_db_url(&self) -> anyhow::Result<&str> {
         self.database_url.as_deref().ok_or_else(
             || anyhow::anyhow!(
-                "the `--database-url` option the or `DATABASE_URL` environment variable must be provided"
+                "the `--database-url` option or the `DATABASE_URL` environment variable must be provided"
             )
         )
     }

@@ -1,6 +1,13 @@
+// Annoying how deprecation warnings trigger in the same module as the deprecated item.
+#![allow(deprecated)]
+// Cargo features are broken in this file.
+// `AnyKind` may return at some point but it won't be a simple enum.
+#![allow(unexpected_cfgs)]
+
 use crate::error::Error;
 use std::str::FromStr;
 
+#[deprecated = "not used or returned by any API"]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AnyKind {
     #[cfg(feature = "postgres")]
@@ -9,7 +16,7 @@ pub enum AnyKind {
     #[cfg(feature = "mysql")]
     MySql,
 
-    #[cfg(feature = "sqlite")]
+    #[cfg(feature = "_sqlite")]
     Sqlite,
 
     #[cfg(feature = "mssql")]
@@ -41,12 +48,12 @@ impl FromStr for AnyKind {
                 Err(Error::Configuration("database URL has the scheme of a MySQL database but the `mysql` feature is not enabled".into()))
             }
 
-            #[cfg(feature = "sqlite")]
+            #[cfg(feature = "_sqlite")]
             _ if url.starts_with("sqlite:") => {
                 Ok(AnyKind::Sqlite)
             }
 
-            #[cfg(not(feature = "sqlite"))]
+            #[cfg(not(feature = "_sqlite"))]
             _ if url.starts_with("sqlite:") => {
                 Err(Error::Configuration("database URL has the scheme of a SQLite database but the `sqlite` feature is not enabled".into()))
             }

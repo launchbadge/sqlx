@@ -13,17 +13,22 @@ impl MySqlBufMutExt for Vec<u8> {
         // https://dev.mysql.com/doc/internals/en/integer.html
         // https://mariadb.com/kb/en/library/protocol-data-types/#length-encoded-integers
 
-        if v < 251 {
-            self.push(v as u8);
-        } else if v < 0x1_00_00 {
-            self.push(0xfc);
-            self.extend(&(v as u16).to_le_bytes());
-        } else if v < 0x1_00_00_00 {
-            self.push(0xfd);
-            self.extend(&(v as u32).to_le_bytes()[..3]);
-        } else {
-            self.push(0xfe);
-            self.extend(&v.to_le_bytes());
+        let encoded_le = v.to_le_bytes();
+
+        match v {
+            0..=250 => self.push(encoded_le[0]),
+            251..=0xFF_FF => {
+                self.push(0xfc);
+                self.extend_from_slice(&encoded_le[..2]);
+            }
+            0x1_00_00..=0xFF_FF_FF => {
+                self.push(0xfd);
+                self.extend_from_slice(&encoded_le[..3]);
+            }
+            _ => {
+                self.push(0xfe);
+                self.extend_from_slice(&encoded_le);
+            }
         }
     }
 

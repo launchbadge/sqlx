@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Decode;
+use crate::io::ProtocolDecode;
 use crate::protocol::response::Status;
 use crate::protocol::Capabilities;
 
@@ -13,11 +13,12 @@ use crate::protocol::Capabilities;
 /// prior MySQL versions.
 #[derive(Debug)]
 pub struct EofPacket {
+    #[allow(dead_code)]
     pub warnings: u16,
     pub status: Status,
 }
 
-impl Decode<'_, Capabilities> for EofPacket {
+impl ProtocolDecode<'_, Capabilities> for EofPacket {
     fn decode_with(mut buf: Bytes, _: Capabilities) -> Result<Self, Error> {
         let header = buf.get_u8();
         if header != 0xfe {

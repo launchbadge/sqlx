@@ -1,9 +1,9 @@
 #![allow(clippy::rc_buffer)]
 
+use std::cmp;
 use std::os::raw::c_char;
 use std::ptr::{null, null_mut, NonNull};
 use std::sync::Arc;
-use std::{cmp, i32};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
@@ -56,7 +56,7 @@ impl VirtualStatement {
     pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
         query = query.trim();
 
-        if query.len() > i32::max_value() as usize {
+        if query.len() > i32::MAX as usize {
             return Err(err_protocol!(
                 "query string must be smaller than {} bytes",
                 i32::MAX
@@ -147,12 +147,15 @@ fn prepare(
 ) -> Result<Option<StatementHandle>, Error> {
     let mut flags = 0;
 
+    // For some reason, when building with the `sqlcipher` feature enabled
+    // `SQLITE_PREPARE_PERSISTENT` ends up being `i32` instead of `u32`. Crazy, right?
+    #[allow(trivial_casts, clippy::unnecessary_cast)]
     if persistent {
         // SQLITE_PREPARE_PERSISTENT
         //  The SQLITE_PREPARE_PERSISTENT flag is a hint to the query
         //  planner that the prepared statement will be retained for a long time
         //  and probably reused many times.
-        flags |= SQLITE_PREPARE_PERSISTENT;
+        flags |= SQLITE_PREPARE_PERSISTENT as u32;
     }
 
     while !query.is_empty() {
@@ -160,7 +163,13 @@ fn prepare(
         let mut tail: *const c_char = null();
 
         let query_ptr = query.as_ptr() as *const c_char;
-        let query_len = query.len() as i32;
+        let query_len = i32::try_from(query.len()).map_err(|_| {
+            err_protocol!(
+                "query string too large for SQLite3 API ({} bytes); \
+                 try breaking it into smaller chunks (< 2 GiB), executed separately",
+                query.len()
+            )
+        })?;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
         let status = unsafe {
@@ -168,7 +177,7 @@ fn prepare(
                 conn,
                 query_ptr,
                 query_len,
-                flags as u32,
+                flags,
                 &mut statement_handle,
                 &mut tail,
             )

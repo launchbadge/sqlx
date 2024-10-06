@@ -10,7 +10,6 @@ use crate::protocol::text::{ColumnDefinition, ColumnFlags, ColumnType};
 pub struct MySqlTypeInfo {
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
-    pub(crate) char_set: u16,
 
     // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
     #[cfg_attr(feature = "offline", serde(default))]
@@ -22,17 +21,23 @@ impl MySqlTypeInfo {
         Self {
             r#type: ty,
             flags: ColumnFlags::BINARY,
-            char_set: 63,
             max_size: None,
         }
     }
 
     #[doc(hidden)]
     pub const fn __enum() -> Self {
+        // Newer versions of MySQL seem to expect that a parameter binding of `MYSQL_TYPE_ENUM`
+        // means that the value is encoded as an integer.
+        //
+        // For "strong" enums inputted as strings, we need to specify this type instead
+        // for wider compatibility. This works on all covered versions of MySQL and MariaDB.
+        //
+        // Annoyingly, MySQL's developer documentation doesn't really explain this anywhere;
+        // this had to be determined experimentally.
         Self {
-            r#type: ColumnType::Enum,
-            flags: ColumnFlags::BINARY,
-            char_set: 63,
+            r#type: ColumnType::String,
+            flags: ColumnFlags::ENUM,
             max_size: None,
         }
     }
@@ -55,7 +60,6 @@ impl MySqlTypeInfo {
         Self {
             r#type: column.r#type,
             flags: column.flags,
-            char_set: column.char_set,
             max_size: Some(column.max_size),
         }
     }
@@ -73,7 +77,7 @@ impl TypeInfo for MySqlTypeInfo {
     }
 
     fn name(&self) -> &str {
-        self.r#type.name(self.char_set, self.flags, self.max_size)
+        self.r#type.name(self.flags, self.max_size)
     }
 }
 
@@ -102,9 +106,8 @@ impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
             | ColumnType::String
             | ColumnType::VarString
             | ColumnType::Enum => {
-                return self.char_set == other.char_set;
+                return self.flags == other.flags;
             }
-
             _ => {}
         }
 

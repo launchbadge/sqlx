@@ -137,7 +137,7 @@ impl<'r> PgRecordDecoder<'r> {
 
                 self.ind += 1;
 
-                T::decode(PgValueRef::get(&mut self.buf, self.fmt, element_type))
+                T::decode(PgValueRef::get(&mut self.buf, self.fmt, element_type)?)
             }
 
             PgValueFormat::Text => {

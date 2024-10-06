@@ -46,6 +46,24 @@ pub trait TransactionManager {
 /// executed after it was established to be rolled back, restoring the transaction state to
 /// what it was at the time of the savepoint.
 ///
+/// A transaction can be used as an [`Executor`] when performing queries:
+/// ```rust,no_run
+/// # use sqlx_core::acquire::Acquire;
+/// # async fn example() -> sqlx::Result<()> {
+/// # let id = 1;
+/// # let mut conn: sqlx::PgConnection = unimplemented!();
+/// let mut tx = conn.begin().await?;
+///
+/// let result = sqlx::query("DELETE FROM \"testcases\" WHERE id = $1")
+///     .bind(id)
+///     .execute(&mut *tx)
+///     .await?
+///     .rows_affected();
+///
+/// tx.commit().await
+/// # }
+/// ```
+/// [`Executor`]: crate::executor::Executor
 /// [`Connection::begin`]: crate::connection::Connection::begin()
 /// [`Pool::begin`]: crate::pool::Pool::begin()
 /// [`commit`]: Self::commit()

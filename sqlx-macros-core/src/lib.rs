@@ -47,7 +47,7 @@ pub const FOSS_DRIVERS: &[QueryDriver] = &[
     QueryDriver::new::<sqlx_mysql::MySql>(),
     #[cfg(feature = "postgres")]
     QueryDriver::new::<sqlx_postgres::Postgres>(),
-    #[cfg(feature = "sqlite")]
+    #[cfg(feature = "_sqlite")]
     QueryDriver::new::<sqlx_sqlite::Sqlite>(),
 ];
 
@@ -69,11 +69,13 @@ where
                 .expect("failed to start Tokio runtime")
         });
 
-        return TOKIO_RT.block_on(f);
+        TOKIO_RT.block_on(f)
     }
 
     #[cfg(all(feature = "_rt-async-std", not(feature = "tokio")))]
-    return async_std::task::block_on(f);
+    {
+        async_std::task::block_on(f)
+    }
 
     #[cfg(not(any(feature = "_rt-async-std", feature = "tokio")))]
     sqlx_core::rt::missing_rt(f)

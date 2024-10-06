@@ -1,7 +1,7 @@
 //! **SEE DOCUMENTATION BEFORE USE**. Generic database driver with the specific driver selected at runtime.
 //!
 //! The underlying database drivers are chosen at runtime from the list set via
-//! [`install_drivers`][self::driver::install_drivers). Any use of `AnyConnection` or `AnyPool`
+//! [`install_drivers`][self::driver::install_drivers]. Any use of `AnyConnection` or `AnyPool`
 //! without this will panic.
 use crate::executor::Executor;
 
@@ -33,6 +33,7 @@ pub use connection::AnyConnection;
 use crate::encode::Encode;
 pub use connection::AnyConnectionBackend;
 pub use database::Any;
+#[allow(deprecated)]
 pub use kind::AnyKind;
 pub use options::AnyConnectOptions;
 pub use query_result::AnyQueryResult;
@@ -42,6 +43,7 @@ pub use transaction::AnyTransactionManager;
 pub use type_info::{AnyTypeInfo, AnyTypeInfoKind};
 pub use value::{AnyValue, AnyValueRef};
 
+use crate::types::Type;
 #[doc(hidden)]
 pub use value::AnyValueKind;
 
@@ -65,7 +67,7 @@ impl_column_index_for_statement!(AnyStatement);
 // required because some databases have a different handling of NULL
 impl<'q, T> Encode<'q, Any> for Option<T>
 where
-    T: Encode<'q, Any> + 'q,
+    T: Encode<'q, Any> + 'q + Type<Any>,
 {
     fn encode_by_ref(
         &self,
@@ -74,7 +76,7 @@ where
         if let Some(value) = self {
             value.encode_by_ref(buf)
         } else {
-            buf.0.push(AnyValueKind::Null);
+            buf.0.push(AnyValueKind::Null(T::type_info().kind));
             Ok(crate::encode::IsNull::Yes)
         }
     }

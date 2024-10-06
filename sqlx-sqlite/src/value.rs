@@ -120,7 +120,13 @@ impl SqliteValue {
     }
 
     fn blob(&self) -> &[u8] {
-        let len = unsafe { sqlite3_value_bytes(self.handle.0.as_ptr()) } as usize;
+        let len = unsafe { sqlite3_value_bytes(self.handle.0.as_ptr()) };
+
+        // This likely means UB in SQLite itself or our usage of it;
+        // signed integer overflow is UB in the C standard.
+        let len = usize::try_from(len).unwrap_or_else(|_| {
+            panic!("sqlite3_value_bytes() returned value out of range for usize: {len}")
+        });
 
         if len == 0 {
             // empty blobs are NULL so just return an empty slice

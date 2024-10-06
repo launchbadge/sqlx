@@ -35,11 +35,11 @@ impl<Tz: TimeZone> PgHasArrayType for DateTime<Tz> {
 impl Encode<'_, Postgres> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // TIMESTAMP is encoded as the microseconds since the epoch
-        let us = (*self - postgres_epoch_datetime())
+        let micros = (*self - postgres_epoch_datetime())
             .num_microseconds()
             .ok_or_else(|| format!("NaiveDateTime out of range for Postgres: {self:?}"))?;
 
-        Encode::<Postgres>::encode(&us, buf)
+        Encode::<Postgres>::encode(micros, buf)
     }
 
     fn size_hint(&self) -> usize {
@@ -86,22 +86,41 @@ impl<Tz: TimeZone> Encode<'_, Postgres> for DateTime<Tz> {
 
 impl<'r> Decode<'r, Postgres> for DateTime<Local> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Local.from_utc_datetime(&naive))
+        let fixed = <DateTime<FixedOffset> as Decode<Postgres>>::decode(value)?;
+        Ok(Local.from_utc_datetime(&fixed.naive_utc()))
     }
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<Utc> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Utc.from_utc_datetime(&naive))
+        let fixed = <DateTime<FixedOffset> as Decode<Postgres>>::decode(value)?;
+        Ok(Utc.from_utc_datetime(&fixed.naive_utc()))
     }
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<FixedOffset> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Utc.fix().from_utc_datetime(&naive))
+        Ok(match value.format() {
+            PgValueFormat::Binary => {
+                let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
+                Utc.fix().from_utc_datetime(&naive)
+            }
+
+            PgValueFormat::Text => {
+                let s = value.as_str()?;
+                DateTime::parse_from_str(
+                    s,
+                    if s.contains('+') || s.contains('-') {
+                        // Contains a time-zone specifier
+                        // This is given for timestamptz for some reason
+                        // Postgres already guarantees this to always be UTC
+                        "%Y-%m-%d %H:%M:%S%.f%#z"
+                    } else {
+                        "%Y-%m-%d %H:%M:%S%.f"
+                    },
+                )?
+            }
+        })
     }
 }
 

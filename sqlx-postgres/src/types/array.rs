@@ -156,11 +156,10 @@ where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let type_info = if self.len() < 1 {
-            T::type_info()
-        } else {
-            self[0].produces().unwrap_or_else(T::type_info)
-        };
+        let type_info = self
+            .first()
+            .and_then(Encode::produces)
+            .unwrap_or_else(T::type_info);
 
         buf.extend(&1_i32.to_be_bytes()); // number of dimensions
         buf.extend(&0_i32.to_be_bytes()); // flags
@@ -168,13 +167,21 @@ where
         // element type
         match type_info.0 {
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
+            PgType::DeclareArrayOf(array) => buf.patch_array_type(array),
 
             ty => {
                 buf.extend(&ty.oid().0.to_be_bytes());
             }
         }
 
-        buf.extend(&(self.len() as i32).to_be_bytes()); // len
+        let array_len = i32::try_from(self.len()).map_err(|_| {
+            format!(
+                "encoded array length is too large for Postgres: {}",
+                self.len()
+            )
+        })?;
+
+        buf.extend(array_len.to_be_bytes()); // len
         buf.extend(&1_i32.to_be_bytes()); // lower bound
 
         for element in self.iter() {
@@ -242,6 +249,9 @@ where
                 // length of the array axis
                 let len = buf.get_i32();
 
+                let len = usize::try_from(len)
+                    .map_err(|_| format!("overflow converting array len ({len}) to usize"))?;
+
                 // the lower bound, we only support arrays starting from "1"
                 let lower = buf.get_i32();
 
@@ -249,14 +259,12 @@ where
                     return Err(format!("encountered an array with a lower bound of {lower} in the first dimension; only arrays starting at one are supported").into());
                 }
 
-                let mut elements = Vec::with_capacity(len as usize);
+                let mut elements = Vec::with_capacity(len);
 
                 for _ in 0..len {
-                    elements.push(T::decode(PgValueRef::get(
-                        &mut buf,
-                        format,
-                        element_type_info.clone(),
-                    ))?)
+                    let value_ref = PgValueRef::get(&mut buf, format, element_type_info.clone())?;
+
+                    elements.push(T::decode(value_ref)?);
                 }
 
                 Ok(elements)

@@ -41,13 +41,19 @@ use sqlx_core::IndexMap;
 /// ```rust,no_run
 /// # async fn example() -> sqlx::Result<()> {
 /// use sqlx::ConnectOptions;
-/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool};
 /// use std::str::FromStr;
 ///
-/// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
+/// let opts = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
-///     .read_only(true)
-///     .connect().await?;
+///     .read_only(true);
+///
+/// // use in a pool
+/// let pool = SqlitePool::connect_with(opts).await?;
+///
+/// // or connect directly
+/// # let opts = SqliteConnectOptions::from_str("sqlite://data.db")?;
+/// let conn = opts.connect().await?;
 /// #
 /// # Ok(())
 /// # }
@@ -66,7 +72,7 @@ pub struct SqliteConnectOptions {
     pub(crate) vfs: Option<Cow<'static, str>>,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
-    /// Extensions are specified as a pair of <Extension Name : Optional Entry Point>, the majority
+    /// Extensions are specified as a pair of \<Extension Name : Optional Entry Point>, the majority
     /// of SQLite extensions will use the default entry points specified in the docs, these should
     /// be added to the map with a `None` value.
     /// <https://www.sqlite.org/loadext.html#loading_an_extension>
@@ -212,7 +218,7 @@ impl SqliteConnectOptions {
     /// Sets the name of the database file.
     ///
     /// This is a low-level API, and SQLx will apply no special treatment for `":memory:"` as an
-    /// in-memory database using this method. Using [SqliteConnectOptions::from_str] may be
+    /// in-memory database using this method. Using [`SqliteConnectOptions::from_str()`][SqliteConnectOptions#from_str] may be
     /// preferred for simple use cases.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = Cow::Owned(filename.as_ref().to_owned());

@@ -350,7 +350,7 @@ where
 
                 if !flags.contains(RangeFlags::LB_INF) {
                     let value =
-                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone()))?;
+                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone())?)?;
 
                     start = if flags.contains(RangeFlags::LB_INC) {
                         Bound::Included(value)
@@ -361,7 +361,7 @@ where
 
                 if !flags.contains(RangeFlags::UB_INF) {
                     let value =
-                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone()))?;
+                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone())?)?;
 
                     end = if flags.contains(RangeFlags::UB_INC) {
                         Bound::Included(value)
@@ -445,7 +445,7 @@ where
                     }
 
                     count += 1;
-                    if !(element.is_empty() && !quoted) {
+                    if !element.is_empty() || quoted {
                         let value = Some(T::decode(PgValueRef {
                             type_info: T::type_info(),
                             format: PgValueFormat::Text,
@@ -515,7 +515,7 @@ fn range_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
     // we require the declared type to be a _range_ with an
     // element type that is acceptable
     if let PgTypeKind::Range(element) = &ty.kind() {
-        return E::compatible(&element);
+        return E::compatible(element);
     }
 
     false

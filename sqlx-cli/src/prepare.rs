@@ -14,6 +14,7 @@ use crate::opt::ConnectOpts;
 
 pub struct PrepareCtx {
     pub workspace: bool,
+    pub all: bool,
     pub cargo: OsString,
     pub cargo_args: Vec<String>,
     pub metadata: Metadata,
@@ -33,6 +34,7 @@ impl PrepareCtx {
 
 pub async fn run(
     check: bool,
+    all: bool,
     workspace: bool,
     connect_opts: ConnectOpts,
     cargo_args: Vec<String>,
@@ -49,6 +51,7 @@ hint: This command only works in the manifest directory of a Cargo package or wo
     let metadata: Metadata = Metadata::from_current_directory(&cargo)?;
     let ctx = PrepareCtx {
         workspace,
+        all,
         cargo,
         cargo_args,
         metadata,
@@ -166,7 +169,7 @@ fn run_prepare_step(ctx: &PrepareCtx, cache_dir: &Path) -> anyhow::Result<()> {
 
     // Try only triggering a recompile on crates that use `sqlx-macros` falling back to a full
     // clean on error
-    setup_minimal_project_recompile(&ctx.cargo, &ctx.metadata, ctx.workspace)?;
+    setup_minimal_project_recompile(&ctx.cargo, &ctx.metadata, ctx.all, ctx.workspace)?;
 
     // Compile the queries.
     let check_status = {
@@ -216,10 +219,11 @@ struct ProjectRecompileAction {
 fn setup_minimal_project_recompile(
     cargo: impl AsRef<OsStr>,
     metadata: &Metadata,
+    all: bool,
     workspace: bool,
 ) -> anyhow::Result<()> {
     let recompile_action: ProjectRecompileAction = if workspace {
-        minimal_project_recompile_action(metadata)
+        minimal_project_recompile_action(metadata, all)
     } else {
         // Only touch the current crate.
         ProjectRecompileAction {
@@ -275,7 +279,7 @@ fn minimal_project_clean(
     Ok(())
 }
 
-fn minimal_project_recompile_action(metadata: &Metadata) -> ProjectRecompileAction {
+fn minimal_project_recompile_action(metadata: &Metadata, all: bool) -> ProjectRecompileAction {
     // Get all the packages that depend on `sqlx-macros`
     let mut sqlx_macros_dependents = BTreeSet::new();
     let sqlx_macros_ids: BTreeSet<_> = metadata
@@ -300,8 +304,7 @@ fn minimal_project_recompile_action(metadata: &Metadata) -> ProjectRecompileActi
         }
     }
 
-    // In-workspace dependents have their source file's mtime updated. Out-of-workspace get
-    // `cargo clean -p <PKGID>`ed
+    // In-workspace dependents have their source file's mtime updated.
     let files_to_touch: Vec<_> = in_workspace_dependents
         .iter()
         .filter_map(|id| {
@@ -311,14 +314,22 @@ fn minimal_project_recompile_action(metadata: &Metadata) -> ProjectRecompileActi
         })
         .flatten()
         .collect();
-    let packages_to_clean: Vec<_> = out_of_workspace_dependents
-        .iter()
-        .filter_map(|id| {
-            metadata
-                .package(id)
-                .map(|package| package.name().to_owned())
-        })
-        .collect();
+
+    // Out-of-workspace get `cargo clean -p <PKGID>`ed, only if --all is set.
+    let packages_to_clean: Vec<_> = if all {
+        out_of_workspace_dependents
+            .iter()
+            .filter_map(|id| {
+                metadata
+                    .package(id)
+                    .map(|package| package.name().to_owned())
+            })
+            // Do not clean sqlx, it depends on sqlx-macros but has no queries to prepare itself.
+            .filter(|name| name != "sqlx")
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     ProjectRecompileAction {
         clean_packages: packages_to_clean,
@@ -366,11 +377,11 @@ mod tests {
         let sample_metadata = std::fs::read_to_string(sample_metadata_path)?;
         let metadata: Metadata = sample_metadata.parse()?;
 
-        let action = minimal_project_recompile_action(&metadata);
+        let action = minimal_project_recompile_action(&metadata, false);
         assert_eq!(
             action,
             ProjectRecompileAction {
-                clean_packages: vec!["sqlx".into()],
+                clean_packages: vec![],
                 touch_paths: vec![
                     "/home/user/problematic/workspace/b_in_workspace_lib/src/lib.rs".into(),
                     "/home/user/problematic/workspace/c_in_workspace_bin/src/main.rs".into(),

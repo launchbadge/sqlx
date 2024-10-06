@@ -1,3 +1,11 @@
+// Bad casts in this module SHOULD NOT result in a SQL injection
+// https://github.com/launchbadge/sqlx/issues/3440
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)]
+
 use crate::connection::intmap::IntMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -45,9 +53,9 @@ pub struct QueryPlanLogger<'q, R: Debug + 'static, S: Debug + DebugDiff + 'stati
 fn dot_escape_string(value: impl AsRef<str>) -> String {
     value
         .as_ref()
-        .replace("\\", "\\\\")
-        .replace("\"", "'")
-        .replace("\n", "\\n")
+        .replace('\\', r#"\\"#)
+        .replace('"', "'")
+        .replace('\n', r#"\n"#)
         .to_string()
 }
 
@@ -76,7 +84,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
         let mut instruction_uses: IntMap<Vec<BranchParent>> = Default::default();
         for (k, state) in all_states.iter() {
             let entry = instruction_uses.get_mut_or_default(&(state.program_i as i64));
-            entry.push(k.clone());
+            entry.push(*k);
         }
 
         let mut branch_children: std::collections::HashMap<BranchParent, Vec<BranchParent>> =
@@ -127,27 +135,27 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                             state_list
                                 .entry(state_diff)
                                 .or_default()
-                                .push((curr_ref.clone(), Some(next_ref)));
+                                .push((*curr_ref, Some(next_ref)));
                         } else {
                             state_list
                                 .entry(Default::default())
                                 .or_default()
-                                .push((curr_ref.clone(), None));
+                                .push((*curr_ref, None));
                         };
 
                         if let Some(children) = branch_children.get(curr_ref) {
                             for next_ref in children {
-                                if let Some(next_state) = all_states.get(&next_ref) {
+                                if let Some(next_state) = all_states.get(next_ref) {
                                     let state_diff = next_state.state.diff(&curr_state.state);
 
                                     if !state_diff.is_empty() {
-                                        branched_with_state.insert(next_ref.clone());
+                                        branched_with_state.insert(*next_ref);
                                     }
 
                                     state_list
                                         .entry(state_diff)
                                         .or_default()
-                                        .push((curr_ref.clone(), Some(next_ref.clone())));
+                                        .push((*curr_ref, Some(*next_ref)));
                                 }
                             }
                         };
@@ -176,7 +184,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
                 for (curr_ref, next_ref) in ref_list {
                     if let Some(next_ref) = next_ref {
                         let next_program_i = all_states
-                            .get(&next_ref)
+                            .get(next_ref)
                             .map(|s| s.program_i.to_string())
                             .unwrap_or_default();
 
@@ -258,7 +266,7 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
             let mut instruction_list: Vec<(BranchParent, &InstructionHistory<S>)> = Vec::new();
             if let Some(parent) = self.branch_origins.get(&branch_id) {
                 if let Some(parent_state) = all_states.get(parent) {
-                    instruction_list.push((parent.clone(), parent_state));
+                    instruction_list.push((*parent, parent_state));
                 }
             }
             if let Some(instructions) = self.branch_operations.get(&branch_id) {
@@ -278,11 +286,11 @@ impl<R: Debug, S: Debug + DebugDiff, P: Debug> core::fmt::Display for QueryPlanL
             if let Some((cur_ref, _)) = instructions_iter.next() {
                 let mut prev_ref = cur_ref;
 
-                while let Some((cur_ref, _)) = instructions_iter.next() {
+                for (cur_ref, _) in instructions_iter {
                     if branched_with_state.contains(&cur_ref) {
-                        write!(
+                        writeln!(
                             f,
-                            "\"b{}p{}\" -> \"b{}p{}_b{}p{}\" -> \"b{}p{}\"\n",
+                            "\"b{}p{}\" -> \"b{}p{}_b{}p{}\" -> \"b{}p{}\"",
                             prev_ref.id,
                             prev_ref.idx,
                             prev_ref.id,
@@ -360,7 +368,7 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
             return;
         }
         let branch: BranchParent = BranchParent::from(state);
-        self.branch_origins.insert(branch.id, parent.clone());
+        self.branch_origins.insert(branch.id, *parent);
     }
 
     pub fn add_operation<I: Copy>(&mut self, program_i: usize, state: I)
@@ -402,17 +410,19 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
             return;
         }
 
-        let mut summary = parse_query_summary(&self.sql);
+        let mut summary = parse_query_summary(self.sql);
 
         let sql = if summary != self.sql {
             summary.push_str(" …");
             format!(
                 "\n\n{}\n",
-                sqlformat::format(
-                    &self.sql,
-                    &sqlformat::QueryParams::None,
-                    sqlformat::FormatOptions::default()
-                )
+                self.sql /*
+                         sqlformat::format(
+                             self.sql,
+                             &sqlformat::QueryParams::None,
+                             sqlformat::FormatOptions::default()
+                         )
+                         */
             )
         } else {
             String::new()

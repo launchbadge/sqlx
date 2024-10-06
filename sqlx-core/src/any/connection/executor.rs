@@ -11,34 +11,36 @@ use std::future;
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;
 
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q: 'e, E>(
         self,
         mut query: E,
     ) -> BoxStream<'e, Result<Either<AnyQueryResult, AnyRow>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Any>,
+        E: 'q + Execute<'q, Any>,
     {
         let arguments = match query.take_arguments().map_err(Error::Encode) {
             Ok(arguments) => arguments,
             Err(error) => return stream::once(future::ready(Err(error))).boxed(),
         };
-        self.backend.fetch_many(query.sql(), arguments)
+        self.backend
+            .fetch_many(query.sql(), query.persistent(), arguments)
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+    fn fetch_optional<'e, 'q: 'e, E>(
         self,
         mut query: E,
     ) -> BoxFuture<'e, Result<Option<AnyRow>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         let arguments = match query.take_arguments().map_err(Error::Encode) {
             Ok(arguments) => arguments,
             Err(error) => return future::ready(Err(error)).boxed(),
         };
-        self.backend.fetch_optional(query.sql(), arguments)
+        self.backend
+            .fetch_optional(query.sql(), query.persistent(), arguments)
     }
 
     fn prepare_with<'e, 'q: 'e>(

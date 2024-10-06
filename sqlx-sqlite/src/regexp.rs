@@ -68,16 +68,12 @@ unsafe extern "C" fn sqlite3_regexp_func(
     }
 
     // arg0: Regex
-    let regex = if let Some(regex) = get_regex_from_arg(ctx, *args.offset(0), 0) {
-        regex
-    } else {
+    let Some(regex) = get_regex_from_arg(ctx, *args.offset(0), 0) else {
         return;
     };
 
     // arg1: value
-    let value = if let Some(text) = get_text_from_arg(ctx, *args.offset(1)) {
-        text
-    } else {
+    let Some(value) = get_text_from_arg(ctx, *args.offset(1)) else {
         return;
     };
 
@@ -174,7 +170,7 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::{ConnectOptions, Connection, Row};
+    use sqlx::{ConnectOptions, Row};
     use std::str::FromStr;
 
     async fn test_db() -> crate::SqliteConnection {

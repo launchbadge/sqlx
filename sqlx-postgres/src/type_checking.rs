@@ -30,6 +30,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgLQuery,
 
+        sqlx::postgres::types::PgCube,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
@@ -81,6 +83,7 @@ impl_type_checking!(
         #[cfg(feature = "bit-vec")]
         sqlx::types::BitVec,
 
+        sqlx::postgres::types::PgHstore,
         // Arrays
 
         Vec<bool> | &[bool],
@@ -136,6 +139,8 @@ impl_type_checking!(
 
         #[cfg(feature = "json")]
         Vec<sqlx::types::JsonValue> | &[sqlx::types::JsonValue],
+
+        Vec<sqlx::postgres::types::PgHstore> | &[sqlx::postgres::types::PgHstore],
 
         // Ranges
 

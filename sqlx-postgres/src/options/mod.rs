@@ -82,7 +82,8 @@ mod ssl_mode;
 /// // Information about SQL queries is logged at `DEBUG` level by default.
 /// opts = opts.log_statements(log::LevelFilter::Trace);
 ///
-/// let pool = PgPool::connect_with(&opts).await?;
+/// let pool = PgPool::connect_with(opts).await?;
+/// # Ok(())
 /// # }
 /// ```
 #[derive(Debug, Clone)]
@@ -201,7 +202,7 @@ impl PgConnectOptions {
     ///     .host("localhost");
     /// ```
     pub fn host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+        host.clone_into(&mut self.host);
         self
     }
 
@@ -243,7 +244,7 @@ impl PgConnectOptions {
     ///     .username("postgres");
     /// ```
     pub fn username(mut self, username: &str) -> Self {
-        self.username = username.to_owned();
+        username.clone_into(&mut self.username);
         self
     }
 

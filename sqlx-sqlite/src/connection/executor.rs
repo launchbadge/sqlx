@@ -13,13 +13,15 @@ use std::future;
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
 
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q, E>(
         self,
         mut query: E,
     ) -> BoxStream<'e, Result<Either<SqliteQueryResult, SqliteRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         let sql = query.sql();
         let arguments = match query.take_arguments().map_err(Error::Encode) {
@@ -30,19 +32,21 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
         Box::pin(
             self.worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size, persistent, None)
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream(),
         )
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+    fn fetch_optional<'e, 'q, E>(
         self,
         mut query: E,
     ) -> BoxFuture<'e, Result<Option<SqliteRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
+        'q: 'e,
+        E: 'q,
     {
         let sql = query.sql();
         let arguments = match query.take_arguments().map_err(Error::Encode) {
@@ -54,7 +58,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         Box::pin(async move {
             let stream = self
                 .worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size, persistent, Some(1))
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream();
 

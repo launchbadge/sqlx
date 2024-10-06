@@ -22,10 +22,10 @@ use std::fmt::Debug;
 ///  * [`&Pool`](super::pool::Pool)
 ///  * [`&mut Connection`](super::connection::Connection)
 ///
-/// The [`Executor`](crate::Executor) impls for [`Transaction`](crate::Transaction)
+/// The [`Executor`] impls for [`Transaction`](crate::transaction::Transaction)
 /// and [`PoolConnection`](crate::pool::PoolConnection) have been deleted because they
 /// cannot exist in the new crate architecture without rewriting the Executor trait entirely.
-/// To fix this breakage, simply add a dereference where an impl [`Executor`](crate::Executor) is expected, as
+/// To fix this breakage, simply add a dereference where an impl [`Executor`] is expected, as
 /// they both dereference to the inner connection type which will still implement it:
 /// * `&mut transaction` -> `&mut *transaction`
 /// * `&mut connection` -> `&mut *connection`
@@ -34,25 +34,25 @@ pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'e, 'q: 'e, E: 'q>(
+    fn execute<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<<Self::Database as Database>::QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         self.execute_many(query).try_collect().boxed()
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'e, 'q: 'e, E: 'q>(
+    fn execute_many<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<<Self::Database as Database>::QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -65,13 +65,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and return the generated results as a stream.
-    fn fetch<'e, 'q: 'e, E: 'q>(
+    fn fetch<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<<Self::Database as Database>::Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -85,7 +85,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxStream<
@@ -97,28 +97,28 @@ pub trait Executor<'c>: Send + Debug + Sized {
     >
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>;
+        E: 'q + Execute<'q, Self::Database>;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'e, 'q: 'e, E: 'q>(
+    fn fetch_all<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<Vec<<Self::Database as Database>::Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         self.fetch(query).try_collect().boxed()
     }
 
     /// Execute the query and returns exactly one row.
-    fn fetch_one<'e, 'q: 'e, E: 'q>(
+    fn fetch_one<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<<Self::Database as Database>::Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: 'q + Execute<'q, Self::Database>,
     {
         self.fetch_optional(query)
             .and_then(|row| match row {
@@ -129,13 +129,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and returns at most one row.
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+    fn fetch_optional<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>;
+        E: 'q + Execute<'q, Self::Database>;
 
     /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.

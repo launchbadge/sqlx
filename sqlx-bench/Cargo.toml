@@ -42,3 +42,6 @@ required-features = ["postgres"]
 name = "sqlite_fetch_all"
 harness = false
 required-features = ["sqlite"]
+
+[lints]
+workspace = true

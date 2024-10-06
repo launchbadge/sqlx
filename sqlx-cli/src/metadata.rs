@@ -83,7 +83,7 @@ impl Metadata {
         self.packages.get(id)
     }
 
-    pub fn entries<'this>(&'this self) -> btree_map::Iter<'this, MetadataId, Package> {
+    pub fn entries(&self) -> btree_map::Iter<'_, MetadataId, Package> {
         self.packages.iter()
     }
 

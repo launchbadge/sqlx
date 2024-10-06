@@ -15,8 +15,6 @@
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
-// See `clippy.toml` at the workspace root
-#![deny(clippy::disallowed_method)]
 // The only unsafe code in SQLx is that necessary to interact with native APIs like with SQLite,
 // and that can live in its own separate driver crate.
 #![forbid(unsafe_code)]
@@ -95,17 +93,14 @@ pub mod testing;
 
 pub use error::{Error, Result};
 
-/// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
-pub use ahash::AHashMap as HashMap;
 pub use either::Either;
+pub use hashbrown::{hash_map, HashMap};
 pub use indexmap::IndexMap;
 pub use percent_encoding;
 pub use smallvec::SmallVec;
 pub use url::{self, Url};
 
 pub use bytes;
-
-//type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
 
 /// Helper module to get drivers compiling again that used to be in this crate,
 /// to avoid having to replace tons of `use crate::<...>` imports.
@@ -119,6 +114,6 @@ pub mod driver_prelude {
     };
 
     pub use crate::error::{Error, Result};
-    pub use crate::HashMap;
+    pub use crate::{hash_map, HashMap};
     pub use either::Either;
 }

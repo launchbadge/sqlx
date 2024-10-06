@@ -10,7 +10,7 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::type_checking::TypeChecking;
 
-#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
+#[cfg(any(feature = "postgres", feature = "mysql", feature = "_sqlite"))]
 mod impls;
 
 pub trait DatabaseExt: Database + TypeChecking {
@@ -45,16 +45,16 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
     where
         for<'a> &'a mut DB::Connection: Executor<'a, Database = DB>,
     {
-        crate::block_on(async {
-            let mut cache = self
-                .connections
-                .lock()
-                .expect("previous panic in describe call");
+        let mut cache = self
+            .connections
+            .lock()
+            .expect("previous panic in describe call");
 
+        crate::block_on(async {
             let conn = match cache.entry(database_url.to_string()) {
                 hash_map::Entry::Occupied(hit) => hit.into_mut(),
                 hash_map::Entry::Vacant(miss) => {
-                    miss.insert(DB::Connection::connect(&database_url).await?)
+                    miss.insert(DB::Connection::connect(database_url).await?)
                 }
             };
 

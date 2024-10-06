@@ -46,12 +46,12 @@ pub struct PgAdvisoryLock {
 /// 64-bit integer, and one keyed by a pair of two 32-bit integers. The Postgres docs
 /// specify that these key spaces "do not overlap":
 ///
-/// https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
+/// <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS>
 ///
 /// The documentation for the `pg_locks` system view explains further how advisory locks
 /// are treated in Postgres:
 ///
-/// https://www.postgresql.org/docs/current/view-pg-locks.html
+/// <https://www.postgresql.org/docs/current/view-pg-locks.html>
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PgAdvisoryLockKey {
@@ -98,7 +98,6 @@ impl PgAdvisoryLock {
     /// [hkdf]: https://datatracker.ietf.org/doc/html/rfc5869
     /// ### Example
     /// ```rust
-    /// # extern crate sqlx_core as sqlx;
     /// use sqlx::postgres::{PgAdvisoryLock, PgAdvisoryLockKey};
     ///
     /// let lock = PgAdvisoryLock::new("my first Postgres advisory lock!");
@@ -415,7 +414,8 @@ impl<'lock, C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuard<'lock, C> {
             // The `async fn` versions can safely use the prepared statement protocol,
             // but this is the safest way to queue a query to execute on the next opportunity.
             conn.as_mut()
-                .queue_simple_query(self.lock.get_release_query());
+                .queue_simple_query(self.lock.get_release_query())
+                .expect("BUG: PgAdvisoryLock::get_release_query() somehow too long for protocol");
         }
     }
 }

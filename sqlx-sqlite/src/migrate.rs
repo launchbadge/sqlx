@@ -28,8 +28,7 @@ impl MigrateDatabase for Sqlite {
             }
 
             // Opening a connection to sqlite creates the database
-            let _ = opts
-                .connect()
+            opts.connect()
                 .await?
                 // Ensure WAL mode tempfiles are cleaned up
                 .close()
@@ -169,6 +168,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let elapsed = start.elapsed();
 
             // language=SQL
+            #[allow(clippy::cast_possible_truncation)]
             let _ = query(
                 r#"
     UPDATE _sqlx_migrations

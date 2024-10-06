@@ -1,39 +1,73 @@
-use crate::io::Encode;
-use crate::io::PgBufMutExt;
-use crate::types::Oid;
+use std::num::Saturating;
+
+use sqlx_core::Error;
+
+use crate::io::{PgBufMutExt, PortalId};
+use crate::message::{FrontendMessage, FrontendMessageFormat};
 
 pub struct Execute {
-    /// The id of the portal to execute (`None` selects the unnamed portal).
-    pub portal: Option<Oid>,
+    /// The id of the portal to execute.
+    pub portal: PortalId,
 
     /// Maximum number of rows to return, if portal contains a query
     /// that returns rows (ignored otherwise). Zero denotes “no limit”.
     pub limit: u32,
 }
 
-impl Encode<'_> for Execute {
-    fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
-        buf.reserve(20);
-        buf.push(b'E');
+impl FrontendMessage for Execute {
+    const FORMAT: FrontendMessageFormat = FrontendMessageFormat::Execute;
 
-        buf.put_length_prefixed(|buf| {
-            buf.put_portal_name(self.portal);
-            buf.extend(&self.limit.to_be_bytes());
-        });
+    fn body_size_hint(&self) -> Saturating<usize> {
+        let mut size = Saturating(0);
+
+        size += self.portal.name_len();
+        size += 2; // limit
+
+        size
+    }
+
+    fn encode_body(&self, buf: &mut Vec<u8>) -> Result<(), Error> {
+        buf.put_portal_name(self.portal);
+        buf.extend(&self.limit.to_be_bytes());
+
+        Ok(())
     }
 }
 
-#[test]
-fn test_encode_execute() {
-    const EXPECTED: &[u8] = b"E\0\0\0\x11sqlx_p_5\0\0\0\0\x02";
+#[cfg(test)]
+mod tests {
+    use crate::io::PortalId;
+    use crate::message::FrontendMessage;
 
-    let mut buf = Vec::new();
-    let m = Execute {
-        portal: Some(Oid(5)),
-        limit: 2,
-    };
+    use super::Execute;
 
-    m.encode(&mut buf);
+    #[test]
+    fn test_encode_execute_named_portal() {
+        const EXPECTED: &[u8] = b"E\0\0\0\x1Asqlx_p_1234567890\0\0\0\0\x02";
 
-    assert_eq!(buf, EXPECTED);
+        let mut buf = Vec::new();
+        let m = Execute {
+            portal: PortalId::TEST_VAL,
+            limit: 2,
+        };
+
+        m.encode_msg(&mut buf).unwrap();
+
+        assert_eq!(buf, EXPECTED);
+    }
+
+    #[test]
+    fn test_encode_execute_unnamed_portal() {
+        const EXPECTED: &[u8] = b"E\0\0\0\x09\0\x49\x96\x02\xD2";
+
+        let mut buf = Vec::new();
+        let m = Execute {
+            portal: PortalId::UNNAMED,
+            limit: 1234567890,
+        };
+
+        m.encode_msg(&mut buf).unwrap();
+
+        assert_eq!(buf, EXPECTED);
+    }
 }

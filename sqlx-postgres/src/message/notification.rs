@@ -1,7 +1,8 @@
 use sqlx_core::bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::{BufExt, Decode};
+use crate::io::BufExt;
+use crate::message::{BackendMessage, BackendMessageFormat};
 
 #[derive(Debug)]
 pub struct Notification {
@@ -10,9 +11,10 @@ pub struct Notification {
     pub(crate) payload: Bytes,
 }
 
-impl Decode<'_> for Notification {
-    #[inline]
-    fn decode_with(mut buf: Bytes, _: ()) -> Result<Self, Error> {
+impl BackendMessage for Notification {
+    const FORMAT: BackendMessageFormat = BackendMessageFormat::NotificationResponse;
+
+    fn decode_body(mut buf: Bytes) -> Result<Self, Error> {
         let process_id = buf.get_u32();
         let channel = buf.get_bytes_nul()?;
         let payload = buf.get_bytes_nul()?;
@@ -29,7 +31,7 @@ impl Decode<'_> for Notification {
 fn test_decode_notification_response() {
     const NOTIFICATION_RESPONSE: &[u8] = b"\x34\x20\x10\x02TEST-CHANNEL\0THIS IS A TEST\0";
 
-    let message = Notification::decode(Bytes::from(NOTIFICATION_RESPONSE)).unwrap();
+    let message = Notification::decode_body(Bytes::from(NOTIFICATION_RESPONSE)).unwrap();
 
     assert_eq!(message.process_id, 0x34201002);
     assert_eq!(&*message.channel, &b"TEST-CHANNEL"[..]);

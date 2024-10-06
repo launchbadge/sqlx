@@ -16,9 +16,11 @@
 //!
 //! To represent nullable SQL types, `Option<T>` is supported where `T` implements `Type`.
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
-//!
 
-use crate::{database::Database, type_info::TypeInfo};
+use crate::database::Database;
+use crate::type_info::TypeInfo;
+
+mod non_zero;
 
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
@@ -60,7 +62,6 @@ pub mod time {
 #[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
 #[doc(no_inline)]
 pub use bigdecimal::BigDecimal;
-
 #[cfg(feature = "rust_decimal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rust_decimal")))]
 #[doc(no_inline)]
@@ -82,7 +83,6 @@ pub mod mac_address {
 
 #[cfg(feature = "json")]
 pub use json::{Json, JsonRawValue, JsonValue};
-
 pub use text::Text;
 
 /// Indicates that a SQL type is supported for a database.
@@ -193,7 +193,6 @@ pub use text::Text;
 ///     price: f64
 /// }
 /// ```
-///
 pub trait Type<DB: Database> {
     /// Returns the canonical SQL type for this Rust type.
     ///
@@ -211,8 +210,10 @@ pub trait Type<DB: Database> {
     ///
     /// When binding arguments with `query!` or `query_as!`, this method is consulted to determine
     /// if the Rust type is acceptable.
+    ///
+    /// Defaults to checking [`TypeInfo::type_compatible()`].
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        *ty == Self::type_info()
+        Self::type_info().type_compatible(ty)
     }
 }
 

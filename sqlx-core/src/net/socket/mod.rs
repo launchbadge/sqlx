@@ -101,7 +101,7 @@ where
         let this = &mut *self;
 
         while !this.buf.is_empty() {
-            match this.socket.try_write(&mut this.buf) {
+            match this.socket.try_write(this.buf) {
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                     ready!(this.socket.poll_write_ready(cx))?;
                 }
@@ -225,14 +225,12 @@ pub async fn connect_tcp<Ws: WithSocket>(
         // If we reach this point, it means we failed to connect to any of the addresses.
         // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
         match last_err {
-            Some(err) => return Err(err.into()),
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::AddrNotAvailable,
-                    "Hostname did not resolve to any addresses",
-                )
-                .into())
-            }
+            Some(err) => Err(err.into()),
+            None => Err(io::Error::new(
+                io::ErrorKind::AddrNotAvailable,
+                "Hostname did not resolve to any addresses",
+            )
+            .into()),
         }
     }
 
@@ -249,38 +247,41 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
     path: P,
     with_socket: Ws,
 ) -> crate::Result<Ws::Output> {
+    #[cfg(unix)]
+    {
+        #[cfg(feature = "_rt-tokio")]
+        if crate::rt::rt_tokio::available() {
+            use tokio::net::UnixStream;
+
+            let stream = UnixStream::connect(path).await?;
+
+            return Ok(with_socket.with_socket(stream));
+        }
+
+        #[cfg(feature = "_rt-async-std")]
+        {
+            use async_io::Async;
+            use std::os::unix::net::UnixStream;
+
+            let stream = Async::<UnixStream>::connect(path).await?;
+
+            Ok(with_socket.with_socket(stream))
+        }
+
+        #[cfg(not(feature = "_rt-async-std"))]
+        {
+            crate::rt::missing_rt((path, with_socket))
+        }
+    }
+
     #[cfg(not(unix))]
     {
         drop((path, with_socket));
 
-        return Err(io::Error::new(
+        Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "Unix domain sockets are not supported on this platform",
         )
-        .into());
-    }
-
-    #[cfg(all(unix, feature = "_rt-tokio"))]
-    if crate::rt::rt_tokio::available() {
-        use tokio::net::UnixStream;
-
-        let stream = UnixStream::connect(path).await?;
-
-        return Ok(with_socket.with_socket(stream));
-    }
-
-    #[cfg(all(unix, feature = "_rt-async-std"))]
-    {
-        use async_io::Async;
-        use std::os::unix::net::UnixStream;
-
-        let stream = Async::<UnixStream>::connect(path).await?;
-
-        return Ok(with_socket.with_socket(stream));
-    }
-
-    #[cfg(all(unix, not(feature = "_rt-async-std")))]
-    {
-        crate::rt::missing_rt((path, with_socket))
+        .into())
     }
 }

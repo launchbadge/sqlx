@@ -54,7 +54,7 @@ impl ConnectOptions for MySqlConnectOptions {
             if self.pipes_as_concat {
                 sql_mode.push(r#"PIPES_AS_CONCAT"#);
             }
-            if self.no_engine_subsitution {
+            if self.no_engine_substitution {
                 sql_mode.push(r#"NO_ENGINE_SUBSTITUTION"#);
             }
 
@@ -71,8 +71,8 @@ impl ConnectOptions for MySqlConnectOptions {
             if self.set_names {
                 options.push(format!(
                     r#"NAMES {} COLLATE {}"#,
-                    conn.stream.charset.as_str(),
-                    conn.stream.collation.as_str()
+                    conn.inner.stream.charset.as_str(),
+                    conn.inner.stream.collation.as_str()
                 ))
             }
 

@@ -26,8 +26,6 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    ///
-    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
     fn begin(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
@@ -72,12 +70,14 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn fetch_many<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
     fn fetch_optional<'q>(
         &'q mut self,
         query: &'q str,
+        persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
 

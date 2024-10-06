@@ -15,6 +15,7 @@ use crate::SqliteError;
 #[derive(Clone)]
 pub struct Collation {
     name: Arc<str>,
+    #[allow(clippy::type_complexity)]
     collate: Arc<dyn Fn(&str, &str) -> Ordering + Send + Sync + 'static>,
     // SAFETY: these must match the concrete type of `collate`
     call: unsafe extern "C" fn(
@@ -126,13 +127,23 @@ where
     C: Fn(&str, &str) -> Ordering,
 {
     let boxed_f: *mut C = data as *mut C;
-    debug_assert!(!boxed_f.is_null());
+
+    // Note: unwinding is now caught at the FFI boundary:
+    // https://doc.rust-lang.org/nomicon/ffi.html#ffi-and-unwinding
+    assert!(!boxed_f.is_null());
+
+    let left_len =
+        usize::try_from(left_len).unwrap_or_else(|_| panic!("left_len out of range: {left_len}"));
+
+    let right_len = usize::try_from(right_len)
+        .unwrap_or_else(|_| panic!("right_len out of range: {right_len}"));
+
     let s1 = {
-        let c_slice = slice::from_raw_parts(left_ptr as *const u8, left_len as usize);
+        let c_slice = slice::from_raw_parts(left_ptr as *const u8, left_len);
         from_utf8_unchecked(c_slice)
     };
     let s2 = {
-        let c_slice = slice::from_raw_parts(right_ptr as *const u8, right_len as usize);
+        let c_slice = slice::from_raw_parts(right_ptr as *const u8, right_len);
         from_utf8_unchecked(c_slice)
     };
     let t = (*boxed_f)(s1, s2);

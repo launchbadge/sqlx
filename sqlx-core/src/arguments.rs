@@ -7,6 +7,8 @@ use crate::types::Type;
 use std::fmt::{self, Write};
 
 /// A tuple of arguments to be sent to the database.
+// This lint is designed for general collections, but `Arguments` is not meant to be as such.
+#[allow(clippy::len_without_is_empty)]
 pub trait Arguments<'q>: Send + Sized + Default {
     type Database: Database;
 

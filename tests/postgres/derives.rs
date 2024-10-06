@@ -1,6 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::postgres::types::PgRange;
 use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx_postgres::PgHasArrayType;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 use std::ops::Bound;
@@ -154,13 +155,21 @@ test_type!(transparent_array<TransparentArray>(Postgres,
 test_type!(weak_enum<Weak>(Postgres,
     "0::int4" == Weak::One,
     "2::int4" == Weak::Two,
-    "4::int4" == Weak::Three
+    "4::int4" == Weak::Three,
+));
+
+test_type!(weak_enum_array<Vec<Weak>>(Postgres,
+    "'{0, 2, 4}'::int4[]" == vec![Weak::One, Weak::Two, Weak::Three],
 ));
 
 test_type!(strong_enum<Strong>(Postgres,
     "'one'::text" == Strong::One,
     "'two'::text" == Strong::Two,
-    "'four'::text" == Strong::Three
+    "'four'::text" == Strong::Three,
+));
+
+test_type!(strong_enum_array<Vec<Strong>>(Postgres,
+    "ARRAY['one', 'two', 'four']" == vec![Strong::One, Strong::Two, Strong::Three],
 ));
 
 test_type!(floatrange<FloatRange>(Postgres,
@@ -722,5 +731,82 @@ async fn test_skip() -> anyhow::Result<()> {
     assert_eq!(1, account.id);
     assert_eq!(None, account.default.default);
 
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_enum_with_schema() -> anyhow::Result<()> {
+    #[derive(Debug, PartialEq, Eq, sqlx::Type)]
+    #[sqlx(type_name = "foo.\"Foo\"")]
+    enum Foo {
+        Bar,
+        Baz,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Bar)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo, Foo::Bar);
+
+    let foo: Foo = sqlx::query_scalar("SELECT $1::foo.\"Foo\"")
+        .bind(Foo::Baz)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo, Foo::Baz);
+
+    let foos: Vec<Foo> = sqlx::query_scalar("SELECT ARRAY[$1::foo.\"Foo\", $2::foo.\"Foo\"]")
+        .bind(Foo::Bar)
+        .bind(Foo::Baz)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foos, [Foo::Bar, Foo::Baz]);
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_from_row_hygiene() -> anyhow::Result<()> {
+    // A field named `row` previously would shadow the `row` parameter of `FromRow::from_row()`:
+    // https://github.com/launchbadge/sqlx/issues/3344
+    #[derive(Debug, sqlx::FromRow)]
+    pub struct Foo {
+        pub row: i32,
+        pub bar: i32,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let foo: Foo = sqlx::query_as("SELECT 1234 as row, 5678 as bar")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(foo.row, 1234);
+    assert_eq!(foo.bar, 5678);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_custom_pg_array() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    #[sqlx(no_pg_array)]
+    pub struct User {
+        pub id: i32,
+        pub username: String,
+    }
+
+    impl PgHasArrayType for User {
+        fn array_type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::array_of("Gebruiker")
+        }
+    }
     Ok(())
 }
