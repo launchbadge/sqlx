@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
 use either::Either;
+use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
@@ -11,6 +12,145 @@ use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::statement::Statement;
 use crate::types::Type;
+
+pub trait Fetch<'q, DB: Database>: Sized {
+    type Output: Send + Unpin;
+
+    /// Execute the query and return the generated results as a stream.
+    fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Self::Output, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e + Send,
+    {
+        // FIXME: this should have used `executor.fetch()` but that's a breaking change
+        // because this technically allows multiple statements in one query string.
+        #[allow(deprecated)]
+        self.fetch_many(executor)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(o) => Some(o),
+                })
+            })
+            .boxed()
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
+    fn fetch_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Self::Output>, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e;
+
+    /// Execute the query and return all the resulting rows collected into a [`Vec`].
+    ///
+    /// ### Note: beware result set size.
+    /// This will attempt to collect the full result set of the query into memory.
+    ///
+    /// To avoid exhausting available memory, ensure the result set has a known upper bound,
+    /// e.g. using `LIMIT`.
+    fn fetch_all<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxFuture<'e, Result<Vec<Self::Output>, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e + Send + Unpin,
+    {
+        self.fetch(executor).try_collect().boxed()
+    }
+
+    /// Execute the query, returning the first row or [`Error::RowNotFound`] otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
+    fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> BoxFuture<'e, Result<Self::Output, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e + Send + Unpin,
+    {
+        self.fetch_optional(executor)
+            .map(|row| row.and_then(|row| row.ok_or(Error::RowNotFound)))
+            .boxed()
+    }
+
+    /// Execute the query, returning the first row or `None` otherwise.
+    ///
+    /// ### Note: for best performance, ensure the query returns at most one row.
+    /// Depending on the driver implementation, if your query can return more than one row,
+    /// it may lead to wasted CPU time and bandwidth on the database server.
+    ///
+    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
+    /// can result in a more optimal query plan.
+    ///
+    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
+    ///
+    /// Otherwise, you might want to add `LIMIT 1` to your query.
+    fn fetch_optional<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxFuture<'e, Result<Option<Self::Output>, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e + Send + Unpin;
+
+    /// Map each row in the result to another type.
+    ///
+    /// See [`try_map`](Query::try_map) for a fallible version of this method.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    fn map<F, O>(
+        self,
+        mut f: F,
+    ) -> Map<'q, DB, Self, impl FnMut(DB::Row) -> Result<O, Error> + Send>
+    where
+        F: FnMut(DB::Row) -> O + Send,
+        O: Unpin,
+    {
+        self.try_map(move |row| Ok(f(row)))
+    }
+
+    /// Map each row in the result to another type.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    fn try_map<F, O>(self, f: F) -> Map<'q, DB, Self, F>
+    where
+        F: FnMut(DB::Row) -> Result<O, Error> + Send,
+        O: Unpin,
+    {
+        Map {
+            inner: self,
+            mapper: f,
+            inner_statement: PhantomData,
+        }
+    }
+}
 
 /// A single SQL query as a prepared statement. Returned by [`query()`].
 #[must_use = "query must be executed to affect database"]
@@ -33,9 +173,10 @@ pub struct Query<'q, DB: Database, A> {
 /// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, DB: Database, F, A> {
-    inner: Query<'q, DB, A>,
+pub struct Map<'q, DB: Database, Inner, F> {
+    inner: Inner,
     mapper: F,
+    inner_statement: PhantomData<&'q DB::Statement<'q>>,
 }
 
 impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
@@ -145,40 +286,6 @@ where
     DB: Database,
     A: 'q + IntoArguments<'q, DB>,
 {
-    /// Map each row in the result to another type.
-    ///
-    /// See [`try_map`](Query::try_map) for a fallible version of this method.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn map<F, O>(
-        self,
-        mut f: F,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send, A>
-    where
-        F: FnMut(DB::Row) -> O + Send,
-        O: Unpin,
-    {
-        self.try_map(move |row| Ok(f(row)))
-    }
-
-    /// Map each row in the result to another type.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
-    where
-        F: FnMut(DB::Row) -> Result<O, Error> + Send,
-        O: Unpin,
-    {
-        Map {
-            inner: self,
-            mapper: f,
-        }
-    }
-
     /// Execute the query and return the total number of rows affected.
     #[inline]
     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
@@ -204,103 +311,41 @@ where
     {
         executor.execute_many(self)
     }
+}
 
-    /// Execute the query and return the generated results as a stream.
-    #[inline]
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<DB::Row, Error>>
-    where
-        'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
-    {
-        executor.fetch(self)
-    }
+impl<'q, DB: Database, A: 'q + IntoArguments<'q, DB> + Send> Fetch<'q, DB> for Query<'q, DB, A> {
+    type Output = DB::Row;
 
-    /// Execute multiple queries and return the generated results as a stream.
-    ///
-    /// For each query in the stream, any generated rows are returned first,
-    /// then the `QueryResult` with the number of rows affected.
-    #[inline]
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead. See https://github.com/launchbadge/sqlx/issues/3108 for discussion."]
-    // TODO: we'll probably still want a way to get the `DB::QueryResult` at the end of a `fetch()` stream.
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Self::Output>, Error>>
     where
         'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e,
     {
         executor.fetch_many(self)
     }
 
-    /// Execute the query and return all the resulting rows collected into a [`Vec`].
-    ///
-    /// ### Note: beware result set size.
-    /// This will attempt to collect the full result set of the query into memory.
-    ///
-    /// To avoid exhausting available memory, ensure the result set has a known upper bound,
-    /// e.g. using `LIMIT`.
-    #[inline]
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    fn fetch_optional<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxFuture<'e, Result<Option<Self::Output>, Error>>
     where
         'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        Self::Output: 'e + Send + Unpin,
     {
-        executor.fetch_all(self).await
-    }
-
-    /// Execute the query, returning the first row or [`Error::RowNotFound`] otherwise.
-    ///
-    /// ### Note: for best performance, ensure the query returns at most one row.
-    /// Depending on the driver implementation, if your query can return more than one row,
-    /// it may lead to wasted CPU time and bandwidth on the database server.
-    ///
-    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
-    /// can result in a more optimal query plan.
-    ///
-    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
-    ///
-    /// Otherwise, you might want to add `LIMIT 1` to your query.
-    #[inline]
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
-    where
-        'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
-    {
-        executor.fetch_one(self).await
-    }
-
-    /// Execute the query, returning the first row or `None` otherwise.
-    ///
-    /// ### Note: for best performance, ensure the query returns at most one row.
-    /// Depending on the driver implementation, if your query can return more than one row,
-    /// it may lead to wasted CPU time and bandwidth on the database server.
-    ///
-    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
-    /// can result in a more optimal query plan.
-    ///
-    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
-    ///
-    /// Otherwise, you might want to add `LIMIT 1` to your query.
-    #[inline]
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
-    where
-        'q: 'e,
-        A: 'e,
-        E: Executor<'c, Database = DB>,
-    {
-        executor.fetch_optional(self).await
+        executor.fetch_optional(self)
     }
 }
 
-impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
+impl<'q, DB, Inner: Execute<'q, DB>, F: Send> Execute<'q, DB> for Map<'q, DB, Inner, F>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
@@ -319,93 +364,32 @@ where
 
     #[inline]
     fn persistent(&self) -> bool {
-        self.inner.arguments.is_some()
+        self.inner.persistent()
     }
 }
 
-impl<'q, DB, F, O, A> Map<'q, DB, F, A>
+impl<'q, DB, Inner: Fetch<'q, DB>, F, O> Fetch<'q, DB> for Map<'q, DB, Inner, F>
 where
     DB: Database,
-    F: FnMut(DB::Row) -> Result<O, Error> + Send,
+    F: FnMut(Inner::Output) -> Result<O, Error> + Send + 'q,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q, DB>,
+    Inner: Send + 'q,
 {
-    /// Map each row in the result to another type.
-    ///
-    /// See [`try_map`](Map::try_map) for a fallible version of this method.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn map<G, P>(
-        self,
-        mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
-    where
-        G: FnMut(O) -> P + Send,
-        P: Unpin,
-    {
-        self.try_map(move |data| Ok(g(data)))
-    }
+    type Output = O;
 
-    /// Map each row in the result to another type.
-    ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
-    pub fn try_map<G, P>(
-        self,
-        mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
-    where
-        G: FnMut(O) -> Result<P, Error> + Send,
-        P: Unpin,
-    {
-        let mut f = self.mapper;
-        Map {
-            inner: self.inner,
-            mapper: move |row| f(row).and_then(&mut g),
-        }
-    }
-
-    /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
-        F: 'e,
-        O: 'e,
-    {
-        // FIXME: this should have used `executor.fetch()` but that's a breaking change
-        // because this technically allows multiple statements in one query string.
-        #[allow(deprecated)]
-        self.fetch_many(executor)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(_) => None,
-                    Either::Right(o) => Some(o),
-                })
-            })
-            .boxed()
-    }
-
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
-    #[deprecated = "Only the SQLite driver supports multiple statements in one prepared statement and that behavior is deprecated. Use `sqlx::raw_sql()` instead."]
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    fn fetch_many<'e, 'c: 'e, E>(
         mut self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Self::Output>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,
         DB: 'e,
-        F: 'e,
-        O: 'e,
+        Self::Output: 'e,
     {
         Box::pin(try_stream! {
-            let mut s = executor.fetch_many(self.inner);
+            #[allow(deprecated)]
+            let mut s = self.inner.fetch_many(executor);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(match v {
@@ -420,79 +404,26 @@ where
         })
     }
 
-    /// Execute the query and return all the resulting rows collected into a [`Vec`].
-    ///
-    /// ### Note: beware result set size.
-    /// This will attempt to collect the full result set of the query into memory.
-    ///
-    /// To avoid exhausting available memory, ensure the result set has a known upper bound,
-    /// e.g. using `LIMIT`.
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    fn fetch_optional<'e, 'c: 'e, E>(
+        mut self,
+        executor: E,
+    ) -> BoxFuture<'e, Result<Option<Self::Output>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,
         DB: 'e,
-        F: 'e,
-        O: 'e,
+        Self::Output: 'e + Send + Unpin,
     {
-        self.fetch(executor).try_collect().await
-    }
+        async move {
+            let row = self.inner.fetch_optional(executor).await?;
 
-    /// Execute the query, returning the first row or [`Error::RowNotFound`] otherwise.
-    ///
-    /// ### Note: for best performance, ensure the query returns at most one row.
-    /// Depending on the driver implementation, if your query can return more than one row,
-    /// it may lead to wasted CPU time and bandwidth on the database server.
-    ///
-    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
-    /// can result in a more optimal query plan.
-    ///
-    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
-    ///
-    /// Otherwise, you might want to add `LIMIT 1` to your query.
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
-        F: 'e,
-        O: 'e,
-    {
-        self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
-            })
-            .await
-    }
-
-    /// Execute the query, returning the first row or `None` otherwise.
-    ///
-    /// ### Note: for best performance, ensure the query returns at most one row.
-    /// Depending on the driver implementation, if your query can return more than one row,
-    /// it may lead to wasted CPU time and bandwidth on the database server.
-    ///
-    /// Even when the driver implementation takes this into account, ensuring the query returns at most one row
-    /// can result in a more optimal query plan.
-    ///
-    /// If your query has a `WHERE` clause filtering a unique column by a single value, you're good.
-    ///
-    /// Otherwise, you might want to add `LIMIT 1` to your query.
-    pub async fn fetch_optional<'e, 'c: 'e, E>(mut self, executor: E) -> Result<Option<O>, Error>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
-        F: 'e,
-        O: 'e,
-    {
-        let row = executor.fetch_optional(self.inner).await?;
-
-        if let Some(row) = row {
-            (self.mapper)(row).map(Some)
-        } else {
-            Ok(None)
+            if let Some(row) = row {
+                (self.mapper)(row).map(Some)
+            } else {
+                Ok(None)
+            }
         }
+        .boxed()
     }
 }
 

@@ -13,7 +13,7 @@ pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
 #[doc(hidden)]
 pub use sqlx_core::query::query_with_result as __query_with_result;
-pub use sqlx_core::query::{query, query_with};
+pub use sqlx_core::query::{query, query_with, Fetch};
 pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_builder::{self, QueryBuilder};
 #[doc(hidden)]

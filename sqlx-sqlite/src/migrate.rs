@@ -5,7 +5,7 @@ use crate::fs;
 use crate::migrate::MigrateError;
 use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
-use crate::query::query;
+use crate::query::{query, Fetch};
 use crate::query_as::query_as;
 use crate::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
