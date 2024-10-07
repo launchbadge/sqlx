@@ -32,6 +32,20 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgCube,
 
+        sqlx::postgres::types::PgPoint,
+
+        sqlx::postgres::types::PgLine,
+
+        sqlx::postgres::types::PgLSeg,
+
+        sqlx::postgres::types::PgBox,
+
+        sqlx::postgres::types::PgPath,
+
+        sqlx::postgres::types::PgPolygon,
+
+        sqlx::postgres::types::PgCircle,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
