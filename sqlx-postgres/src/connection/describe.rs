@@ -11,10 +11,12 @@ use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
 use futures_core::future::BoxFuture;
+use futures_util::TryFutureExt;
 use smallvec::SmallVec;
-use sqlx_core::acquire::Acquire;
 use sqlx_core::executor::Executor;
+use sqlx_core::from_row::FromRow;
 use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::raw_sql::raw_sql;
 use std::sync::Arc;
 
 /// Describes the type of the `pg_type.typtype` column
@@ -521,25 +523,25 @@ WHERE rngtypid = $1
             .display()
             .ok_or_else(|| err_protocol!("cannot EXPLAIN unnamed statement: {stmt_id:?}"))?;
 
-        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}");
+        let mut explain = format!(
+            "
+            BEGIN;
+            DO $$
+            BEGIN
+              IF EXISTS (
+                SELECT 1
+                FROM pg_settings
+                WHERE name = 'plan_cache_mode'
+              ) THEN
+                SET LOCAL plan_cache_mode = 'force_generic_plan';
+              END IF;
+            END $$;
+            EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}
+        "
+        );
         let mut comma = false;
-        let mut tx = self.begin().await?;
 
         if params_len > 0 {
-            tx.execute(
-                " DO $$
-                    BEGIN
-                      IF EXISTS (
-                        SELECT 1
-                        FROM pg_settings
-                        WHERE name = 'plan_cache_mode'
-                      ) THEN
-                        SET LOCAL plan_cache_mode = 'force_generic_plan';
-                      END IF;
-                    END $$;",
-            )
-            .await?;
-
             explain += "(";
 
             // fill the arguments list with NULL, which should theoretically be valid
@@ -552,13 +554,15 @@ WHERE rngtypid = $1
                 comma = true;
             }
 
-            explain += ")";
+            explain += ");
+            ROLLBACK;
+            ";
         }
 
-        let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
-            query_as(&explain).fetch_one(&mut *tx).await?;
-
-        tx.rollback().await?;
+        let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) = self
+            .fetch_one(raw_sql(&explain))
+            .map_ok(|row| FromRow::from_row(&row))
+            .await??;
 
         let mut nullables = Vec::new();
 
