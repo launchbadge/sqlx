@@ -136,8 +136,10 @@ SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; an
 sqlx = { version = "0.8", features = [ "runtime-tokio" ] }
 # tokio + native-tls
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" ] }
-# tokio + rustls with ring
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring" ] }
+# tokio + rustls with ring and WebPKI CA certificates
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki" ] }
+# tokio + rustls with ring and platform's native CA certificates
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-native-roots" ] }
 # tokio + rustls with aws-lc-rs
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ] }
 
@@ -145,8 +147,10 @@ sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ]
 sqlx = { version = "0.8", features = [ "runtime-async-std" ] }
 # async-std + native-tls
 sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-native-tls" ] }
-# async-std + rustls with ring
-sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring" ] }
+# async-std + rustls with ring and WebPKI CA certificates
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring-webpki" ] }
+# async-std + rustls with ring and platform's native CA certificates
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring-native-roots" ] }
 # async-std + rustls with aws-lc-rs
 sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-aws-lc-rs" ] }
 ```

@@ -19,7 +19,8 @@ _rt-tokio = ["sqlx-macros-core/_rt-tokio"]
 
 _tls-native-tls = ["sqlx-macros-core/_tls-native-tls"]
 _tls-rustls-aws-lc-rs = ["sqlx-macros-core/_tls-rustls-aws-lc-rs"]
-_tls-rustls-ring = ["sqlx-macros-core/_tls-rustls-ring"]
+_tls-rustls-ring-webpki = ["sqlx-macros-core/_tls-rustls-ring-webpki"]
+_tls-rustls-ring-native-roots = ["sqlx-macros-core/_tls-rustls-ring-native-roots"]
 
 # SQLx features
 derive = ["sqlx-macros-core/derive"]
