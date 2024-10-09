@@ -2,7 +2,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
-use crate::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use bitflags::bitflags;
 use std::fmt::{self, Display, Formatter};
 use std::io::Write;
@@ -158,6 +158,12 @@ impl Type<Postgres> for PgLQuery {
     fn type_info() -> PgTypeInfo {
         // Since `ltree` is enabled by an extension, it does not have a stable OID.
         PgTypeInfo::with_name("lquery")
+    }
+}
+
+impl PgHasArrayType for PgLQuery {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::with_name("_lquery")
     }
 }
 
