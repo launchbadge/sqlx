@@ -71,31 +71,31 @@ impl Connection for AnyConnection {
 
     type Options = AnyConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        self.backend.close()
+    async fn close(self) -> Result<(), Error> {
+        self.backend.close().await
     }
 
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
-        self.backend.close()
+    async fn close_hard(self) -> Result<(), Error> {
+        self.backend.close().await
     }
 
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.backend.ping()
+    async fn ping(&mut self) -> Result<(), Error> {
+        self.backend.ping().await
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    async fn begin(&mut self) -> Result<Transaction<'_, Self::Database>, Error>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self).await
     }
 
     fn cached_statements_size(&self) -> usize {
         self.backend.cached_statements_size()
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, crate::Result<()>> {
-        self.backend.clear_cached_statements()
+    async fn clear_cached_statements(&mut self) -> crate::Result<()> {
+        self.backend.clear_cached_statements().await
     }
 
     fn shrink_buffers(&mut self) {
@@ -103,8 +103,8 @@ impl Connection for AnyConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.backend.flush()
+    async fn flush(&mut self) -> Result<(), Error> {
+        self.backend.flush().await
     }
 
     #[doc(hidden)]

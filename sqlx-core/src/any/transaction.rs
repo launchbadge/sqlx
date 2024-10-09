@@ -1,5 +1,3 @@
-use futures_util::future::BoxFuture;
-
 use crate::any::{Any, AnyConnection};
 use crate::error::Error;
 use crate::transaction::TransactionManager;
@@ -9,16 +7,16 @@ pub struct AnyTransactionManager;
 impl TransactionManager for AnyTransactionManager {
     type Database = Any;
 
-    fn begin(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
-        conn.backend.begin()
+    async fn begin(conn: &mut AnyConnection) -> Result<(), Error> {
+        conn.backend.begin().await
     }
 
-    fn commit(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
-        conn.backend.commit()
+    async fn commit(conn: &mut AnyConnection) -> Result<(), Error> {
+        conn.backend.commit().await
     }
 
-    fn rollback(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
-        conn.backend.rollback()
+    async fn rollback(conn: &mut AnyConnection) -> Result<(), Error> {
+        conn.backend.rollback().await
     }
 
     fn start_rollback(conn: &mut AnyConnection) {
