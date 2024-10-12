@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 pub use ssl_mode::PgSslMode;
 
-use crate::{connection::LogSettings, net::tls::CertificateInput};
+use crate::{connection::LogSettings, net::tls::CertificateInput, net::TcpKeepalive};
 
 mod connect;
 mod parse;
@@ -102,6 +102,7 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) extra_float_digits: Option<Cow<'static, str>>,
+    pub(crate) tcp_keep_alive: Option<TcpKeepalive>,
     pub(crate) options: Option<String>,
 }
 
@@ -168,6 +169,7 @@ impl PgConnectOptions {
             application_name: var("PGAPPNAME").ok(),
             extra_float_digits: Some("2".into()),
             log_settings: Default::default(),
+            tcp_keep_alive: None,
             options: var("PGOPTIONS").ok(),
         }
     }
@@ -490,6 +492,12 @@ impl PgConnectOptions {
     /// ```
     pub fn extra_float_digits(mut self, extra_float_digits: impl Into<Option<i8>>) -> Self {
         self.extra_float_digits = extra_float_digits.into().map(|it| it.to_string().into());
+        self
+    }
+
+    /// Sets the TCP keepalive configuration for the connection.
+    pub fn tcp_keep_alive(mut self, tcp_keep_alive: TcpKeepalive) -> Self {
+        self.tcp_keep_alive = Some(tcp_keep_alive);
         self
     }
 

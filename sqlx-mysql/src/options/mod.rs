@@ -4,7 +4,7 @@ mod connect;
 mod parse;
 mod ssl_mode;
 
-use crate::{connection::LogSettings, net::tls::CertificateInput};
+use crate::{connection::LogSettings, net::tls::CertificateInput, net::TcpKeepalive};
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
@@ -80,6 +80,7 @@ pub struct MySqlConnectOptions {
     pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
+    pub(crate) tcp_keep_alive: Option<TcpKeepalive>,
 }
 
 impl Default for MySqlConnectOptions {
@@ -111,6 +112,7 @@ impl MySqlConnectOptions {
             no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
+            tcp_keep_alive: None,
         }
     }
 
@@ -401,6 +403,12 @@ impl MySqlConnectOptions {
     /// is supported by your MySQL or MariaDB server version and compatible with UTF-8.
     pub fn set_names(mut self, flag_val: bool) -> Self {
         self.set_names = flag_val;
+        self
+    }
+
+    /// Sets the TCP keepalive configuration for the connection.
+    pub fn tcp_keep_alive(mut self, tcp_keep_alive: TcpKeepalive) -> Self {
+        self.tcp_keep_alive = Some(tcp_keep_alive);
         self
     }
 }

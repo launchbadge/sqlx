@@ -3,6 +3,7 @@ use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use bytes::BufMut;
 use futures_core::ready;
@@ -182,10 +183,18 @@ impl<S: Socket + ?Sized> Socket for Box<S> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TcpKeepalive {
+    pub time: Duration,
+    pub interval: Duration,
+    pub retries: u32,
+}
+
 pub async fn connect_tcp<Ws: WithSocket>(
     host: &str,
     port: u16,
     with_socket: Ws,
+    keepalive: &Option<TcpKeepalive>,
 ) -> crate::Result<Ws::Output> {
     // IPv6 addresses in URLs will be wrapped in brackets and the `url` crate doesn't trim those.
     let host = host.trim_matches(&['[', ']'][..]);
@@ -196,6 +205,16 @@ pub async fn connect_tcp<Ws: WithSocket>(
 
         let stream = TcpStream::connect((host, port)).await?;
         stream.set_nodelay(true)?;
+
+        // set tcp keepalive
+        if let Some(keepalive) = keepalive {
+            let keepalive = socket2::TcpKeepalive::new()
+                .with_interval(keepalive.interval)
+                .with_retries(keepalive.retries)
+                .with_time(keepalive.time);
+            let sock_ref = socket2::SockRef::from(&stream);
+            sock_ref.set_tcp_keepalive(&keepalive)?;
+        }
 
         return Ok(with_socket.with_socket(stream));
     }
@@ -216,9 +235,24 @@ pub async fn connect_tcp<Ws: WithSocket>(
                     s.get_ref().set_nodelay(true)?;
                     Ok(s)
                 });
-            match stream {
-                Ok(stream) => return Ok(with_socket.with_socket(stream)),
-                Err(e) => last_err = Some(e),
+            let stream = match stream {
+                Ok(stream) => stream,
+                Err(e) => {
+                    last_err = Some(e);
+                    continue;
+                }
+            };
+            // set tcp keepalive
+            if let Some(keepalive) = keepalive {
+                let keepalive = socket2::TcpKeepalive::new()
+                    .with_interval(keepalive.interval)
+                    .with_retries(keepalive.retries)
+                    .with_time(keepalive.time);
+                let sock_ref = socket2::SockRef::from(&stream);
+                match sock_ref.set_tcp_keepalive(&keepalive) {
+                    Ok(_) => return Ok(with_socket.with_socket(stream)),
+                    Err(e) => last_err = Some(e),
+                }
             }
         }
 
