@@ -1100,10 +1100,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     assert!(listener.try_recv_buffered().is_none());
 
     // Should receive one notification.
-    assert!(
-        try_recv(&mut listener).await?,
-        "Notification not received"
-    );
+    assert!(try_recv(&mut listener).await?, "Notification not received");
 
     // The next four should be buffered.
     for _ in (0..4) {
@@ -1114,10 +1111,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     assert!(listener.try_recv_buffered().is_none());
 
     // Even if we wait.
-    assert!(
-        !try_recv(&mut listener).await?,
-        "Notification received"
-    );
+    assert!(!try_recv(&mut listener).await?, "Notification received");
 
     Ok(())
 }
