@@ -235,7 +235,7 @@ impl PgListener {
     pub async fn try_recv(&mut self) -> Result<Option<PgNotification>, Error> {
         // Flush the buffer first, if anything
         // This would only fill up if this listener is used as a connection
-        if let Some(notification) = self.try_recv_buffered() {
+        if let Some(notification) = self.next_buffered() {
             return Ok(Some(notification));
         }
 
@@ -300,7 +300,7 @@ impl PgListener {
     /// This is similar to `try_recv`, except it will not wait if the connection has not yet received a notification.
     ///
     /// This is helpful if you want to retrieve all buffered notifications and process them in batches.
-    pub fn try_recv_buffered(&mut self) -> Option<PgNotification> {
+    pub fn next_buffered(&mut self) -> Option<PgNotification> {
         if let Ok(Some(notification)) = self.buffer_rx.try_next() {
             Some(PgNotification(notification))
         } else {

@@ -1089,7 +1089,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     }
 
     // Check no notification is buffered, since we haven't sent one.
-    assert!(listener.try_recv_buffered().is_none());
+    assert!(listener.next_buffered().is_none());
 
     // Send five notifications transactionally, so they all arrive at once.
     {
@@ -1102,7 +1102,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     }
 
     // Still no notifications buffered, since we haven't awaited the listener yet.
-    assert!(listener.try_recv_buffered().is_none());
+    assert!(listener.next_buffered().is_none());
 
     // Activate connection.
     sqlx::query!("SELECT 1 AS one")
@@ -1112,13 +1112,13 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     // The next five notifications should now be buffered.
     for i in 0..5 {
         assert!(
-            listener.try_recv_buffered().is_some(),
+            listener.next_buffered().is_some(),
             "Notification {i} was not buffered"
         );
     }
 
     // Should be no more.
-    assert!(listener.try_recv_buffered().is_none());
+    assert!(listener.next_buffered().is_none());
 
     // Even if we wait.
     assert!(!try_recv(&mut listener).await?, "Notification received");
