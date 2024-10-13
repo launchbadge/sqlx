@@ -1075,7 +1075,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
         .await?;
 
     let mut listener = PgListener::connect_with(&pool).await?;
-    listener.listen("test_channel").await?;
+    listener.listen("test_channel2").await?;
 
     // Checks for a notification on the test channel
     async fn try_recv(listener: &mut PgListener) -> anyhow::Result<bool> {
@@ -1091,20 +1091,30 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     // Check no notification is buffered, since we haven't sent one.
     assert!(listener.try_recv_buffered().is_none());
 
-    // Send five notifications.
-    for _ in 0..5 {
-        notify_conn.execute("NOTIFY test_channel").await?;
+    // Send five notifications transactionally, so they all arrive at once.
+    {
+        let mut txn = notify_conn.begin().await?;
+        for i in 0..5 {
+            txn.execute(format!("NOTIFY test_channel2, 'payload {i}'").as_str())
+                .await?;
+        }
+        txn.commit().await?;
     }
 
     // Still no notifications buffered, since we haven't awaited the listener yet.
     assert!(listener.try_recv_buffered().is_none());
 
-    // Should receive one notification.
-    assert!(try_recv(&mut listener).await?, "Notification not received");
+    // Activate connection.
+    sqlx::query!("SELECT 1 AS one")
+        .fetch_all(&mut listener)
+        .await?;
 
-    // The next four should be buffered.
-    for _ in 0..4 {
-        assert!(listener.try_recv_buffered().is_some());
+    // The next five notifications should now be buffered.
+    for i in 0..5 {
+        assert!(
+            listener.try_recv_buffered().is_some(),
+            "Notification {i} was not buffered"
+        );
     }
 
     // Should be no more.
