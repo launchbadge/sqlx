@@ -1075,6 +1075,25 @@ async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_pg_listener_allows_connection_to_be_used_for_transactions() -> anyhow::Result<()> {
+    use sqlx::Acquire;
+
+    let pool = pool::<Postgres>().await?;
+    let mut listener = PgListener::connect_with(&pool).await?;
+
+    {
+        let _conn = listener.acquire().await?;
+    }
+
+    {
+        let txn = listener.begin().await?;
+        txn.commit().await?;
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
     // Only supported in Postgres 11+
     let mut conn = new::<Postgres>().await?;
