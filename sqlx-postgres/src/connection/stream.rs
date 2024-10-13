@@ -49,7 +49,7 @@ impl PgStream {
                     &options.host,
                     options.port,
                     MaybeUpgradeTls(options),
-                    &options.tcp_keep_alive,
+                    options.tcp_keep_alive.as_ref(),
                 )
                 .await?
             }

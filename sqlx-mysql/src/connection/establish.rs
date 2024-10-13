@@ -24,7 +24,7 @@ impl MySqlConnection {
                     &options.host,
                     options.port,
                     do_handshake,
-                    &options.tcp_keep_alive,
+                    options.tcp_keep_alive.as_ref(),
                 )
                 .await?
             }
