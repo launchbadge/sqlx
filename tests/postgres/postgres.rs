@@ -1092,7 +1092,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     assert!(listener.try_recv_buffered().is_none());
 
     // Send five notifications.
-    for _ in (0..5) {
+    for _ in 0..5 {
         notify_conn.execute("NOTIFY test_channel").await?;
     }
 
@@ -1103,7 +1103,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     assert!(try_recv(&mut listener).await?, "Notification not received");
 
     // The next four should be buffered.
-    for _ in (0..4) {
+    for _ in 0..4 {
         assert!(listener.try_recv_buffered().is_some());
     }
 
