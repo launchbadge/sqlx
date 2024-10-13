@@ -1058,6 +1058,71 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
+    use sqlx_core::rt::timeout;
+
+    use sqlx::pool::PoolOptions;
+    use sqlx::postgres::PgListener;
+
+    // Create a connection on which to send notifications
+    let mut notify_conn = new::<Postgres>().await?;
+
+    let pool = PoolOptions::<Postgres>::new()
+        .min_connections(1)
+        .max_connections(1)
+        .test_before_acquire(true)
+        .connect(&env::var("DATABASE_URL")?)
+        .await?;
+
+    let mut listener = PgListener::connect_with(&pool).await?;
+    listener.listen("test_channel").await?;
+
+    // Checks for a notification on the test channel
+    async fn try_recv(listener: &mut PgListener) -> anyhow::Result<bool> {
+        match timeout(Duration::from_millis(100), listener.recv()).await {
+            Ok(res) => {
+                res?;
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    // Check no notification is buffered, since we haven't sent one.
+    assert!(listener.try_recv_buffered().is_none());
+
+    // Send five notifications.
+    for _ in (0..5) {
+        notify_conn.execute("NOTIFY test_channel").await?;
+    }
+
+    // Still no notifications buffered, since we haven't awaited the listener yet.
+    assert!(listener.try_recv_buffered().is_none());
+
+    // Should receive one notification.
+    assert!(
+        try_recv(&mut listener).await?,
+        "Notification not received"
+    );
+
+    // The next four should be buffered.
+    for _ in (0..4) {
+        assert!(listener.try_recv_buffered().is_some());
+    }
+
+    // Should be no more.
+    assert!(listener.try_recv_buffered().is_none());
+
+    // Even if we wait.
+    assert!(
+        !try_recv(&mut listener).await?,
+        "Notification received"
+    );
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
     let pool = pool::<Postgres>().await?;
 
