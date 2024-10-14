@@ -171,7 +171,7 @@ impl<DB: Database> PoolInner<DB> {
                     Poll::Pending
                 }
             })
-                .await
+            .await
         } else {
             close_event.do_until(acquire_self).await
         }
