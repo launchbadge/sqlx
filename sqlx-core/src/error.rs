@@ -108,10 +108,6 @@ pub enum Error {
     #[error("attempted to communicate with a crashed background worker")]
     WorkerCrashed,
 
-    /// An invalid argument was supplied
-    #[error("invalid argument: {0}")]
-    InvalidArgument(#[source] BoxDynError),
-
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),

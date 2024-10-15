@@ -82,7 +82,7 @@ impl PgArguments {
             // reset the value buffer to its previous value if encoding failed,
             // so we don't leave a half-encoded value behind
             self.buffer.reset_to_snapshot(buffer_snapshot);
-            return Err(Error::InvalidArgument(error));
+            return Err(Error::Encode(error));
         };
 
         // remember the type information for this value
