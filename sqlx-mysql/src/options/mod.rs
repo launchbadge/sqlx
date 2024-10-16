@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 mod connect;
 mod parse;
@@ -406,9 +407,13 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Sets the TCP keepalive configuration for the connection.
-    pub fn tcp_keep_alive(mut self, tcp_keep_alive: TcpKeepalive) -> Self {
-        self.tcp_keep_alive = Some(tcp_keep_alive);
+    /// Sets the TCP keepalive time for the connection.
+    pub fn tcp_keepalive_time(mut self, time: Duration) -> Self {
+        self.tcp_keep_alive = Some(if self.tcp_keep_alive.is_none() {
+            TcpKeepalive::new().with_time(time)
+        } else {
+            self.tcp_keep_alive.unwrap().with_time(time)
+        });
         self
     }
 }

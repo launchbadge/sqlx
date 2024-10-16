@@ -3,16 +3,17 @@ use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Duration;
 
 use bytes::BufMut;
 use futures_core::ready;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
+pub use tcp_keepalive::TcpKeepalive;
 
 use crate::io::ReadBuf;
 
 mod buffered;
+mod tcp_keepalive;
 
 pub trait Socket: Send + Sync + Unpin + 'static {
     fn try_read(&mut self, buf: &mut dyn ReadBuf) -> io::Result<usize>;
@@ -183,82 +184,6 @@ impl<S: Socket + ?Sized> Socket for Box<S> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct TcpKeepalive {
-    pub time: Option<Duration>,
-    pub interval: Option<Duration>,
-    pub retries: Option<u32>,
-}
-
-impl TcpKeepalive {
-    /// Returns a new, empty set of TCP keepalive parameters.
-    pub const fn new() -> TcpKeepalive {
-        TcpKeepalive {
-            time: None,
-            interval: None,
-            retries: None,
-        }
-    }
-
-    /// Set the amount of time after which TCP keepalive probes will be sent on
-    /// idle connections.
-    ///
-    /// This will set `TCP_KEEPALIVE` on macOS and iOS, and
-    /// `TCP_KEEPIDLE` on all other Unix operating systems, except
-    /// OpenBSD and Haiku which don't support any way to set this
-    /// option. On Windows, this sets the value of the `tcp_keepalive`
-    /// struct's `keepalivetime` field.
-    ///
-    /// Some platforms specify this value in seconds, so sub-second
-    /// specifications may be omitted.
-    pub const fn with_time(self, time: Duration) -> Self {
-        Self {
-            time: Some(time),
-            ..self
-        }
-    }
-
-    /// Set the value of the `TCP_KEEPINTVL` option. On Windows, this sets the
-    /// value of the `tcp_keepalive` struct's `keepaliveinterval` field.
-    ///
-    /// Sets the time interval between TCP keepalive probes.
-    ///
-    /// Some platforms specify this value in seconds, so sub-second
-    /// specifications may be omitted.
-    pub const fn with_interval(self, interval: Duration) -> Self {
-        Self {
-            interval: Some(interval),
-            ..self
-        }
-    }
-
-    /// Set the value of the `TCP_KEEPCNT` option.
-    ///
-    /// Set the maximum number of TCP keepalive probes that will be sent before
-    /// dropping a connection, if TCP keepalive is enabled on this socket.
-    pub const fn with_retries(self, retries: u32) -> Self {
-        Self {
-            retries: Some(retries),
-            ..self
-        }
-    }
-
-    /// Convert `TcpKeepalive` to `socket2::TcpKeepalive`.
-    pub const fn socket2(self) -> socket2::TcpKeepalive {
-        let mut ka = socket2::TcpKeepalive::new();
-        if let Some(time) = self.time {
-            ka = ka.with_time(time);
-        }
-        if let Some(interval) = self.interval {
-            ka = ka.with_interval(interval);
-        }
-        if let Some(retries) = self.retries {
-            ka = ka.with_retries(retries);
-        }
-        ka
-    }
-}
-
 pub async fn connect_tcp<Ws: WithSocket>(
     host: &str,
     port: u16,
@@ -310,10 +235,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
             };
             // set tcp keepalive
             if let Some(keepalive) = keepalive {
-                let keepalive = socket2::TcpKeepalive::new()
-                    .with_interval(keepalive.interval)
-                    .with_retries(keepalive.retries)
-                    .with_time(keepalive.time);
+                let keepalive = keepalive.socket2();
                 let sock_ref = socket2::SockRef::from(&stream);
                 match sock_ref.set_tcp_keepalive(&keepalive) {
                     Ok(_) => return Ok(with_socket.with_socket(stream)),
