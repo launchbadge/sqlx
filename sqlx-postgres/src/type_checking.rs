@@ -24,6 +24,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgInterval,
 
+        Vec<sqlx::postgres::types::PgInterval> | &[sqlx::postgres::types::PgInterval],
+
         sqlx::postgres::types::PgMoney,
 
         sqlx::postgres::types::PgLTree,
