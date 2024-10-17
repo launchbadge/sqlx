@@ -335,7 +335,7 @@ impl<'c> Acquire<'c> for &'c mut PgListener {
     type Connection = &'c mut PgConnection;
 
     fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>> {
-        self.connection().and_then(|c| c.acquire()).boxed()
+        self.connection().boxed()
     }
 
     fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
