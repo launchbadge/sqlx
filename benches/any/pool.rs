@@ -9,7 +9,7 @@ use tracing::Instrument;
 struct Input {
     threads: usize,
     tasks: usize,
-    pool_size: u32,
+    pool_size: usize,
 }
 
 impl Display for Input {
@@ -24,6 +24,7 @@ impl Display for Input {
 
 fn bench_pool(c: &mut Criterion) {
     sqlx::any::install_default_drivers();
+    tracing_subscriber::fmt::try_init().ok();
 
     let database_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -72,6 +73,14 @@ fn bench_pool(c: &mut Criterion) {
 }
 
 fn bench_pool_with(b: &mut Bencher, input: &Input, database_url: &str) {
+    let _span = tracing::info_span!(
+        "bench_pool_with",
+        threads = input.threads,
+        tasks = input.tasks,
+        pool_size = input.pool_size
+    )
+    .entered();
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(input.threads)
@@ -88,10 +97,13 @@ fn bench_pool_with(b: &mut Bencher, input: &Input, database_url: &str) {
             .expect("error connecting to pool")
     });
 
-    for _ in 1..=input.tasks {
+    for num in 1..=input.tasks {
         let pool = pool.clone();
 
-        runtime.spawn(async move { while pool.acquire().await.is_ok() {} });
+        runtime.spawn(
+            async move { while pool.acquire().await.is_ok() {} }
+                .instrument(tracing::info_span!("task", num)),
+        );
     }
 
     // Spawn the benchmark loop into the runtime so we're not accidentally including the main thread
