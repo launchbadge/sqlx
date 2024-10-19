@@ -532,7 +532,7 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Returns the number of connections currently active. This includes idle connections.
-    pub fn size(&self) -> u32 {
+    pub fn size(&self) -> usize {
         self.0.size()
     }
 
