@@ -74,12 +74,12 @@ pub struct PoolOptions<DB: Database> {
                 + Sync,
         >,
     >,
-    pub(crate) max_connections: u32,
+    pub(crate) max_connections: usize,
     pub(crate) acquire_time_level: LevelFilter,
     pub(crate) acquire_slow_level: LevelFilter,
     pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
-    pub(crate) min_connections: u32,
+    pub(crate) min_connections: usize,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) fair: bool,
@@ -170,13 +170,13 @@ impl<DB: Database> PoolOptions<DB> {
     /// Be mindful of the connection limits for your database as well as other applications
     /// which may want to connect to the same database (or even multiple instances of the same
     /// application in high-availability deployments).
-    pub fn max_connections(mut self, max: u32) -> Self {
+    pub fn max_connections(mut self, max: usize) -> Self {
         self.max_connections = max;
         self
     }
 
     /// Get the maximum number of connections that this pool should maintain
-    pub fn get_max_connections(&self) -> u32 {
+    pub fn get_max_connections(&self) -> usize {
         self.max_connections
     }
 
@@ -202,13 +202,13 @@ impl<DB: Database> PoolOptions<DB> {
     /// [`max_lifetime`]: Self::max_lifetime
     /// [`idle_timeout`]: Self::idle_timeout
     /// [`max_connections`]: Self::max_connections
-    pub fn min_connections(mut self, min: u32) -> Self {
+    pub fn min_connections(mut self, min: usize) -> Self {
         self.min_connections = min;
         self
     }
 
     /// Get the minimum number of connections to maintain at all times.
-    pub fn get_min_connections(&self) -> u32 {
+    pub fn get_min_connections(&self) -> usize {
         self.min_connections
     }
 
