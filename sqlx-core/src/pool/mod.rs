@@ -71,6 +71,7 @@ use crate::error::Error;
 use crate::sql_str::SqlSafeStr;
 use crate::transaction::Transaction;
 
+pub use self::connect::{PoolConnectMetadata, PoolConnector};
 pub use self::connection::PoolConnection;
 use self::inner::PoolInner;
 #[doc(hidden)]
@@ -83,8 +84,11 @@ mod executor;
 #[macro_use]
 pub mod maybe;
 
+mod connect;
 mod connection;
 mod inner;
+
+mod idle;
 mod options;
 
 /// An asynchronous pool of SQLx database connections.
@@ -356,7 +360,7 @@ impl<DB: Database> Pool<DB> {
     /// returning it.
     pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
         let shared = self.0.clone();
-        async move { shared.acquire().await.map(|conn| conn.reattach()) }
+        async move { shared.acquire().await }
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
@@ -539,28 +543,6 @@ impl<DB: Database> Pool<DB> {
     /// Returns the number of connections active and idle (not in use).
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
-    }
-
-    /// Gets a clone of the connection options for this pool
-    pub fn connect_options(&self) -> Arc<<DB::Connection as Connection>::Options> {
-        self.0
-            .connect_options
-            .read()
-            .expect("write-lock holder panicked")
-            .clone()
-    }
-
-    /// Updates the connection options this pool will use when opening any future connections.  Any
-    /// existing open connection in the pool will be left as-is.
-    pub fn set_connect_options(&self, connect_options: <DB::Connection as Connection>::Options) {
-        // technically write() could also panic if the current thread already holds the lock,
-        // but because this method can't be re-entered by the same thread that shouldn't be a problem
-        let mut guard = self
-            .0
-            .connect_options
-            .write()
-            .expect("write-lock holder panicked");
-        *guard = Arc::new(connect_options);
     }
 
     /// Get the options for this pool

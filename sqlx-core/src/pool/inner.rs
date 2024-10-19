@@ -1,33 +1,29 @@
 use super::connection::{Floating, Idle, Live};
-use crate::connection::ConnectOptions;
-use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
-use crossbeam_queue::ArrayQueue;
-
-use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
+use crate::pool::{CloseEvent, Pool, PoolConnection, PoolConnector, PoolOptions};
 
 use std::cmp;
 use std::future::{self, Future};
 use std::pin::pin;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
-use std::task::Poll;
+use std::pin::pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::task::ready;
 
 use crate::logger::private_level_filter_to_trace_level;
-use crate::pool::options::PoolConnectionMetadata;
+use crate::pool::connect::{ConnectPermit, ConnectionCounter, DynConnector};
+use crate::pool::idle::IdleQueue;
 use crate::private_tracing_dynamic_event;
+use futures_util::future::{self, OptionFuture};
 use futures_util::FutureExt;
 use std::time::{Duration, Instant};
 use tracing::Level;
 
 pub(crate) struct PoolInner<DB: Database> {
-    pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,
-    pub(super) idle_conns: ArrayQueue<Idle<DB>>,
-    pub(super) semaphore: AsyncSemaphore,
-    pub(super) size: AtomicUsize,
-    pub(super) num_idle: AtomicUsize,
+    pub(super) connector: DynConnector<DB>,
+    pub(super) counter: ConnectionCounter,
+    pub(super) idle: IdleQueue<DB>,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
@@ -38,25 +34,12 @@ pub(crate) struct PoolInner<DB: Database> {
 impl<DB: Database> PoolInner<DB> {
     pub(super) fn new_arc(
         options: PoolOptions<DB>,
-        connect_options: <DB::Connection as Connection>::Options,
+        connector: impl PoolConnector<DB>,
     ) -> Arc<Self> {
-        let capacity = options.max_connections as usize;
-
-        let semaphore_capacity = if let Some(parent) = &options.parent_pool {
-            assert!(options.max_connections <= parent.options().max_connections);
-            assert_eq!(options.fair, parent.options().fair);
-            // The child pool must steal permits from the parent
-            0
-        } else {
-            capacity
-        };
-
         let pool = Self {
-            connect_options: RwLock::new(Arc::new(connect_options)),
-            idle_conns: ArrayQueue::new(capacity),
-            semaphore: AsyncSemaphore::new(options.fair, semaphore_capacity),
-            size: AtomicUsize::new(0),
-            num_idle: AtomicUsize::new(0),
+            connector: DynConnector::new(connector),
+            counter: ConnectionCounter::new(),
+            idle: IdleQueue::new(options.fair, options.max_connections),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
             acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
@@ -72,16 +55,11 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn size(&self) -> usize {
-        self.size.load(Ordering::Acquire)
+        self.counter.connections()
     }
 
     pub(super) fn num_idle(&self) -> usize {
-        // We don't use `self.idle_conns.len()` as it waits for the internal
-        // head and tail pointers to stop changing for a moment before calculating the length,
-        // which may take a long time at high levels of churn.
-        //
-        // By maintaining our own atomic count, we avoid that issue entirely.
-        self.num_idle.load(Ordering::Acquire)
+        self.idle.len()
     }
 
     pub(super) fn is_closed(&self) -> bool {
@@ -97,80 +75,17 @@ impl<DB: Database> PoolInner<DB> {
         self.mark_closed();
 
         async move {
-            // For child pools, we need to acquire permits we actually have rather than
-            // max_connections
-            let permits_to_acquire = if self.options.parent_pool.is_some() {
-                // Child pools start with 0 permits, so we acquire based on current size
-                self.size()
-            } else {
-                // Parent pools can acquire all max_connections permits
-                self.options.max_connections
-            };
-
-            let _permits = self.semaphore.acquire(permits_to_acquire).await;
-
-            while let Some(idle) = self.idle_conns.pop() {
-                let _ = idle.live.raw.close().await;
+            while let Some(idle) = self.idle.try_acquire(self) {
+                idle.close().await;
             }
 
-            self.num_idle.store(0, Ordering::Release);
-            self.size.store(0, Ordering::Release);
+            self.counter.drain().await;
         }
     }
 
     pub(crate) fn close_event(&self) -> CloseEvent {
         CloseEvent {
             listener: (!self.is_closed()).then(|| self.on_closed.listen()),
-        }
-    }
-
-    /// Attempt to pull a permit from `self.semaphore` or steal one from the parent.
-    ///
-    /// If we steal a permit from the parent but *don't* open a connection,
-    /// it should be returned to the parent.
-    async fn acquire_permit(self: &Arc<Self>) -> Result<AsyncSemaphoreReleaser<'_>, Error> {
-        let parent = self
-            .parent()
-            // If we're already at the max size, we shouldn't try to steal from the parent.
-            // This is just going to cause unnecessary churn in `acquire()`.
-            .filter(|_| self.size() < self.options.max_connections);
-
-        let mut acquire_self = pin!(self.semaphore.acquire(1).fuse());
-        let mut close_event = pin!(self.close_event());
-
-        if let Some(parent) = parent {
-            let mut acquire_parent = pin!(parent.0.semaphore.acquire(1));
-            let mut parent_close_event = pin!(parent.0.close_event());
-
-            let mut poll_parent = false;
-
-            future::poll_fn(|cx| {
-                if close_event.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(Err(Error::PoolClosed));
-                }
-
-                if parent_close_event.as_mut().poll(cx).is_ready() {
-                    // Propagate the parent's close event to the child.
-                    self.mark_closed();
-                    return Poll::Ready(Err(Error::PoolClosed));
-                }
-
-                if let Poll::Ready(permit) = acquire_self.as_mut().poll(cx) {
-                    return Poll::Ready(Ok(permit));
-                }
-
-                // Don't try the parent right away.
-                if poll_parent {
-                    acquire_parent.as_mut().poll(cx).map(Ok)
-                } else {
-                    poll_parent = true;
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                }
-            })
-            .await
-        } else {
-            close_event.do_until(acquire_self).await
         }
     }
 
@@ -184,117 +99,103 @@ impl<DB: Database> PoolInner<DB> {
             return None;
         }
 
-        let permit = self.semaphore.try_acquire(1)?;
-
-        self.pop_idle(permit).ok()
-    }
-
-    fn pop_idle<'a>(
-        self: &'a Arc<Self>,
-        permit: AsyncSemaphoreReleaser<'a>,
-    ) -> Result<Floating<DB, Idle<DB>>, AsyncSemaphoreReleaser<'a>> {
-        if let Some(idle) = self.idle_conns.pop() {
-            self.num_idle.fetch_sub(1, Ordering::AcqRel);
-            Ok(Floating::from_idle(idle, (*self).clone(), permit))
-        } else {
-            Err(permit)
-        }
+        self.idle.try_acquire(self)
     }
 
     pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
         // `options.after_release` and other checks are in `PoolConnection::return_to_pool()`.
-
-        let Floating { inner: idle, guard } = floating.into_idle();
-
-        if self.idle_conns.push(idle).is_err() {
-            panic!("BUG: connection queue overflow in release()");
-        }
-
-        // NOTE: we need to make sure we drop the permit *after* we push to the idle queue
-        // don't decrease the size
-        guard.release_permit();
-
-        self.num_idle.fetch_add(1, Ordering::AcqRel);
+        self.idle.release(floating);
     }
 
-    /// Try to atomically increment the pool size for a new connection.
-    ///
-    /// Returns `Err` if the pool is at max capacity already or is closed.
-    pub(super) fn try_increment_size<'a>(
-        self: &'a Arc<Self>,
-        permit: AsyncSemaphoreReleaser<'a>,
-    ) -> Result<DecrementSizeGuard<DB>, AsyncSemaphoreReleaser<'a>> {
-        let result = self
-            .size
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
-                if self.is_closed() {
-                    return None;
-                }
-
-                size.checked_add(1)
-                    .filter(|size| size <= &self.options.max_connections)
-            });
-
-        match result {
-            // we successfully incremented the size
-            Ok(_) => Ok(DecrementSizeGuard::from_permit((*self).clone(), permit)),
-            // the pool is at max capacity or is closed
-            Err(_) => Err(permit),
-        }
-    }
-
-    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<DB, Live<DB>>, Error> {
+    pub(super) async fn acquire(self: &Arc<Self>) -> Result<PoolConnection<DB>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
 
         let acquire_started_at = Instant::now();
-        let deadline = acquire_started_at + self.options.acquire_timeout;
 
-        let acquired = crate::rt::timeout(
-            self.options.acquire_timeout,
-            async {
-                loop {
-                    // Handles the close-event internally
-                    let permit = self.acquire_permit().await?;
+        let mut close_event = pin!(self.close_event());
+        let mut deadline = pin!(crate::rt::sleep(self.options.acquire_timeout));
+        let mut acquire_idle = pin!(self.idle.acquire(self).fuse());
+        let mut check_idle = pin!(OptionFuture::from(None));
+        let mut acquire_connect_permit = pin!(OptionFuture::from(Some(
+            self.counter.acquire_permit(self).fuse()
+        )));
+        let mut connect = OptionFuture::from(None);
 
+        // The internal state machine of `acquire()`.
+        //
+        // * The initial state is racing to acquire either an idle connection or a new `ConnectPermit`.
+        // * If we acquire a `ConnectPermit`, we begin the connection loop (with backoff)
+        //   as implemented by `DynConnector`.
+        // * If we acquire an idle connection, we then start polling `check_idle_conn()`.
+        let acquired = future::poll_fn(|cx| {
+            use std::task::Poll::*;
 
-                    // First attempt to pop a connection from the idle queue.
-                    let guard = match self.pop_idle(permit) {
-
-                        // Then, check that we can use it...
-                        Ok(conn) => match check_idle_conn(conn, &self.options).await {
-
-                            // All good!
-                            Ok(live) => return Ok(live),
-
-                            // if the connection isn't usable for one reason or another,
-                            // we get the `DecrementSizeGuard` back to open a new one
-                            Err(guard) => guard,
-                        },
-                        Err(permit) => if let Ok(guard) = self.try_increment_size(permit) {
-                            // we can open a new connection
-                            guard
-                        } else {
-                            // This can happen for a child pool that's at its connection limit,
-                            // or if the pool was closed between `acquire_permit()` and
-                            // `try_increment_size()`.
-                            tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
-                            // If so, we're likely in the current-thread runtime if it's Tokio,
-                            // and so we should yield to let any spawned return_to_pool() tasks
-                            // execute.
-                            crate::rt::yield_now().await;
-                            continue;
-                        }
-                    };
-
-                    // Attempt to connect...
-                    return self.connect(deadline, guard).await;
-                }
+            // First check if the pool is already closed,
+            // or register for a wakeup if it gets closed.
+            if let Ready(()) = close_event.poll_unpin(cx) {
+                return Ready(Err(Error::PoolClosed));
             }
-        )
-            .await
-            .map_err(|_| Error::PoolTimedOut)??;
+
+            // Then check if our deadline has elapsed, or schedule a wakeup for when that happens.
+            if let Ready(()) = deadline.poll_unpin(cx) {
+                return Ready(Err(Error::PoolTimedOut));
+            }
+
+            // Attempt to acquire a connection from the idle queue.
+            if let Ready(idle) = acquire_idle.poll_unpin(cx) {
+                check_idle.set(Some(check_idle_conn(idle, &self.options)).into());
+            }
+
+            // If we acquired an idle connection, run any checks that need to be done.
+            //
+            // Includes `test_on_acquire` and the `before_acquire` callback, if set.
+            //
+            // We don't want to race this step if it's already running because canceling it
+            // will result in the potentially unnecessary closure of a connection.
+            //
+            // Instead, we just wait and see what happens. If we already started connecting,
+            // that'll happen concurrently.
+            match ready!(check_idle.poll_unpin(cx)) {
+                // The `.reattach()` call errors with "type annotations needed" if not qualified.
+                Some(Ok(live)) => return Ready(Ok(Floating::reattach(live))),
+                Some(Err(permit)) => {
+                    // We don't strictly need to poll `connect` here; all we really want to do
+                    // is to check if it is `None`. But since currently there's no getter for that,
+                    // it doesn't really hurt to just poll it here.
+                    match connect.poll_unpin(cx) {
+                        Ready(None) => {
+                            // If we're not already attempting to connect,
+                            // take the permit returned from closing the connection and
+                            // attempt to open a new one.
+                            connect = Some(self.connector.connect(permit, self.size())).into();
+                        }
+                        // `permit` is dropped in these branches, allowing another task to use it
+                        Ready(Some(res)) => return Ready(res),
+                        Pending => (),
+                    }
+
+                    // Attempt to acquire another idle connection concurrently to opening a new one.
+                    acquire_idle.set(self.idle.acquire(self).fuse());
+                    // Annoyingly, `OptionFuture` doesn't fuse to `None` on its own
+                    check_idle.set(None.into());
+                }
+                None => (),
+            }
+
+            if let Ready(Some((size, permit))) = acquire_connect_permit.poll_unpin(cx) {
+                connect = Some(self.connector.connect(permit, size)).into();
+            }
+
+            if let Ready(Some(res)) = connect.poll_unpin(cx) {
+                // RFC: suppress errors here?
+                return Ready(res);
+            }
+
+            Pending
+        })
+        .await?;
 
         let acquired_after = acquire_started_at.elapsed();
 
@@ -322,102 +223,29 @@ impl<DB: Database> PoolInner<DB> {
         Ok(acquired)
     }
 
-    pub(super) async fn connect(
-        self: &Arc<Self>,
-        deadline: Instant,
-        guard: DecrementSizeGuard<DB>,
-    ) -> Result<Floating<DB, Live<DB>>, Error> {
-        if self.is_closed() {
-            return Err(Error::PoolClosed);
-        }
-
-        let mut backoff = Duration::from_millis(10);
-        let max_backoff = deadline_as_timeout(deadline)? / 5;
-
-        loop {
-            let timeout = deadline_as_timeout(deadline)?;
-
-            // clone the connect options arc so it can be used without holding the RwLockReadGuard
-            // across an async await point
-            let connect_options = self
-                .connect_options
-                .read()
-                .expect("write-lock holder panicked")
-                .clone();
-
-            // result here is `Result<Result<C, Error>, TimeoutError>`
-            // if this block does not return, sleep for the backoff timeout and try again
-            match crate::rt::timeout(timeout, connect_options.connect()).await {
-                // successfully established connection
-                Ok(Ok(mut raw)) => {
-                    // See comment on `PoolOptions::after_connect`
-                    let meta = PoolConnectionMetadata {
-                        age: Duration::ZERO,
-                        idle_for: Duration::ZERO,
-                    };
-
-                    let res = if let Some(callback) = &self.options.after_connect {
-                        callback(&mut raw, meta).await
-                    } else {
-                        Ok(())
-                    };
-
-                    match res {
-                        Ok(()) => return Ok(Floating::new_live(raw, guard)),
-                        Err(error) => {
-                            tracing::error!(%error, "error returned from after_connect");
-                            // The connection is broken, don't try to close nicely.
-                            let _ = raw.close_hard().await;
-
-                            // Fall through to the backoff.
-                        }
-                    }
-                }
-
-                // an IO error while connecting is assumed to be the system starting up
-                Ok(Err(Error::Io(e))) if e.kind() == std::io::ErrorKind::ConnectionRefused => (),
-
-                // We got a transient database error, retry.
-                Ok(Err(Error::Database(error))) if error.is_transient_in_connect_phase() => (),
-
-                // Any other error while connection should immediately
-                // terminate and bubble the error up
-                Ok(Err(e)) => return Err(e),
-
-                // timed out
-                Err(_) => return Err(Error::PoolTimedOut),
-            }
-
-            // If the connection is refused, wait in exponentially
-            // increasing steps for the server to come up,
-            // capped by a factor of the remaining time until the deadline
-            crate::rt::sleep(backoff).await;
-            backoff = cmp::min(backoff * 2, max_backoff);
-        }
-    }
-
     /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
     pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
-        while self.size() < self.options.min_connections {
-            // Don't wait for a semaphore permit.
-            //
-            // If no extra permits are available then we shouldn't be trying to spin up
-            // connections anyway.
-            let Some(permit) = self.semaphore.try_acquire(1) else {
-                return Ok(());
-            };
+        crate::rt::timeout_at(deadline, async {
+            while self.size() < self.options.min_connections {
+                // Don't wait for a connect permit.
+                //
+                // If no extra permits are available then we shouldn't be trying to spin up
+                // connections anyway.
+                let Some((size, permit)) = self.counter.acquire_permit(self).now_or_never() else {
+                    return Ok(());
+                };
 
-            // We must always obey `max_connections`.
-            let Some(guard) = self.try_increment_size(permit).ok() else {
-                return Ok(());
-            };
+                let conn = self.connector.connect(permit, size).await?;
 
-            // We skip `after_release` since the connection was never provided to user code
-            // besides `after_connect`, if they set it.
-            self.release(self.connect(deadline, guard).await?);
-        }
+                // We skip `after_release` since the connection was never provided to user code
+                // besides inside `PollConnector::connect()`, if they override it.
+                self.release(conn.into_floating());
+            }
 
-        Ok(())
+            Ok(())
+        })
+        .await
+        .unwrap_or_else(|_| Err(Error::PoolTimedOut))
     }
 
     /// Attempt to maintain `min_connections`, logging if unable.
@@ -441,11 +269,7 @@ impl<DB: Database> PoolInner<DB> {
 impl<DB: Database> Drop for PoolInner<DB> {
     fn drop(&mut self) {
         self.mark_closed();
-
-        if let Some(parent) = &self.options.parent_pool {
-            // Release the stolen permits.
-            parent.0.semaphore.release(self.semaphore.permits());
-        }
+        self.idle.drain(self);
     }
 }
 
@@ -469,7 +293,7 @@ fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<D
 async fn check_idle_conn<DB: Database>(
     mut conn: Floating<DB, Idle<DB>>,
     options: &PoolOptions<DB>,
-) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
+) -> Result<Floating<DB, Live<DB>>, ConnectPermit<DB>> {
     if options.test_before_acquire {
         // Check that the connection is still live
         if let Err(error) = conn.ping().await {
@@ -572,52 +396,4 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
             })
             .await;
     });
-}
-
-/// RAII guard returned by `Pool::try_increment_size()` and others.
-///
-/// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
-/// (where the pool thinks it has more connections than it does).
-pub(in crate::pool) struct DecrementSizeGuard<DB: Database> {
-    pub(crate) pool: Arc<PoolInner<DB>>,
-    cancelled: bool,
-}
-
-impl<DB: Database> DecrementSizeGuard<DB> {
-    /// Create a new guard that will release a semaphore permit on-drop.
-    pub fn new_permit(pool: Arc<PoolInner<DB>>) -> Self {
-        Self {
-            pool,
-            cancelled: false,
-        }
-    }
-
-    pub fn from_permit(pool: Arc<PoolInner<DB>>, permit: AsyncSemaphoreReleaser<'_>) -> Self {
-        // here we effectively take ownership of the permit
-        permit.disarm();
-        Self::new_permit(pool)
-    }
-
-    /// Release the semaphore permit without decreasing the pool size.
-    ///
-    /// If the permit was stolen from the pool's parent, it will be returned to the child's semaphore.
-    fn release_permit(self) {
-        self.pool.semaphore.release(1);
-        self.cancel();
-    }
-
-    pub fn cancel(mut self) {
-        self.cancelled = true;
-    }
-}
-
-impl<DB: Database> Drop for DecrementSizeGuard<DB> {
-    fn drop(&mut self) {
-        if !self.cancelled {
-            self.pool.size.fetch_sub(1, Ordering::AcqRel);
-
-            // and here we release the permit we got on construction
-            self.pool.semaphore.release(1);
-        }
-    }
 }

@@ -22,11 +22,10 @@ json = ["serde", "serde_json"]
 # for conditional compilation
 _rt-async-global-executor = ["async-global-executor", "_rt-async-io", "_rt-async-task"]
 _rt-async-io = ["async-io", "async-fs"] # see note at async-fs declaration
-_rt-async-std = ["async-std", "_rt-async-io"]
+_rt-async-std = ["async-std", "_rt-async-io", "ease-off/async-io-2"]
 _rt-async-task = ["async-task"]
 _rt-smol = ["smol", "_rt-async-io", "_rt-async-task"]
-_rt-tokio = ["tokio", "tokio-stream"]
-
+_rt-tokio = ["tokio", "tokio-stream", "ease-off/tokio"]
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
 _tls-rustls-ring-webpki = ["_tls-rustls", "rustls/ring", "webpki-roots"]
@@ -83,7 +82,6 @@ crossbeam-queue = "0.3.2"
 either = "1.6.1"
 futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
-futures-intrusive = "0.5.0"
 futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
 log = { version = "0.4.18", default-features = false }
 memchr = { version = "2.4.1", default-features = false }
@@ -104,6 +102,9 @@ event-listener = "5.2.0"
 hashbrown = "0.16.0"
 
 thiserror.workspace = true
+
+ease-off = { workspace = true, features = ["futures"] }
+pin-project-lite = "0.2.14"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt"] }
