@@ -74,13 +74,20 @@ async fn no_tx(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
     // run migration
     migrator.run(&mut conn).await?;
 
-    // check outcome
+    // check outcomes
     let res: String = conn
         .fetch_one("SELECT datname FROM pg_database WHERE datname = 'test_db'")
         .await?
         .get(0);
 
     assert_eq!(res, "test_db");
+
+    let res: String = conn
+        .fetch_one("SELECT email FROM users WHERE username = 'test_user'")
+        .await?
+        .get(0);
+
+    assert_eq!(res, "test_user@example.com");
 
     Ok(())
 }
