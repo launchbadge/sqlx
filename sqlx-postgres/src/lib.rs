@@ -18,6 +18,7 @@ mod message;
 mod options;
 mod query_result;
 mod row;
+mod split_sql;
 mod statement;
 mod transaction;
 mod type_checking;

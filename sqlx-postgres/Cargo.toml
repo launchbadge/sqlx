@@ -70,6 +70,8 @@ whoami = { version = "1.2.1", default-features = false }
 
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = { version = "1.0.85", features = ["raw_value"] }
+pest = "2.7.14"
+pest_derive = "2.7.14"
 
 [dependencies.sqlx-core]
 workspace = true
