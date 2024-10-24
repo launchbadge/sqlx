@@ -1081,7 +1081,9 @@ async fn test_pg_listener_implements_acquire() -> anyhow::Result<()> {
     let pool = pool::<Postgres>().await?;
 
     let mut listener = PgListener::connect_with(&pool).await?;
-    listener.listen("test_channel").await?;
+    listener
+        .listen("test_pg_listener_implements_acquire")
+        .await?;
 
     // Start a transaction on the underlying connection
     let mut txn = listener.begin().await?;
@@ -1091,10 +1093,10 @@ async fn test_pg_listener_implements_acquire() -> anyhow::Result<()> {
         .fetch_all(&mut *txn)
         .await?;
 
-    assert_eq!(channels, vec!["test_channel"]);
+    assert_eq!(channels, vec!["test_pg_listener_implements_acquire"]);
 
     // Send a notification
-    sqlx::query("NOTIFY test_channel, 'hello'")
+    sqlx::query("NOTIFY test_pg_listener_implements_acquire, 'hello'")
         .execute(&mut *txn)
         .await?;
 
@@ -1102,7 +1104,10 @@ async fn test_pg_listener_implements_acquire() -> anyhow::Result<()> {
 
     // And now we can receive the notification we sent in the transaction
     let notification = listener.recv().await?;
-    assert_eq!(notification.channel(), "test_channel");
+    assert_eq!(
+        notification.channel(),
+        "test_pg_listener_implements_acquire"
+    );
     assert_eq!(notification.payload(), "hello");
 
     Ok(())
