@@ -44,49 +44,55 @@ impl TestSupport for MySql {
 
             let mut conn = MySqlConnection::connect(&url).await?;
 
-            let delete_db_ids: Vec<u64> = query_scalar("select db_id from _sqlx_test_databases")
-                .fetch_all(&mut conn)
-                .await?;
+            let delete_db_names: Vec<String> =
+                query_scalar("select db_name from _sqlx_test_databases")
+                    .fetch_all(&mut conn)
+                    .await?;
 
-            if delete_db_ids.is_empty() {
+            if delete_db_names.is_empty() {
                 return Ok(None);
             }
 
-            let mut deleted_db_ids = Vec::with_capacity(delete_db_ids.len());
+            let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
             let mut command = String::new();
 
-            for db_id in &delete_db_ids {
+            for db_name in &delete_db_names {
                 command.clear();
 
-                let db_name = format!("_sqlx_test_database_{db_id}");
+                let db_name = format!("_sqlx_test_database_{db_name}");
 
-                writeln!(command, "drop database if exists {db_name}").ok();
+                writeln!(command, "drop database if exists {db_name:?};").ok();
                 match conn.execute(&*command).await {
                     Ok(_deleted) => {
-                        deleted_db_ids.push(db_id);
+                        deleted_db_names.push(db_name);
                     }
                     // Assume a database error just means the DB is still in use.
                     Err(Error::Database(dbe)) => {
-                        eprintln!("could not clean test database {db_id:?}: {dbe}")
+                        eprintln!("could not clean test database {db_name:?}: {dbe}")
                     }
                     // Bubble up other errors
                     Err(e) => return Err(e),
                 }
             }
 
-            let mut query = QueryBuilder::new("delete from _sqlx_test_databases where db_id in (");
+            if deleted_db_names.is_empty() {
+                return Ok(None);
+            }
+
+            let mut query =
+                QueryBuilder::new("delete from _sqlx_test_databases where db_name in (");
 
             let mut separated = query.separated(",");
 
-            for db_id in &deleted_db_ids {
-                separated.push_bind(db_id);
+            for db_name in &deleted_db_names {
+                separated.push_bind(db_name);
             }
 
             query.push(")").build().execute(&mut conn).await?;
 
             let _ = conn.close().await;
-            Ok(Some(delete_db_ids.len()))
+            Ok(Some(delete_db_names.len()))
         })
     }
 
