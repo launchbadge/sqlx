@@ -97,6 +97,7 @@ impl_type_checking!(
         Vec<f64> | &[f64],
         Vec<sqlx::postgres::types::Oid> | &[sqlx::postgres::types::Oid],
         Vec<sqlx::postgres::types::PgMoney> | &[sqlx::postgres::types::PgMoney],
+        Vec<sqlx::postgres::types::PgInterval> | &[sqlx::postgres::types::PgInterval],
 
         #[cfg(feature = "uuid")]
         Vec<sqlx::types::Uuid> | &[sqlx::types::Uuid],
