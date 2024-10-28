@@ -3368,6 +3368,7 @@ version = "0.8.2"
 dependencies = [
  "async-io 1.13.0",
  "async-std",
+ "base64 0.22.0",
  "bigdecimal",
  "bit-vec",
  "bstr",
