@@ -1075,6 +1075,45 @@ async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_pg_listener_implements_acquire() -> anyhow::Result<()> {
+    use sqlx::Acquire;
+
+    let pool = pool::<Postgres>().await?;
+
+    let mut listener = PgListener::connect_with(&pool).await?;
+    listener
+        .listen("test_pg_listener_implements_acquire")
+        .await?;
+
+    // Start a transaction on the underlying connection
+    let mut txn = listener.begin().await?;
+
+    // This will reuse the same connection, so this connection should be listening to the channel
+    let channels: Vec<String> = sqlx::query_scalar("SELECT pg_listening_channels()")
+        .fetch_all(&mut *txn)
+        .await?;
+
+    assert_eq!(channels, vec!["test_pg_listener_implements_acquire"]);
+
+    // Send a notification
+    sqlx::query("NOTIFY test_pg_listener_implements_acquire, 'hello'")
+        .execute(&mut *txn)
+        .await?;
+
+    txn.commit().await?;
+
+    // And now we can receive the notification we sent in the transaction
+    let notification = listener.recv().await?;
+    assert_eq!(
+        notification.channel(),
+        "test_pg_listener_implements_acquire"
+    );
+    assert_eq!(notification.payload(), "hello");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
     // Only supported in Postgres 11+
     let mut conn = new::<Postgres>().await?;

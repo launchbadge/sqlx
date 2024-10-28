@@ -5,7 +5,9 @@ use std::str::from_utf8;
 use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
-use futures_util::{FutureExt, StreamExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use sqlx_core::acquire::Acquire;
+use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 
 use crate::describe::Describe;
@@ -325,6 +327,19 @@ impl Drop for PgListener {
             // Unregister any listeners before returning the connection to the pool.
             crate::rt::spawn(fut);
         }
+    }
+}
+
+impl<'c> Acquire<'c> for &'c mut PgListener {
+    type Database = Postgres;
+    type Connection = &'c mut PgConnection;
+
+    fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>> {
+        self.connection().boxed()
+    }
+
+    fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
+        self.connection().and_then(|c| c.begin()).boxed()
     }
 }
 
