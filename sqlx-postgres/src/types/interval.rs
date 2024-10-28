@@ -10,7 +10,7 @@ use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValue
 
 // `PgInterval` is available for direct access to the INTERVAL type
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default)]
 pub struct PgInterval {
     pub months: i32,
     pub days: i32,
