@@ -9,7 +9,8 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 
-use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
+use super::inner::{is_beyond_max_lifetime, PoolInner};
+use crate::pool::connect::ConnectPermit;
 use crate::pool::options::PoolConnectionMetadata;
 use std::future::Future;
 
@@ -37,7 +38,7 @@ pub(super) struct Idle<DB: Database> {
 /// RAII wrapper for connections being handled by functions that may drop them
 pub(super) struct Floating<DB: Database, C> {
     pub(super) inner: C,
-    pub(super) guard: DecrementSizeGuard<DB>,
+    pub(super) permit: ConnectPermit<DB>,
 }
 
 const EXPECT_MSG: &str = "BUG: inner connection already taken!";
@@ -125,6 +126,10 @@ impl<DB: Database> PoolConnection<DB> {
 
     fn take_live(&mut self) -> Live<DB> {
         self.live.take().expect(EXPECT_MSG)
+    }
+
+    pub(super) fn into_floating(mut self) -> Floating<DB, Live<DB>> {
+        self.take_live().float(self.pool.clone())
     }
 
     /// Test the connection to make sure it is still live before returning it to the pool.
@@ -215,7 +220,7 @@ impl<DB: Database> Live<DB> {
         Floating {
             inner: self,
             // create a new guard from a previously leaked permit
-            guard: DecrementSizeGuard::new_permit(pool),
+            permit: ConnectPermit::float_existing(pool),
         }
     }
 
@@ -242,22 +247,22 @@ impl<DB: Database> DerefMut for Idle<DB> {
 }
 
 impl<DB: Database> Floating<DB, Live<DB>> {
-    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<DB>) -> Self {
+    pub fn new_live(conn: DB::Connection, permit: ConnectPermit<DB>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
                 created_at: Instant::now(),
             },
-            guard,
+            permit,
         }
     }
 
     pub fn reattach(self) -> PoolConnection<DB> {
-        let Floating { inner, guard } = self;
+        let Floating { inner, permit } = self;
 
-        let pool = Arc::clone(&guard.pool);
+        let pool = Arc::clone(permit.pool());
 
-        guard.cancel();
+        permit.consume();
         PoolConnection {
             live: Some(inner),
             close_on_drop: false,
@@ -266,7 +271,7 @@ impl<DB: Database> Floating<DB, Live<DB>> {
     }
 
     pub fn release(self) {
-        self.guard.pool.clone().release(self);
+        self.permit.pool().clone().release(self);
     }
 
     /// Return the connection to the pool.
@@ -274,19 +279,19 @@ impl<DB: Database> Floating<DB, Live<DB>> {
     /// Returns `true` if the connection was successfully returned, `false` if it was closed.
     async fn return_to_pool(mut self) -> bool {
         // Immediately close the connection.
-        if self.guard.pool.is_closed() {
+        if self.permit.pool().is_closed() {
             self.close().await;
             return false;
         }
 
         // If the connection is beyond max lifetime, close the connection and
         // immediately create a new connection
-        if is_beyond_max_lifetime(&self.inner, &self.guard.pool.options) {
+        if is_beyond_max_lifetime(&self.inner, &self.permit.pool().options) {
             self.close().await;
             return false;
         }
 
-        if let Some(test) = &self.guard.pool.options.after_release {
+        if let Some(test) = &self.permit.pool().options.after_release {
             let meta = self.metadata();
             match (test)(&mut self.inner.raw, meta).await {
                 Ok(true) => (),
@@ -345,7 +350,7 @@ impl<DB: Database> Floating<DB, Live<DB>> {
     pub fn into_idle(self) -> Floating<DB, Idle<DB>> {
         Floating {
             inner: self.inner.into_idle(),
-            guard: self.guard,
+            permit: self.permit,
         }
     }
 
@@ -358,14 +363,10 @@ impl<DB: Database> Floating<DB, Live<DB>> {
 }
 
 impl<DB: Database> Floating<DB, Idle<DB>> {
-    pub fn from_idle(
-        idle: Idle<DB>,
-        pool: Arc<PoolInner<DB>>,
-        permit: AsyncSemaphoreReleaser<'_>,
-    ) -> Self {
+    pub fn from_idle(idle: Idle<DB>, pool: Arc<PoolInner<DB>>) -> Self {
         Self {
             inner: idle,
-            guard: DecrementSizeGuard::from_permit(pool, permit),
+            permit: ConnectPermit::float_existing(pool),
         }
     }
 
@@ -376,21 +377,21 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
     pub fn into_live(self) -> Floating<DB, Live<DB>> {
         Floating {
             inner: self.inner.live,
-            guard: self.guard,
+            permit: self.permit,
         }
     }
 
-    pub async fn close(self) -> DecrementSizeGuard<DB> {
+    pub async fn close(self) -> ConnectPermit<DB> {
         if let Err(error) = self.inner.live.raw.close().await {
             tracing::debug!(%error, "error occurred while closing the pool connection");
         }
-        self.guard
+        self.permit
     }
 
-    pub async fn close_hard(self) -> DecrementSizeGuard<DB> {
+    pub async fn close_hard(self) -> ConnectPermit<DB> {
         let _ = self.inner.live.raw.close_hard().await;
 
-        self.guard
+        self.permit
     }
 
     pub fn metadata(&self) -> PoolConnectionMetadata {

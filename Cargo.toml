@@ -35,8 +35,7 @@ authors = [
     "Chloe Ross <orangesnowfox@gmail.com>",
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
-# TODO: enable this for 0.9.0
-# rust-version = "1.80.0"
+rust-version = "1.80.0"
 
 [package]
 name = "sqlx"
@@ -48,6 +47,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 features = ["all-databases", "_unstable-all-types"]
@@ -147,6 +147,7 @@ uuid = "1.1.2"
 
 # Common utility crates
 dotenvy = { version = "0.15.0", default-features = false }
+ease-off = "0.1.4"
 
 # Runtimes
 [workspace.dependencies.async-std]

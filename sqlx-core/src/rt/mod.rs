@@ -2,7 +2,7 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(feature = "_rt-async-std")]
 pub mod rt_async_std;
@@ -33,6 +33,29 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
 
     #[cfg(feature = "_rt-async-std")]
     {
+        async_std::future::timeout(duration, f)
+            .await
+            .map_err(|_| TimeoutError(()))
+    }
+
+    #[cfg(not(feature = "_rt-async-std"))]
+    missing_rt((duration, f))
+}
+
+pub async fn timeout_at<F: Future>(deadline: Instant, f: F) -> Result<F::Output, TimeoutError> {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return tokio::time::timeout_at(deadline.into(), f)
+            .await
+            .map_err(|_| TimeoutError(()));
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    {
+        let Some(duration) = deadline.checked_duration_since(Instant::now()) else {
+            return Err(TimeoutError(()));
+        };
+
         async_std::future::timeout(duration, f)
             .await
             .map_err(|_| TimeoutError(()))
