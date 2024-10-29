@@ -1,7 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
 
-use futures_core::future::BoxFuture;
-use futures_util::FutureExt;
 pub(crate) use sqlx_core::connection::*;
 pub(crate) use stream::{MySqlStream, Waiting};
 
@@ -52,54 +50,46 @@ impl Connection for MySqlConnection {
 
     type Options = MySqlConnectOptions;
 
-    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            self.inner.stream.send_packet(Quit).await?;
-            self.inner.stream.shutdown().await?;
+    async fn close(mut self) -> Result<(), Error> {
+        self.inner.stream.send_packet(Quit).await?;
+        self.inner.stream.shutdown().await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            self.inner.stream.shutdown().await?;
-            Ok(())
-        })
+    async fn close_hard(mut self) -> Result<(), Error> {
+        self.inner.stream.shutdown().await?;
+        Ok(())
     }
 
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            self.inner.stream.wait_until_ready().await?;
-            self.inner.stream.send_packet(Ping).await?;
-            self.inner.stream.recv_ok().await?;
+    async fn ping(&mut self) -> Result<(), Error> {
+        self.inner.stream.wait_until_ready().await?;
+        self.inner.stream.send_packet(Ping).await?;
+        self.inner.stream.recv_ok().await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.inner.stream.wait_until_ready().boxed()
+    async fn flush(&mut self) -> Result<(), Error> {
+        self.inner.stream.wait_until_ready().await
     }
 
     fn cached_statements_size(&self) -> usize {
         self.inner.cache_statement.len()
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            while let Some((statement_id, _)) = self.inner.cache_statement.remove_lru() {
-                self.inner
-                    .stream
-                    .send_packet(StmtClose {
-                        statement: statement_id,
-                    })
-                    .await?;
-            }
+    async fn clear_cached_statements(&mut self) -> Result<(), Error> {
+        while let Some((statement_id, _)) = self.inner.cache_statement.remove_lru() {
+            self.inner
+                .stream
+                .send_packet(StmtClose {
+                    statement: statement_id,
+                })
+                .await?;
+        }
 
-            Ok(())
-        })
+        Ok(())
     }
 
     #[doc(hidden)]
@@ -107,11 +97,11 @@ impl Connection for MySqlConnection {
         !self.inner.stream.write_buffer().is_empty()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    async fn begin(&mut self) -> Result<Transaction<'_, Self::Database>, Error>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self).await
     }
 
     fn shrink_buffers(&mut self) {

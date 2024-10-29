@@ -10,19 +10,17 @@ pub(crate) use sqlx_core::testing::*;
 const BASE_PATH: &str = "target/sqlx/test-dbs";
 
 impl TestSupport for Sqlite {
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move { test_context(args).await })
+    async fn test_context(args: &TestArgs) -> Result<TestContext<Self>, Error> {
+        test_context(args).await
     }
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move { Ok(crate::fs::remove_file(db_name).await?) })
+    async fn cleanup_test(db_name: &str) -> Result<(), Error> {
+        Ok(crate::fs::remove_file(db_name).await?)
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            crate::fs::remove_dir_all(BASE_PATH).await?;
-            Ok(None)
-        })
+    async fn cleanup_test_dbs() -> Result<Option<usize>, Error> {
+        crate::fs::remove_dir_all(BASE_PATH).await?;
+        Ok(None)
     }
 
     fn snapshot(

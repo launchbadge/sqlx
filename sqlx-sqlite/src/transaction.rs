@@ -1,5 +1,3 @@
-use futures_core::future::BoxFuture;
-
 use crate::{Sqlite, SqliteConnection};
 use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
@@ -10,16 +8,16 @@ pub struct SqliteTransactionManager;
 impl TransactionManager for SqliteTransactionManager {
     type Database = Sqlite;
 
-    fn begin(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(conn.worker.begin())
+    async fn begin(conn: &mut SqliteConnection) -> Result<(), Error> {
+        conn.worker.begin().await
     }
 
-    fn commit(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(conn.worker.commit())
+    async fn commit(conn: &mut SqliteConnection) -> Result<(), Error> {
+        conn.worker.commit().await
     }
 
-    fn rollback(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(conn.worker.rollback())
+    async fn rollback(conn: &mut SqliteConnection) -> Result<(), Error> {
+        conn.worker.rollback().await
     }
 
     fn start_rollback(conn: &mut SqliteConnection) {

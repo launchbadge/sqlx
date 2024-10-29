@@ -25,44 +25,40 @@ static MASTER_POOL: OnceCell<Pool<Postgres>> = OnceCell::new();
 static DO_CLEANUP: AtomicBool = AtomicBool::new(true);
 
 impl TestSupport for Postgres {
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move { test_context(args).await })
+    async fn test_context(args: &TestArgs) -> Result<TestContext<Self>, Error> {
+        test_context(args).await
     }
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let mut conn = MASTER_POOL
-                .get()
-                .expect("cleanup_test() invoked outside `#[sqlx::test]")
-                .acquire()
-                .await?;
+    async fn cleanup_test(db_name: &str) -> Result<(), Error> {
+        let mut conn = MASTER_POOL
+            .get()
+            .expect("cleanup_test() invoked outside `#[sqlx::test]")
+            .acquire()
+            .await?;
 
-            conn.execute(&format!("drop database if exists {db_name:?};")[..])
-                .await?;
+        conn.execute(&format!("drop database if exists {db_name:?};")[..])
+            .await?;
 
-            query("delete from _sqlx_test.databases where db_name = $1")
-                .bind(db_name)
-                .execute(&mut *conn)
-                .await?;
+        query("delete from _sqlx_test.databases where db_name = $1")
+            .bind(db_name)
+            .execute(&mut *conn)
+            .await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    async fn cleanup_test_dbs() -> Result<Option<usize>, Error> {
+        let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-            let mut conn = PgConnection::connect(&url).await?;
+        let mut conn = PgConnection::connect(&url).await?;
 
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
 
-            let num_deleted = do_cleanup(&mut conn, now).await?;
-            let _ = conn.close().await;
-            Ok(Some(num_deleted))
-        })
+        let num_deleted = do_cleanup(&mut conn, now).await?;
+        let _ = conn.close().await;
+        Ok(Some(num_deleted))
     }
 
     fn snapshot(

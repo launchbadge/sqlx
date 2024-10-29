@@ -24,9 +24,11 @@ pub trait TestSupport: Database {
     ///
     /// The implementation may require `DATABASE_URL` to be set in order to manage databases.
     /// The user credentials it contains must have the privilege to create and drop databases.
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>>;
+    fn test_context(
+        args: &TestArgs,
+    ) -> impl Future<Output = Result<TestContext<Self>, Error>> + Send + '_;
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>>;
+    fn cleanup_test(db_name: &str) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     /// Cleanup any test databases that are no longer in-use.
     ///
@@ -34,7 +36,7 @@ pub trait TestSupport: Database {
     ///
     /// The implementation may require `DATABASE_URL` to be set in order to manage databases.
     /// The user credentials it contains must have the privilege to create and drop databases.
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>>;
+    fn cleanup_test_dbs() -> impl Future<Output = Result<Option<usize>, Error>> + Send + 'static;
 
     /// Take a snapshot of the current state of the database (data only).
     ///
