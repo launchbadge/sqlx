@@ -1,7 +1,6 @@
+use crate::Sqlite;
 #[allow(unused_imports)]
 use sqlx_core as sqlx;
-
-use crate::Sqlite;
 
 // f32 is not included below as REAL represents a floating point value
 // stored as an 8-byte IEEE floating point number (i.e. an f64)
@@ -20,24 +19,6 @@ impl_type_checking!(
         String,
         Vec<u8>,
 
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDate,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::NaiveDateTime,
-
-        #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::OffsetDateTime,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::PrimitiveDateTime,
-
-        #[cfg(feature = "time")]
-        sqlx::types::time::Date,
-
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
     },
@@ -48,4 +29,28 @@ impl_type_checking!(
     // The type integrations simply allow the user to skip some intermediate representation,
     // which is usually TEXT.
     feature-types: _info => None,
+
+    // The expansion of the macro automatically applies the correct feature name
+    // and checks `[macros.preferred-crates]`
+    datetime-types: {
+        chrono: {
+            sqlx::types::chrono::NaiveDate,
+
+            sqlx::types::chrono::NaiveDateTime,
+
+            sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>
+                | sqlx::types::chrono::DateTime<_>,
+        },
+        time: {
+            sqlx::types::time::OffsetDateTime,
+
+            sqlx::types::time::PrimitiveDateTime,
+
+            sqlx::types::time::Date,
+        },
+    },
+    numeric-types: {
+        bigdecimal: { },
+        rust_decimal: { },
+    },
 );
