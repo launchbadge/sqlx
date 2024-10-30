@@ -32,6 +32,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgCube,
 
+        sqlx::postgres::types::PgPoint,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
