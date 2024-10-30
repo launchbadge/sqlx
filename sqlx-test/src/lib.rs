@@ -51,6 +51,12 @@ macro_rules! test_type {
         }
     };
 
+    ($name:ident<$ty:ty>($db:ident, $($text:literal @= $value:expr),+ $(,)?)) => {
+        paste::item! {
+            $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_geometric_type >]!(), $($text == $value),+));
+        }
+    };
+
     ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::test_type!($name<$name>($db, $($text == $value),+));
     };
@@ -81,6 +87,7 @@ macro_rules! test_prepared_type {
             $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_type >]!(), $($text == $value),+));
         }
     };
+
 
     ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::__test_prepared_type!($name<$name>($db, $($text == $value),+));
@@ -221,5 +228,12 @@ macro_rules! Sqlite_query_for_test_prepared_type {
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
         "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
+    };
+}
+
+#[macro_export]
+macro_rules! Postgres_query_for_test_prepared_geometric_type {
+    () => {
+        "SELECT ({0}::text is not distinct from $1::text)::int4, {0}, $2"
     };
 }
