@@ -72,6 +72,10 @@ impl MySqlConnectOptions {
                     options = options.socket(&*value);
                 }
 
+                "timezone" | "time-zone" => {
+                    options = options.timezone(Some(value.to_string()));
+                }
+
                 _ => {}
             }
         }
@@ -175,4 +179,17 @@ fn it_returns_the_parsed_url() {
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn it_parses_timezone() {
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?timezone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
+
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?time-zone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
 }
