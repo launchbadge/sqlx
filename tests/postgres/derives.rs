@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::types::PgRange;
-use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx::{Connection, Executor, Fetch, FromRow, Postgres};
 use sqlx_postgres::PgHasArrayType;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;

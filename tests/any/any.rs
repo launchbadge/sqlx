@@ -1,5 +1,5 @@
 use sqlx::any::AnyRow;
-use sqlx::{Any, Connection, Executor, Row};
+use sqlx::{Any, Connection, Executor, Fetch, Row};
 use sqlx_test::new;
 
 #[sqlx_macros::test]

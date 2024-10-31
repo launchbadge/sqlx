@@ -11,7 +11,7 @@ pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase};
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::query::query;
+use crate::query::{query, Fetch};
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
 use crate::{PgConnectOptions, PgConnection, Postgres};
