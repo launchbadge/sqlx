@@ -50,7 +50,7 @@ pub trait TestSupport: Database {
         hasher.update(args.test_path.as_bytes());
         let hash = hasher.finalize();
         let hash = URL_SAFE.encode(&hash[..39]);
-        let db_name = format!("_sqlx_test_{}", hash);
+        let db_name = format!("_sqlx_test_{}", hash).replace('-', "_");
         debug_assert!(db_name.len() == 63);
         db_name
     }
