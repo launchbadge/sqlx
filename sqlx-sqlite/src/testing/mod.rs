@@ -15,7 +15,6 @@ impl TestSupport for Sqlite {
     }
 
     fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        let db_name = convert_path(db_name);
         Box::pin(async move { Ok(crate::fs::remove_file(db_name).await?) })
     }
 
@@ -30,6 +29,10 @@ impl TestSupport for Sqlite {
         _conn: &mut Self::Connection,
     ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
         todo!()
+    }
+
+    fn db_name(args: &TestArgs) -> String {
+        convert_path(args.test_path)
     }
 }
 
