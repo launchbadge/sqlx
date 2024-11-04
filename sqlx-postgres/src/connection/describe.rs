@@ -448,26 +448,42 @@ WHERE rngtypid = $1
         // This will include columns that don't have a `relation_id` (are not from a table);
         // assuming those are a minority of columns, it's less code to _not_ work around it
         // and just let Postgres return `NULL`.
-        let mut nullable_query = QueryBuilder::new("SELECT NOT pg_attribute.attnotnull FROM ( ");
+        let mut nullable_query = QueryBuilder::new("SELECT NOT attnotnull FROM ( ");
+        let mut separated = nullable_query.separated("UNION ALL ");
 
-        nullable_query.push_values(meta.columns.iter().zip(0i32..), |mut tuple, (column, i)| {
-            // ({i}::int4, {column.relation_id}::int4, {column.relation_attribute_no}::int2)
-            tuple.push_bind(i).push_unseparated("::int4");
-            tuple
-                .push_bind(column.relation_id)
-                .push_unseparated("::int4");
-            tuple
-                .push_bind(column.relation_attribute_no)
-                .push_unseparated("::int2");
-        });
+        let mut column_iter = meta.columns.iter().zip(0i32..);
+        if let Some((column, i)) = column_iter.next() {
+            separated.push("( SELECT ");
+            separated
+                .push_bind_unseparated(i)
+                .push_unseparated("::int4 AS idx, ");
+            separated
+                .push_bind_unseparated(column.relation_id)
+                .push_unseparated("::int4 AS table_id, ");
+            separated
+                .push_bind_unseparated(column.relation_attribute_no)
+                .push_unseparated("::int2 AS col_idx )");
+        }
+
+        for (column, i) in column_iter {
+            separated.push("( SELECT ");
+            separated
+                .push_bind_unseparated(i)
+                .push_unseparated("::int4, ");
+            separated
+                .push_bind_unseparated(column.relation_id)
+                .push_unseparated("::int4, ");
+            separated
+                .push_bind_unseparated(column.relation_attribute_no)
+                .push_unseparated("::int2 )");
+        }
 
         nullable_query.push(
-            ") as col(idx, table_id, col_idx) \
-            LEFT JOIN pg_catalog.pg_attribute \
+            " ) LEFT JOIN pg_catalog.pg_attribute \
                 ON table_id IS NOT NULL \
                AND attrelid = table_id \
                AND attnum = col_idx \
-            ORDER BY col.idx",
+            ORDER BY idx",
         );
 
         let mut nullables: Vec<Option<bool>> = nullable_query
