@@ -40,7 +40,11 @@ impl PgConnectOptions {
 
         let path = url.path().trim_start_matches('/');
         if !path.is_empty() {
-            options = options.database(path);
+            options = options.database(
+                &percent_decode_str(path)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         for (key, value) in url.query_pairs().into_iter() {
