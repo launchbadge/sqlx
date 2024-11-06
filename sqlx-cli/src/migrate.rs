@@ -113,6 +113,9 @@ pub async fn add(
     // Type of newly created migration will be the same as the first one
     // or reversible flag if this is the first migration
     let migration_type = MigrationType::infer(&migrator, reversible);
+    if reversible && !migration_type.is_reversible() {
+        println!("Cannot create reversible migration since prior migrations are not reversible.");
+    }
 
     let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
     let file_prefix = ordering.file_prefix();
