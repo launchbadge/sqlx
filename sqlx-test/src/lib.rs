@@ -247,6 +247,10 @@ macro_rules! Postgres_query_for_test_prepared_geometric_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_geometric_array_type {
     () => {
-        "SELECT ({0} @= $1)::int4, {0}, $2"
+        "SELECT (
+            SELECT bool_and(geo1 ~= geo2)
+            FROM unnest({0}) as geo1,
+                 unnest($1) as geo2
+        )::int4, {0}, $2"
     };
 }
