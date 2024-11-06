@@ -247,8 +247,6 @@ macro_rules! Postgres_query_for_test_prepared_geometric_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_geometric_array_type {
     () => {
-        "SELECT bool_and(geo1.geometry ~= geo2.geometry)::int4
-        FROM unnest({0}) WITH ORDINALITY AS geo1(geometry, idx)
-        JOIN unnest($1) WITH ORDINALITY AS geo2(geometry, idx) ON geo1.idx = geo2.idx, {0}, $2"
+        "SELECT (SELECT bool_and(geo1.geometry ~= geo2.geometry) FROM unnest({0}) WITH ORDINALITY AS geo1(geometry, idx) JOIN unnest($1) WITH ORDINALITY AS geo2(geometry, idx) ON geo1.idx = geo2.idx)::int4, {0}, $2"
     };
 }
