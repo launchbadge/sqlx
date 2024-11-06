@@ -499,8 +499,8 @@ test_type!(point<sqlx::postgres::types::PgPoint>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_point<Vec<sqlx::postgres::types::PgPoint>>(Postgres,
-    "array[point(2,3),point(2.1,3.4)]" = vec![sqlx::postgres::types::PgPoint { x:2., y: 3. }, sqlx::postgres::types::PgPoint { x:2.1, y: 3.4 }],
-    "array[point(2.2,-3.4)]" = vec![sqlx::postgres::types::PgPoint { x: 2.2, y: -3.4 }],
+    "array[point(2,3),point(2.1,3.4)]" @= vec![sqlx::postgres::types::PgPoint { x:2., y: 3. }, sqlx::postgres::types::PgPoint { x:2.1, y: 3.4 }],
+    "array[point(2.2,-3.4)]" @= vec![sqlx::postgres::types::PgPoint { x: 2.2, y: -3.4 }],
 ));
 
 #[cfg(feature = "rust_decimal")]
