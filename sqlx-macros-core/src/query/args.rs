@@ -89,7 +89,9 @@ pub fn quote_args<DB: DatabaseExt>(
                             _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
-                            ::std::panic!();
+                            // `panic!` would be enough here but we would then get a warning on `clippy::missing_panics_doc`
+                            // SAFETY: this branch is never reached.
+                            unsafe { ::std::hint::unreachable_unchecked() }
                         }
                     ))
                 })
