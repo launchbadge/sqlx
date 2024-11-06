@@ -234,6 +234,6 @@ macro_rules! Postgres_query_for_test_prepared_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_geometric_type {
     () => {
-        "SELECT ({0} ~= $1)::int4, {0}, $2"
+        "SELECT ({0} = $1)::int4, {0}, $2"
     };
 }
