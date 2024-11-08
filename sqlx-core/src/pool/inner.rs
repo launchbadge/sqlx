@@ -91,7 +91,7 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
-    fn parent(&self) -> Option<&Pool<DB>> {
+    pub(super) fn parent(&self) -> Option<&Pool<DB>> {
         self.options.parent_pool.as_ref()
     }
 

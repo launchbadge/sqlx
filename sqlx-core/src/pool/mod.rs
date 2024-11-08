@@ -59,7 +59,6 @@ use std::future::Future;
 use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
-use std::time::{Duration, Instant};
 
 use event_listener::EventListener;
 use futures_core::FusedFuture;
@@ -626,15 +625,6 @@ impl FusedFuture for CloseEvent {
     fn is_terminated(&self) -> bool {
         self.listener.is_none()
     }
-}
-
-/// get the time between the deadline and now and use that as our timeout
-///
-/// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout(deadline: Instant) -> Result<Duration, Error> {
-    deadline
-        .checked_duration_since(Instant::now())
-        .ok_or(Error::PoolTimedOut)
 }
 
 #[test]

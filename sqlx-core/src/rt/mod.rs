@@ -71,7 +71,7 @@ pub async fn timeout_at<F: Future>(deadline: Instant, f: F) -> Result<F::Output,
     }
 
     #[cfg(not(feature = "_rt-async-std"))]
-    missing_rt((duration, f))
+    missing_rt((deadline, f))
 }
 
 pub async fn sleep(duration: Duration) {

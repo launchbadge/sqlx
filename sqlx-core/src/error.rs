@@ -289,13 +289,13 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     /// For example, the Postgres driver overrides this to return `true` for the following error codes:
     ///
     /// * `53300 too_many_connections`: returned when the maximum connections are exceeded
-    /// on the server. Assumed to be the result of a temporary overcommit
-    /// (e.g. an extra application replica being spun up to replace one that is going down).
+    ///   on the server. Assumed to be the result of a temporary overcommit
+    ///   (e.g. an extra application replica being spun up to replace one that is going down).
     ///   * This error being consistently logged or returned is a likely indicator of a misconfiguration;
     ///     the sum of [`PoolOptions::max_connections`] for all replicas should not exceed
     ///     the maximum connections allowed by the server.
     /// * `57P03 cannot_connect_now`: returned when the database server is still starting up
-    /// and the tcop component is not ready to accept connections yet.
+    ///   and the tcop component is not ready to accept connections yet.
     fn is_retryable_connect_error(&self) -> bool {
         false
     }

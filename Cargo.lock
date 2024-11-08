@@ -1243,6 +1243,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
+name = "ease-off"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20e90ae5e739d99dc0406f9a4e2307a999625e2414d2ecc4fbb4ded8a3945f77"
+dependencies = [
+ "async-io",
+ "pin-project",
+ "rand",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3535,10 +3548,10 @@ dependencies = [
  "chrono",
  "crc",
  "crossbeam-queue",
+ "ease-off",
  "either",
  "event-listener 5.4.0",
  "futures-core",
- "futures-intrusive",
  "futures-io",
  "futures-util",
  "hashbrown 0.16.0",
@@ -3551,6 +3564,7 @@ dependencies = [
  "memchr",
  "native-tls",
  "percent-encoding",
+ "pin-project-lite",
  "rust_decimal",
  "rustls",
  "rustls-native-certs",
