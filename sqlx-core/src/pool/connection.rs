@@ -11,7 +11,7 @@ use crate::database::Database;
 use crate::error::Error;
 
 use super::inner::{is_beyond_max_lifetime, PoolInner};
-use crate::pool::connect::ConnectPermit;
+use crate::pool::connect::{ConnectPermit, ConnectionId};
 use crate::pool::options::PoolConnectionMetadata;
 
 const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
@@ -27,6 +27,7 @@ pub struct PoolConnection<DB: Database> {
 
 pub(super) struct Live<DB: Database> {
     pub(super) raw: DB::Connection,
+    pub(super) id: ConnectionId,
     pub(super) created_at: Instant,
 }
 
@@ -247,10 +248,11 @@ impl<DB: Database> DerefMut for Idle<DB> {
 }
 
 impl<DB: Database> Floating<DB, Live<DB>> {
-    pub fn new_live(conn: DB::Connection, permit: ConnectPermit<DB>) -> Self {
+    pub fn new_live(conn: DB::Connection, id: ConnectionId, permit: ConnectPermit<DB>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
+                id,
                 created_at: Instant::now(),
             },
             permit,
@@ -381,17 +383,29 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
         }
     }
 
-    pub async fn close(self) -> ConnectPermit<DB> {
+    pub async fn close(self) -> (ConnectionId, ConnectPermit<DB>) {
+        let connection_id = self.inner.live.id;
+
+        tracing::debug!(%connection_id, "closing connection (gracefully)");
+
         if let Err(error) = self.inner.live.raw.close().await {
-            tracing::debug!(%error, "error occurred while closing the pool connection");
+            tracing::debug!(
+                %connection_id,
+                %error,
+                "error occurred while closing the pool connection"
+            );
         }
-        self.permit
+        (connection_id, self.permit)
     }
 
-    pub async fn close_hard(self) -> ConnectPermit<DB> {
+    pub async fn close_hard(self) -> (ConnectionId, ConnectPermit<DB>) {
+        let connection_id = self.inner.live.id;
+
+        tracing::debug!(%connection_id, "closing connection (hard)");
+
         let _ = self.inner.live.raw.close_hard().await;
 
-        self.permit
+        (connection_id, self.permit)
     }
 
     pub fn metadata(&self) -> PoolConnectionMetadata {
