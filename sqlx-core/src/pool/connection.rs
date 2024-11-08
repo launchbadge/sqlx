@@ -4,8 +4,6 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::sync::AsyncSemaphoreReleaser;
-
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
