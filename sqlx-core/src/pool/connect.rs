@@ -1,21 +1,18 @@
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
-use crate::pool::connection::{Floating, Live};
+use crate::pool::connection::Floating;
 use crate::pool::inner::PoolInner;
 use crate::pool::PoolConnection;
 use crate::rt::JoinHandle;
 use crate::Error;
 use ease_off::EaseOff;
-use event_listener::{Event, EventListener};
+use event_listener::Event;
 use std::fmt::{Display, Formatter};
 use std::future::Future;
-use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
-use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
-use tracing::Instrument;
+use std::sync::Arc;
+use std::time::Instant;
 
 use std::io;
 
@@ -74,7 +71,7 @@ use std::io;
 /// `set_connect_options` and `get_connect_options` were removed in 0.9.0 because they complicated
 /// the pool internals. They can be reimplemented by capturing a mutex, or similar, in the callback.
 ///
-/// This example uses Postgres and [`tokio::sync::Mutex`] but may be adapted to any driver
+/// This example uses Postgres and [`tokio::sync::RwLock`] but may be adapted to any driver
 /// or `async-std`, respectively.
 ///
 /// ```rust,no_run
@@ -197,11 +194,11 @@ pub trait PoolConnector<DB: Database>: Send + Sync + 'static {
     ///
     /// * [`io::ErrorKind::ConnectionRefused`]
     /// * Database errors for which
-    /// [`is_retryable_connect_error`][crate::error::DatabaseError::is_retryable_connect_error]
-    /// returns `true`.
+    ///   [`is_retryable_connect_error`][crate::error::DatabaseError::is_retryable_connect_error]
+    ///   returns `true`.
     /// * [`Error::PoolConnector`] with `retryable: true`.
-    /// This error kind is not returned internally and is designed to allow this method to return
-    /// arbitrary error types not otherwise supported.
+    ///   This error kind is not returned internally and is designed to allow this method to return
+    ///   arbitrary error types not otherwise supported.
     ///
     /// Manual implementations of this method may also use the signature:
     /// ```rust,ignore
@@ -363,7 +360,7 @@ impl ConnectionCounter {
         // Check that `self` can increase size first before we check the parent.
         let acquired = self.acquire_permit_self(pool).await;
 
-        if let Some(parent) = &pool.options.parent_pool {
+        if let Some(parent) = pool.parent() {
             let (_, permit) = parent.0.counter.acquire_permit_self(&parent.0).await;
 
             // consume the parent permit
