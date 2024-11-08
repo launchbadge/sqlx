@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::task::ready;
 
 use crate::logger::private_level_filter_to_trace_level;
-use crate::pool::connect::{ConnectPermit, ConnectionCounter, DynConnector};
+use crate::pool::connect::{ConnectPermit, ConnectionCounter, ConnectionId, DynConnector};
 use crate::pool::idle::IdleQueue;
 use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
@@ -166,7 +166,7 @@ impl<DB: Database> PoolInner<DB> {
             // Poll the task returned by `finish_acquire`
             match ready!(before_acquire.poll_unpin(cx)) {
                 Some(Ok(conn)) => return Ready(Ok(conn)),
-                Some(Err(permit)) => {
+                Some(Err((id, permit))) => {
                     // We don't strictly need to poll `connect` here; all we really want to do
                     // is to check if it is `None`. But since currently there's no getter for that,
                     // it doesn't really hurt to just poll it here.
@@ -175,7 +175,7 @@ impl<DB: Database> PoolInner<DB> {
                             // If we're not already attempting to connect,
                             // take the permit returned from closing the connection and
                             // attempt to open a new one.
-                            connect = Some(self.connector.connect(permit, self.size())).into();
+                            connect = Some(self.connector.connect(id, permit)).into();
                         }
                         // `permit` is dropped in these branches, allowing another task to use it
                         Ready(Some(res)) => return Ready(res),
@@ -190,8 +190,8 @@ impl<DB: Database> PoolInner<DB> {
                 None => (),
             }
 
-            if let Ready(Some((size, permit))) = acquire_connect_permit.poll_unpin(cx) {
-                connect = Some(self.connector.connect(permit, size)).into();
+            if let Ready(Some((id, permit))) = acquire_connect_permit.poll_unpin(cx) {
+                connect = Some(self.connector.connect(id, permit)).into();
             }
 
             if let Ready(Some(res)) = connect.poll_unpin(cx) {
@@ -237,11 +237,11 @@ impl<DB: Database> PoolInner<DB> {
                 //
                 // If no extra permits are available then we shouldn't be trying to spin up
                 // connections anyway.
-                let Some((size, permit)) = self.counter.acquire_permit(self).now_or_never() else {
+                let Some((id, permit)) = self.counter.acquire_permit(self).now_or_never() else {
                     return Ok(());
                 };
 
-                let conn = self.connector.connect(permit, size).await?;
+                let conn = self.connector.connect(id, permit).await?;
 
                 // We skip `after_release` since the connection was never provided to user code
                 // besides inside `PollConnector::connect()`, if they override it.
@@ -297,13 +297,16 @@ fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<D
 }
 
 /// Execute `test_before_acquire` and/or `before_acquire` in a background task, if applicable.
-/// 
+///
 /// Otherwise, immediately returns the connection.
 fn finish_acquire<DB: Database>(
-    mut conn: Floating<DB, Idle<DB>>
-) -> Either<JoinHandle<Result<PoolConnection<DB>, ConnectPermit<DB>>>, PoolConnection<DB>> {
+    mut conn: Floating<DB, Idle<DB>>,
+) -> Either<
+    JoinHandle<Result<PoolConnection<DB>, (ConnectionId, ConnectPermit<DB>)>>,
+    PoolConnection<DB>,
+> {
     let pool = conn.permit.pool();
-    
+
     if pool.options.test_before_acquire || pool.options.before_acquire.is_some() {
         // Spawn a task so the call may complete even if `acquire()` is cancelled.
         return Either::Left(rt::spawn(async move {
@@ -334,11 +337,11 @@ fn finish_acquire<DB: Database>(
                     Ok(true) => {}
                 }
             }
-            
+
             Ok(conn.into_live().reattach())
         }));
     }
-    
+
     // No checks are configured, return immediately.
     Either::Right(conn.into_live().reattach())
 }
