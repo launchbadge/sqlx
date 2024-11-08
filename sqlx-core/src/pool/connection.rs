@@ -49,8 +49,10 @@ const EXPECT_MSG: &str = "BUG: inner connection already taken!";
 
 impl<DB: Database> Debug for PoolConnection<DB> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // TODO: Show the type name of the connection ?
-        f.debug_struct("PoolConnection").finish()
+        f.debug_struct("PoolConnection")
+            .field("database", &DB::NAME)
+            .field("id", &self.live.as_ref().map(|live| live.id))
+            .finish()
     }
 }
 
