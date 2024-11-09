@@ -33,10 +33,11 @@ use std::io;
 /// use sqlx::PgConnection;
 /// use sqlx::postgres::PgPoolOptions;
 /// use sqlx::Connection;
+/// use sqlx::pool::PoolConnectMetadata;
 ///
-/// # async fn _example() -> sqlx::Result<()> {
-/// // `PoolConnector` is implemented for closures but has restrictions on returning borrows
-/// // due to current language limitations.
+/// async fn _example() -> sqlx::Result<()> {
+/// // `PoolConnector` is implemented for closures but this has restrictions on returning borrows
+/// // due to current language limitations. Custom implementations are not subject to this.
 /// //
 /// // This example shows how to get around this using `Arc`.
 /// let database_url: Arc<str> = "postgres://...".into();
@@ -44,7 +45,8 @@ use std::io;
 /// let pool = PgPoolOptions::new()
 ///     .min_connections(5)
 ///     .max_connections(30)
-///     .connect_with_connector(move |meta| {
+///     // Type annotation on the argument is required for the trait impl to reseolve.
+///     .connect_with_connector(move |meta: PoolConnectMetadata| {
 ///         let database_url = database_url.clone();
 ///         async move {
 ///             println!(
@@ -57,7 +59,9 @@ use std::io;
 ///             let mut conn = PgConnection::connect(&database_url).await?;
 ///
 ///             // Override the time zone of the connection.
-///             sqlx::raw_sql("SET TIME ZONE 'Europe/Berlin'").await?;
+///             sqlx::raw_sql("SET TIME ZONE 'Europe/Berlin'")
+///                 .execute(&mut conn)
+///                 .await?;
 ///
 ///             Ok(conn)
 ///         }
@@ -76,13 +80,14 @@ use std::io;
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use tokio::sync::{Mutex, RwLock};
+/// use tokio::sync::RwLock;
 /// use sqlx::PgConnection;
 /// use sqlx::postgres::PgConnectOptions;
 /// use sqlx::postgres::PgPoolOptions;
 /// use sqlx::ConnectOptions;
+/// use sqlx::pool::PoolConnectMetadata;
 ///
-/// # async fn _example() -> sqlx::Result<()> {
+/// async fn _example() -> sqlx::Result<()> {
 /// // If you do not wish to hold the lock during the connection attempt,
 /// // you could use `Arc<PgConnectOptions>` instead.
 /// let connect_opts: Arc<RwLock<PgConnectOptions>> = Arc::new(RwLock::new("postgres://...".parse()?));
@@ -90,7 +95,7 @@ use std::io;
 /// let connect_opts_ = connect_opts.clone();
 ///
 /// let pool = PgPoolOptions::new()
-///     .connect_with_connector(move |meta| {
+///     .connect_with_connector(move |meta: PoolConnectMetadata| {
 ///         let connect_opts_ = connect_opts.clone();
 ///         async move {
 ///             println!(
