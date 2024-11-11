@@ -107,7 +107,7 @@ ease-off = { workspace = true, features = ["futures"] }
 pin-project-lite = "0.2.14"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt", "sync"] }
 
 [dev-dependencies.sqlx]
 # FIXME: https://github.com/rust-lang/cargo/issues/15622
