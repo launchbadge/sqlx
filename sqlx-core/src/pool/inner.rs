@@ -240,13 +240,13 @@ impl<DB: Database> PoolInner<DB> {
 
     /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
     pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
-        crate::rt::timeout_at(deadline, async {
+        rt::timeout_at(deadline, async {
             while self.size() < self.options.min_connections {
                 // Don't wait for a connect permit.
                 //
                 // If no extra permits are available then we shouldn't be trying to spin up
                 // connections anyway.
-                let Some((id, permit)) = self.counter.acquire_permit(self).now_or_never() else {
+                let Some((id, permit)) = self.counter.try_acquire_permit(self) else {
                     return Ok(());
                 };
 
