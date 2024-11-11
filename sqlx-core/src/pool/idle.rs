@@ -8,6 +8,8 @@ use futures_util::FutureExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use event_listener::listener;
+
 pub struct IdleQueue<DB: Database> {
     queue: ArrayQueue<Idle<DB>>,
     // Keep a separate count because `ArrayQueue::len()` loops until the head and tail pointers
@@ -36,7 +38,8 @@ impl<DB: Database> IdleQueue<DB> {
 
         for attempt in 1usize.. {
             if should_wait {
-                self.release_event.listen().await;
+                listener!(self.release_event => release_event);
+                release_event.await;
             }
 
             if let Some(conn) = self.try_acquire(pool) {

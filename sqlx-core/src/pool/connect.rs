@@ -6,7 +6,7 @@ use crate::pool::PoolConnection;
 use crate::rt::JoinHandle;
 use crate::Error;
 use ease_off::EaseOff;
-use event_listener::Event;
+use event_listener::{listener, Event};
 use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::ptr;
@@ -50,7 +50,7 @@ use std::io;
 ///         let database_url = database_url.clone();
 ///         async move {
 ///             println!(
-///                 "opening connection {}, attempt {}; elapsed time: {}",
+///                 "opening connection {}, attempt {}; elapsed time: {:?}",
 ///                 meta.pool_size,
 ///                 meta.num_attempts + 1,
 ///                 meta.start.elapsed()
@@ -96,10 +96,10 @@ use std::io;
 ///
 /// let pool = PgPoolOptions::new()
 ///     .connect_with_connector(move |meta: PoolConnectMetadata| {
-///         let connect_opts_ = connect_opts.clone();
+///         let connect_opts = connect_opts_.clone();
 ///         async move {
 ///             println!(
-///                 "opening connection {}, attempt {}; elapsed time: {}",
+///                 "opening connection {}, attempt {}; elapsed time: {:?}",
 ///                 meta.pool_size,
 ///                 meta.num_attempts + 1,
 ///                 meta.start.elapsed()
@@ -318,7 +318,8 @@ impl ConnectionCounter {
 
     pub async fn drain(&self) {
         while self.count.load(Ordering::Acquire) > 0 {
-            self.connect_available.listen().await;
+            listener!(self.connect_available => permit_released);
+            permit_released.await;
         }
     }
 
@@ -386,13 +387,14 @@ impl ConnectionCounter {
                 return acquired;
             }
 
-            self.connect_available.listen().await;
-
             if attempt == 2 {
                 tracing::warn!(
                     "unable to acquire a connect permit after sleeping; this may indicate a bug"
                 );
             }
+
+            listener!(self.connect_available => connect_available);
+            connect_available.await;
         }
 
         panic!("BUG: was never able to acquire a connection despite waking many times")
