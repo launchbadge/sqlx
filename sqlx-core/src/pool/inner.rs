@@ -18,7 +18,7 @@ use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
 use either::Either;
 use futures_util::future::{self, OptionFuture};
-use futures_util::{select, FutureExt};
+use futures_util::{FutureExt};
 use std::time::{Duration, Instant};
 use tracing::Level;
 
@@ -78,14 +78,19 @@ impl<DB: Database> PoolInner<DB> {
 
         // Keep clearing the idle queue as connections are released until the count reaches zero.
         async move {
-            let mut drained = pin!(self.counter.drain()).fuse();
+            let mut drained = pin!(self.counter.drain());
 
             loop {
-                select! {
-                    idle = self.idle.acquire(self) => {
+                let mut acquire_idle = pin!(self.idle.acquire(self));
+
+                // Not using `futures::select!{}` here because it requires a proc-macro dep,
+                // and frankly it's a little broken.
+                match future::select(drained.as_mut(), acquire_idle.as_mut()).await {
+                    // *not* `either::Either`; they rolled their own
+                    future::Either::Left(_) => break,
+                    future::Either::Right((idle, _)) => {
                         idle.close().await;
-                    },
-                    () = drained.as_mut() => break,
+                    }
                 }
             }
         }
