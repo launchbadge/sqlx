@@ -78,7 +78,7 @@ impl<DB: Database> PoolInner<DB> {
 
         // Keep clearing the idle queue as connections are released until the count reaches zero.
         async move {
-            let mut drained = pin!(self.counter.drain());
+            let mut drained = pin!(self.counter.drain()).fuse();
 
             loop {
                 select! {
