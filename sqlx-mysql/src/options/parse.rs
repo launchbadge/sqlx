@@ -72,6 +72,8 @@ impl MySqlConnectOptions {
                     options = options.socket(&*value);
                 }
 
+                "timezone" | "time-zone"| "time_zone" => options = options.timezone(Some(value.into())),
+
                 _ => {}
             }
         }
@@ -133,6 +135,11 @@ impl MySqlConnectOptions {
         if let Some(socket) = &self.socket {
             url.query_pairs_mut()
                 .append_pair("socket", &socket.to_string_lossy());
+        }
+
+        if let Some(timezone) = &self.timezone {
+            url.query_pairs_mut()
+                .append_pair("timezone", timezone);
         }
 
         url
