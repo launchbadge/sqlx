@@ -6,7 +6,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
-use sqlx_core::any::{
+pub use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind,
 };
