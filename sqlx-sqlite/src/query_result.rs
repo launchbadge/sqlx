@@ -29,8 +29,8 @@ impl Extend<SqliteQueryResult> for SqliteQueryResult {
 impl From<SqliteQueryResult> for crate::any::AnyQueryResult {
     fn from(done: SqliteQueryResult) -> Self {
         crate::any::AnyQueryResult {
-            rows_affected: done.rows_affected,
-            last_insert_id: Some(done.last_insert_rowid),
+            rows_affected: done.rows_affected(),
+            last_insert_id: Some(done.last_insert_rowid()),
         }
     }
 }
