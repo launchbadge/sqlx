@@ -38,7 +38,7 @@ chrono = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
-url = { version = "2.2.2", default-features = false }
+url = { version = "2.2.2" }
 percent-encoding = "2.1.0"
 serde_urlencoded = "0.7"
 
