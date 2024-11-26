@@ -24,14 +24,13 @@ impl Extend<MySqlQueryResult> for MySqlQueryResult {
         }
     }
 }
-
 #[cfg(feature = "any")]
-/// This conversion lose the last insert id data.
-impl From<MySqlQueryResult> for crate::any::AnyQueryResult {
+/// This conversion attempts to save last_insert_id by converting to i64.
+impl From<MySqlQueryResult> for sqlx_core::any::AnyQueryResult {
     fn from(done: MySqlQueryResult) -> Self {
-        crate::any::AnyQueryResult {
+        sqlx_core::any::AnyQueryResult {
             rows_affected: done.rows_affected(),
-            last_insert_id: None,
+            last_insert_id: done.last_insert_id().try_into().ok(),
         }
     }
 }

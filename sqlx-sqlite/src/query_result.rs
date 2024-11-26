@@ -26,11 +26,15 @@ impl Extend<SqliteQueryResult> for SqliteQueryResult {
 }
 
 #[cfg(feature = "any")]
-impl From<SqliteQueryResult> for crate::any::AnyQueryResult {
+impl From<SqliteQueryResult> for sqlx_core::any::AnyQueryResult {
     fn from(done: SqliteQueryResult) -> Self {
-        crate::any::AnyQueryResult {
+        let last_insert_id = match done.last_insert_rowid() {
+            0 => None,
+            n => Some(n),
+        };
+        sqlx_core::any::AnyQueryResult {
             rows_affected: done.rows_affected(),
-            last_insert_id: Some(done.last_insert_rowid()),
+            last_insert_id,
         }
     }
 }
