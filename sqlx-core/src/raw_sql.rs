@@ -1,4 +1,5 @@
 use either::Either;
+use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
 use crate::database::Database;
@@ -139,26 +140,28 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
 impl<'q> RawSql<'q> {
     /// Execute the SQL string and return the total number of rows affected.
     #[inline]
-    pub async fn execute<'e, E>(
+    pub async fn execute<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> crate::Result<<E::Database as Database>::QueryResult>
+    ) -> crate::Result<DB::QueryResult>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
         executor.execute(self).await
     }
 
     /// Execute the SQL string. Returns a stream which gives the number of rows affected for each statement in the string.
     #[inline]
-    pub fn execute_many<'e, E>(
+    pub fn execute_many<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> BoxStream<'e, crate::Result<<E::Database as Database>::QueryResult>>
+    ) -> BoxStream<'e, crate::Result<DB::QueryResult>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
         executor.execute_many(self)
     }
@@ -167,13 +170,14 @@ impl<'q> RawSql<'q> {
     ///
     /// If the string contains multiple statements, their results will be concatenated together.
     #[inline]
-    pub fn fetch<'e, E>(
+    pub fn fetch<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<<E::Database as Database>::Row, Error>>
+    ) -> BoxStream<'e, Result<DB::Row, Error>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
         executor.fetch(self)
     }
@@ -183,19 +187,20 @@ impl<'q> RawSql<'q> {
     /// For each query in the stream, any generated rows are returned first,
     /// then the `QueryResult` with the number of rows affected.
     #[inline]
-    pub fn fetch_many<'e, E>(
+    pub fn fetch_many<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
     ) -> BoxStream<
         'e,
         Result<
-            Either<<E::Database as Database>::QueryResult, <E::Database as Database>::Row>,
+            Either<DB::QueryResult, DB::Row>,
             Error,
         >,
     >
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
         executor.fetch_many(self)
     }
@@ -208,15 +213,16 @@ impl<'q> RawSql<'q> {
     /// To avoid exhausting available memory, ensure the result set has a known upper bound,
     /// e.g. using `LIMIT`.
     #[inline]
-    pub async fn fetch_all<'e, E>(
+    pub fn fetch_all<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> crate::Result<Vec<<E::Database as Database>::Row>>
+    ) -> BoxFuture<'e, crate::Result<Vec<DB::Row>>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
-        executor.fetch_all(self).await
+        executor.fetch_all(self)
     }
 
     /// Execute the SQL string, returning the first row or [`Error::RowNotFound`] otherwise.
@@ -232,15 +238,16 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_one<'e, E>(
+    pub fn fetch_one<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> crate::Result<<E::Database as Database>::Row>
+    ) -> BoxFuture<'e, crate::Result<DB::Row>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
-        executor.fetch_one(self).await
+        executor.fetch_one(self)
     }
 
     /// Execute the SQL string, returning the first row or [`None`] otherwise.
@@ -256,13 +263,14 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_optional<'e, E>(
+    pub async fn fetch_optional<'e, 'c: 'e, E, DB>(
         self,
         executor: E,
-    ) -> crate::Result<<E::Database as Database>::Row>
+    ) -> crate::Result<DB::Row>
     where
         'q: 'e,
-        E: Executor<'e>,
+        DB: Database,
+        E: Executor<'c, Database = DB>,
     {
         executor.fetch_one(self).await
     }
