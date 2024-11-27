@@ -227,7 +227,7 @@ where
 /// let mut conn: PgConnection = PgConnection::connect("<Database URL>").await?;
 ///
 /// sqlx::raw_sql(
-///     "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, created_at TIMESTAMP DEFAULT (now())"
+///     "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, created_at TIMESTAMPTZ DEFAULT (now()))"
 /// )
 ///     .execute(&mut conn)
 ///     .await?;
@@ -238,7 +238,7 @@ where
 ///
 /// // Get the first row of the result (note the `LIMIT 1` for efficiency)
 /// // This assumes the `time` feature of SQLx is enabled.
-/// let oldest_user: (i64, String, time::OffsetDateTime) = sqlx::query_as(
+/// let oldest_user: (i32, String, time::OffsetDateTime) = sqlx::query_as(
 ///     "SELECT id, username, created_at FROM users ORDER BY created_at LIMIT 1"
 /// )
 ///     .fetch_one(&mut conn)
@@ -248,7 +248,7 @@ where
 /// assert_eq!(oldest_user.1, "alice");
 ///
 /// // Get at most one row
-/// let maybe_charlie: Option<(i64, String, time::OffsetDateTime)> = sqlx::query_as(
+/// let maybe_charlie: Option<(i32, String, time::OffsetDateTime)> = sqlx::query_as(
 ///     "SELECT id, username, created_at FROM users WHERE username = 'charlie'"
 /// )
 ///     .fetch_optional(&mut conn)
@@ -257,7 +257,7 @@ where
 /// assert_eq!(maybe_charlie, None);
 ///
 /// // Get all rows in result (Beware of the size of the result set! Consider using `LIMIT`)
-/// let users: Vec<(i64, String, time::OffsetDateTime)> = sqlx::query_as(
+/// let users: Vec<(i32, String, time::OffsetDateTime)> = sqlx::query_as(
 ///     "SELECT id, username, created_at FROM users ORDER BY id"
 /// )
 ///     .fetch_all(&mut conn)
