@@ -1,4 +1,5 @@
 use futures_core::future::BoxFuture;
+use std::borrow::Cow;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -13,11 +14,19 @@ pub struct PgTransactionManager;
 impl TransactionManager for PgTransactionManager {
     type Database = Postgres;
 
-    fn begin(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin<'conn>(
+        conn: &'conn mut PgConnection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>> {
         Box::pin(async move {
+            let depth = conn.inner.transaction_depth;
+            if statement.is_some() && depth > 0 {
+                return Err(Error::InvalidSavePointStatement);
+            }
+            let statement = statement.unwrap_or_else(|| begin_ansi_transaction_sql(depth));
+
             let rollback = Rollback::new(conn);
-            let query = begin_ansi_transaction_sql(rollback.conn.inner.transaction_depth);
-            rollback.conn.queue_simple_query(&query)?;
+            rollback.conn.queue_simple_query(&statement)?;
             rollback.conn.inner.transaction_depth += 1;
             rollback.conn.wait_until_ready().await?;
             rollback.defuse();
