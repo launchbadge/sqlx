@@ -111,6 +111,9 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    #[error("attempted to call begin_with at non-zero transaction depth")]
+    InvalidSavePointStatement,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

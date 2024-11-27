@@ -16,9 +16,16 @@ pub trait TransactionManager {
     type Database: Database;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(
-        conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    ///
+    /// If this is a new transaction, `statement` may be used instead of the
+    /// default "BEGIN" statement.
+    ///
+    /// If we are already inside a transaction and `statement.is_some()`, then
+    /// `Error::InvalidSavePoint` is returned without running any statements.
+    fn begin<'conn>(
+        conn: &'conn mut <Self::Database as Database>::Connection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
@@ -83,11 +90,12 @@ where
     #[doc(hidden)]
     pub fn begin(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
+        statement: Option<Cow<'static, str>>,
     ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            DB::TransactionManager::begin(&mut conn).await?;
+            DB::TransactionManager::begin(&mut conn, statement).await?;
 
             Ok(Self {
                 connection: conn,
@@ -237,7 +245,7 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
 
     #[inline]
     fn begin(self) -> BoxFuture<'t, Result<Transaction<'t, DB>, Error>> {
-        Transaction::begin(&mut **self)
+        Transaction::begin(&mut **self, None)
     }
 }
 

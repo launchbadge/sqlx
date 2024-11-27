@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::CStr;
 use std::fmt::Write;
@@ -252,7 +253,17 @@ impl Connection for SqliteConnection {
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self, None)
+    }
+
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
     }
 
     fn cached_statements_size(&self) -> usize {

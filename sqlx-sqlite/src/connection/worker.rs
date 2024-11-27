@@ -56,6 +56,7 @@ enum Command {
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
+        statement: Option<Cow<'static, str>>,
     },
     Commit {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -182,11 +183,25 @@ impl ConnectionWorker {
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                         }
-                        Command::Begin { tx } => {
+                        Command::Begin { tx, statement } => {
                             let depth = conn.transaction_depth;
+
+                            let statement = if depth == 0 {
+                                statement.unwrap_or_else(|| begin_ansi_transaction_sql(depth))
+                            } else {
+                                if statement.is_some() {
+                                    if tx.blocking_send(Err(Error::InvalidSavePointStatement)).is_err() {
+                                        break;
+                                    }
+                                    continue;
+                                }
+
+                                begin_ansi_transaction_sql(depth)
+                            };
+
                             let res =
                                 conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth))
+                                    .exec(statement)
                                     .map(|_| {
                                         conn.transaction_depth += 1;
                                     });
@@ -333,8 +348,11 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<(), Error> {
-        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
+    pub(crate) async fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> Result<(), Error> {
+        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx, statement })
             .await?
     }
 
