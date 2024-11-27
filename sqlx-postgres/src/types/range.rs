@@ -26,7 +26,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct PgRange<T> {
     pub start: Bound<T>,
     pub end: Bound<T>,
