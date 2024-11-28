@@ -56,13 +56,16 @@ native-tls = ["sqlx/runtime-tokio-native-tls"]
 # databases
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
-sqlite = ["sqlx/sqlite"]
-sqlite-unbundled = ["sqlx/sqlite-unbundled"]
+sqlite = ["sqlx/sqlite", "_sqlite"]
+sqlite-unbundled = ["sqlx/sqlite-unbundled", "_sqlite"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
 
 completions = ["dep:clap_complete"]
+
+# Conditional compilation
+_sqlite = []
 
 [dev-dependencies]
 assert_cmd = "2.0.11"
