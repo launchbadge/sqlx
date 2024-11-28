@@ -128,6 +128,13 @@ impl PgConnection {
 
         Ok(())
     }
+
+    pub(crate) fn in_transaction(&self) -> bool {
+        match self.inner.transaction_status {
+            TransactionStatus::Transaction => true,
+            TransactionStatus::Error | TransactionStatus::Idle => false,
+        }
+    }
 }
 
 impl Debug for PgConnection {

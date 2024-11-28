@@ -12,8 +12,8 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_get_autocommit, sqlite3_progress_handler,
+    sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -552,6 +552,11 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_rollback_hook(&mut self) {
         self.guard.remove_rollback_hook();
+    }
+
+    pub(crate) fn in_transaction(&mut self) -> bool {
+        let ret = unsafe { sqlite3_get_autocommit(self.as_raw_handle().as_ptr()) };
+        ret == 0
     }
 }
 
