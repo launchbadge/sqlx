@@ -15,7 +15,18 @@ impl TransactionManager for SqliteTransactionManager {
         conn: &'conn mut SqliteConnection,
         statement: Option<Cow<'static, str>>,
     ) -> BoxFuture<'conn, Result<(), Error>> {
-        Box::pin(conn.worker.begin(statement))
+        Box::pin(async {
+            let is_custom_statement = statement.is_some();
+            conn.worker.begin(statement).await?;
+            if is_custom_statement {
+                // Check that custom statement actually put the connection into a transaction.
+                let mut handle = conn.lock_handle().await?;
+                if !handle.in_transaction() {
+                    return Err(Error::BeginFailed);
+                }
+            }
+            Ok(())
+        })
     }
 
     fn commit(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {

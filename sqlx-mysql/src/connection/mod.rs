@@ -8,6 +8,7 @@ pub(crate) use stream::{MySqlStream, Waiting};
 
 use crate::common::StatementCache;
 use crate::error::Error;
+use crate::protocol::response::Status;
 use crate::protocol::statement::StmtClose;
 use crate::protocol::text::{Ping, Quit};
 use crate::statement::MySqlStatementMetadata;
@@ -35,11 +36,20 @@ pub(crate) struct MySqlConnectionInner {
 
     // transaction status
     pub(crate) transaction_depth: usize,
+    status_flags: Status,
 
     // cache by query string to the statement id and metadata
     cache_statement: StatementCache<(u32, MySqlStatementMetadata)>,
 
     log_settings: LogSettings,
+}
+
+impl MySqlConnection {
+    pub(crate) fn in_transaction(&self) -> bool {
+        self.inner
+            .status_flags
+            .intersects(Status::SERVER_STATUS_IN_TRANS)
+    }
 }
 
 impl Debug for MySqlConnection {

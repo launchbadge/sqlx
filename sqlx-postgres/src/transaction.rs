@@ -27,8 +27,11 @@ impl TransactionManager for PgTransactionManager {
 
             let rollback = Rollback::new(conn);
             rollback.conn.queue_simple_query(&statement)?;
-            rollback.conn.inner.transaction_depth += 1;
             rollback.conn.wait_until_ready().await?;
+            if !rollback.conn.in_transaction() {
+                return Err(Error::BeginFailed);
+            }
+            rollback.conn.inner.transaction_depth += 1;
             rollback.defuse();
 
             Ok(())

@@ -114,6 +114,9 @@ pub enum Error {
 
     #[error("attempted to call begin_with at non-zero transaction depth")]
     InvalidSavePointStatement,
+
+    #[error("got unexpected connection status after attempting to begin transaction")]
+    BeginFailed,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

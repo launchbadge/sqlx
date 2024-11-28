@@ -27,6 +27,9 @@ impl TransactionManager for MySqlTransactionManager {
             }
             let statement = statement.unwrap_or_else(|| begin_ansi_transaction_sql(depth));
             conn.execute(&*statement).await?;
+            if !conn.in_transaction() {
+                return Err(Error::BeginFailed);
+            }
             conn.inner.transaction_depth += 1;
 
             Ok(())
