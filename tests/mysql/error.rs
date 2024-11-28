@@ -86,3 +86,17 @@ async fn it_fails_with_begin_failed() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_fails_with_invalid_save_point_statement() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut txn = conn.begin().await?;
+    let txn_conn = sqlx::Acquire::acquire(&mut txn).await?;
+    let res = txn_conn.begin_with("BEGIN").await;
+
+    let err = res.unwrap_err();
+
+    assert!(matches!(err, Error::InvalidSavePointStatement), "{err}");
+
+    Ok(())
+}
