@@ -1172,3 +1172,36 @@ async fn test_multiple_set_preupdate_hook_calls_drop_old_handler() -> anyhow::Re
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_can_use_transaction_options() -> anyhow::Result<()> {
+    use sqlx_sqlite::SqliteTransactionState;
+
+    async fn check_txn_state(
+        conn: &mut SqliteConnection,
+        expected: SqliteTransactionState,
+    ) -> Result<(), sqlx::Error> {
+        let state = conn.lock_handle().await?.transaction_state()?;
+        assert_eq!(state, expected);
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    check_txn_state(&mut conn, SqliteTransactionState::None).await?;
+
+    let mut tx = conn.begin_with("BEGIN DEFERRED").await?;
+    check_txn_state(&mut *tx, SqliteTransactionState::None).await?;
+    drop(tx);
+
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
+    check_txn_state(&mut *tx, SqliteTransactionState::Write).await?;
+    drop(tx);
+
+    // Note: may result in database locked errors if tests are run in parallel
+    let mut tx = conn.begin_with("BEGIN EXCLUSIVE").await?;
+    check_txn_state(&mut *tx, SqliteTransactionState::Write).await?;
+    drop(tx);
+
+    Ok(())
+}
