@@ -7,9 +7,7 @@ use std::panic::catch_unwind;
 use std::ptr;
 use std::ptr::NonNull;
 
-use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
-use futures_util::future;
 use libsqlite3_sys::{
     sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
     sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
@@ -200,42 +198,38 @@ impl Connection for SqliteConnection {
 
     type Options = SqliteConnectOptions;
 
-    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
-                let mut pragma_string = String::new();
-                if let Some(limit) = analysis_limit {
-                    write!(pragma_string, "PRAGMA analysis_limit = {limit}; ").ok();
-                }
-                pragma_string.push_str("PRAGMA optimize;");
-                self.execute(&*pragma_string).await?;
+    async fn close(mut self) -> Result<(), Error> {
+        if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
+            let mut pragma_string = String::new();
+            if let Some(limit) = analysis_limit {
+                write!(pragma_string, "PRAGMA analysis_limit = {limit}; ").ok();
             }
-            let shutdown = self.worker.shutdown();
-            // Drop the statement worker, which should
-            // cover all references to the connection handle outside of the worker thread
-            drop(self);
-            // Ensure the worker thread has terminated
-            shutdown.await
-        })
+            pragma_string.push_str("PRAGMA optimize;");
+            self.execute(&*pragma_string).await?;
+        }
+        let shutdown = self.worker.shutdown();
+        // Drop the statement worker, which should
+        // cover all references to the connection handle outside of the worker thread
+        drop(self);
+        // Ensure the worker thread has terminated
+        shutdown.await
     }
 
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            drop(self);
-            Ok(())
-        })
+    async fn close_hard(self) -> Result<(), Error> {
+        drop(self);
+        Ok(())
     }
 
     /// Ensure the background worker thread is alive and accepting commands.
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(self.worker.ping())
+    async fn ping(&mut self) -> Result<(), Error> {
+        self.worker.ping().await
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    async fn begin(&mut self) -> Result<Transaction<'_, Self::Database>, Error>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self).await
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -245,11 +239,9 @@ impl Connection for SqliteConnection {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            self.worker.clear_cache().await?;
-            Ok(())
-        })
+    async fn clear_cached_statements(&mut self) -> Result<(), Error> {
+        self.worker.clear_cache().await?;
+        Ok(())
     }
 
     #[inline]
@@ -258,12 +250,12 @@ impl Connection for SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    async fn flush(&mut self) -> Result<(), Error> {
         // For SQLite, FLUSH does effectively nothing...
         // Well, we could use this to ensure that the command channel has been cleared,
         // but it would only develop a backlog if a lot of queries are executed and then cancelled
         // partway through, and then this would only make that situation worse.
-        Box::pin(future::ok(()))
+        Ok(())
     }
 
     #[doc(hidden)]
