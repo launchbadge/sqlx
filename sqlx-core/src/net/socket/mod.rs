@@ -8,10 +8,12 @@ use bytes::BufMut;
 use futures_core::ready;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
+pub use tcp_keepalive::TcpKeepalive;
 
 use crate::io::ReadBuf;
 
 mod buffered;
+mod tcp_keepalive;
 
 pub trait Socket: Send + Sync + Unpin + 'static {
     fn try_read(&mut self, buf: &mut dyn ReadBuf) -> io::Result<usize>;
@@ -186,6 +188,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
     host: &str,
     port: u16,
     with_socket: Ws,
+    keepalive: Option<&TcpKeepalive>,
 ) -> crate::Result<Ws::Output> {
     // IPv6 addresses in URLs will be wrapped in brackets and the `url` crate doesn't trim those.
     let host = host.trim_matches(&['[', ']'][..]);
@@ -196,6 +199,13 @@ pub async fn connect_tcp<Ws: WithSocket>(
 
         let stream = TcpStream::connect((host, port)).await?;
         stream.set_nodelay(true)?;
+
+        // set tcp keepalive
+        if let Some(keepalive) = keepalive {
+            let keepalive = keepalive.socket2();
+            let sock_ref = socket2::SockRef::from(&stream);
+            sock_ref.set_tcp_keepalive(&keepalive)?;
+        }
 
         return Ok(with_socket.with_socket(stream));
     }
@@ -216,9 +226,21 @@ pub async fn connect_tcp<Ws: WithSocket>(
                     s.get_ref().set_nodelay(true)?;
                     Ok(s)
                 });
-            match stream {
-                Ok(stream) => return Ok(with_socket.with_socket(stream)),
-                Err(e) => last_err = Some(e),
+            let stream = match stream {
+                Ok(stream) => stream,
+                Err(e) => {
+                    last_err = Some(e);
+                    continue;
+                }
+            };
+            // set tcp keepalive
+            if let Some(keepalive) = keepalive {
+                let keepalive = keepalive.socket2();
+                let sock_ref = socket2::SockRef::from(&stream);
+                match sock_ref.set_tcp_keepalive(&keepalive) {
+                    Ok(_) => return Ok(with_socket.with_socket(stream)),
+                    Err(e) => last_err = Some(e),
+                }
             }
         }
 
