@@ -505,8 +505,8 @@ test_type!(_point<Vec<sqlx::postgres::types::PgPoint>>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
-    "line('{1.1, -2.2, 3.3}')" @= sqlx::postgres::types::PgLine { a: 1.1, b:-2.2, c: 3.3 },
-    "line('((0.0, 0.0), (1.0,1.0))')" @= sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
+    "line('{1.1, -2.2, 3.3}')" == sqlx::postgres::types::PgLine { a: 1.1, b:-2.2, c: 3.3 },
+    "line('((0.0, 0.0), (1.0,1.0))')" == sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
 ));
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
