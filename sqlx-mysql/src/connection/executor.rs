@@ -166,6 +166,8 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
+                    self.inner.status_flags = ok.status;
+
                     let rows_affected = ok.affected_rows;
                     logger.increase_rows_affected(rows_affected);
                     let done = MySqlQueryResult {
@@ -207,6 +209,8 @@ impl MySqlConnection {
 
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.inner.stream.capabilities)?;
+
+                        self.inner.status_flags = eof.status;
 
                         r#yield!(Either::Left(MySqlQueryResult {
                             rows_affected: 0,
