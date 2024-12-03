@@ -503,6 +503,17 @@ test_type!(_point<Vec<sqlx::postgres::types::PgPoint>>(Postgres,
     "array[point(2.2,-3.4)]" @= vec![sqlx::postgres::types::PgPoint { x: 2.2, y: -3.4 }],
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
+    "line('{1.1, -2.2, 3.3}')" @= sqlx::postgres::types::PgLine { a: 1.1, b:-2.2, c: 3.3 },
+    "line('((0.0, 0.0), (1.0,1.0))')" @= sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(_line<Vec<sqlx::postgres::types::PgLine>>(Postgres,
+    "array[line('{1,2,3}'),line('{1.1, 2.2, 3.3}')]" @= vec![sqlx::postgres::types::PgLine { a:1., b: 2., c: 3. }, sqlx::postgres::types::PgLine { a:1.1, b: 2.2, c: 3.3 }],
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),

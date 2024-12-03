@@ -34,6 +34,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgPoint,
 
+        sqlx::postgres::types::PgLine,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
