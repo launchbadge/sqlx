@@ -61,7 +61,10 @@ pub trait Connection: Send {
         statement: impl Into<Cow<'static, str>>,
     ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
+    }
 
     /// Execute the function inside a transaction.
     ///
