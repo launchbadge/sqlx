@@ -1186,21 +1186,24 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = SqliteConnectOptions::new()
+        .in_memory(true)
+        .connect()
+        .await
+        .unwrap();
 
     check_txn_state(&mut conn, SqliteTransactionState::None).await?;
 
     let mut tx = conn.begin_with("BEGIN DEFERRED").await?;
-    check_txn_state(&mut *tx, SqliteTransactionState::None).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::None).await?;
     drop(tx);
 
     let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
-    check_txn_state(&mut *tx, SqliteTransactionState::Write).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await?;
     drop(tx);
 
-    // Note: may result in database locked errors if tests are run in parallel
     let mut tx = conn.begin_with("BEGIN EXCLUSIVE").await?;
-    check_txn_state(&mut *tx, SqliteTransactionState::Write).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await?;
     drop(tx);
 
     Ok(())
