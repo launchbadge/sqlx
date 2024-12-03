@@ -558,29 +558,6 @@ impl LockedSqliteHandle<'_> {
         let ret = unsafe { sqlite3_get_autocommit(self.as_raw_handle().as_ptr()) };
         ret == 0
     }
-
-    /// Calls `sqlite3_txn_state` on this handle.
-    pub fn transaction_state(&mut self) -> Result<SqliteTransactionState, Error> {
-        use libsqlite3_sys::{
-            sqlite3_txn_state, SQLITE_TXN_NONE, SQLITE_TXN_READ, SQLITE_TXN_WRITE,
-        };
-
-        let state =
-            match unsafe { sqlite3_txn_state(self.as_raw_handle().as_ptr(), std::ptr::null()) } {
-                SQLITE_TXN_NONE => SqliteTransactionState::None,
-                SQLITE_TXN_READ => SqliteTransactionState::Read,
-                SQLITE_TXN_WRITE => SqliteTransactionState::Write,
-                _ => return Err(Error::Protocol("Invalid transaction state".into())),
-            };
-        Ok(state)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SqliteTransactionState {
-    None,
-    Read,
-    Write,
 }
 
 impl Drop for ConnectionState {

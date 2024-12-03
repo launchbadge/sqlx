@@ -8,6 +8,7 @@ use sqlx::{
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx::{Value, ValueRef};
+use sqlx_sqlite::LockedSqliteHandle;
 use sqlx_test::new;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -1175,15 +1176,9 @@ async fn test_multiple_set_preupdate_hook_calls_drop_old_handler() -> anyhow::Re
 
 #[sqlx_macros::test]
 async fn it_can_use_transaction_options() -> anyhow::Result<()> {
-    use sqlx_sqlite::SqliteTransactionState;
-
-    async fn check_txn_state(
-        conn: &mut SqliteConnection,
-        expected: SqliteTransactionState,
-    ) -> Result<(), sqlx::Error> {
-        let state = conn.lock_handle().await?.transaction_state()?;
+    async fn check_txn_state(conn: &mut SqliteConnection, expected: SqliteTransactionState) {
+        let state = transaction_state(&mut conn.lock_handle().await.unwrap());
         assert_eq!(state, expected);
-        Ok(())
     }
 
     let mut conn = SqliteConnectOptions::new()
@@ -1192,19 +1187,39 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    check_txn_state(&mut conn, SqliteTransactionState::None).await?;
+    check_txn_state(&mut conn, SqliteTransactionState::None).await;
 
     let mut tx = conn.begin_with("BEGIN DEFERRED").await?;
-    check_txn_state(&mut tx, SqliteTransactionState::None).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::None).await;
     drop(tx);
 
     let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
-    check_txn_state(&mut tx, SqliteTransactionState::Write).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await;
     drop(tx);
 
     let mut tx = conn.begin_with("BEGIN EXCLUSIVE").await?;
-    check_txn_state(&mut tx, SqliteTransactionState::Write).await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await;
     drop(tx);
 
     Ok(())
+}
+
+fn transaction_state(handle: &mut LockedSqliteHandle) -> SqliteTransactionState {
+    use libsqlite3_sys::{sqlite3_txn_state, SQLITE_TXN_NONE, SQLITE_TXN_READ, SQLITE_TXN_WRITE};
+
+    let unchecked_state =
+        unsafe { sqlite3_txn_state(handle.as_raw_handle().as_ptr(), std::ptr::null()) };
+    match unchecked_state {
+        SQLITE_TXN_NONE => SqliteTransactionState::None,
+        SQLITE_TXN_READ => SqliteTransactionState::Read,
+        SQLITE_TXN_WRITE => SqliteTransactionState::Write,
+        _ => panic!("unknown txn state: {unchecked_state}"),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SqliteTransactionState {
+    None,
+    Read,
+    Write,
 }
