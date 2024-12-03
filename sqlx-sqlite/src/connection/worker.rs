@@ -186,17 +186,18 @@ impl ConnectionWorker {
                         Command::Begin { tx, statement } => {
                             let depth = conn.transaction_depth;
 
-                            let statement = if depth == 0 {
-                                statement.unwrap_or_else(|| begin_ansi_transaction_sql(depth))
-                            } else {
-                                if statement.is_some() {
+                            let statement = match statement {
+                                // custom `BEGIN` statements are not allowed if
+                                // we're already in a transaction (we need to
+                                // issue a `SAVEPOINT` instead)
+                                Some(_) if depth > 0 => {
                                     if tx.blocking_send(Err(Error::InvalidSavePointStatement)).is_err() {
                                         break;
                                     }
                                     continue;
-                                }
-
-                                begin_ansi_transaction_sql(depth)
+                                },
+                                Some(statement) => statement,
+                                None => begin_ansi_transaction_sql(depth),
                             };
 
                             let res =
