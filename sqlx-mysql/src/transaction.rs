@@ -22,10 +22,13 @@ impl TransactionManager for MySqlTransactionManager {
     ) -> BoxFuture<'conn, Result<(), Error>> {
         Box::pin(async move {
             let depth = conn.inner.transaction_depth;
-            if statement.is_some() && depth > 0 {
-                return Err(Error::InvalidSavePointStatement);
-            }
-            let statement = statement.unwrap_or_else(|| begin_ansi_transaction_sql(depth));
+            let statement = match statement {
+                // custom `BEGIN` statements are not allowed if we're already in a transaction
+                // (we need to issue a `SAVEPOINT` instead)
+                Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
+                Some(statement) => statement,
+                None => begin_ansi_transaction_sql(depth),
+            };
             conn.execute(&*statement).await?;
             if !conn.in_transaction() {
                 return Err(Error::BeginFailed);
