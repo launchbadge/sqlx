@@ -511,7 +511,7 @@ test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_line<Vec<sqlx::postgres::types::PgLine>>(Postgres,
-    "array[line('{1,2,3}'),line('{1.1, 2.2, 3.3}')]" @= vec![sqlx::postgres::types::PgLine { a:1., b: 2., c: 3. }, sqlx::postgres::types::PgLine { a:1.1, b: 2.2, c: 3.3 }],
+    "array[line('{1,2,3}'),line('{1.1, 2.2, 3.3}')]" == vec![sqlx::postgres::types::PgLine { a:1., b: 2., c: 3. }, sqlx::postgres::types::PgLine { a:1.1, b: 2.2, c: 3.3 }],
 ));
 
 #[cfg(feature = "rust_decimal")]
