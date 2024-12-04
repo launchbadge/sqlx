@@ -50,7 +50,7 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types"]
+features = ["all-databases", "_unstable-all-types", "sqlite-preupdate-hook"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -108,6 +108,7 @@ postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
 sqlite = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
 
 # types
 json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
