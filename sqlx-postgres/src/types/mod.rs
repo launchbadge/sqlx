@@ -23,6 +23,7 @@
 //! | [`PgCube`]                            | CUBE                                                 |
 //! | [`PgPoint]                            | POINT                                                |
 //! | [`PgHstore`]                          | HSTORE                                               |
+//! | [`SystemTime`](std::time::SystemTime) | TIMESTAMPTZ                                          |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
 //! but this wrapper type is available for edge cases, such as `CITEXT[]` which Postgres
@@ -201,6 +202,7 @@ mod oid;
 mod range;
 mod record;
 mod str;
+mod system_time;
 mod text;
 mod tuple;
 mod void;

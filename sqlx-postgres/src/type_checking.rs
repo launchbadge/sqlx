@@ -19,6 +19,7 @@ impl_type_checking!(
         f32,
         f64,
         Vec<u8> | &[u8],
+        std::time::SystemTime,
 
         sqlx::postgres::types::Oid,
 
