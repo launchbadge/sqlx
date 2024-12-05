@@ -2,11 +2,14 @@ use futures::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
+use sqlx::Decode;
+use sqlx::Value;
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 #[sqlx_macros::test]
@@ -798,7 +801,7 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
 #[sqlx_macros::test]
 async fn test_query_with_update_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
-
+    static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
     let state = format!("test");
     conn.lock_handle().await?.set_update_hook(move |result| {
@@ -807,11 +810,13 @@ async fn test_query_with_update_hook() -> anyhow::Result<()> {
         assert_eq!(result.database, "main");
         assert_eq!(result.table, "tweet");
         assert_eq!(result.rowid, 2);
+        CALLED.store(true, Ordering::Relaxed);
     });
 
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 3, 'Hello, World' )")
         .execute(&mut conn)
         .await?;
+    assert!(CALLED.load(Ordering::Relaxed));
 
     Ok(())
 }
@@ -852,10 +857,11 @@ async fn test_multiple_set_update_hook_calls_drop_old_handler() -> anyhow::Resul
 #[sqlx_macros::test]
 async fn test_query_with_commit_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
-
+    static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
     let state = format!("test");
     conn.lock_handle().await?.set_commit_hook(move || {
+        CALLED.store(true, Ordering::Relaxed);
         assert_eq!(state, "test");
         false
     });
@@ -870,7 +876,7 @@ async fn test_query_with_commit_hook() -> anyhow::Result<()> {
         }
         _ => panic!("expected an error"),
     }
-
+    assert!(CALLED.load(Ordering::Relaxed));
     Ok(())
 }
 
@@ -916,8 +922,10 @@ async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
     let state = format!("test");
+    static CALLED: AtomicBool = AtomicBool::new(false);
     conn.lock_handle().await?.set_rollback_hook(move || {
         assert_eq!(state, "test");
+        CALLED.store(true, Ordering::Relaxed);
     });
 
     let mut tx = conn.begin().await?;
@@ -925,6 +933,7 @@ async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
         .execute(&mut *tx)
         .await?;
     tx.rollback().await?;
+    assert!(CALLED.load(Ordering::Relaxed));
     Ok(())
 }
 
@@ -955,6 +964,221 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         conn.lock_handle().await?.remove_rollback_hook();
+    }
+
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
+}
+
+#[cfg(feature = "sqlite-preupdate-hook")]
+#[sqlx_macros::test]
+async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    static CALLED: AtomicBool = AtomicBool::new(false);
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_preupdate_hook(move |result| {
+        assert_eq!(state, "test");
+        assert_eq!(result.operation, SqliteOperation::Insert);
+        assert_eq!(result.database, "main");
+        assert_eq!(result.table, "tweet");
+
+        if let sqlx_sqlite::PreupdateCase::Insert(accessor) = result.case {
+            assert_eq!(4, accessor.get_column_count());
+            assert_eq!(2, accessor.get_new_row_id());
+            assert_eq!(0, accessor.get_query_depth());
+            assert_eq!(
+              4,
+                <i64 as Decode<Sqlite>>::decode(
+                    accessor.get_new_column_value(0).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            assert_eq!(
+                "Hello, World",
+                <String as Decode<Sqlite>>::decode(
+                    accessor.get_new_column_value(1).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            // out of bounds access should return an error
+            assert!(accessor.get_new_column_value(4).is_err());
+        } else {
+            panic!("wrong preupdate case");
+        }
+        CALLED.store(true, Ordering::Relaxed);
+    });
+
+    let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 4, 'Hello, World' )")
+        .execute(&mut conn)
+        .await?;
+
+    assert!(CALLED.load(Ordering::Relaxed));
+    conn.lock_handle().await?.remove_preupdate_hook();
+    let _ = sqlx::query("DELETE FROM tweet where id = 4")
+        .execute(&mut conn)
+        .await?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite-preupdate-hook")]
+#[sqlx_macros::test]
+async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 5, 'Hello, World' )")
+        .execute(&mut conn)
+        .await?;
+    static CALLED: AtomicBool = AtomicBool::new(false);
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_preupdate_hook(move |result| {
+        assert_eq!(state, "test");
+        assert_eq!(result.operation, SqliteOperation::Delete);
+        assert_eq!(result.database, "main");
+        assert_eq!(result.table, "tweet");
+
+        if let sqlx_sqlite::PreupdateCase::Delete(accessor) = result.case {
+            assert_eq!(4, accessor.get_column_count());
+            assert_eq!(2, accessor.get_old_row_id());
+            assert_eq!(0, accessor.get_query_depth());
+            assert_eq!(
+              5,
+                <i64 as Decode<Sqlite>>::decode(
+                    accessor.get_old_column_value(0).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            assert_eq!(
+                "Hello, World",
+                <String as Decode<Sqlite>>::decode(
+                    accessor.get_old_column_value(1).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            // out of bounds access should return an error
+            assert!(accessor.get_old_column_value(4).is_err());
+        } else {
+            panic!("wrong preupdate case");
+        }
+        CALLED.store(true, Ordering::Relaxed);
+    });
+
+    let _ = sqlx::query("DELETE FROM tweet WHERE id = 5")
+        .execute(&mut conn)
+        .await?;
+    assert!(CALLED.load(Ordering::Relaxed));
+    Ok(())
+}
+
+#[cfg(feature = "sqlite-preupdate-hook")]
+#[sqlx_macros::test]
+async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 6, 'Hello, World' )")
+        .execute(&mut conn)
+        .await?;
+    static CALLED: AtomicBool = AtomicBool::new(false);
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = format!("test");
+    conn.lock_handle().await?.set_preupdate_hook(move |result| {
+        assert_eq!(state, "test");
+        assert_eq!(result.operation, SqliteOperation::Update);
+        assert_eq!(result.database, "main");
+        assert_eq!(result.table, "tweet");
+
+        if let sqlx_sqlite::PreupdateCase::Update {
+            old_value_accessor,
+            new_value_accessor,
+        } = result.case
+        {
+            assert_eq!(4, old_value_accessor.get_column_count());
+            assert_eq!(4, new_value_accessor.get_column_count());
+
+            assert_eq!(2, old_value_accessor.get_old_row_id());
+            assert_eq!(2, new_value_accessor.get_new_row_id());
+
+            assert_eq!(0, old_value_accessor.get_query_depth());
+            assert_eq!(0, new_value_accessor.get_query_depth());
+
+            assert_eq!(
+                6,
+                <i64 as Decode<Sqlite>>::decode(
+                    old_value_accessor.get_old_column_value(0).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            assert_eq!(
+                6,
+                <i64 as Decode<Sqlite>>::decode(
+                    new_value_accessor.get_new_column_value(0).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+
+            assert_eq!(
+                "Hello, World",
+                <String as Decode<Sqlite>>::decode(
+                    old_value_accessor.get_old_column_value(1).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+            assert_eq!(
+                "Hello, World2",
+                <String as Decode<Sqlite>>::decode(
+                    new_value_accessor.get_new_column_value(1).unwrap().as_ref(),
+                )
+                .unwrap()
+            );
+
+            // out of bounds access should return an error
+            assert!(old_value_accessor.get_old_column_value(4).is_err());
+            assert!(new_value_accessor.get_new_column_value(4).is_err());
+        } else {
+            panic!("wrong preupdate case");
+        }
+        CALLED.store(true, Ordering::Relaxed);
+    });
+
+    let _ = sqlx::query("UPDATE tweet SET text = 'Hello, World2' WHERE id = 6")
+        .execute(&mut conn)
+        .await?;
+
+    assert!(CALLED.load(Ordering::Relaxed));
+    conn.lock_handle().await?.remove_preupdate_hook();
+    let _ = sqlx::query("DELETE FROM tweet where id = 6")
+        .execute(&mut conn)
+        .await?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite-preupdate-hook")]
+#[sqlx_macros::test]
+async fn test_multiple_set_preupdate_hook_calls_drop_old_handler() -> anyhow::Result<()> {
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+
+    {
+        let mut conn = new::<Sqlite>().await?;
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_preupdate_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_preupdate_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_preupdate_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        conn.lock_handle().await?.remove_preupdate_hook();
     }
 
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
