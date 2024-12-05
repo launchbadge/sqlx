@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
-
+use std::time::SystemTime;
 use bitflags::bitflags;
 use sqlx_core::bytes::Buf;
 
@@ -132,6 +132,16 @@ impl Type<Postgres> for PgRange<i64> {
     }
 }
 
+impl Type<Postgres> for PgRange<SystemTime> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::TSTZ_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<SystemTime>(ty)
+    }
+}
+
 #[cfg(feature = "bigdecimal")]
 impl Type<Postgres> for PgRange<bigdecimal::BigDecimal> {
     fn type_info() -> PgTypeInfo {
@@ -229,6 +239,12 @@ impl PgHasArrayType for PgRange<i32> {
 impl PgHasArrayType for PgRange<i64> {
     fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT8_RANGE_ARRAY
+    }
+}
+
+impl PgHasArrayType for PgRange<SystemTime> {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::TSTZ_RANGE_ARRAY
     }
 }
 
