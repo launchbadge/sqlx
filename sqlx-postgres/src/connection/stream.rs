@@ -47,7 +47,7 @@ impl PgStream {
             None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
         };
 
-        let socket = socket_future.await?;
+        let socket = socket_future?;
 
         Ok(Self {
             inner: BufferedSocket::new(socket),
