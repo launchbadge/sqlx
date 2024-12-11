@@ -168,6 +168,7 @@ impl PgConnection {
 
         // fallback to asking the database directly for a type name
         if should_fetch {
+            // we're boxing this future here so we can use async recursion
             let info = Box::pin(async { self.fetch_type_by_oid(oid).await }).await?;
 
             // cache the type name <-> oid relationship in a paired hashmap
