@@ -42,12 +42,12 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
-        let socket_future = match options.fetch_socket() {
+        let socket_result = match options.fetch_socket() {
             Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,
             None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
         };
 
-        let socket = socket_future.await?;
+        let socket = socket_result?;
 
         Ok(Self {
             inner: BufferedSocket::new(socket),

@@ -75,10 +75,14 @@ where
     Ws: WithSocket,
 {
     #[cfg(feature = "_tls-native-tls")]
-    return Ok(with_socket.with_socket(tls_native_tls::handshake(socket, config).await?));
+    return Ok(with_socket
+        .with_socket(tls_native_tls::handshake(socket, config).await?)
+        .await);
 
     #[cfg(all(feature = "_tls-rustls", not(feature = "_tls-native-tls")))]
-    return Ok(with_socket.with_socket(tls_rustls::handshake(socket, config).await?));
+    return Ok(with_socket
+        .with_socket(tls_rustls::handshake(socket, config).await?)
+        .await);
 
     #[cfg(not(any(feature = "_tls-native-tls", feature = "_tls-rustls")))]
     {
