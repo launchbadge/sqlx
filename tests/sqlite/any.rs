@@ -1,4 +1,4 @@
-use sqlx::{Any, Sqlite};
+use sqlx::Any;
 use sqlx_test::new;
 
 #[sqlx_macros::test]
