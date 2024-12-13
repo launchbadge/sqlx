@@ -14,6 +14,7 @@ use crate::executor::Executor;
 use crate::query::query;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
+use crate::split_sql::split_sql;
 use crate::{PgConnectOptions, PgConnection, Postgres};
 
 fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error> {
@@ -209,7 +210,6 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let start = Instant::now();
-
             // execute migration queries
             if migration.no_tx {
                 execute_migration(self, migration).await?;
@@ -276,10 +276,20 @@ async fn execute_migration(
     conn: &mut PgConnection,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
-    let _ = conn
-        .execute(&*migration.sql)
-        .await
-        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    if migration.no_tx {
+        let statements = split_sql(&*migration.sql);
+        for sql in statements.iter() {
+            let _ = conn
+                .execute(sql.as_str())
+                .await
+                .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+        }
+    } else {
+        let _ = conn
+            .execute(&*migration.sql)
+            .await
+            .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    }
 
     // language=SQL
     let _ = query(
@@ -301,11 +311,20 @@ async fn revert_migration(
     conn: &mut PgConnection,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
-    let _ = conn
-        .execute(&*migration.sql)
-        .await
-        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
-
+    if migration.no_tx {
+        let statements = split_sql(&*migration.sql);
+        for sql in statements.iter() {
+            let _ = conn
+                .execute(sql.as_str())
+                .await
+                .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+        }
+    } else {
+        let _ = conn
+            .execute(&*migration.sql)
+            .await
+            .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    }
     // language=SQL
     let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
         .bind(migration.version)
