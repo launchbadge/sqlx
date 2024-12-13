@@ -46,11 +46,9 @@ use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use column::SqliteColumn;
-pub use connection::{LockedSqliteHandle, SqliteConnection, SqliteOperation, UpdateHookResult};
 #[cfg(feature = "preupdate-hook")]
-pub use connection::{
-    PreupdateCase, PreupdateHookResult, PreupdateNewValueAccessor, PreupdateOldValueAccessor,
-};
+pub use connection::PreupdateHookResult;
+pub use connection::{LockedSqliteHandle, SqliteConnection, SqliteOperation, UpdateHookResult};
 pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::{

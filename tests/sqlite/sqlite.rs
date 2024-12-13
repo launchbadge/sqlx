@@ -977,36 +977,36 @@ async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
     let state = format!("test");
-    conn.lock_handle().await?.set_preupdate_hook(move |result| {
-        assert_eq!(state, "test");
-        assert_eq!(result.operation, SqliteOperation::Insert);
-        assert_eq!(result.database, "main");
-        assert_eq!(result.table, "tweet");
+    conn.lock_handle().await?.set_preupdate_hook({
+        move |result| {
+            assert_eq!(state, "test");
+            assert_eq!(result.operation, SqliteOperation::Insert);
+            assert_eq!(result.database, "main");
+            assert_eq!(result.table, "tweet");
 
-        if let sqlx_sqlite::PreupdateCase::Insert(accessor) = result.case {
-            assert_eq!(4, accessor.get_column_count());
-            assert_eq!(2, accessor.get_new_row_id());
-            assert_eq!(0, accessor.get_query_depth());
+            assert_eq!(4, result.get_column_count());
+            assert_eq!(2, result.get_new_row_id().unwrap());
+            assert_eq!(0, result.get_query_depth());
             assert_eq!(
-              4,
-                <i64 as Decode<Sqlite>>::decode(
-                    accessor.get_new_column_value(0).unwrap().as_ref(),
-                )
-                .unwrap()
+                4,
+                <i64 as Decode<Sqlite>>::decode(result.get_new_column_value(0).unwrap().as_ref(),)
+                    .unwrap()
             );
             assert_eq!(
                 "Hello, World",
                 <String as Decode<Sqlite>>::decode(
-                    accessor.get_new_column_value(1).unwrap().as_ref(),
+                    result.get_new_column_value(1).unwrap().as_ref(),
                 )
                 .unwrap()
             );
             // out of bounds access should return an error
-            assert!(accessor.get_new_column_value(4).is_err());
-        } else {
-            panic!("wrong preupdate case");
+            assert!(result.get_new_column_value(4).is_err());
+            // old values aren't available for inserts
+            assert!(result.get_old_column_value(0).is_err());
+            assert!(result.get_old_row_id().is_err());
+
+            CALLED.store(true, Ordering::Relaxed);
         }
-        CALLED.store(true, Ordering::Relaxed);
     });
 
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 4, 'Hello, World' )")
@@ -1037,29 +1037,25 @@ async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
         assert_eq!(result.database, "main");
         assert_eq!(result.table, "tweet");
 
-        if let sqlx_sqlite::PreupdateCase::Delete(accessor) = result.case {
-            assert_eq!(4, accessor.get_column_count());
-            assert_eq!(2, accessor.get_old_row_id());
-            assert_eq!(0, accessor.get_query_depth());
-            assert_eq!(
-              5,
-                <i64 as Decode<Sqlite>>::decode(
-                    accessor.get_old_column_value(0).unwrap().as_ref(),
-                )
+        assert_eq!(4, result.get_column_count());
+        assert_eq!(2, result.get_old_row_id().unwrap());
+        assert_eq!(0, result.get_query_depth());
+        assert_eq!(
+            5,
+            <i64 as Decode<Sqlite>>::decode(result.get_old_column_value(0).unwrap().as_ref(),)
                 .unwrap()
-            );
-            assert_eq!(
-                "Hello, World",
-                <String as Decode<Sqlite>>::decode(
-                    accessor.get_old_column_value(1).unwrap().as_ref(),
-                )
+        );
+        assert_eq!(
+            "Hello, World",
+            <String as Decode<Sqlite>>::decode(result.get_old_column_value(1).unwrap().as_ref(),)
                 .unwrap()
-            );
-            // out of bounds access should return an error
-            assert!(accessor.get_old_column_value(4).is_err());
-        } else {
-            panic!("wrong preupdate case");
-        }
+        );
+        // out of bounds access should return an error
+        assert!(result.get_old_column_value(4).is_err());
+        // new values aren't available for deletes
+        assert!(result.get_new_column_value(0).is_err());
+        assert!(result.get_new_row_id().is_err());
+
         CALLED.store(true, Ordering::Relaxed);
     });
 
@@ -1086,56 +1082,41 @@ async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
         assert_eq!(result.database, "main");
         assert_eq!(result.table, "tweet");
 
-        if let sqlx_sqlite::PreupdateCase::Update {
-            old_value_accessor,
-            new_value_accessor,
-        } = result.case
-        {
-            assert_eq!(4, old_value_accessor.get_column_count());
-            assert_eq!(4, new_value_accessor.get_column_count());
+        assert_eq!(4, result.get_column_count());
+        assert_eq!(4, result.get_column_count());
 
-            assert_eq!(2, old_value_accessor.get_old_row_id());
-            assert_eq!(2, new_value_accessor.get_new_row_id());
+        assert_eq!(2, result.get_old_row_id().unwrap());
+        assert_eq!(2, result.get_new_row_id().unwrap());
 
-            assert_eq!(0, old_value_accessor.get_query_depth());
-            assert_eq!(0, new_value_accessor.get_query_depth());
+        assert_eq!(0, result.get_query_depth());
+        assert_eq!(0, result.get_query_depth());
 
-            assert_eq!(
-                6,
-                <i64 as Decode<Sqlite>>::decode(
-                    old_value_accessor.get_old_column_value(0).unwrap().as_ref(),
-                )
+        assert_eq!(
+            6,
+            <i64 as Decode<Sqlite>>::decode(result.get_old_column_value(0).unwrap().as_ref(),)
                 .unwrap()
-            );
-            assert_eq!(
-                6,
-                <i64 as Decode<Sqlite>>::decode(
-                    new_value_accessor.get_new_column_value(0).unwrap().as_ref(),
-                )
+        );
+        assert_eq!(
+            6,
+            <i64 as Decode<Sqlite>>::decode(result.get_new_column_value(0).unwrap().as_ref(),)
                 .unwrap()
-            );
+        );
 
-            assert_eq!(
-                "Hello, World",
-                <String as Decode<Sqlite>>::decode(
-                    old_value_accessor.get_old_column_value(1).unwrap().as_ref(),
-                )
+        assert_eq!(
+            "Hello, World",
+            <String as Decode<Sqlite>>::decode(result.get_old_column_value(1).unwrap().as_ref(),)
                 .unwrap()
-            );
-            assert_eq!(
-                "Hello, World2",
-                <String as Decode<Sqlite>>::decode(
-                    new_value_accessor.get_new_column_value(1).unwrap().as_ref(),
-                )
+        );
+        assert_eq!(
+            "Hello, World2",
+            <String as Decode<Sqlite>>::decode(result.get_new_column_value(1).unwrap().as_ref(),)
                 .unwrap()
-            );
+        );
 
-            // out of bounds access should return an error
-            assert!(old_value_accessor.get_old_column_value(4).is_err());
-            assert!(new_value_accessor.get_new_column_value(4).is_err());
-        } else {
-            panic!("wrong preupdate case");
-        }
+        // out of bounds access should return an error
+        assert!(result.get_old_column_value(4).is_err());
+        assert!(result.get_new_column_value(4).is_err());
+
         CALLED.store(true, Ordering::Relaxed);
     });
 
