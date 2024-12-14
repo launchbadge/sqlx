@@ -1,6 +1,6 @@
 use super::SqliteOperation;
 use crate::type_info::DataType;
-use crate::{SqliteError, SqliteTypeInfo, SqliteValue};
+use crate::{SqliteError, SqliteTypeInfo, SqliteValueRef};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_preupdate_count, sqlite3_preupdate_depth, sqlite3_preupdate_new,
@@ -77,7 +77,7 @@ impl<'a> PreupdateHookResult<'a> {
 
     /// Gets the value of the row being updated/deleted at the specified index.
     /// Returns an error if called from an insert operation or the index is out of bounds.
-    pub fn get_old_column_value(&self, i: i32) -> Result<SqliteValue, PreupdateError> {
+    pub fn get_old_column_value(&self, i: i32) -> Result<SqliteValueRef<'a>, PreupdateError> {
         if self.operation == SqliteOperation::Insert {
             return Err(PreupdateError::InvalidOperation);
         }
@@ -92,7 +92,7 @@ impl<'a> PreupdateHookResult<'a> {
 
     /// Gets the value of the row being inserted/updated at the specified index.
     /// Returns an error if called from a delete operation or the index is out of bounds.
-    pub fn get_new_column_value(&self, i: i32) -> Result<SqliteValue, PreupdateError> {
+    pub fn get_new_column_value(&self, i: i32) -> Result<SqliteValueRef<'a>, PreupdateError> {
         if self.operation == SqliteOperation::Delete {
             return Err(PreupdateError::InvalidOperation);
         }
@@ -116,12 +116,13 @@ impl<'a> PreupdateHookResult<'a> {
         &self,
         ret: i32,
         p_value: *mut sqlite3_value,
-    ) -> Result<SqliteValue, PreupdateError> {
+    ) -> Result<SqliteValueRef<'a>, PreupdateError> {
         if ret != SQLITE_OK {
             return Err(PreupdateError::Database(SqliteError::new(self.db)));
         }
         let data_type = DataType::from_code(sqlite3_value_type(p_value));
-        Ok(SqliteValue::new(p_value, SqliteTypeInfo(data_type)))
+        // SAFETY: SQLite will free the sqlite3_value when the callback returns
+        Ok(SqliteValueRef::borrowed(p_value, SqliteTypeInfo(data_type)))
     }
 }
 
