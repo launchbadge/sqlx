@@ -486,18 +486,12 @@ WHERE rngtypid = $1
                 )
             })?;
 
-        // If the server is CockroachDB or Materialize, skip this step (#1248).
-        if !self
-            .inner
-            .stream
-            .parameter_statuses
-            .contains_key("crdb_version")
-            && !self
-                .inner
-                .stream
-                .parameter_statuses
-                .contains_key("mz_version")
-        {
+        // If the server doesn't support EXPLAIN statements, skip this step (#1248).
+        let parameter_statuses = &self.inner.stream.parameter_statuses;
+        let is_cockroachdb = parameter_statuses.contains_key("crdb_version");
+        let is_materialize = parameter_statuses.contains_key("mz_version");
+        let is_questdb = parameter_statuses.contains_key("questdb_version");
+        if !is_cockroachdb && !is_materialize && !is_questdb {
             // patch up our null inference with data from EXPLAIN
             let nullable_patch = self
                 .nullables_from_explain(stmt_id, meta.parameters.len())
