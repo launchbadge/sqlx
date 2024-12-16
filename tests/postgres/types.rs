@@ -635,6 +635,36 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+#[derive(sqlx::Type, Debug, PartialEq)]
+struct Person {
+    id: i32,
+    age: i32,
+    percent: i32,
+}
+
+test_type!(nested_domain_types<Person>(Postgres,
+    "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: 21, percent: 50 })
+);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "leaf_composite")]
+struct LeafComposite {
+    prim: i32,
+}
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "domain")]
+struct Domain(LeafComposite);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "root_composite")]
+struct RootComposite {
+    domain: Domain,
+}
+
+test_type!(nested_domain_types_2<RootComposite>(Postgres,
+    "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1})})
+);
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {
