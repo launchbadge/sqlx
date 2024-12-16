@@ -657,3 +657,26 @@ CREATE TEMPORARY TABLE user_login (
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_nested_domain_types() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    struct Person {
+        id: i32,
+        age: i32,
+        percent: i32,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let p: Person = sqlx::query_scalar("select ROW(1, 21::positive_int, 50::percentage)::person")
+        .fetch_one(&mut conn)
+        .await
+        .unwrap();
+
+    assert!(p.id == 1);
+    assert!(p.age == 21);
+    assert!(p.percent == 50);
+
+    Ok(())
+}
