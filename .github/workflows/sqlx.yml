@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        postgres: [15, 11]
+        postgres: [17, 13]
         runtime: [async-std, tokio]
         tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
