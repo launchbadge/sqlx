@@ -175,7 +175,7 @@ for runtime in ["async-std", "tokio"]:
         # postgres
         #
 
-        for version in ["15", "14", "13", "12", "11"]:
+        for version in ["17", "16", "15", "14", "13"]:
             run(
                 f"cargo test --no-default-features --features any,postgres,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                 comment=f"test postgres {version}",
