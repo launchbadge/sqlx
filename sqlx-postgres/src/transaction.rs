@@ -1,4 +1,5 @@
 use futures_core::future::BoxFuture;
+use sqlx_core::database::Database;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -61,6 +62,10 @@ impl TransactionManager for PgTransactionManager {
 
             conn.inner.transaction_depth -= 1;
         }
+    }
+
+    fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize {
+        conn.transaction_depth
     }
 }
 

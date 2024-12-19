@@ -32,6 +32,14 @@ pub trait TransactionManager {
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
     fn start_rollback(conn: &mut <Self::Database as Database>::Connection);
+
+    /// Returns the current transaction depth.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize;
 }
 
 /// An in-progress database transaction or savepoint.
