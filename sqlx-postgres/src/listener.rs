@@ -280,7 +280,10 @@ impl PgListener {
                 // update self state, and loop to try again.
                 Err(Error::Io(err))
                     if (err.kind() == io::ErrorKind::ConnectionAborted
-                        || err.kind() == io::ErrorKind::UnexpectedEof) =>
+                        || err.kind() == io::ErrorKind::UnexpectedEof
+                        // see ERRORS section in tcp(7) man page (https://man7.org/linux/man-pages/man7/tcp.7.html)
+                        || err.kind() == io::ErrorKind::TimedOut
+                        || err.kind() == io::ErrorKind::BrokenPipe) =>
                 {
                     if let Some(mut conn) = self.connection.take() {
                         self.buffer_tx = conn.inner.stream.notifications.take();
