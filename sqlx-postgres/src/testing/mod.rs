@@ -1,5 +1,4 @@
 use std::fmt::Write;
-use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
@@ -86,27 +85,11 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         .max_connections(20)
         // Immediately close master connections. Tokio's I/O streams don't like hopping runtimes.
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
-        .connect_lazy_with(master_opts);
+        .connect_lazy_with(master_opts.clone());
 
-    let master_pool = match MASTER_POOL.try_insert(pool) {
-        Ok(inserted) => inserted,
-        Err((existing, pool)) => {
-            // Sanity checks.
-            assert_eq!(
-                existing.connect_options().host,
-                pool.connect_options().host,
-                "DATABASE_URL changed at runtime, host differs"
-            );
-
-            assert_eq!(
-                existing.connect_options().database,
-                pool.connect_options().database,
-                "DATABASE_URL changed at runtime, database differs"
-            );
-
-            existing
-        }
-    };
+    let master_pool = MASTER_POOL
+        .try_insert(pool)
+        .unwrap_or_else(|(existing, _pool)| existing);
 
     let mut conn = master_pool.acquire().await?;
 
@@ -170,11 +153,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             // Close connections ASAP if left in the idle queue.
             .idle_timeout(Some(Duration::from_secs(1)))
             .parent(master_pool.clone()),
-        connect_opts: master_pool
-            .connect_options()
-            .deref()
-            .clone()
-            .database(&new_db_name),
+        connect_opts: master_opts.database(&new_db_name),
         db_name: new_db_name,
     })
 }
