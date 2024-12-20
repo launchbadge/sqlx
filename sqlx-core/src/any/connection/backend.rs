@@ -3,6 +3,7 @@ use crate::describe::Describe;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use std::borrow::Cow;
 use std::fmt::Debug;
 
 pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
@@ -26,7 +27,13 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(&mut self) -> BoxFuture<'_, crate::Result<()>>;
+    ///
+    /// If this is a new transaction, `statement` may be used instead of the
+    /// default "BEGIN" statement.
+    ///
+    /// If we are already inside a transaction and `statement.is_some()`, then
+    /// `Error::InvalidSavePoint` is returned without running any statements.
+    fn begin(&mut self, statement: Option<Cow<'static, str>>) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
