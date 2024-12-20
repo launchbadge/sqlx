@@ -7,6 +7,7 @@ use sqlx::{
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
+use std::future::Future;
 use std::sync::Arc;
 
 #[sqlx_macros::test]
@@ -959,4 +960,22 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
 
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn issue_3150() {
+    // Same bounds as `tokio::spawn()`
+    async fn fake_spawn<F>(future: F) -> F::Output
+    where
+        F: Future + Send + 'static,
+    {
+        future.await
+    }
+
+    fake_spawn(async {
+        let mut db = SqliteConnection::connect(":memory:").await.unwrap();
+        sqlx::raw_sql("").execute(&mut db).await.unwrap();
+        db.close().await.unwrap();
+    })
+    .await;
 }
