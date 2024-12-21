@@ -8,6 +8,7 @@ use libsqlite3_sys::{
     sqlite3_load_extension, sqlite3_open_v2, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
+    SQLITE_OPEN_URI,
 };
 use percent_encoding::NON_ALPHANUMERIC;
 use sqlx_core::IndexMap;
@@ -67,11 +68,14 @@ impl EstablishParams {
             })?
             .to_owned();
 
+        // Set common flags we expect to have in sqlite
+        let mut flags = SQLITE_OPEN_URI;
+
         // By default, we connect to an in-memory database.
         // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
         // cannot satisfy our wish for a thread-safe, lock-free connection object
 
-        let mut flags = if options.serialized {
+        flags |= if options.serialized {
             SQLITE_OPEN_FULLMUTEX
         } else {
             SQLITE_OPEN_NOMUTEX
@@ -111,7 +115,6 @@ impl EstablishParams {
                 percent_encoding::percent_encode(filename.as_bytes(), NON_ALPHANUMERIC),
                 serde_urlencoded::to_string(&query_params).unwrap()
             );
-            flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
 
         let filename = CString::new(filename).map_err(|_| {
