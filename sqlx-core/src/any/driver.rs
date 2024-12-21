@@ -67,10 +67,16 @@ impl AnyDriver {
     {
         Self {
             migrate_database: Some(AnyMigrateDatabase {
-                create_database: DebugFn(DB::create_database),
-                database_exists: DebugFn(DB::database_exists),
-                drop_database: DebugFn(DB::drop_database),
-                force_drop_database: DebugFn(DB::force_drop_database),
+                create_database: DebugFn(|url| {
+                    Box::pin(async move { DB::create_database(url).await })
+                }),
+                database_exists: DebugFn(|url| {
+                    Box::pin(async move { DB::database_exists(url).await })
+                }),
+                drop_database: DebugFn(|url| Box::pin(async move { DB::drop_database(url).await })),
+                force_drop_database: DebugFn(|url| {
+                    Box::pin(async move { DB::force_drop_database(url).await })
+                }),
             }),
             ..Self::without_migrate::<DB>()
         }
