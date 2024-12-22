@@ -28,7 +28,7 @@ pub trait Arguments<'q>: Send + Sized + Default {
         writer.write_str("?")
     }
 
-    fn merge(&mut self, other: Self);
+    fn merge(mut self, other: Self);
 }
 
 pub trait IntoArguments<'q, DB: Database>: Sized + Send {

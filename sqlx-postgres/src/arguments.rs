@@ -148,6 +148,9 @@ impl<'q> Arguments<'q> for PgArguments {
     fn merge(&mut self, other: Self) {
         self.types.extend(other.types);
         self.buffer.extend_from_slice(&other.buffer);
+        self.buffer.count += other.buffer.count;
+        self.buffer.patches.extend(other.buffer.patches);
+        self.buffer.type_holes.extend(other.buffer.type_holes);
     }
 
     #[inline(always)]
