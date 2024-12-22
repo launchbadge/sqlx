@@ -1,0 +1,114 @@
+use sqlx_core::{
+    database::Database,
+    encode::{Encode, IsNull},
+    types::Type,
+};
+
+use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
+
+pub struct PgBindIter<I>(I);
+
+impl<I> PgBindIter<I> {
+    pub fn new(inner: I) -> Self {
+        Self(inner)
+    }
+}
+
+impl<I> From<I> for PgBindIter<I> {
+    fn from(inner: I) -> Self {
+        Self::new(inner)
+    }
+}
+
+impl<T, I> Type<Postgres> for PgBindIter<I>
+where
+    T: Type<Postgres> + PgHasArrayType,
+    I: Iterator<Item = T>,
+{
+    fn type_info() -> <Postgres as Database>::TypeInfo {
+        T::array_type_info()
+    }
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
+impl<'q, T, I> PgBindIter<I>
+where
+    I: Iterator<Item = T>,
+    T: Type<Postgres> + Encode<'q, Postgres>,
+{
+    fn encode_inner(
+        // need ownership to iterate
+        mut iter: I,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let first = iter.next();
+        let type_info = first
+            .as_ref()
+            .and_then(Encode::produces)
+            .unwrap_or_else(T::type_info);
+
+        buf.extend(&1_i32.to_be_bytes()); // number of dimensions
+        buf.extend(&0_i32.to_be_bytes()); // flags
+
+        match type_info.0 {
+            PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
+            PgType::DeclareArrayOf(array) => buf.patch_array_type(array),
+
+            ty => {
+                buf.extend(&ty.oid().0.to_be_bytes());
+            }
+        }
+
+        let len_start = buf.len();
+        buf.extend(0_i32.to_be_bytes()); // len (unknown so far)
+        buf.extend(1_i32.to_be_bytes()); // lower bound
+
+        match first {
+            Some(first) => buf.encode(first)?,
+            None => return Ok(IsNull::No),
+        }
+
+        let mut count = 1_i32;
+        const MAX: usize = i32::MAX as usize;
+
+        for value in (&mut iter).take(MAX) {
+            buf.encode(value)?;
+            count += 1;
+        }
+
+        const OVERFLOW: usize = MAX + 1;
+        if iter.next().is_some() {
+            return Err(format!("encoded iterator is too large for Postgres: {OVERFLOW}").into());
+        }
+
+        // set the length now that we know what it is.
+        buf[len_start..(len_start + 4)].copy_from_slice(count.to_be_bytes().as_slice());
+
+        Ok(IsNull::No)
+    }
+}
+
+impl<'q, T, I> Encode<'q, Postgres> for PgBindIter<I>
+where
+    T: Type<Postgres> + Encode<'q, Postgres>,
+    // Clone is required for the encode_by_ref call since we can't iterate with a shared reference
+    I: Iterator<Item = T> + Clone,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        Self::encode_inner(self.0.clone(), buf)
+    }
+    fn encode(
+        self,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>>
+    where
+        Self: Sized,
+    {
+        Self::encode_inner(self.0, buf)
+    }
+}

@@ -7,6 +7,7 @@ use crate::executor::Executor;
 
 mod advisory_lock;
 mod arguments;
+mod bind_iter;
 mod column;
 mod connection;
 mod copy;
@@ -44,6 +45,7 @@ pub(crate) use sqlx_core::driver_prelude::*;
 
 pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
+pub use bind_iter::PgBindIter;
 pub use column::PgColumn;
 pub use connection::PgConnection;
 pub use copy::{PgCopyIn, PgPoolCopyExt};
