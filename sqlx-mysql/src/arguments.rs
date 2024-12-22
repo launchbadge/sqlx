@@ -55,6 +55,13 @@ impl<'q> Arguments<'q> for MySqlArguments {
     fn len(&self) -> usize {
         self.types.len()
     }
+
+    fn merge(&mut self, other: Self) {
+        self.types.extend(other.types);
+        self.values.extend(other.values);
+        self.null_bitmap.bytes.extend(other.null_bitmap.bytes);
+        self.null_bitmap.length += other.null_bitmap.length;
+    }
 }
 
 #[derive(Debug, Default, Clone)]

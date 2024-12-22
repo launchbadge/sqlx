@@ -145,6 +145,11 @@ impl<'q> Arguments<'q> for PgArguments {
         write!(writer, "${}", self.buffer.count)
     }
 
+    fn merge(&mut self, other: Self) {
+        self.types.extend(other.types);
+        self.buffer.extend_from_slice(&other.buffer);
+    }
+
     #[inline(always)]
     fn len(&self) -> usize {
         self.buffer.count
