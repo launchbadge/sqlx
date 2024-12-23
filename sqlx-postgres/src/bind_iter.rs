@@ -7,6 +7,42 @@ use sqlx_core::{
 
 use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
 
+/// A wrapper enabling iterators to encode arrays in Postgres.
+///
+/// Because of the blanket impl of `PgHasArrayType` for all references
+/// we can borrow instead of needing to clone or copy in the iterators
+/// and it still works
+///
+/// Previously, 3 separate arrays would be needed in this example which
+/// requires iterating 3 times to collect items into the array and then
+/// iterating over them again to encode.
+///
+/// This now requires only iterating over the array once for each field
+/// while using less memory giving both speed and memory usage improvements.
+///
+/// ```rust,ignore
+/// # use sqlx::types::chrono::{DateTime, Utc}
+/// # fn people() -> &'static [Person] {
+/// #   &[]
+/// # }
+/// #[derive(sqlx::FromRow)]
+/// struct Person {
+///     id: i64,
+///     name: String,
+///     birthdate: DateTime<Utc>,
+/// }
+///
+/// let people: &[Person] = people();
+///
+/// sqlx::query(
+///     "insert into person(id, name, birthdate) select * from unnest($1, $2, $3)"
+/// )
+/// .bind(PgBindIter::from(people.iter().map(|p|p.id)))
+/// .bind(PgBindIter::from(people.iter().map(|p|&p.name)))
+/// .bind(PgBindIter::from(people.iter().map(|p|&p.birthdate)))
+/// .execute(pool)
+/// .await?;
+/// ```
 pub struct PgBindIter<I>(I);
 
 impl<I> PgBindIter<I> {

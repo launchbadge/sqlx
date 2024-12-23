@@ -2042,3 +2042,61 @@ async fn test_issue_3052() {
         "expected encode error, got {too_large_error:?}",
     );
 }
+
+#[sqlx_macros::test]
+async fn test_bind_iter() -> anyhow::Result<()> {
+    use sqlx::postgres::PgBindIter;
+    use sqlx::types::chrono::{DateTime, Utc};
+
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(sqlx::FromRow, PartialEq, Debug)]
+    struct Person {
+        id: i64,
+        name: String,
+        birthdate: DateTime<Utc>,
+    }
+
+    let people: Vec<Person> = vec![
+        Person {
+            id: 1,
+            name: "Alice".into(),
+            birthdate: "1984-01-01T00:00:00Z".parse().unwrap(),
+        },
+        Person {
+            id: 2,
+            name: "Bob".into(),
+            birthdate: "2000-01-01T00:00:00Z".parse().unwrap(),
+        },
+    ];
+
+    sqlx::query(
+        r#"
+create temporary table person(
+  id int8 primary key,
+  name text not null,
+  birthdate timestamptz not null
+)"#,
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let rows_affected =
+        sqlx::query("insert into person(id, name, birthdate) select * from unnest($1, $2, $3)")
+            // owned value
+            .bind(PgBindIter::from(people.iter().map(|p| p.id)))
+            // borrowed value
+            .bind(PgBindIter::from(people.iter().map(|p| &p.name)))
+            .bind(PgBindIter::from(people.iter().map(|p| &p.birthdate)))
+            .execute(&mut conn)
+            .await?
+            .rows_affected();
+    assert_eq!(rows_affected, 2);
+
+    let p_query = sqlx::query_as::<_, Person>("select * from person order by id")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(people, p_query);
+    Ok(())
+}
