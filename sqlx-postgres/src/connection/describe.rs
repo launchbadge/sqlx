@@ -412,6 +412,15 @@ WHERE rngtypid = $1
         Ok(array_oid)
     }
 
+    /// Check whether EXPLAIN statements are supported by the current connection
+    fn is_explain_available(&self) -> bool {
+        let parameter_statuses = &self.inner.stream.parameter_statuses;
+        let is_cockroachdb = parameter_statuses.contains_key("crdb_version");
+        let is_materialize = parameter_statuses.contains_key("mz_version");
+        let is_questdb = parameter_statuses.contains_key("questdb_version");
+        !is_cockroachdb && !is_materialize && !is_questdb
+    }
+
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
         stmt_id: StatementId,
@@ -487,11 +496,7 @@ WHERE rngtypid = $1
             })?;
 
         // If the server doesn't support EXPLAIN statements, skip this step (#1248).
-        let parameter_statuses = &self.inner.stream.parameter_statuses;
-        let is_cockroachdb = parameter_statuses.contains_key("crdb_version");
-        let is_materialize = parameter_statuses.contains_key("mz_version");
-        let is_questdb = parameter_statuses.contains_key("questdb_version");
-        if !is_cockroachdb && !is_materialize && !is_questdb {
+        if self.is_explain_available() {
             // patch up our null inference with data from EXPLAIN
             let nullable_patch = self
                 .nullables_from_explain(stmt_id, meta.parameters.len())
