@@ -1,6 +1,7 @@
 use sqlx_core::{
     database::Database,
     encode::{Encode, IsNull},
+    error::BoxDynError,
     types::Type,
 };
 
@@ -42,7 +43,8 @@ where
         // need ownership to iterate
         mut iter: I,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<IsNull, BoxDynError> {
+        let lower_size_hint = iter.size_hint().0;
         let first = iter.next();
         let type_info = first
             .as_ref()
@@ -71,20 +73,21 @@ where
         }
 
         let mut count = 1_i32;
-        const MAX: usize = i32::MAX as usize;
+        const MAX: usize = i32::MAX as usize - 1;
 
         for value in (&mut iter).take(MAX) {
             buf.encode(value)?;
             count += 1;
         }
 
-        const OVERFLOW: usize = MAX + 1;
+        const OVERFLOW: usize = i32::MAX as usize + 1;
         if iter.next().is_some() {
-            return Err(format!("encoded iterator is too large for Postgres: {OVERFLOW}").into());
+            let iter_size = std::cmp::max(lower_size_hint, OVERFLOW);
+            return Err(format!("encoded iterator is too large for Postgres: {iter_size}").into());
         }
 
         // set the length now that we know what it is.
-        buf[len_start..(len_start + 4)].copy_from_slice(count.to_be_bytes().as_slice());
+        buf[len_start..(len_start + 4)].copy_from_slice(&count.to_be_bytes());
 
         Ok(IsNull::No)
     }
@@ -96,16 +99,10 @@ where
     // Clone is required for the encode_by_ref call since we can't iterate with a shared reference
     I: Iterator<Item = T> + Clone,
 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         Self::encode_inner(self.0.clone(), buf)
     }
-    fn encode(
-        self,
-        buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>>
+    fn encode(self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
