@@ -34,6 +34,26 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
 
     fn start_rollback(&mut self);
 
+    /// Returns the current transaction depth.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&self) -> usize {
+        unimplemented!("get_transaction_depth() is not implemented for this backend. This is a provided method to avoid a breaking change, but it will become a required method in version 0.9 and later.");
+    }
+
+    /// Checks if the connection is currently in a transaction.
+    ///
+    /// This method returns `true` if the current transaction depth is greater than 0,
+    /// indicating that a transaction is active. It returns `false` if the transaction depth is 0,
+    /// meaning no transaction is active.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        self.get_transaction_depth() != 0
+    }
+
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize {
         0

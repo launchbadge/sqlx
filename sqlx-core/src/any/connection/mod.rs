@@ -90,6 +90,10 @@ impl Connection for AnyConnection {
         Transaction::begin(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        self.backend.get_transaction_depth()
+    }
+
     fn cached_statements_size(&self) -> usize {
         self.backend.cached_statements_size()
     }
