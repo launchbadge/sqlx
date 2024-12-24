@@ -7,7 +7,10 @@ use sqlx_core::{
 
 use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
 
-/// A wrapper enabling iterators to encode arrays in Postgres.
+// not exported but pub because it is used in the extension trait
+pub struct PgBindIter<I>(I);
+
+/// Iterator extension trait enabling iterators to encode arrays in Postgres.
 ///
 /// Because of the blanket impl of `PgHasArrayType` for all references
 /// we can borrow instead of needing to clone or copy in the iterators
@@ -18,13 +21,18 @@ use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Pos
 /// iterating over them again to encode.
 ///
 /// This now requires only iterating over the array once for each field
-/// while using less memory giving both speed and memory usage improvements.
+/// while using less memory giving both speed and memory usage improvements
+/// along with allowing much more flexibility in the underlying collection.
 ///
-/// ```rust,ignore
+/// ```rust,no_run
+/// # async fn test_bind_iter() {
 /// # use sqlx::types::chrono::{DateTime, Utc}
 /// # fn people() -> &'static [Person] {
 /// #   &[]
 /// # }
+/// # let mut conn = sqlx::Postgres::Connection::connect("dummyurl").await;
+/// use sqlx::postgres::PgBindIterExt;
+///
 /// #[derive(sqlx::FromRow)]
 /// struct Person {
 ///     id: i64,
@@ -32,48 +40,42 @@ use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Pos
 ///     birthdate: DateTime<Utc>,
 /// }
 ///
-/// let people: &[Person] = people();
-///
-/// sqlx::query(
-///     "insert into person(id, name, birthdate) select * from unnest($1, $2, $3)"
-/// )
-/// .bind(PgBindIter::from(people.iter().map(|p|p.id)))
-/// .bind(PgBindIter::from(people.iter().map(|p|&p.name)))
-/// .bind(PgBindIter::from(people.iter().map(|p|&p.birthdate)))
-/// .execute(pool)
-/// .await?;
+/// # let people: &[Person] = people();
+/// sqlx::query("insert into person(id, name, birthdate) select * from unnest($1, $2, $3)")
+///     .bind(people.iter().map(|p| p.id).bind_iter())
+///     .bind(people.iter().map(|p| &p.name).bind_iter())
+///     .bind(people.iter().map(|p| &p.birthdate).bind_iter())
+///     .execute(&mut conn)
+///     .await?;
+/// # }
 /// ```
-pub struct PgBindIter<I>(I);
+pub trait PgBindIterExt: Iterator + Sized {
+    fn bind_iter(self) -> PgBindIter<Self>;
+}
 
-impl<I> PgBindIter<I> {
-    pub fn new(inner: I) -> Self {
-        Self(inner)
+impl<I: Iterator + Sized> PgBindIterExt for I {
+    fn bind_iter(self) -> PgBindIter<I> {
+        PgBindIter(self)
     }
 }
 
-impl<I> From<I> for PgBindIter<I> {
-    fn from(inner: I) -> Self {
-        Self::new(inner)
-    }
-}
-
-impl<T, I> Type<Postgres> for PgBindIter<I>
+impl<I> Type<Postgres> for PgBindIter<I>
 where
-    T: Type<Postgres> + PgHasArrayType,
-    I: Iterator<Item = T>,
+    I: Iterator,
+    <I as Iterator>::Item: Type<Postgres> + PgHasArrayType,
 {
     fn type_info() -> <Postgres as Database>::TypeInfo {
-        T::array_type_info()
+        <I as Iterator>::Item::array_type_info()
     }
     fn compatible(ty: &PgTypeInfo) -> bool {
-        T::array_compatible(ty)
+        <I as Iterator>::Item::array_compatible(ty)
     }
 }
 
-impl<'q, T, I> PgBindIter<I>
+impl<'q, I> PgBindIter<I>
 where
-    I: Iterator<Item = T>,
-    T: Type<Postgres> + Encode<'q, Postgres>,
+    I: Iterator,
+    <I as Iterator>::Item: Type<Postgres> + Encode<'q, Postgres>,
 {
     fn encode_inner(
         // need ownership to iterate
@@ -85,7 +87,7 @@ where
         let type_info = first
             .as_ref()
             .and_then(Encode::produces)
-            .unwrap_or_else(T::type_info);
+            .unwrap_or_else(<I as Iterator>::Item::type_info);
 
         buf.extend(&1_i32.to_be_bytes()); // number of dimensions
         buf.extend(&0_i32.to_be_bytes()); // flags
@@ -129,11 +131,11 @@ where
     }
 }
 
-impl<'q, T, I> Encode<'q, Postgres> for PgBindIter<I>
+impl<'q, I> Encode<'q, Postgres> for PgBindIter<I>
 where
-    T: Type<Postgres> + Encode<'q, Postgres>,
     // Clone is required for the encode_by_ref call since we can't iterate with a shared reference
-    I: Iterator<Item = T> + Clone,
+    I: Iterator + Clone,
+    <I as Iterator>::Item: Type<Postgres> + Encode<'q, Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         Self::encode_inner(self.0.clone(), buf)

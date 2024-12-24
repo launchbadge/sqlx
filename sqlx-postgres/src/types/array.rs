@@ -162,7 +162,7 @@ where
                 self.len()
             )
         })?;
-        crate::bind_iter::PgBindIter::new(self.iter()).encode(buf)
+        crate::PgBindIterExt::bind_iter(self.iter()).encode(buf)
     }
 }
 

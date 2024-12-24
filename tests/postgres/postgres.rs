@@ -2045,7 +2045,7 @@ async fn test_issue_3052() {
 
 #[sqlx_macros::test]
 async fn test_bind_iter() -> anyhow::Result<()> {
-    use sqlx::postgres::PgBindIter;
+    use sqlx::postgres::PgBindIterExt;
     use sqlx::types::chrono::{DateTime, Utc};
 
     let mut conn = new::<Postgres>().await?;
@@ -2084,10 +2084,10 @@ create temporary table person(
     let rows_affected =
         sqlx::query("insert into person(id, name, birthdate) select * from unnest($1, $2, $3)")
             // owned value
-            .bind(PgBindIter::from(people.iter().map(|p| p.id)))
+            .bind(people.iter().map(|p| p.id).bind_iter())
             // borrowed value
-            .bind(PgBindIter::from(people.iter().map(|p| &p.name)))
-            .bind(PgBindIter::from(people.iter().map(|p| &p.birthdate)))
+            .bind(people.iter().map(|p| &p.name).bind_iter())
+            .bind(people.iter().map(|p| &p.birthdate).bind_iter())
             .execute(&mut conn)
             .await?
             .rows_affected();

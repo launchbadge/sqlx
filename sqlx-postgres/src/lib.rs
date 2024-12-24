@@ -45,7 +45,7 @@ pub(crate) use sqlx_core::driver_prelude::*;
 
 pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
-pub use bind_iter::PgBindIter;
+pub use bind_iter::PgBindIterExt;
 pub use column::PgColumn;
 pub use connection::PgConnection;
 pub use copy::{PgCopyIn, PgPoolCopyExt};
