@@ -14,6 +14,8 @@ use libsqlite3_sys::{
     sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
     sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
+#[cfg(feature = "preupdate-hook")]
+pub use preupdate_hook::*;
 
 pub(crate) use handle::ConnectionHandle;
 use sqlx_core::common::StatementCache;
@@ -36,6 +38,8 @@ mod executor;
 mod explain;
 mod handle;
 pub(crate) mod intmap;
+#[cfg(feature = "preupdate-hook")]
+mod preupdate_hook;
 
 mod worker;
 
@@ -88,6 +92,7 @@ pub struct UpdateHookResult<'a> {
     pub table: &'a str,
     pub rowid: i64,
 }
+
 pub(crate) struct UpdateHookHandler(NonNull<dyn FnMut(UpdateHookResult) + Send + 'static>);
 unsafe impl Send for UpdateHookHandler {}
 
@@ -112,6 +117,8 @@ pub(crate) struct ConnectionState {
     progress_handler_callback: Option<Handler>,
 
     update_hook_callback: Option<UpdateHookHandler>,
+    #[cfg(feature = "preupdate-hook")]
+    preupdate_hook_callback: Option<preupdate_hook::PreupdateHookHandler>,
 
     commit_hook_callback: Option<CommitHookHandler>,
 
@@ -133,6 +140,16 @@ impl ConnectionState {
         if let Some(mut handler) = self.update_hook_callback.take() {
             unsafe {
                 sqlite3_update_hook(self.handle.as_ptr(), None, ptr::null_mut());
+                let _ = { Box::from_raw(handler.0.as_mut()) };
+            }
+        }
+    }
+
+    #[cfg(feature = "preupdate-hook")]
+    pub(crate) fn remove_preupdate_hook(&mut self) {
+        if let Some(mut handler) = self.preupdate_hook_callback.take() {
+            unsafe {
+                libsqlite3_sys::sqlite3_preupdate_hook(self.handle.as_ptr(), None, ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -421,6 +438,34 @@ impl LockedSqliteHandle<'_> {
         }
     }
 
+    /// Registers a hook that is invoked prior to each `INSERT`, `UPDATE`, and `DELETE` operation on a database table.
+    /// At most one preupdate hook may be registered at a time on a single database connection.
+    ///
+    /// The preupdate hook only fires for changes to real database tables;
+    /// it is not invoked for changes to virtual tables or to system tables like sqlite_sequence or sqlite_stat1.
+    ///
+    /// See https://sqlite.org/c3ref/preupdate_count.html
+    #[cfg(feature = "preupdate-hook")]
+    pub fn set_preupdate_hook<F>(&mut self, callback: F)
+    where
+        F: FnMut(PreupdateHookResult) + Send + 'static,
+    {
+        unsafe {
+            let callback_boxed = Box::new(callback);
+            // SAFETY: `Box::into_raw()` always returns a non-null pointer.
+            let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
+            let handler = callback.as_ptr() as *mut _;
+            self.guard.remove_preupdate_hook();
+            self.guard.preupdate_hook_callback = Some(PreupdateHookHandler(callback));
+
+            libsqlite3_sys::sqlite3_preupdate_hook(
+                self.as_raw_handle().as_mut(),
+                Some(preupdate_hook::<F>),
+                handler,
+            );
+        }
+    }
+
     /// Sets a commit hook that is invoked whenever a transaction is committed. If the commit hook callback
     /// returns `false`, then the operation is turned into a ROLLBACK.
     ///
@@ -483,6 +528,11 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_update_hook(&mut self) {
         self.guard.remove_update_hook();
+    }
+
+    #[cfg(feature = "preupdate-hook")]
+    pub fn remove_preupdate_hook(&mut self) {
+        self.guard.remove_preupdate_hook();
     }
 
     pub fn remove_commit_hook(&mut self) {

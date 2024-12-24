@@ -39,7 +39,7 @@ jobs:
       - run: >
           cargo clippy
           --no-default-features
-          --features all-databases,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
+          --features all-databases,_unstable-all-types,sqlite-preupdate-hook,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
           -- -D warnings
 
       # Run beta for new warnings but don't break the build.
@@ -47,7 +47,7 @@ jobs:
       - run: >
           cargo +beta clippy
           --no-default-features
-          --features all-databases,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
+          --features all-databases,_unstable-all-types,sqlite-preupdate-hook,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
           --target-dir target/beta/
 
   check-minimal-versions:
@@ -140,7 +140,7 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,macros,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }}
+          --features any,macros,${{ matrix.linking }},${{ matrix.linking == 'sqlite' && 'sqlite-preupdate-hook,' || ''}}_unstable-all-types,runtime-${{ matrix.runtime }}
           --
           --test-threads=1
         env:

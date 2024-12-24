@@ -3860,6 +3860,7 @@ dependencies = [
  "serde_urlencoded",
  "sqlx",
  "sqlx-core",
+ "thiserror 2.0.0",
  "time",
  "tracing",
  "url",
