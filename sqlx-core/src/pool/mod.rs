@@ -54,6 +54,7 @@
 //! [`Pool::acquire`] or
 //! [`Pool::begin`].
 
+use std::borrow::Cow;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
@@ -367,15 +368,49 @@ impl<DB: Database> Pool<DB> {
 
     /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
-        Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
+        Transaction::begin(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            None,
+        )
+        .await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
     pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
-            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
+            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn), None)
                 .await
                 .map(Some),
+
+            None => Ok(None),
+        }
+    }
+
+    /// Retrieves a connection and immediately begins a new transaction using `statement`.
+    pub async fn begin_with(
+        &self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> Result<Transaction<'static, DB>, Error> {
+        Transaction::begin(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            Some(statement.into()),
+        )
+        .await
+    }
+
+    /// Attempts to retrieve a connection and, if successful, immediately begins a new
+    /// transaction using `statement`.
+    pub async fn try_begin_with(
+        &self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> Result<Option<Transaction<'static, DB>>, Error> {
+        match self.try_acquire() {
+            Some(conn) => Transaction::begin(
+                MaybePoolConnection::PoolConnection(conn),
+                Some(statement.into()),
+            )
+            .await
+            .map(Some),
 
             None => Ok(None),
         }

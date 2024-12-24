@@ -1,7 +1,7 @@
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/mysql__com_8h.html#a1d854e841086925be1883e4d7b4e8cad
 // https://mariadb.com/kb/en/library/mariadb-connectorc-types-and-definitions/#server-status
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
     pub struct Status: u16 {
         // Is raised when a multi-statement transaction has been started, either explicitly,
         // by means of BEGIN or COMMIT AND CHAIN, or implicitly, by the first

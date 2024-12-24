@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::CStr;
 use std::fmt::Write;
@@ -11,8 +12,8 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_get_autocommit, sqlite3_progress_handler,
+    sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
 
 pub(crate) use handle::ConnectionHandle;
@@ -235,7 +236,17 @@ impl Connection for SqliteConnection {
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self, None)
+    }
+
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -491,6 +502,11 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_rollback_hook(&mut self) {
         self.guard.remove_rollback_hook();
+    }
+
+    pub(crate) fn in_transaction(&mut self) -> bool {
+        let ret = unsafe { sqlite3_get_autocommit(self.as_raw_handle().as_ptr()) };
+        ret == 0
     }
 }
 
