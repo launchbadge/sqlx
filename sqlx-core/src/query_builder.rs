@@ -134,7 +134,7 @@ where
     /// * Postgres and MySQL: 65535
     ///     * You may find sources that state that Postgres has a limit of 32767,
     ///       but that is a misinterpretation of the specification by the JDBC driver implementation
-    ///       as discussed in [this Github issue][postgres-limit-issue]. Postgres itself
+    ///       as discussed in [this GitHub issue][postgres-limit-issue]. Postgres itself
     ///       asserts that the number of parameters is in the range `[0, 65535)`.
     /// * SQLite: 32766 (configurable by [`SQLITE_LIMIT_VARIABLE_NUMBER`])
     ///     * SQLite prior to 3.32.0: 999

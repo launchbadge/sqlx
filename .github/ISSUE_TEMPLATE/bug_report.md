@@ -9,7 +9,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 ### Minimal Reproduction
-A small code snippet or a link to a Github repo or Gist, with instructions on reproducing the bug.
+A small code snippet or a link to a GitHub repo or Gist, with instructions on reproducing the bug.
 
 ### Info
 * SQLx version: [REQUIRED]
