@@ -139,26 +139,26 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
 impl<'q> RawSql<'q> {
     /// Execute the SQL string and return the total number of rows affected.
     #[inline]
-    pub async fn execute<'e, E>(
+    pub async fn execute<'c, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::QueryResult>
     where
-        'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.execute(self).await
     }
 
     /// Execute the SQL string. Returns a stream which gives the number of rows affected for each statement in the string.
     #[inline]
-    pub fn execute_many<'e, E>(
+    pub fn execute_many<'c, 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, crate::Result<<E::Database as Database>::QueryResult>>
     where
+        'c: 'e,
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.execute_many(self)
     }
@@ -167,13 +167,14 @@ impl<'q> RawSql<'q> {
     ///
     /// If the string contains multiple statements, their results will be concatenated together.
     #[inline]
-    pub fn fetch<'e, E>(
+    pub fn fetch<'c, 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<<E::Database as Database>::Row, Error>>
     where
+        'c: 'e,
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch(self)
     }
@@ -183,7 +184,7 @@ impl<'q> RawSql<'q> {
     /// For each query in the stream, any generated rows are returned first,
     /// then the `QueryResult` with the number of rows affected.
     #[inline]
-    pub fn fetch_many<'e, E>(
+    pub fn fetch_many<'c, 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<
@@ -194,8 +195,9 @@ impl<'q> RawSql<'q> {
         >,
     >
     where
+        'c: 'e,
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_many(self)
     }
@@ -208,11 +210,12 @@ impl<'q> RawSql<'q> {
     /// To avoid exhausting available memory, ensure the result set has a known upper bound,
     /// e.g. using `LIMIT`.
     #[inline]
-    pub async fn fetch_all<'e, E>(
+    pub async fn fetch_all<'c, 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<Vec<<E::Database as Database>::Row>>
     where
+        'c: 'e,
         'q: 'e,
         E: Executor<'e>,
     {
@@ -232,13 +235,14 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_one<'e, E>(
+    pub async fn fetch_one<'c, 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
+        'c: 'e,
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }
@@ -256,13 +260,14 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_optional<'e, E>(
+    pub async fn fetch_optional<'c, 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
+        'c: 'e,
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }
