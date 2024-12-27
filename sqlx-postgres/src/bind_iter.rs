@@ -25,7 +25,7 @@ pub struct PgBindIter<I>(I);
 /// along with allowing much more flexibility in the underlying collection.
 ///
 /// ```rust,no_run
-/// # async fn test_bind_iter() {
+/// # async fn test_bind_iter() -> Result<(), sqlx::error::BoxDynError> {
 /// # use sqlx::types::chrono::{DateTime, Utc}
 /// # fn people() -> &'static [Person] {
 /// #   &[]
@@ -47,6 +47,8 @@ pub struct PgBindIter<I>(I);
 ///     .bind(people.iter().map(|p| &p.birthdate).bind_iter())
 ///     .execute(&mut conn)
 ///     .await?;
+///
+/// # Ok(())
 /// # }
 /// ```
 pub trait PgBindIterExt: Iterator + Sized {
