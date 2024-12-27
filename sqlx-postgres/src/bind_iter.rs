@@ -26,11 +26,12 @@ pub struct PgBindIter<I>(I);
 ///
 /// ```rust,no_run
 /// # async fn test_bind_iter() -> Result<(), sqlx::error::BoxDynError> {
-/// # use sqlx::types::chrono::{DateTime, Utc}
+/// # use sqlx::types::chrono::{DateTime, Utc};
+/// # use sqlx::Connection;
 /// # fn people() -> &'static [Person] {
 /// #   &[]
 /// # }
-/// # let mut conn = sqlx::Postgres::Connection::connect("dummyurl").await;
+/// # let mut conn = <sqlx::Postgres as sqlx::Database>::Connection::connect("dummyurl").await?;
 /// use sqlx::postgres::PgBindIterExt;
 ///
 /// #[derive(sqlx::FromRow)]
