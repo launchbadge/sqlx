@@ -7,6 +7,7 @@ use libsqlite3_sys::{
     sqlite3_preupdate_old, sqlite3_value, sqlite3_value_type, SQLITE_OK,
 };
 use std::ffi::CStr;
+use std::marker::PhantomData;
 use std::os::raw::{c_char, c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
@@ -35,9 +36,10 @@ pub struct PreupdateHookResult<'a> {
     pub operation: SqliteOperation,
     pub database: &'a str,
     pub table: &'a str,
+    db: *mut sqlite3,
     // The database pointer should not be usable after the preupdate hook.
     // The lifetime on this struct needs to ensure it cannot outlive the callback.
-    db: *mut sqlite3,
+    _db_lifetime: PhantomData<&'a ()>,
     old_row_id: i64,
     new_row_id: i64,
 }
@@ -151,6 +153,7 @@ pub(super) extern "C" fn preupdate_hook<F>(
                 old_row_id,
                 new_row_id,
                 db,
+                _db_lifetime: PhantomData,
             })
         });
     }
