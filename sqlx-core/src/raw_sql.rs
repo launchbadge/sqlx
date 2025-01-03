@@ -114,7 +114,7 @@ pub struct RawSql<'q>(&'q str);
 ///
 /// See [MySQL manual, section 13.3.3: Statements That Cause an Implicit Commit](https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html) for details.
 /// See also: [MariaDB manual: SQL statements That Cause an Implicit Commit](https://mariadb.com/kb/en/sql-statements-that-cause-an-implicit-commit/).
-pub fn raw_sql(sql: &str) -> RawSql<'_> {
+pub fn raw_sql<'q>(sql: &'q str) -> RawSql<'q> {
     RawSql(sql)
 }
 
@@ -138,27 +138,26 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
 
 impl<'q> RawSql<'q> {
     /// Execute the SQL string and return the total number of rows affected.
-    #[inline]
-    pub async fn execute<'e, E>(
+    pub async fn execute<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::QueryResult>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.execute(self).await
     }
 
     /// Execute the SQL string. Returns a stream which gives the number of rows affected for each statement in the string.
     #[inline]
-    pub fn execute_many<'e, E>(
+    pub fn execute_many<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, crate::Result<<E::Database as Database>::QueryResult>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.execute_many(self)
     }
@@ -167,13 +166,13 @@ impl<'q> RawSql<'q> {
     ///
     /// If the string contains multiple statements, their results will be concatenated together.
     #[inline]
-    pub fn fetch<'e, E>(
+    pub fn fetch<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<<E::Database as Database>::Row, Error>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch(self)
     }
@@ -183,7 +182,7 @@ impl<'q> RawSql<'q> {
     /// For each query in the stream, any generated rows are returned first,
     /// then the `QueryResult` with the number of rows affected.
     #[inline]
-    pub fn fetch_many<'e, E>(
+    pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<
@@ -195,7 +194,7 @@ impl<'q> RawSql<'q> {
     >
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_many(self)
     }
@@ -208,13 +207,13 @@ impl<'q> RawSql<'q> {
     /// To avoid exhausting available memory, ensure the result set has a known upper bound,
     /// e.g. using `LIMIT`.
     #[inline]
-    pub async fn fetch_all<'e, E>(
+    pub async fn fetch_all<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<Vec<<E::Database as Database>::Row>>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_all(self).await
     }
@@ -232,13 +231,13 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_one<'e, E>(
+    pub async fn fetch_one<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }
@@ -256,13 +255,13 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_optional<'e, E>(
+    pub async fn fetch_optional<'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
         'q: 'e,
-        E: Executor<'e>,
+        E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }

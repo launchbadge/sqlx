@@ -1,43 +1,12 @@
 use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
 use sqlx::Executor;
+use sqlx_core::connection::ConnectOptions;
+use sqlx_core::pool::PoolConnectMetadata;
 use std::sync::{
-    atomic::{AtomicI32, AtomicUsize, Ordering},
+    atomic::{AtomicI32, Ordering},
     Arc, Mutex,
 };
 use std::time::Duration;
-
-#[sqlx_macros::test]
-async fn pool_should_invoke_after_connect() -> anyhow::Result<()> {
-    sqlx::any::install_default_drivers();
-
-    let counter = Arc::new(AtomicUsize::new(0));
-
-    let pool = AnyPoolOptions::new()
-        .after_connect({
-            let counter = counter.clone();
-            move |_conn, _meta| {
-                let counter = counter.clone();
-                Box::pin(async move {
-                    counter.fetch_add(1, Ordering::SeqCst);
-
-                    Ok(())
-                })
-            }
-        })
-        .connect(&dotenvy::var("DATABASE_URL")?)
-        .await?;
-
-    let _ = pool.acquire().await?;
-    let _ = pool.acquire().await?;
-    let _ = pool.acquire().await?;
-    let _ = pool.acquire().await?;
-
-    // since connections are released asynchronously,
-    // `.after_connect()` may be called more than once
-    assert!(counter.load(Ordering::SeqCst) >= 1);
-
-    Ok(())
-}
 
 // https://github.com/launchbadge/sqlx/issues/527
 #[sqlx_macros::test]
@@ -83,38 +52,13 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
 
     sqlx_test::setup_if_needed();
 
-    let conn_options: AnyConnectOptions = std::env::var("DATABASE_URL")?.parse()?;
+    let conn_options: Arc<AnyConnectOptions> = Arc::new(std::env::var("DATABASE_URL")?.parse()?);
 
     let current_id = AtomicI32::new(0);
 
     let pool = AnyPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(5))
-        .after_connect(move |conn, meta| {
-            assert_eq!(meta.age, Duration::ZERO);
-            assert_eq!(meta.idle_for, Duration::ZERO);
-
-            let id = current_id.fetch_add(1, Ordering::AcqRel);
-
-            Box::pin(async move {
-                let statement = format!(
-                    // language=SQL
-                    r#"
-                    CREATE TEMPORARY TABLE conn_stats(
-                        id int primary key,
-                        before_acquire_calls int default 0,
-                        after_release_calls int default 0
-                    );
-                    INSERT INTO conn_stats(id) VALUES ({});
-                    "#,
-                    // Until we have generalized bind parameters
-                    id
-                );
-
-                conn.execute(&statement[..]).await?;
-                Ok(())
-            })
-        })
         .before_acquire(|conn, meta| {
             // `age` and `idle_for` should both be nonzero
             assert_ne!(meta.age, Duration::ZERO);
@@ -165,7 +109,31 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
             })
         })
         // Don't establish a connection yet.
-        .connect_lazy_with(conn_options);
+        .connect_lazy_with_connector(move |_meta: PoolConnectMetadata| {
+            let connect_opts = Arc::clone(&conn_options);
+            let id = current_id.fetch_add(1, Ordering::AcqRel);
+
+            async move {
+                let mut conn = connect_opts.connect().await?;
+
+                let statement = format!(
+                    // language=SQL
+                    r#"
+                    CREATE TEMPORARY TABLE conn_stats(
+                        id int primary key,
+                        before_acquire_calls int default 0,
+                        after_release_calls int default 0
+                    );
+                    INSERT INTO conn_stats(id) VALUES ({});
+                    "#,
+                    // Until we have generalized bind parameters
+                    id
+                );
+
+                conn.execute(&statement[..]).await?;
+                Ok(conn)
+            }
+        });
 
     // Expected pattern of (id, before_acquire_calls, after_release_calls)
     let pattern = [
