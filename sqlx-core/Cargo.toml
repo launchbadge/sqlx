@@ -54,6 +54,7 @@ mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "1.9.0", optional = true }
+base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }
 crc = { version = "3", optional = true }

@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use futures_core::future::BoxFuture;
 
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 pub use fixtures::FixtureSnapshot;
+use sha2::{Digest, Sha512};
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
@@ -41,6 +43,17 @@ pub trait TestSupport: Database {
     /// This snapshot can then be used to generate test fixtures.
     fn snapshot(conn: &mut Self::Connection)
         -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>>;
+
+    /// Generate a unique database name for the given test path.
+    fn db_name(args: &TestArgs) -> String {
+        let mut hasher = Sha512::new();
+        hasher.update(args.test_path.as_bytes());
+        let hash = hasher.finalize();
+        let hash = URL_SAFE.encode(&hash[..39]);
+        let db_name = format!("_sqlx_test_{}", hash).replace('-', "_");
+        debug_assert!(db_name.len() == 63);
+        db_name
+    }
 }
 
 pub struct TestFixture {
@@ -217,7 +230,7 @@ where
         let res = test_fn(test_context.pool_opts, test_context.connect_opts).await;
 
         if res.is_success() {
-            if let Err(e) = DB::cleanup_test(&test_context.db_name).await {
+            if let Err(e) = DB::cleanup_test(&DB::db_name(&args)).await {
                 eprintln!(
                     "failed to delete database {:?}: {}",
                     test_context.db_name, e
