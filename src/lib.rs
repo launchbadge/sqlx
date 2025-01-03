@@ -1,6 +1,14 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("lib.md")]
 
+#[cfg(all(
+    feature = "sqlite-preupdate-hook",
+    not(any(feature = "sqlite", feature = "sqlite-unbundled"))
+))]
+compile_error!(
+    "sqlite-preupdate-hook requires either 'sqlite' or 'sqlite-unbundled' to be enabled"
+);
+
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
