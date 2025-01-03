@@ -1013,7 +1013,7 @@ impl PgType {
     /// If `soft_eq` is true and `self` or `other` is `DeclareWithOid` but not both, return `true`
     /// before checking names.
     fn eq_impl(&self, other: &Self, soft_eq: bool) -> bool {
-        if let (Some(a), Some(b)) = (self.try_oid(), other.try_oid()) {
+        if let (Some(a), Some(b)) = (self.base_oid(), other.base_oid()) {
             // If there are OIDs available, use OIDs to perform a direct match
             return a == b;
         }
@@ -1034,6 +1034,17 @@ impl PgType {
 
         // Otherwise, perform a match on the name
         name_eq(self.name(), other.name())
+    }
+
+    // Returns the OID of the type, returns the OID of the base_type for Domain types
+    fn base_oid(&self) -> Option<Oid> {
+        match self {
+            PgType::Custom(custom) => match &custom.kind {
+                PgTypeKind::Domain(domain) => domain.base_oid(),
+                _ => Some(custom.oid),
+            },
+            ty => ty.try_oid(),
+        }
     }
 }
 
