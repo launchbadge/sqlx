@@ -41,4 +41,4 @@ Additionally, it's always good to work on improving/adding examples and document
 
 If you're unsure about your contribution or simply want to ask a question about anything, you can:
 - Visit the [SQLx Discord server](https://discord.gg/uuruzJ7)
-- Discuss something directly in the [GitHub issue](https://github.com/launchbadge/sqlx/issues).
+- Discuss something directly in the [Github issue](https://github.com/launchbadge/sqlx/issues).
