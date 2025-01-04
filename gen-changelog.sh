@@ -1,4 +1,4 @@
-# Requires Github CLI and `jq`
+# Requires GitHub CLI and `jq`
 # Usage: `./gen-changelog.sh YYYY-mm-dd`
 # Generates changelog entries for all PRs merged on or after the given date.
 set -e

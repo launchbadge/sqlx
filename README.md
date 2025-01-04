@@ -8,7 +8,7 @@
 <br />
 
 <div align="center">
-  <!-- Github Actions -->
+  <!-- GitHub Actions -->
   <a href="https://github.com/launchbadge/sqlx/actions/workflows/sqlx.yml?query=branch%3Amain">
     <img src="https://img.shields.io/github/actions/workflow/status/launchbadge/sqlx/sqlx.yml?branch=main&style=flat-square" alt="actions status" /></a>
   <!-- Version -->
