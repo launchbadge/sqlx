@@ -1,3 +1,5 @@
+use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
+use core::cell::Cell;
 use sqlx_core::{
     database::Database,
     encode::{Encode, IsNull},
@@ -5,10 +7,8 @@ use sqlx_core::{
     types::Type,
 };
 
-use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
-
 // not exported but pub because it is used in the extension trait
-pub struct PgBindIter<I>(I);
+pub struct PgBindIter<I>(Cell<Option<I>>);
 
 /// Iterator extension trait enabling iterators to encode arrays in Postgres.
 ///
@@ -58,7 +58,7 @@ pub trait PgBindIterExt: Iterator + Sized {
 
 impl<I: Iterator + Sized> PgBindIterExt for I {
     fn bind_iter(self) -> PgBindIter<I> {
-        PgBindIter(self)
+        PgBindIter(Cell::new(Some(self)))
     }
 }
 
@@ -136,17 +136,19 @@ where
 
 impl<'q, I> Encode<'q, Postgres> for PgBindIter<I>
 where
-    // Clone is required for the encode_by_ref call since we can't iterate with a shared reference
-    I: Iterator + Clone,
+    I: Iterator,
     <I as Iterator>::Item: Type<Postgres> + Encode<'q, Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        Self::encode_inner(self.0.clone(), buf)
+        Self::encode_inner(self.0.take().expect("PgBindIter is only used once"), buf)
     }
     fn encode(self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
-        Self::encode_inner(self.0, buf)
+        Self::encode_inner(
+            self.0.into_inner().expect("PgBindIter is only used once"),
+            buf,
+        )
     }
 }
