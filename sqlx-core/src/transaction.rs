@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
@@ -18,17 +19,17 @@ pub trait TransactionManager {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     fn begin(
         conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
         conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// Abort the active transaction or restore from the most recent savepoint.
     fn rollback(
         conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
     fn start_rollback(conn: &mut <Self::Database as Database>::Connection);
