@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::type_info::PgType;
 use crate::types::Oid;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -156,39 +155,14 @@ where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        let type_info = self
-            .first()
-            .and_then(Encode::produces)
-            .unwrap_or_else(T::type_info);
-
-        buf.extend(&1_i32.to_be_bytes()); // number of dimensions
-        buf.extend(&0_i32.to_be_bytes()); // flags
-
-        // element type
-        match type_info.0 {
-            PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
-            PgType::DeclareArrayOf(array) => buf.patch_array_type(array),
-
-            ty => {
-                buf.extend(&ty.oid().0.to_be_bytes());
-            }
-        }
-
-        let array_len = i32::try_from(self.len()).map_err(|_| {
+        // do the length check early to avoid doing unnecessary work
+        i32::try_from(self.len()).map_err(|_| {
             format!(
                 "encoded array length is too large for Postgres: {}",
                 self.len()
             )
         })?;
-
-        buf.extend(array_len.to_be_bytes()); // len
-        buf.extend(&1_i32.to_be_bytes()); // lower bound
-
-        for element in self.iter() {
-            buf.encode(element)?;
-        }
-
-        Ok(IsNull::No)
+        crate::PgBindIterExt::bind_iter(self.iter()).encode(buf)
     }
 }
 
