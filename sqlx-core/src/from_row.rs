@@ -1,4 +1,7 @@
-use crate::{error::Error, row::Row};
+use crate::{
+    error::{Error, UnexpectedNullError},
+    row::Row,
+};
 
 /// A record that can be built from a row returned by the database.
 ///
@@ -282,6 +285,22 @@ where
     #[inline]
     fn from_row(_: &'r R) -> Result<Self, Error> {
         Ok(())
+    }
+}
+
+impl<'r, R, T> FromRow<'r, R> for Option<T>
+where
+    R: Row,
+    T: FromRow<'r, R>,
+{
+    fn from_row(row: &'r R) -> Result<Self, Error> {
+        let value = T::from_row(row).map(Some);
+        if let Err(Error::ColumnDecode { source, .. }) = value.as_ref() {
+            if let Some(UnexpectedNullError) = source.downcast_ref() {
+                return Ok(None);
+            }
+        }
+        value
     }
 }
 
