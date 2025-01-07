@@ -9,7 +9,8 @@ pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
 pub use sqlx_core::executor::{Execute, Executor};
-pub use sqlx_core::from_row::FromRow;
+pub use sqlx_core::from_row::{FromRow, Wrapper, FromOptRow};
+pub use sqlx_core::__from_opt_row;
 pub use sqlx_core::pool::{self, Pool};
 #[doc(hidden)]
 pub use sqlx_core::query::query_with_result as __query_with_result;
