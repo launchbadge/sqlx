@@ -112,9 +112,8 @@ fn expand_derive_from_row_struct(
                 }
                 // Flatten + Try from
                 (true, Some(try_from), false) => {
-                    predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
                     parse_quote!(
-                        <#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(__row)
+                        ::sqlx::__from_opt_row!(#try_from, __row)
                             .and_then(|v| {
                                 <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v)
                                     .map_err(|e| {
