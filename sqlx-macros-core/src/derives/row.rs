@@ -108,8 +108,6 @@ fn expand_derive_from_row_struct(
                 }
                 // Flatten
                 (true, None, false) => {
-                    predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
-                    //parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(__row))
                     parse_quote!(::sqlx::__from_opt_row!(#ty, __row))
                 }
                 // Flatten + Try from
