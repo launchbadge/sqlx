@@ -1,6 +1,8 @@
 //! Provides [`Encode`] for encoding values for the database.
 
+use std::borrow::Cow;
 use std::mem;
+use std::sync::Arc;
 
 use crate::database::Database;
 use crate::error::BoxDynError;
@@ -128,4 +130,89 @@ macro_rules! impl_encode_for_option {
             }
         }
     };
+}
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Arc<T>
+where
+    T: Encode<'q, DB>,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+        <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        (**self).size_hint()
+    }
+}
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'_, T>
+where
+    T: Encode<'q, DB>,
+    T: ToOwned<Owned = T>,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+        <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        (**self).size_hint()
+    }
+}
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Box<T>
+where
+    T: Encode<'q, DB>,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+        <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        (**self).size_hint()
+    }
 }
