@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::mem;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::database::Database;
@@ -190,6 +191,34 @@ where
 }
 
 impl<'q, T, DB: Database> Encode<'q, DB> for Box<T>
+where
+    T: Encode<'q, DB>,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+        <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        (**self).size_hint()
+    }
+}
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Rc<T>
 where
     T: Encode<'q, DB>,
 {

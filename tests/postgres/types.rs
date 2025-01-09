@@ -3,6 +3,7 @@ extern crate time_ as time;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
@@ -664,7 +665,7 @@ CREATE TEMPORARY TABLE user_login (
 async fn test_arc() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let user_age: Arc<i32> = sqlx::query_scalar("select $1 as age ")
+    let user_age: Arc<i32> = sqlx::query_scalar("SELECT $1 AS age ")
         .bind(Arc::new(1i32))
         .fetch_one(&mut conn)
         .await?;
@@ -678,7 +679,7 @@ async fn test_cow() -> anyhow::Result<()> {
 
     let age: Cow<'_, i32> = Cow::Owned(1i32);
 
-    let user_age: Cow<'static, i32> = sqlx::query_scalar("select $1 as age ")
+    let user_age: Cow<'static, i32> = sqlx::query_scalar("SELECT $1 AS age ")
         .bind(age)
         .fetch_one(&mut conn)
         .await?;
@@ -691,11 +692,24 @@ async fn test_cow() -> anyhow::Result<()> {
 async fn test_box() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let user_age: Box<i32> = sqlx::query_scalar("select $1 as age ")
+    let user_age: Box<i32> = sqlx::query_scalar("SELECT $1 AS age ")
         .bind(Box::new(1))
         .fetch_one(&mut conn)
         .await?;
 
     assert!(user_age.as_ref() == &1);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_rc() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let user_age: i32 = sqlx::query_scalar("SELECT $1 AS age")
+        .bind(Rc::new(1i32))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(user_age == 1);
     Ok(())
 }
