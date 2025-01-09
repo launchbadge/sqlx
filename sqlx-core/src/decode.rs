@@ -1,5 +1,8 @@
 //! Provides [`Decode`] for decoding values from the database.
 
+use std::borrow::Cow;
+use std::sync::Arc;
+
 use crate::database::Database;
 use crate::error::BoxDynError;
 
@@ -75,5 +78,39 @@ where
         } else {
             Ok(Some(T::decode(value)?))
         }
+    }
+}
+
+// implement `Decode` for Arc<T> for all SQL types
+impl<'r, DB, T> Decode<'r, DB> for Arc<T>
+where
+    DB: Database,
+    T: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Arc::new(T::decode(value)?))
+    }
+}
+
+// implement `Decode` for Cow<T> for all SQL types
+impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
+where
+    DB: Database,
+    T: Decode<'r, DB>,
+    T: ToOwned<Owned = T>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Cow::Owned(T::decode(value)?))
+    }
+}
+
+// implement `Decode` for Box<T> for all SQL types
+impl<'r, DB, T> Decode<'r, DB> for Box<T>
+where
+    DB: Database,
+    T: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Box::new(T::decode(value)?))
     }
 }
