@@ -61,8 +61,8 @@ pub struct SqlxContainerAttributes {
 }
 
 pub enum JsonAttribute {
-    Mandatory,
-    Optional
+    NonNullable,
+    Nullable
 }
 
 pub struct SqlxChildAttributes {
@@ -170,10 +170,10 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                 if meta.input.peek(syn::token::Paren) {
                     let content;
                     parenthesized!(content in meta.input);
-                    let literal: Token![optional] = content.parse()?;
-                    json = Some(JsonAttribute::Optional);
+                    let literal: Token![nullable] = content.parse()?;
+                    json = Some(JsonAttribute::Nullable);
                 } else {
-                    json = Some(JsonAttribute::Mandatory);
+                    json = Some(JsonAttribute::NonNullable);
                 }
             }
 
