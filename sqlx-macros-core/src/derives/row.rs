@@ -176,7 +176,7 @@ fn expand_derive_from_row_struct(
                     )
                 },
                 // Try from + Json nullable
-                (false, Some(try_from), Some(JsonAttribute::Nullable)) => {
+                (false, Some(_), Some(JsonAttribute::Nullable)) => {
                     panic!("Cannot use both try from and json nullable")
                 },
                 // Json

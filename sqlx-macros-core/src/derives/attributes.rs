@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote_spanned;
 use syn::{
-    parenthesized, parse::discouraged::AnyDelimiter, punctuated::Punctuated, token::{self, Comma}, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type, Variant
+    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type, Variant
 };
 
 macro_rules! assert_attribute {
@@ -170,7 +170,8 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                 if meta.input.peek(syn::token::Paren) {
                     let content;
                     parenthesized!(content in meta.input);
-                    let literal: Token![nullable] = content.parse()?;
+                    let literal: Ident = content.parse()?;
+                    assert_eq!(literal.to_string(), "nullable", "Unrecognized `json` attribute. Valid values are `json` or `json(nullable)`");
                     json = Some(JsonAttribute::Nullable);
                 } else {
                     json = Some(JsonAttribute::NonNullable);
@@ -180,7 +181,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
             Ok(())
         })?;
 
-        if json && flatten {
+        if json.is_some() && flatten {
             fail!(
                 attr,
                 "Cannot use `json` and `flatten` together on the same field"
