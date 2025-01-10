@@ -189,10 +189,10 @@ fn expand_derive_from_row_struct(
                 },
                 (false, None, Some(JsonAttribute::Nullable)) => {
                     predicates
-                        .push(parse_quote!(::core::Option<::sqlx::types::Json<#ty>>: ::sqlx::decode::Decode<#lifetime, R::Database>));
-                    predicates.push(parse_quote!(::core::Option<::sqlx::types::Json<#ty>>: ::sqlx::types::Type<R::Database>));
+                        .push(parse_quote!(::core::option::Option<::sqlx::types::Json<#ty>>: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(::core::option::Option<::sqlx::types::Json<#ty>>: ::sqlx::types::Type<R::Database>));
 
-                    parse_quote!(__row.try_get::<::core::Option<::sqlx::types::Json<_>>, _>(#id_s).map(|x| x.flatten().map(|y| y.0)))
+                    parse_quote!(__row.try_get::<::core::option::Option<::sqlx::types::Json<_>>, _>(#id_s).map(|x| x.and_then(|y| y.0)))
                 },
             };
 

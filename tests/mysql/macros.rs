@@ -510,11 +510,11 @@ async fn test_from_row_json_attr_nullable() -> anyhow::Result<()> {
 
     let mut conn = new::<MySql>().await?;
 
-    let record = sqlx::query_as::<_, Record>("select null as j")
+    let record = sqlx::query_as::<_, Record>("select NULL as j")
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.j, None);
+    assert!(record.j.is_none());
     Ok(())
 }
 
