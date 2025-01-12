@@ -1,6 +1,7 @@
 use sqlx_core::bytes::Buf;
 use sqlx_core::types::Text;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -192,6 +193,17 @@ where
     }
 }
 
+impl<'q, T> Encode<'q, Postgres> for Arc<[T]>
+where
+    for<'a> &'a [T]: Encode<'q, Postgres>,
+    T: Encode<'q, Postgres>,
+{
+    #[inline]
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        <&[T] as Encode<Postgres>>::encode_by_ref(&self.as_ref(), buf)
+    }
+}
+
 impl<'r, T, const N: usize> Decode<'r, Postgres> for [T; N]
 where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
@@ -352,5 +364,14 @@ where
                 Ok(elements)
             }
         }
+    }
+}
+
+impl<'r, T> Decode<'r, Postgres> for Arc<[T]>
+where
+    T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
+{
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        <Vec<T> as Decode<Postgres>>::decode(value).map(Into::into)
     }
 }

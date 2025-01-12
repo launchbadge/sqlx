@@ -7,6 +7,7 @@ use sqlx_core::types::Text;
 use sqlx_test::new;
 use sqlx_test::test_type;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 test_type!(null<Option<i32>>(Sqlite,
     "NULL" == None::<i32>
@@ -248,5 +249,35 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_arc_str() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let name: Arc<str> = "Harold".into();
+
+    let username: Arc<str> = sqlx::query_scalar("SELECT $1 AS username")
+        .bind(&name)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(username == name);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_arc_slice() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let name: Arc<[u8]> = [5, 0].into();
+
+    let username: Arc<[u8]> = sqlx::query_scalar("SELECT $1")
+        .bind(&name)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(username == name);
     Ok(())
 }
