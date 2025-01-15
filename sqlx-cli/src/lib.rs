@@ -42,7 +42,7 @@ pub async fn run(opt: Opt) -> Result<()> {
                 connect_opts.populate_db_url(config)?;
 
                 migrate::run(
-                    &config,
+                    config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -62,7 +62,7 @@ pub async fn run(opt: Opt) -> Result<()> {
                 connect_opts.populate_db_url(config)?;
 
                 migrate::revert(
-                    &config,
+                    config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -77,9 +77,9 @@ pub async fn run(opt: Opt) -> Result<()> {
             } => {
                 connect_opts.populate_db_url(config)?;
 
-                migrate::info(&source, &connect_opts).await?
+                migrate::info(config, &source, &connect_opts).await?
             },
-            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
+            MigrateCommand::BuildScript { source, force } => migrate::build_script(config, &source, force)?,
         },
 
         Command::Database(database) => match database.command {
@@ -102,14 +102,14 @@ pub async fn run(opt: Opt) -> Result<()> {
                 force,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::reset(&source, &connect_opts, !confirmation.yes, force).await?
+                database::reset(config, &source, &connect_opts, !confirmation.yes, force).await?
             },
             DatabaseCommand::Setup {
                 source,
                 mut connect_opts,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::setup(&source, &connect_opts).await?
+                database::setup(config, &source, &connect_opts).await?
             },
         },
 

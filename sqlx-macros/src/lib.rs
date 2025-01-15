@@ -68,7 +68,7 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
 pub fn migrate(input: TokenStream) -> TokenStream {
     use syn::LitStr;
 
-    let input = syn::parse_macro_input!(input as LitStr);
+    let input = syn::parse_macro_input!(input as Option<LitStr>);
     match migrate::expand(input) {
         Ok(ts) => ts.into(),
         Err(e) => {

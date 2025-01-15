@@ -219,7 +219,8 @@ impl PgConnection {
         should_fetch: bool,
     ) -> Result<ColumnOrigin, Error> {
         if let Some(origin) =
-            self.cache_table_to_column_names
+            self.inner
+                .cache_table_to_column_names
                 .get(&relation_id)
                 .and_then(|table_columns| {
                     let column_name = table_columns.columns.get(&attribute_no).cloned()?;
@@ -255,6 +256,7 @@ impl PgConnection {
         };
 
         let table_columns = self
+            .inner
             .cache_table_to_column_names
             .entry(relation_id)
             .or_insert_with(|| TableColumns {

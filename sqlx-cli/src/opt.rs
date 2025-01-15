@@ -1,6 +1,5 @@
 use std::env;
 use std::ops::{Deref, Not};
-use std::path::Path;
 use anyhow::Context;
 use chrono::Utc;
 use clap::{Args, Parser};
@@ -115,9 +114,6 @@ pub enum DatabaseCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
-        config: ConfigOpt,
-
-        #[clap(flatten)]
         connect_opts: ConnectOpts,
 
         /// PostgreSQL only: force drops the database.
@@ -129,9 +125,6 @@ pub enum DatabaseCommand {
     Setup {
         #[clap(flatten)]
         source: MigrationSourceOpt,
-
-        #[clap(flatten)]
-        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -219,9 +212,6 @@ pub enum MigrateCommand {
         #[clap(flatten)]
         source: MigrationSourceOpt,
 
-        #[clap(flatten)]
-        config: ConfigOpt,
-
         /// List all the migrations to be run without applying
         #[clap(long)]
         dry_run: bool,
@@ -242,9 +232,6 @@ pub enum MigrateCommand {
     Revert {
         #[clap(flatten)]
         source: MigrationSourceOpt,
-
-        #[clap(flatten)]
-        config: ConfigOpt,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -269,9 +256,6 @@ pub enum MigrateCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
-        config: ConfigOpt,
-
-        #[clap(flatten)]
         connect_opts: ConnectOpts,
     },
 
@@ -281,9 +265,6 @@ pub enum MigrateCommand {
     BuildScript {
         #[clap(flatten)]
         source: MigrationSourceOpt,
-
-        #[clap(flatten)]
-        config: ConfigOpt,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -296,39 +277,7 @@ pub struct AddMigrationOpts {
     pub description: String,
 
     #[clap(flatten)]
-    pub source: Source,
-
-    /// If set, create an up-migration only. Conflicts with `--reversible`.
-    #[clap(long, conflicts_with = "reversible")]
-    simple: bool,
-
-    /// If set, create a pair of up and down migration files with same version.
-    ///
-    /// Conflicts with `--simple`.
-    #[clap(short, long, conflicts_with = "simple")]
-    reversible: bool,
-
-    /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
-    ///
-    /// Timestamp format: `YYYYMMDDHHMMSS`
-    #[clap(short, long, conflicts_with = "sequential")]
-    timestamp: bool,
-
-    /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
-    #[clap(short, long, conflicts_with = "timestamp")]
-    sequential: bool,
-}
-
-/// Argument for the migration scripts source.
-#[derive(Args, Debug)]
-pub struct AddMigrationOpts {
-    pub description: String,
-
-    #[clap(flatten)]
     pub source: MigrationSourceOpt,
-
-    #[clap(flatten)]
-    pub config: ConfigOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
     #[clap(long, conflicts_with = "reversible")]
@@ -355,33 +304,19 @@ pub struct AddMigrationOpts {
 #[derive(Args, Debug)]
 pub struct MigrationSourceOpt {
     /// Path to folder containing migrations.
-    ///
+    /// 
     /// Defaults to `migrations/` if not specified, but a different default may be set by `sqlx.toml`.
     #[clap(long)]
     pub source: Option<String>,
 }
 
 impl MigrationSourceOpt {
-    pub fn resolve_path<'a>(&'a self, config: &'a Config) -> &'a str {
+    pub fn resolve<'a>(&'a self, config: &'a Config) -> &'a str {
         if let Some(source) = &self.source {
             return source;
         }
-
+        
         config.migrate.migrations_dir()
-    }
-
-    pub async fn resolve(&self, config: &Config) -> Result<Migrator, MigrateError> {
-        Migrator::new(ResolveWith(
-            self.resolve_path(config),
-            config.migrate.to_resolve_config(),
-        ))
-        .await
-    }
-}
-
-impl AsRef<Path> for Source {
-    fn as_ref(&self) -> &Path {
-        Path::new(&self.source)
     }
 }
 

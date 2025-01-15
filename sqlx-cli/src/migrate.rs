@@ -1,7 +1,7 @@
-use crate::opt::{AddMigrationOpts, ConnectOpts};
+use crate::opt::{AddMigrationOpts, ConnectOpts, MigrationSourceOpt};
 use anyhow::{bail, Context};
 use console::style;
-use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
+use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator, ResolveWith};
 use sqlx::Connection;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -11,48 +11,34 @@ use std::path::Path;
 use std::time::Duration;
 use crate::config::Config;
 
-pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
-    let config = opts.config.load_config().await?;
-
-    let source = opts.source.resolve_path(&config);
-
-    fs::create_dir_all(source).context("Unable to create migrations directory")?;
-
-    let migrator = opts.source.resolve(&config).await?;
-
-    let version_prefix = opts.version_prefix(&config, &migrator);
-
-    std::io::Write::write_all(&mut file, migration_type.file_content().as_bytes())?;
-
-    Ok(())
-}
-
 pub async fn add(
     config: &Config,
     opts: AddMigrationOpts,
 ) -> anyhow::Result<()> {
-    fs::create_dir_all(&opts.source).context("Unable to create migrations directory")?;
+    let source = opts.source.resolve(config);
+    
+    fs::create_dir_all(source).context("Unable to create migrations directory")?;
 
-    let migrator = Migrator::new(opts.source.as_ref()).await?;
+    let migrator = Migrator::new(Path::new(source)).await?;
 
     let version_prefix = opts.version_prefix(config, &migrator);
 
     if opts.reversible(config, &migrator) {
         create_file(
-            &opts.source,
+            source,
             &version_prefix,
             &opts.description,
             MigrationType::ReversibleUp,
         )?;
         create_file(
-            &opts.source,
+            source,
             &version_prefix,
             &opts.description,
             MigrationType::ReversibleDown,
         )?;
     } else {
         create_file(
-            &opts.source,
+            source,
             &version_prefix,
             &opts.description,
             MigrationType::Simple,
@@ -60,13 +46,13 @@ pub async fn add(
     }
 
     // if the migrations directory is empty
-    let has_existing_migrations = fs::read_dir(&opts.source)
+    let has_existing_migrations = fs::read_dir(source)
         .map(|mut dir| dir.next().is_some())
         .unwrap_or(false);
 
     if !has_existing_migrations {
-        let quoted_source = if *opts.source != "migrations" {
-            format!("{:?}", *opts.source)
+        let quoted_source = if opts.source.source.is_some() {
+            format!("{source:?}")
         } else {
             "".to_string()
         };
@@ -138,13 +124,10 @@ fn short_checksum(checksum: &[u8]) -> String {
     s
 }
 
-pub async fn info(
-    config: &Config,
-    migration_source: &MigrationSourceOpt,
-    connect_opts: &ConnectOpts,
-) -> anyhow::Result<()> {
-    let migrator = migration_source.resolve(config).await?;
-
+pub async fn info(config: &Config, migration_source: &MigrationSourceOpt, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
+    let source = migration_source.resolve(config);
+    
+    let migrator = Migrator::new(ResolveWith(Path::new(source), config.migrate.to_resolve_config())).await?;
     let mut conn = crate::connect(connect_opts).await?;
 
     // FIXME: we shouldn't actually be creating anything here
@@ -236,8 +219,9 @@ pub async fn run(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = migration_source.resolve(config).await?;
-
+    let source = migration_source.resolve(config);
+    
+    let migrator = Migrator::new(Path::new(source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -338,8 +322,8 @@ pub async fn revert(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = migration_source.resolve(config).await?;
-
+    let source = migration_source.resolve(config);
+    let migrator = Migrator::new(Path::new(source)).await?;
     if let Some(target_version) = target_version {
         if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -434,13 +418,9 @@ pub async fn revert(
     Ok(())
 }
 
-pub fn build_script(
-    config: &Config,
-    migration_source: &MigrationSourceOpt,
-    force: bool,
-) -> anyhow::Result<()> {
-    let source = migration_source.resolve_path(config);
-
+pub fn build_script(config: &Config, migration_source: &MigrationSourceOpt, force: bool) -> anyhow::Result<()> {
+    let source = migration_source.resolve(config);
+    
     anyhow::ensure!(
         Path::new("Cargo.toml").exists(),
         "must be run in a Cargo project root"

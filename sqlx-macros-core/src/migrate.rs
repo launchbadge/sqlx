@@ -113,8 +113,7 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
         )
     })?;
 
-    let mut resolve_config = ResolveConfig::new();
-    resolve_config.ignore_chars(&config.migrate.ignored_chars);
+    let resolve_config = config.migrate.to_resolve_config();
 
     // Use the same code path to resolve migrations at compile time and runtime.
     let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
