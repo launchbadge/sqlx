@@ -1,7 +1,7 @@
-use crate::opt::{ConnectOpts, MigrationSourceOpt};
 use crate::{migrate, Config};
-use console::style;
-use promptly::{prompt, ReadlineError};
+use crate::opt::{ConnectOpts, MigrationSourceOpt};
+use console::{style, Term};
+use dialoguer::Confirm;
 use sqlx::any::Any;
 use sqlx::migrate::MigrateDatabase;
 use std::{io, mem};
@@ -56,11 +56,7 @@ pub async fn reset(
     setup(config, migration_source, connect_opts).await
 }
 
-pub async fn setup(
-    config: &Config,
-    migration_source: &MigrationSourceOpt,
-    connect_opts: &ConnectOpts,
-) -> anyhow::Result<()> {
+pub async fn setup(config: &Config, migration_source: &MigrationSourceOpt, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     create(connect_opts).await?;
     migrate::run(config, migration_source, connect_opts, false, false, None).await
 }

@@ -85,7 +85,7 @@ pub struct Config {
     /// To make your migrations amenable to reformatting, you may wish to tell SQLx to ignore
     /// _all_ whitespace characters in migrations.
     ///
-    /// ##### Warning: Beware Syntatically Significant Whitespace!
+    /// ##### Warning: Beware Syntactically Significant Whitespace!
     /// If your migrations use string literals or quoted identifiers which contain whitespace,
     /// this configuration will cause the migration machinery to ignore some changes to these.
     /// This may result in a mismatch between the development and production versions of
@@ -178,4 +178,17 @@ pub enum DefaultVersioning {
 
     /// Use sequential integers for migration versions.
     Sequential,
+}
+
+#[cfg(feature = "migrate")]
+impl Config {
+    pub fn migrations_dir(&self) -> &str {
+        self.migrations_dir.as_deref().unwrap_or("migrations")
+    }
+    
+    pub fn to_resolve_config(&self) -> crate::migrate::ResolveConfig {
+        let mut config = crate::migrate::ResolveConfig::new();
+        config.ignore_chars(self.ignored_chars.iter().copied());
+        config
+    }
 }

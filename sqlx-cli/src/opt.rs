@@ -1,6 +1,5 @@
 use std::env;
 use std::ops::{Deref, Not};
-use std::path::Path;
 use anyhow::Context;
 use chrono::Utc;
 use clap::{
@@ -287,35 +286,6 @@ pub struct AddMigrationOpts {
     pub description: String,
 
     #[clap(flatten)]
-    pub source: Source,
-
-    /// If set, create an up-migration only. Conflicts with `--reversible`.
-    #[clap(long, conflicts_with = "reversible")]
-    simple: bool,
-
-    /// If set, create a pair of up and down migration files with same version.
-    ///
-    /// Conflicts with `--simple`.
-    #[clap(short, long, conflicts_with = "simple")]
-    reversible: bool,
-
-    /// If set, use timestamp versioning for the new migration. Conflicts with `--sequential`.
-    ///
-    /// Timestamp format: `YYYYMMDDHHMMSS`
-    #[clap(short, long, conflicts_with = "sequential")]
-    timestamp: bool,
-
-    /// If set, use sequential versioning for the new migration. Conflicts with `--timestamp`.
-    #[clap(short, long, conflicts_with = "timestamp")]
-    sequential: bool,
-}
-
-/// Argument for the migration scripts source.
-#[derive(Args, Debug)]
-pub struct AddMigrationOpts {
-    pub description: String,
-
-    #[clap(flatten)]
     pub source: MigrationSourceOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
@@ -343,7 +313,7 @@ pub struct AddMigrationOpts {
 #[derive(Args, Debug)]
 pub struct MigrationSourceOpt {
     /// Path to folder containing migrations.
-    ///
+    /// 
     /// Defaults to `migrations/` if not specified, but a different default may be set by `sqlx.toml`.
     #[clap(long)]
     pub source: Option<String>,
@@ -354,14 +324,8 @@ impl MigrationSourceOpt {
         if let Some(source) = &self.source {
             return source;
         }
-
+        
         config.migrate.migrations_dir()
-    }
-}
-
-impl AsRef<Path> for Source {
-    fn as_ref(&self) -> &Path {
-        Path::new(&self.source)
     }
 }
 

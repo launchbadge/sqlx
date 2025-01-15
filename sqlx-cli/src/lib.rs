@@ -103,9 +103,9 @@ async fn do_run(opt: Opt) -> Result<()> {
             } => {
                 connect_opts.populate_db_url(config)?;
 
-                migrate::info(&source, &connect_opts).await?
+                migrate::info(config, &source, &connect_opts).await?
             },
-            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
+            MigrateCommand::BuildScript { source, force } => migrate::build_script(config, &source, force)?,
         },
 
         Command::Database(database) => match database.command {
@@ -128,14 +128,14 @@ async fn do_run(opt: Opt) -> Result<()> {
                 force,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::reset(&source, &connect_opts, !confirmation.yes, force).await?
+                database::reset(config, &source, &connect_opts, !confirmation.yes, force).await?
             },
             DatabaseCommand::Setup {
                 source,
                 mut connect_opts,
             } => {
                 connect_opts.populate_db_url(config)?;
-                database::setup(&source, &connect_opts).await?
+                database::setup(config, &source, &connect_opts).await?
             },
         },
 
