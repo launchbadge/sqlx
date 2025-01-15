@@ -1,6 +1,5 @@
 use std::env;
 use std::ops::{Deref, Not};
-use std::path::Path;
 use anyhow::Context;
 use chrono::Utc;
 use clap::{
@@ -112,7 +111,7 @@ pub enum DatabaseCommand {
         confirmation: Confirmation,
 
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -125,7 +124,7 @@ pub enum DatabaseCommand {
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
     Setup {
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -211,7 +210,7 @@ pub enum MigrateCommand {
     /// Run all pending migrations.
     Run {
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         /// List all the migrations to be run without applying
         #[clap(long)]
@@ -232,7 +231,7 @@ pub enum MigrateCommand {
     /// Revert the latest migration with a down file.
     Revert {
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -254,7 +253,7 @@ pub enum MigrateCommand {
     /// List all available migrations.
     Info {
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -265,7 +264,7 @@ pub enum MigrateCommand {
     /// Must be run in a Cargo project root.
     BuildScript {
         #[clap(flatten)]
-        source: Source,
+        source: MigrationSourceOpt,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -278,7 +277,7 @@ pub struct AddMigrationOpts {
     pub description: String,
 
     #[clap(flatten)]
-    pub source: Source,
+    pub source: MigrationSourceOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
     #[clap(long, conflicts_with = "reversible")]
@@ -303,23 +302,21 @@ pub struct AddMigrationOpts {
 
 /// Argument for the migration scripts source.
 #[derive(Args, Debug)]
-pub struct Source {
+pub struct MigrationSourceOpt {
     /// Path to folder containing migrations.
-    #[clap(long, default_value = "migrations")]
-    source: String,
+    /// 
+    /// Defaults to `migrations/` if not specified, but a different default may be set by `sqlx.toml`.
+    #[clap(long)]
+    pub source: Option<String>,
 }
 
-impl Deref for Source {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.source
-    }
-}
-
-impl AsRef<Path> for Source {
-    fn as_ref(&self) -> &Path {
-        Path::new(&self.source)
+impl MigrationSourceOpt {
+    pub fn resolve<'a>(&'a self, config: &'a Config) -> &'a str {
+        if let Some(source) = &self.source {
+            return source;
+        }
+        
+        config.migrate.migrations_dir()
     }
 }
 

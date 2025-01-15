@@ -1,5 +1,5 @@
-use crate::migrate;
-use crate::opt::ConnectOpts;
+use crate::{migrate, Config};
+use crate::opt::{ConnectOpts, MigrationSourceOpt};
 use console::{style, Term};
 use dialoguer::Confirm;
 use sqlx::any::Any;
@@ -46,18 +46,19 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> any
 }
 
 pub async fn reset(
-    migration_source: &str,
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
     connect_opts: &ConnectOpts,
     confirm: bool,
     force: bool,
 ) -> anyhow::Result<()> {
     drop(connect_opts, confirm, force).await?;
-    setup(migration_source, connect_opts).await
+    setup(config, migration_source, connect_opts).await
 }
 
-pub async fn setup(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
+pub async fn setup(config: &Config, migration_source: &MigrationSourceOpt, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     create(connect_opts).await?;
-    migrate::run(migration_source, connect_opts, false, false, None).await
+    migrate::run(config, migration_source, connect_opts, false, false, None).await
 }
 
 async fn ask_to_continue_drop(db_url: String) -> bool {
