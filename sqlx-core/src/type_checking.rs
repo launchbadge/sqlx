@@ -72,11 +72,17 @@ where
 
                 match T::decode(value.as_ref()) {
                     Ok(value) => Debug::fmt(&value, f),
-                    Err(e) => f.write_fmt(format_args!(
-                        "(error decoding SQL type {} as {}: {e:?})",
-                        info.name(),
-                        std::any::type_name::<T>()
-                    )),
+                    Err(e) => {
+                        if e.is::<crate::error::UnexpectedNullError>() {
+                            f.write_str("NULL")
+                        } else {
+                            f.write_fmt(format_args!(
+                                "(error decoding SQL type {} as {}: {e:?})",
+                                info.name(),
+                                std::any::type_name::<T>()
+                            ))
+                        }
+                    }
                 }
             },
         }
