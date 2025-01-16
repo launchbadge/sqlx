@@ -22,7 +22,7 @@ use sqlx_core::error::BoxDynError;
 //            that has a patch, we then apply the patch which should write to &mut Vec<u8>,
 //            backtrack and update the prefixed-len, then write until the next patch offset
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct PgArgumentBuffer {
     buffer: Vec<u8>,
 
@@ -46,20 +46,32 @@ pub struct PgArgumentBuffer {
     type_holes: Vec<(usize, HoleKind)>, // Vec<{ offset, type_name }>
 }
 
+#[derive(Debug, Clone)]
 enum HoleKind {
     Type { name: UStr },
     Array(Arc<PgArrayOf>),
 }
 
+#[derive(Clone)]
 struct Patch {
     buf_offset: usize,
     arg_index: usize,
     #[allow(clippy::type_complexity)]
-    callback: Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
+    callback: Arc<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
+}
+
+impl fmt::Debug for Patch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Patch")
+            .field("buf_offset", &self.buf_offset)
+            .field("arg_index", &self.arg_index)
+            .field("callback", &"<callback>")
+            .finish()
+    }
 }
 
 /// Implementation of [`Arguments`] for PostgreSQL.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct PgArguments {
     // Types of each bind parameter
     pub(crate) types: Vec<PgTypeInfo>,
@@ -194,7 +206,7 @@ impl PgArgumentBuffer {
         self.patches.push(Patch {
             buf_offset: offset,
             arg_index,
-            callback: Box::new(callback),
+            callback: Arc::new(callback),
         });
     }
 
