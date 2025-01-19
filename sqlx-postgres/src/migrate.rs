@@ -276,10 +276,17 @@ async fn execute_migration(
     conn: &mut PgConnection,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
-    let _ = conn
-        .execute(&*migration.sql)
-        .await
-        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    let sql = migration.sql.trim();
+    let split_migrations = sql.split("/* sqlx: split */");
+    for part in split_migrations {
+        if part.trim().is_empty() {
+            continue;
+        }
+        let _ = conn
+            .execute(&*part.trim())
+            .await
+            .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    }
 
     // language=SQL
     let _ = query(
