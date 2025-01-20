@@ -277,7 +277,9 @@ async fn execute_migration(
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let sql = migration.sql.trim();
-    let split_migrations = sql.split("/* sqlx: split */");
+    // note: this would _not_ match the split if the file starts with `-- split-migration`
+    // because it requires a new line prefix, but that doesn't really make sense anyway so it's fine
+    let split_migrations = sql.split("\n-- split-migration\n");
     for part in split_migrations {
         if part.trim().is_empty() {
             continue;
