@@ -243,7 +243,7 @@ async fn setup_test_db<DB: Database>(
 
     if let Some(migrator) = args.migrator {
         migrator
-            .run_direct(&mut conn)
+            .run_direct(None, &mut conn)
             .await
             .expect("failed to apply migrations");
     }
