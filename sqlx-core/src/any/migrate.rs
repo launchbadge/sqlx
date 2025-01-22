@@ -44,16 +44,44 @@ impl MigrateDatabase for Any {
 }
 
 impl Migrate for AnyConnection {
-    fn ensure_migrations_table<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<(), MigrateError>> {
-        Box::pin(async { self.get_migrate()?.ensure_migrations_table(table_name).await })
+    fn create_schema_if_not_exists<'e>(
+        &'e mut self,
+        schema_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>> {
+        Box::pin(async {
+            self.get_migrate()?
+                .create_schema_if_not_exists(schema_name)
+                .await
+        })
     }
 
-    fn dirty_version<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
+    fn ensure_migrations_table<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>> {
+        Box::pin(async {
+            self.get_migrate()?
+                .ensure_migrations_table(table_name)
+                .await
+        })
+    }
+
+    fn dirty_version<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async { self.get_migrate()?.dirty_version(table_name).await })
     }
 
-    fn list_applied_migrations<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.list_applied_migrations(table_name).await })
+    fn list_applied_migrations<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
+        Box::pin(async {
+            self.get_migrate()?
+                .list_applied_migrations(table_name)
+                .await
+        })
     }
 
     fn lock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {

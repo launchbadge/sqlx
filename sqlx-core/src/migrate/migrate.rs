@@ -33,14 +33,23 @@ pub trait Migrate {
 
     // ensure migrations table exists
     // will create or migrate it if needed
-    fn ensure_migrations_table<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<(), MigrateError>>;
+    fn ensure_migrations_table<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>>;
 
     // Return the version on which the database is dirty or None otherwise.
     // "dirty" means there is a partially applied migration that failed.
-    fn dirty_version<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<Option<i64>, MigrateError>>;
+    fn dirty_version<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>>;
 
     // Return the ordered list of applied migrations
-    fn list_applied_migrations<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e,  Result<Vec<AppliedMigration>, MigrateError>>;
+    fn list_applied_migrations<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>>;
 
     // Should acquire a database lock so that only one migration process
     // can run at a time. [`Migrate`] will call this function before applying
