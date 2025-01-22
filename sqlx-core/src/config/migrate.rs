@@ -19,6 +19,20 @@ use std::collections::BTreeSet;
     serde(default, rename_all = "kebab-case")
 )]
 pub struct Config {
+    /// Specify the names of schemas to create if they don't already exist.
+    ///
+    /// This is done before checking the existence of the migrations table
+    /// (`_sqlx_migrations` or overridden `table_name` below) so that it may be placed in
+    /// one of these schemas.
+    ///
+    /// ### Example
+    /// `sqlx.toml`:
+    /// ```toml
+    /// [migrate]
+    /// create-schemas = ["foo"]
+    /// ```
+    pub create_schemas: BTreeSet<Box<str>>,
+
     /// Override the name of the table used to track executed migrations.
     ///
     /// May be schema-qualified and/or contain quotes. Defaults to `_sqlx_migrations`.
@@ -185,11 +199,11 @@ impl Config {
     pub fn migrations_dir(&self) -> &str {
         self.migrations_dir.as_deref().unwrap_or("migrations")
     }
-    
+
     pub fn table_name(&self) -> &str {
         self.table_name.as_deref().unwrap_or("_sqlx_migrations")
     }
-    
+
     pub fn to_resolve_config(&self) -> crate::migrate::ResolveConfig {
         let mut config = crate::migrate::ResolveConfig::new();
         config.ignore_chars(self.ignored_chars.iter().copied());
