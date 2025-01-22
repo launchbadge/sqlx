@@ -74,6 +74,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
+                        #[allow(clippy::missing_panics_doc, clippy::unreachable)]
                         if false {
                             use ::sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
@@ -89,7 +90,7 @@ pub fn quote_args<DB: DatabaseExt>(
                             _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
-                            ::std::panic!();
+                            ::std::unreachable!();
                         }
                     ))
                 })

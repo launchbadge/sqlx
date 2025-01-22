@@ -22,6 +22,7 @@
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
 //! | [`PgCube`]                            | CUBE                                                 |
 //! | [`PgPoint]                            | POINT                                                |
+//! | [`PgLine]                             | LINE                                                 |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -178,6 +179,18 @@
 //! enum Mood { Sad = 0, Ok = 1, Happy = 2 }
 //! ```
 //!
+//! Rust enumerations may also be defined to be represented as a string using `type_name = "text"`.
+//! The following type expects a SQL type of `TEXT` and will convert to/from the Rust enumeration.
+//!
+//! ```rust,ignore
+//! #[derive(sqlx::Type)]
+//! #[sqlx(type_name = "text")]
+//! enum Mood { Sad, Ok, Happy }
+//! ```
+//!
+//! Note that an error can occur if you attempt to decode a value not contained within the enum
+//! definition.
+//!
 
 use crate::type_info::PgTypeKind;
 use crate::{PgTypeInfo, Postgres};
@@ -245,6 +258,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use geometry::line::PgLine;
 pub use geometry::point::PgPoint;
 pub use hstore::PgHstore;
 pub use interval::PgInterval;

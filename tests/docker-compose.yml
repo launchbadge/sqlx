@@ -209,9 +209,83 @@ services:
             MARIADB_DATABASE: sqlx
             MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
     #
-    # PostgreSQL 15.x, 14.x, 13.x, 12.x, 11.x
+    # PostgreSQL 17.x, 16.x, 15.x, 14.x, 13.x
     # https://www.postgresql.org/support/versioning/
     #
+
+    postgres_17:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 17
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        # Loading `pg_stat_statements` should serve as a regression test for:
+        # https://github.com/launchbadge/sqlx/issues/2622
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c shared_preload_libraries=pg_stat_statements
+
+    postgres_17_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 17
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
+
+    postgres_16:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 16
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    postgres_16_client_ssl:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 16
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_HOST_AUTH_METHOD: trust
+            POSTGRES_INITDB_ARGS: --auth-host=trust
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
 
     postgres_15:
         build:
@@ -229,10 +303,8 @@ services:
             POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
         volumes:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        # Loading `pg_stat_statements` should serve as a regression test for:
-        # https://github.com/launchbadge/sqlx/issues/2622
         command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c shared_preload_libraries=pg_stat_statements
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
 
     postgres_15_client_ssl:
         build:
@@ -312,78 +384,6 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 13
-        ports:
-            - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_HOST_AUTH_METHOD: trust
-            POSTGRES_INITDB_ARGS: --auth-host=trust
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
-
-    postgres_12:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 12
-        ports:
-            - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-
-    postgres_12_client_ssl:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 12.3
-        ports:
-            - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_HOST_AUTH_METHOD: trust
-            POSTGRES_INITDB_ARGS: --auth-host=trust
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
-
-    postgres_11:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 11
-        ports:
-            - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-
-    postgres_11_client_ssl:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 11
         ports:
             - 5432
         environment:

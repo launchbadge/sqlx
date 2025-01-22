@@ -107,6 +107,9 @@ pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
 pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
 impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 
+/// An alias for [`Transaction`][sqlx_core::transaction::Transaction], specialized for SQLite.
+pub type SqliteTransaction<'c> = sqlx_core::transaction::Transaction<'c, Sqlite>;
+
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_column_index_for_row!(SqliteRow);

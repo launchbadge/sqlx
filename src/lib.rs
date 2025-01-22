@@ -45,17 +45,23 @@ pub use sqlx_core::migrate;
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 #[doc(inline)]
-pub use sqlx_mysql::{self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
+pub use sqlx_mysql::{
+    self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool, MySqlTransaction,
+};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 #[doc(inline)]
-pub use sqlx_postgres::{self as postgres, PgConnection, PgExecutor, PgPool, Postgres};
+pub use sqlx_postgres::{
+    self as postgres, PgConnection, PgExecutor, PgPool, PgTransaction, Postgres,
+};
 
 #[cfg(feature = "_sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "_sqlite")))]
 #[doc(inline)]
-pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
+pub use sqlx_sqlite::{
+    self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool, SqliteTransaction,
+};
 
 #[cfg(feature = "any")]
 #[cfg_attr(docsrs, doc(cfg(feature = "any")))]
