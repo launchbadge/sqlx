@@ -130,10 +130,10 @@ pub async fn info(config: &Config, migration_source: &MigrationSourceOpt, connec
     let migrator = Migrator::new(ResolveWith(Path::new(source), config.migrate.to_resolve_config())).await?;
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
     let applied_migrations: HashMap<_, _> = conn
-        .list_applied_migrations()
+        .list_applied_migrations(config.migrate.table_name())
         .await?
         .into_iter()
         .map(|m| (m.version, m))
@@ -224,14 +224,14 @@ pub async fn run(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
-    let version = conn.dirty_version().await?;
+    let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -269,7 +269,7 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
-                    conn.apply(migration).await?
+                    conn.apply(config.migrate.table_name(), migration).await?
                 };
                 let text = if skip {
                     "Skipped"
@@ -319,14 +319,14 @@ pub async fn revert(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
-    let version = conn.dirty_version().await?;
+    let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -360,7 +360,7 @@ pub async fn revert(
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
-                conn.revert(migration).await?
+                conn.revert(config.migrate.table_name(), migration).await?
             };
             let text = if skip {
                 "Skipped"

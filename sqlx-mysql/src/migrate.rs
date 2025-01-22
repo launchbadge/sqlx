@@ -4,7 +4,6 @@ use std::time::Instant;
 
 use futures_core::future::BoxFuture;
 pub(crate) use sqlx_core::migrate::*;
-
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
@@ -75,12 +74,12 @@ impl MigrateDatabase for MySql {
 }
 
 impl Migrate for MySqlConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn ensure_migrations_table<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=MySQL
             self.execute(
-                r#"
-CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+                &*format!(r#"
+CREATE TABLE IF NOT EXISTS {table_name} (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
     installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -88,7 +87,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     checksum BLOB NOT NULL,
     execution_time BIGINT NOT NULL
 );
-                "#,
+                "#),
             )
             .await?;
 
@@ -96,11 +95,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+    fn dirty_version<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
             let row: Option<(i64,)> = query_as(
-                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
+                &format!("SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"),
             )
             .fetch_optional(self)
             .await?;
@@ -109,13 +108,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn list_applied_migrations(
-        &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+    fn list_applied_migrations<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e,  Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
             let rows: Vec<(i64, Vec<u8>)> =
-                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
+                query_as(&format!("SELECT version, checksum FROM {table_name} ORDER BY version"))
                     .fetch_all(self)
                     .await?;
 
@@ -167,10 +164,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn apply<'e: 'm, 'm>(
+    fn apply<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>> {
         Box::pin(async move {
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
             // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -188,10 +186,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             //
             // language=MySQL
             let _ = query(
-                r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+                &format!(r#"
+    INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( ?, ?, FALSE, ?, -1 )
-                "#,
+                "#),
             )
             .bind(migration.version)
             .bind(&*migration.description)
@@ -206,11 +204,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             // language=MySQL
             let _ = query(
-                r#"
-    UPDATE _sqlx_migrations
+                &format!(r#"
+    UPDATE {table_name}
     SET success = TRUE
     WHERE version = ?
-                "#,
+                "#),
             )
             .bind(migration.version)
             .execute(&mut *tx)
@@ -226,11 +224,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             #[allow(clippy::cast_possible_truncation)]
             let _ = query(
-                r#"
-    UPDATE _sqlx_migrations
+                &format!(r#"
+    UPDATE {table_name}
     SET execution_time = ?
     WHERE version = ?
-                "#,
+                "#),
             )
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
@@ -241,10 +239,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn revert<'e: 'm, 'm>(
+    fn revert<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>> {
         Box::pin(async move {
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
             // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -259,11 +258,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             //
             // language=MySQL
             let _ = query(
-                r#"
-    UPDATE _sqlx_migrations
+                &format!(r#"
+    UPDATE {table_name}
     SET success = FALSE
     WHERE version = ?
-                "#,
+                "#),
             )
             .bind(migration.version)
             .execute(&mut *tx)
@@ -272,7 +271,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             tx.execute(&*migration.sql).await?;
 
             // language=SQL
-            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?"#)
+            let _ = query(&format!(r#"DELETE FROM {table_name} WHERE version = ?"#))
                 .bind(migration.version)
                 .execute(&mut *tx)
                 .await?;
