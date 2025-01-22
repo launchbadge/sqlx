@@ -6,6 +6,7 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
 };
+use sqlx::_unstable::config::Config;
 
 pub struct TestDatabase {
     file_path: PathBuf,

@@ -27,10 +27,6 @@ pub struct Migrator {
     pub table_name: Cow<'static, str>,
 }
 
-    #[doc(hidden)]
-    pub create_schemas: Cow<'static, [Cow<'static, str>]>,
-}
-
 impl Migrator {
     #[doc(hidden)]
     pub const DEFAULT: Migrator = Migrator {
@@ -190,7 +186,7 @@ impl Migrator {
                 // Target version reached
                 break;
             }
-
+            
             if migration.migration_type.is_down_migration() {
                 continue;
             }

@@ -2,6 +2,8 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
+use futures_core::future::BoxFuture;
+pub(crate) use sqlx_core::migrate::*;
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
@@ -74,27 +76,11 @@ impl MigrateDatabase for MySql {
 }
 
 impl Migrate for MySqlConnection {
-    fn create_schema_if_not_exists<'e>(
-        &'e mut self,
-        schema_name: &'e str,
-    ) -> BoxFuture<'e, Result<(), MigrateError>> {
-        Box::pin(async move {
-            // language=SQL
-            self.execute(&*format!(r#"CREATE SCHEMA IF NOT EXISTS {schema_name};"#))
-                .await?;
-
-            Ok(())
-        })
-    }
-
-    fn ensure_migrations_table<'e>(
-        &'e mut self,
-        table_name: &'e str,
-    ) -> BoxFuture<'e, Result<(), MigrateError>> {
+    fn ensure_migrations_table<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=MySQL
-            self.execute(&*format!(
-                r#"
+            self.execute(
+                &*format!(r#"
 CREATE TABLE IF NOT EXISTS {table_name} (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
@@ -103,23 +89,20 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     checksum BLOB NOT NULL,
     execution_time BIGINT NOT NULL
 );
-                "#
-            ))
+                "#),
+            )
             .await?;
 
             Ok(())
         })
     }
 
-    fn dirty_version<'e>(
-        &'e mut self,
-        table_name: &'e str,
-    ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
+    fn dirty_version<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let row: Option<(i64,)> = query_as(&format!(
-                "SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"
-            ))
+            let row: Option<(i64,)> = query_as(
+                &format!("SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"),
+            )
             .fetch_optional(self)
             .await?;
 
@@ -127,17 +110,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
         })
     }
 
-    fn list_applied_migrations<'e>(
-        &'e mut self,
-        table_name: &'e str,
-    ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
+    fn list_applied_migrations<'e>(&'e mut self, table_name: &'e str) -> BoxFuture<'e,  Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let rows: Vec<(i64, Vec<u8>)> = query_as(&format!(
-                "SELECT version, checksum FROM {table_name} ORDER BY version"
-            ))
-            .fetch_all(self)
-            .await?;
+            let rows: Vec<(i64, Vec<u8>)> =
+                query_as(&format!("SELECT version, checksum FROM {table_name} ORDER BY version"))
+                    .fetch_all(self)
+                    .await?;
 
             let migrations = rows
                 .into_iter()
@@ -208,12 +187,12 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // `success=FALSE` and later modify the flag.
             //
             // language=MySQL
-            let _ = query(&format!(
-                r#"
+            let _ = query(
+                &format!(r#"
     INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( ?, ?, FALSE, ?, -1 )
-                "#
-            ))
+                "#),
+            )
             .bind(migration.version)
             .bind(&*migration.description)
             .bind(&*migration.checksum)
@@ -226,13 +205,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
             // language=MySQL
-            let _ = query(&format!(
-                r#"
+            let _ = query(
+                &format!(r#"
     UPDATE {table_name}
     SET success = TRUE
     WHERE version = ?
-                "#
-            ))
+                "#),
+            )
             .bind(migration.version)
             .execute(&mut *tx)
             .await?;
@@ -246,13 +225,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             let elapsed = start.elapsed();
 
             #[allow(clippy::cast_possible_truncation)]
-            let _ = query(&format!(
-                r#"
+            let _ = query(
+                &format!(r#"
     UPDATE {table_name}
     SET execution_time = ?
     WHERE version = ?
-                "#
-            ))
+                "#),
+            )
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
             .execute(self)
@@ -280,13 +259,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // `success=FALSE` and later remove the migration altogether.
             //
             // language=MySQL
-            let _ = query(&format!(
-                r#"
+            let _ = query(
+                &format!(r#"
     UPDATE {table_name}
     SET success = FALSE
     WHERE version = ?
-                "#
-            ))
+                "#),
+            )
             .bind(migration.version)
             .execute(&mut *tx)
             .await?;
