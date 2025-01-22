@@ -130,13 +130,7 @@ pub async fn info(config: &Config, migration_source: &MigrationSourceOpt, connec
     let migrator = Migrator::new(ResolveWith(Path::new(source), config.migrate.to_resolve_config())).await?;
     let mut conn = crate::connect(connect_opts).await?;
 
-    // FIXME: we shouldn't actually be creating anything here
-    for schema_name in &config.migrate.create_schemas {
-        conn.create_schema_if_not_exists(schema_name).await?;
-    }
-
-    conn.ensure_migrations_table(config.migrate.table_name())
-        .await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
     let applied_migrations: HashMap<_, _> = conn
         .list_applied_migrations(config.migrate.table_name())
@@ -230,21 +224,14 @@ pub async fn run(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    for schema_name in &config.migrate.create_schemas {
-        conn.create_schema_if_not_exists(schema_name).await?;
-    }
-
-    conn.ensure_migrations_table(config.migrate.table_name())
-        .await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
     let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn
-        .list_applied_migrations(config.migrate.table_name())
-        .await?;
+    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -332,22 +319,14 @@ pub async fn revert(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    // FIXME: we should not be creating anything here if it doesn't exist
-    for schema_name in &config.migrate.create_schemas {
-        conn.create_schema_if_not_exists(schema_name).await?;
-    }
-
-    conn.ensure_migrations_table(config.migrate.table_name())
-        .await?;
+    conn.ensure_migrations_table(config.migrate.table_name()).await?;
 
     let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn
-        .list_applied_migrations(config.migrate.table_name())
-        .await?;
+    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations

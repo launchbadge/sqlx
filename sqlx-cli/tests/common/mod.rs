@@ -6,11 +6,12 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
 };
+use sqlx::_unstable::config::Config;
 
 pub struct TestDatabase {
     file_path: PathBuf,
-    migrations_path: PathBuf,
-    pub config_path: Option<PathBuf>,
+    migrations: String,
+    config: &'static Config,
 }
 
 impl TestDatabase {
@@ -32,8 +33,8 @@ impl TestDatabase {
 
         let this = Self {
             file_path,
-            migrations_path: Path::new("tests").join(migrations),
-            config_path: None,
+            migrations: String::from(migrations_path.to_str().unwrap()),
+            config: Config::from_crate(),
         };
 
         Command::cargo_bin("cargo-sqlx")
@@ -92,10 +93,7 @@ impl TestDatabase {
         let mut conn = SqliteConnection::connect(&self.connection_string())
             .await
             .unwrap();
-
-        let config = Config::default();
-
-        conn.list_applied_migrations(config.migrate.table_name())
+        conn.list_applied_migrations(self.config.migrate.table_name())
             .await
             .unwrap()
             .iter()

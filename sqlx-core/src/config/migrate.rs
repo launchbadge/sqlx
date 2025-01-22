@@ -186,6 +186,10 @@ impl Config {
         self.migrations_dir.as_deref().unwrap_or("migrations")
     }
     
+    pub fn table_name(&self) -> &str {
+        self.table_name.as_deref().unwrap_or("_sqlx_migrations")
+    }
+    
     pub fn to_resolve_config(&self) -> crate::migrate::ResolveConfig {
         let mut config = crate::migrate::ResolveConfig::new();
         config.ignore_chars(self.ignored_chars.iter().copied());
