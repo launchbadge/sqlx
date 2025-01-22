@@ -1,12 +1,12 @@
 use assert_cmd::{assert::Assert, Command};
 
+use sqlx::_unstable::config::Config;
 use sqlx::{migrate::Migrate, Connection, SqliteConnection};
 use std::{
     env::temp_dir,
     fs::remove_file,
     path::{Path, PathBuf},
 };
-use sqlx::_unstable::config::Config;
 
 pub struct TestDatabase {
     file_path: PathBuf,
