@@ -27,25 +27,6 @@ pub struct Migrator {
     pub table_name: Cow<'static, str>,
 }
 
-fn validate_applied_migrations(
-    applied_migrations: &[AppliedMigration],
-    migrator: &Migrator,
-) -> Result<(), MigrateError> {
-    if migrator.ignore_missing {
-        return Ok(());
-    }
-
-    let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
-
-    for applied_migration in applied_migrations {
-        if !migrations.contains(&applied_migration.version) {
-            return Err(MigrateError::VersionMissing(applied_migration.version));
-        }
-    }
-
-    Ok(())
-}
-
 impl Migrator {
     #[doc(hidden)]
     pub const DEFAULT: Migrator = Migrator {
@@ -156,12 +137,21 @@ impl Migrator {
         <A::Connection as Deref>::Target: Migrate,
     {
         let mut conn = migrator.acquire().await?;
-        self.run_direct(&mut *conn).await
+        self.run_direct(None, &mut *conn).await
+    }
+
+    pub async fn run_to<'a, A>(&self, target: i64, migrator: A) -> Result<(), MigrateError>
+    where
+        A: Acquire<'a>,
+        <A::Connection as Deref>::Target: Migrate,
+    {
+        let mut conn = migrator.acquire().await?;
+        self.run_direct(Some(target), &mut *conn).await
     }
 
     // Getting around the annoying "implementation of `Acquire` is not general enough" error
     #[doc(hidden)]
-    pub async fn run_direct<C>(&self, conn: &mut C) -> Result<(), MigrateError>
+    pub async fn run_direct<C>(&self, target: Option<i64>, conn: &mut C) -> Result<(), MigrateError>
     where
         C: Migrate,
     {
@@ -172,14 +162,14 @@ impl Migrator {
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table(&self.table_name).await?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn.dirty_version(&self.table_name).await?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn.list_applied_migrations(&self.table_name).await?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -188,6 +178,11 @@ impl Migrator {
             .collect();
 
         for migration in self.iter() {
+            if target.is_some_and(|target| target < migration.version) {
+                // Target version reached
+                break;
+            }
+            
             if migration.migration_type.is_down_migration() {
                 continue;
             }
@@ -199,7 +194,7 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    conn.apply(&self.table_name, migration).await?;
                 }
             }
         }
@@ -244,14 +239,14 @@ impl Migrator {
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
-        conn.ensure_migrations_table().await?;
+        conn.ensure_migrations_table(&self.table_name).await?;
 
-        let version = conn.dirty_version().await?;
+        let version = conn.dirty_version(&self.table_name).await?;
         if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
-        let applied_migrations = conn.list_applied_migrations().await?;
+        let applied_migrations = conn.list_applied_migrations(&self.table_name).await?;
         validate_applied_migrations(&applied_migrations, self)?;
 
         let applied_migrations: HashMap<_, _> = applied_migrations
@@ -266,7 +261,7 @@ impl Migrator {
             .filter(|m| applied_migrations.contains_key(&m.version))
             .filter(|m| m.version > target)
         {
-            conn.revert(migration).await?;
+            conn.revert(&self.table_name, migration).await?;
         }
 
         // unlock the migrator to allow other migrators to run
@@ -277,4 +272,23 @@ impl Migrator {
 
         Ok(())
     }
+}
+
+fn validate_applied_migrations(
+    applied_migrations: &[AppliedMigration],
+    migrator: &Migrator,
+) -> Result<(), MigrateError> {
+    if migrator.ignore_missing {
+        return Ok(());
+    }
+
+    let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
+
+    for applied_migration in applied_migrations {
+        if !migrations.contains(&applied_migration.version) {
+            return Err(MigrateError::VersionMissing(applied_migration.version));
+        }
+    }
+
+    Ok(())
 }
