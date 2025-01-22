@@ -25,6 +25,9 @@ pub struct Migrator {
     pub no_tx: bool,
     #[doc(hidden)]
     pub table_name: Cow<'static, str>,
+
+    #[doc(hidden)]
+    pub create_schemas: Cow<'static, [Cow<'static, str>]>,
 }
 
 impl Migrator {
@@ -35,6 +38,7 @@ impl Migrator {
         no_tx: false,
         locking: true,
         table_name: Cow::Borrowed("_sqlx_migrations"),
+        create_schemas: Cow::Borrowed(&[]),
     };
 
     /// Creates a new instance with the given source.
@@ -81,6 +85,19 @@ impl Migrator {
     /// table before deleting the old one.
     pub fn dangerous_set_table_name(&mut self, table_name: impl Into<Cow<'static, str>>) -> &Self {
         self.table_name = table_name.into();
+        self
+    }
+
+    /// Add a schema name to be created if it does not already exist.
+    ///
+    /// May be used with [`Self::dangerous_set_table_name()`] to place the migrations table
+    /// in a new schema without requiring it to exist first.
+    ///
+    /// ### Note: Support Depends on Database
+    /// SQLite cannot create new schemas without attaching them to a database file,
+    /// the path of which must be specified separately in an [`ATTACH DATABASE`](https://www.sqlite.org/lang_attach.html) command.
+    pub fn create_schema(&mut self, schema_name: impl Into<Cow<'static, str>>) -> &Self {
+        self.create_schemas.to_mut().push(schema_name.into());
         self
     }
 
@@ -186,7 +203,7 @@ impl Migrator {
                 // Target version reached
                 break;
             }
-            
+
             if migration.migration_type.is_down_migration() {
                 continue;
             }

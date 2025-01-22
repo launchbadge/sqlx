@@ -218,18 +218,18 @@ impl PgConnection {
         attribute_no: i16,
         should_fetch: bool,
     ) -> Result<ColumnOrigin, Error> {
-        if let Some(origin) =
-            self.inner
-                .cache_table_to_column_names
-                .get(&relation_id)
-                .and_then(|table_columns| {
-                    let column_name = table_columns.columns.get(&attribute_no).cloned()?;
+        if let Some(origin) = self
+            .inner
+            .cache_table_to_column_names
+            .get(&relation_id)
+            .and_then(|table_columns| {
+                let column_name = table_columns.columns.get(&attribute_no).cloned()?;
 
-                    Some(ColumnOrigin::Table(TableColumn {
-                        table: table_columns.table_name.clone(),
-                        name: column_name,
-                    }))
-                })
+                Some(ColumnOrigin::Table(TableColumn {
+                    table: table_columns.table_name.clone(),
+                    name: column_name,
+                }))
+            })
         {
             return Ok(origin);
         }
