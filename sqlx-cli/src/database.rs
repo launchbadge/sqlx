@@ -1,5 +1,5 @@
-use crate::migrate;
-use crate::opt::ConnectOpts;
+use crate::opt::{ConnectOpts, MigrationSourceOpt};
+use crate::{migrate, Config};
 use console::style;
 use promptly::{prompt, ReadlineError};
 use sqlx::any::Any;
@@ -17,14 +17,14 @@ pub async fn create(connect_opts: &ConnectOpts) -> anyhow::Result<()> {
             std::sync::atomic::Ordering::Release,
         );
 
-        Any::create_database(connect_opts.required_db_url()?).await?;
+        Any::create_database(connect_opts.expect_db_url()?).await?;
     }
 
     Ok(())
 }
 
 pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> anyhow::Result<()> {
-    if confirm && !ask_to_continue_drop(connect_opts.required_db_url()?) {
+    if confirm && !ask_to_continue_drop(connect_opts.expect_db_url()?) {
         return Ok(());
     }
 
@@ -34,9 +34,9 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> any
 
     if exists {
         if force {
-            Any::force_drop_database(connect_opts.required_db_url()?).await?;
+            Any::force_drop_database(connect_opts.expect_db_url()?).await?;
         } else {
-            Any::drop_database(connect_opts.required_db_url()?).await?;
+            Any::drop_database(connect_opts.expect_db_url()?).await?;
         }
     }
 
@@ -44,18 +44,23 @@ pub async fn drop(connect_opts: &ConnectOpts, confirm: bool, force: bool) -> any
 }
 
 pub async fn reset(
-    migration_source: &str,
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
     connect_opts: &ConnectOpts,
     confirm: bool,
     force: bool,
 ) -> anyhow::Result<()> {
     drop(connect_opts, confirm, force).await?;
-    setup(migration_source, connect_opts).await
+    setup(config, migration_source, connect_opts).await
 }
 
-pub async fn setup(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
+pub async fn setup(
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
+    connect_opts: &ConnectOpts,
+) -> anyhow::Result<()> {
     create(connect_opts).await?;
-    migrate::run(migration_source, connect_opts, false, false, None).await
+    migrate::run(config, migration_source, connect_opts, false, false, None).await
 }
 
 fn ask_to_continue_drop(db_url: &str) -> bool {
