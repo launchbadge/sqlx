@@ -1,7 +1,10 @@
+use crate::config::Config;
 use crate::opt::{AddMigrationOpts, ConnectOpts, MigrationSourceOpt};
 use anyhow::{bail, Context};
 use console::style;
-use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator, ResolveWith};
+use sqlx::migrate::{
+    AppliedMigration, Migrate, MigrateError, MigrationType, Migrator, ResolveWith,
+};
 use sqlx::Connection;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -9,14 +12,10 @@ use std::fmt::Write;
 use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
-use crate::config::Config;
 
-pub async fn add(
-    config: &Config,
-    opts: AddMigrationOpts,
-) -> anyhow::Result<()> {
+pub async fn add(config: &Config, opts: AddMigrationOpts) -> anyhow::Result<()> {
     let source = opts.source.resolve(config);
-    
+
     fs::create_dir_all(source).context("Unable to create migrations directory")?;
 
     let migrator = Migrator::new(Path::new(source)).await?;
@@ -124,13 +123,27 @@ fn short_checksum(checksum: &[u8]) -> String {
     s
 }
 
-pub async fn info(config: &Config, migration_source: &MigrationSourceOpt, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
+pub async fn info(
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
+    connect_opts: &ConnectOpts,
+) -> anyhow::Result<()> {
     let source = migration_source.resolve(config);
-    
-    let migrator = Migrator::new(ResolveWith(Path::new(source), config.migrate.to_resolve_config())).await?;
+
+    let migrator = Migrator::new(ResolveWith(
+        Path::new(source),
+        config.migrate.to_resolve_config(),
+    ))
+    .await?;
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table(config.migrate.table_name()).await?;
+    // FIXME: we shouldn't actually be creating anything here
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
+
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
 
     let applied_migrations: HashMap<_, _> = conn
         .list_applied_migrations(config.migrate.table_name())
@@ -214,7 +227,7 @@ pub async fn run(
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let source = migration_source.resolve(config);
-    
+
     let migrator = Migrator::new(Path::new(source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
@@ -224,14 +237,21 @@ pub async fn run(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table(config.migrate.table_name()).await?;
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
+
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
 
     let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
+    let applied_migrations = conn
+        .list_applied_migrations(config.migrate.table_name())
+        .await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -319,14 +339,22 @@ pub async fn revert(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table(config.migrate.table_name()).await?;
+    // FIXME: we should not be creating anything here if it doesn't exist
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
+
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
 
     let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations(config.migrate.table_name()).await?;
+    let applied_migrations = conn
+        .list_applied_migrations(config.migrate.table_name())
+        .await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -397,9 +425,13 @@ pub async fn revert(
     Ok(())
 }
 
-pub fn build_script(config: &Config, migration_source: &MigrationSourceOpt, force: bool) -> anyhow::Result<()> {
+pub fn build_script(
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
+    force: bool,
+) -> anyhow::Result<()> {
     let source = migration_source.resolve(config);
-    
+
     anyhow::ensure!(
         Path::new("Cargo.toml").exists(),
         "must be run in a Cargo project root"
