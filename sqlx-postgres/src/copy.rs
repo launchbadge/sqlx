@@ -230,10 +230,10 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             }
 
             // Write the length
-            let read32 = u32::try_from(read)
-                .map_err(|_| err_protocol!("number of bytes read exceeds 2^32: {}", read))?;
+            let read32 = i32::try_from(read)
+                .map_err(|_| err_protocol!("number of bytes read exceeds 2^31 - 1: {}", read))?;
 
-            (&mut buf.get_mut()[1..]).put_u32(read32 + 4);
+            (&mut buf.get_mut()[1..]).put_i32(read32 + 4);
 
             conn.inner.stream.flush().await?;
         }
