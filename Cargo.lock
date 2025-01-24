@@ -3879,6 +3879,7 @@ dependencies = [
  "serde_urlencoded",
  "sqlx",
  "sqlx-core",
+ "thiserror 2.0.11",
  "time",
  "tracing",
  "url",
