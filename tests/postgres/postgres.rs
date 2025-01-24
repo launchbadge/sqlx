@@ -1058,6 +1058,75 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
+    use sqlx_core::rt::timeout;
+
+    use sqlx::pool::PoolOptions;
+    use sqlx::postgres::PgListener;
+
+    // Create a connection on which to send notifications
+    let mut notify_conn = new::<Postgres>().await?;
+
+    let pool = PoolOptions::<Postgres>::new()
+        .min_connections(1)
+        .max_connections(1)
+        .test_before_acquire(true)
+        .connect(&env::var("DATABASE_URL")?)
+        .await?;
+
+    let mut listener = PgListener::connect_with(&pool).await?;
+    listener.listen("test_channel2").await?;
+
+    // Checks for a notification on the test channel
+    async fn try_recv(listener: &mut PgListener) -> anyhow::Result<bool> {
+        match timeout(Duration::from_millis(100), listener.recv()).await {
+            Ok(res) => {
+                res?;
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    // Check no notification is buffered, since we haven't sent one.
+    assert!(listener.next_buffered().is_none());
+
+    // Send five notifications transactionally, so they all arrive at once.
+    {
+        let mut txn = notify_conn.begin().await?;
+        for i in 0..5 {
+            txn.execute(format!("NOTIFY test_channel2, 'payload {i}'").as_str())
+                .await?;
+        }
+        txn.commit().await?;
+    }
+
+    // Still no notifications buffered, since we haven't awaited the listener yet.
+    assert!(listener.next_buffered().is_none());
+
+    // Activate connection.
+    sqlx::query!("SELECT 1 AS one")
+        .fetch_all(&mut listener)
+        .await?;
+
+    // The next five notifications should now be buffered.
+    for i in 0..5 {
+        assert!(
+            listener.next_buffered().is_some(),
+            "Notification {i} was not buffered"
+        );
+    }
+
+    // Should be no more.
+    assert!(listener.next_buffered().is_none());
+
+    // Even if we wait.
+    assert!(!try_recv(&mut listener).await?, "Notification received");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
     let pool = pool::<Postgres>().await?;
 
@@ -1070,6 +1139,45 @@ async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
 
     // would previously hang forever since `PgListener` had no way to know the pool wanted to close
     pool.close().await;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_pg_listener_implements_acquire() -> anyhow::Result<()> {
+    use sqlx::Acquire;
+
+    let pool = pool::<Postgres>().await?;
+
+    let mut listener = PgListener::connect_with(&pool).await?;
+    listener
+        .listen("test_pg_listener_implements_acquire")
+        .await?;
+
+    // Start a transaction on the underlying connection
+    let mut txn = listener.begin().await?;
+
+    // This will reuse the same connection, so this connection should be listening to the channel
+    let channels: Vec<String> = sqlx::query_scalar("SELECT pg_listening_channels()")
+        .fetch_all(&mut *txn)
+        .await?;
+
+    assert_eq!(channels, vec!["test_pg_listener_implements_acquire"]);
+
+    // Send a notification
+    sqlx::query("NOTIFY test_pg_listener_implements_acquire, 'hello'")
+        .execute(&mut *txn)
+        .await?;
+
+    txn.commit().await?;
+
+    // And now we can receive the notification we sent in the transaction
+    let notification = listener.recv().await?;
+    assert_eq!(
+        notification.channel(),
+        "test_pg_listener_implements_acquire"
+    );
+    assert_eq!(notification.payload(), "hello");
 
     Ok(())
 }

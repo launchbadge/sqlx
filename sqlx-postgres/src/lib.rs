@@ -70,6 +70,9 @@ pub type PgPoolOptions = crate::pool::PoolOptions<Postgres>;
 pub trait PgExecutor<'c>: Executor<'c, Database = Postgres> {}
 impl<'c, T: Executor<'c, Database = Postgres>> PgExecutor<'c> for T {}
 
+/// An alias for [`Transaction`][crate::transaction::Transaction], specialized for Postgres.
+pub type PgTransaction<'c> = crate::transaction::Transaction<'c, Postgres>;
+
 impl_into_arguments_for_arguments!(PgArguments);
 impl_acquire!(Postgres, PgConnection);
 impl_column_index_for_row!(PgRow);

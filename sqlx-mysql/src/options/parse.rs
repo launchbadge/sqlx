@@ -38,7 +38,11 @@ impl MySqlConnectOptions {
 
         let path = url.path().trim_start_matches('/');
         if !path.is_empty() {
-            options = options.database(path);
+            options = options.database(
+                &percent_decode_str(path)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         for (key, value) in url.query_pairs().into_iter() {
@@ -70,6 +74,10 @@ impl MySqlConnectOptions {
 
                 "socket" => {
                     options = options.socket(&*value);
+                }
+
+                "timezone" | "time-zone" => {
+                    options = options.timezone(Some(value.to_string()));
                 }
 
                 _ => {}
@@ -175,4 +183,17 @@ fn it_returns_the_parsed_url() {
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+fn it_parses_timezone() {
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?timezone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
+
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?time-zone=%2B08:00"
+        .parse()
+        .unwrap();
+    assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
 }

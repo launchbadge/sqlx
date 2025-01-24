@@ -10,7 +10,6 @@ use crate::types::Json;
 use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
-use futures_core::future::BoxFuture;
 use smallvec::SmallVec;
 use sqlx_core::query_builder::QueryBuilder;
 use std::sync::Arc;
@@ -169,7 +168,8 @@ impl PgConnection {
 
         // fallback to asking the database directly for a type name
         if should_fetch {
-            let info = self.fetch_type_by_oid(oid).await?;
+            // we're boxing this future here so we can use async recursion
+            let info = Box::pin(async { self.fetch_type_by_oid(oid).await }).await?;
 
             // cache the type name <-> oid relationship in a paired hashmap
             // so we don't come down this road again
@@ -190,19 +190,18 @@ impl PgConnection {
         }
     }
 
-    fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
-        Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (
-                String,
-                i8,
-                i8,
-                Oid,
-                Oid,
-                Oid,
-            ) = query_as(
-                // Converting the OID to `regtype` and then `text` will give us the name that
-                // the type will need to be found at by search_path.
-                "SELECT oid::regtype::text, \
+    async fn fetch_type_by_oid(&mut self, oid: Oid) -> Result<PgTypeInfo, Error> {
+        let (name, typ_type, category, relation_id, element, base_type): (
+            String,
+            i8,
+            i8,
+            Oid,
+            Oid,
+            Oid,
+        ) = query_as(
+            // Converting the OID to `regtype` and then `text` will give us the name that
+            // the type will need to be found at by search_path.
+            "SELECT oid::regtype::text, \
                      typtype, \
                      typcategory, \
                      typrelid, \
@@ -210,54 +209,51 @@ impl PgConnection {
                      typbasetype \
                      FROM pg_catalog.pg_type \
                      WHERE oid = $1",
-            )
-            .bind(oid)
-            .fetch_one(&mut *self)
-            .await?;
+        )
+        .bind(oid)
+        .fetch_one(&mut *self)
+        .await?;
 
-            let typ_type = TypType::try_from(typ_type);
-            let category = TypCategory::try_from(category);
+        let typ_type = TypType::try_from(typ_type);
+        let category = TypCategory::try_from(category);
 
-            match (typ_type, category) {
-                (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
+        match (typ_type, category) {
+            (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
 
-                (Ok(TypType::Base), Ok(TypCategory::Array)) => {
-                    Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                        kind: PgTypeKind::Array(
-                            self.maybe_fetch_type_info_by_oid(element, true).await?,
-                        ),
-                        name: name.into(),
-                        oid,
-                    }))))
-                }
-
-                (Ok(TypType::Pseudo), Ok(TypCategory::Pseudo)) => {
-                    Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                        kind: PgTypeKind::Pseudo,
-                        name: name.into(),
-                        oid,
-                    }))))
-                }
-
-                (Ok(TypType::Range), Ok(TypCategory::Range)) => {
-                    self.fetch_range_by_oid(oid, name).await
-                }
-
-                (Ok(TypType::Enum), Ok(TypCategory::Enum)) => {
-                    self.fetch_enum_by_oid(oid, name).await
-                }
-
-                (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
-                    self.fetch_composite_by_oid(oid, relation_id, name).await
-                }
-
-                _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                    kind: PgTypeKind::Simple,
+            (Ok(TypType::Base), Ok(TypCategory::Array)) => {
+                Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                    kind: PgTypeKind::Array(
+                        self.maybe_fetch_type_info_by_oid(element, true).await?,
+                    ),
                     name: name.into(),
                     oid,
-                })))),
+                }))))
             }
-        })
+
+            (Ok(TypType::Pseudo), Ok(TypCategory::Pseudo)) => {
+                Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                    kind: PgTypeKind::Pseudo,
+                    name: name.into(),
+                    oid,
+                }))))
+            }
+
+            (Ok(TypType::Range), Ok(TypCategory::Range)) => {
+                self.fetch_range_by_oid(oid, name).await
+            }
+
+            (Ok(TypType::Enum), Ok(TypCategory::Enum)) => self.fetch_enum_by_oid(oid, name).await,
+
+            (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
+                self.fetch_composite_by_oid(oid, relation_id, name).await
+            }
+
+            _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                kind: PgTypeKind::Simple,
+                name: name.into(),
+                oid,
+            })))),
+        }
     }
 
     async fn fetch_enum_by_oid(&mut self, oid: Oid, name: String) -> Result<PgTypeInfo, Error> {
@@ -280,15 +276,14 @@ ORDER BY enumsortorder
         }))))
     }
 
-    fn fetch_composite_by_oid(
+    async fn fetch_composite_by_oid(
         &mut self,
         oid: Oid,
         relation_id: Oid,
         name: String,
-    ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
-        Box::pin(async move {
-            let raw_fields: Vec<(String, Oid)> = query_as(
-                r#"
+    ) -> Result<PgTypeInfo, Error> {
+        let raw_fields: Vec<(String, Oid)> = query_as(
+            r#"
 SELECT attname, atttypid
 FROM pg_catalog.pg_attribute
 WHERE attrelid = $1
@@ -296,69 +291,60 @@ AND NOT attisdropped
 AND attnum > 0
 ORDER BY attnum
                 "#,
-            )
-            .bind(relation_id)
-            .fetch_all(&mut *self)
-            .await?;
+        )
+        .bind(relation_id)
+        .fetch_all(&mut *self)
+        .await?;
 
-            let mut fields = Vec::new();
+        let mut fields = Vec::new();
 
-            for (field_name, field_oid) in raw_fields.into_iter() {
-                let field_type = self.maybe_fetch_type_info_by_oid(field_oid, true).await?;
+        for (field_name, field_oid) in raw_fields.into_iter() {
+            let field_type = self.maybe_fetch_type_info_by_oid(field_oid, true).await?;
 
-                fields.push((field_name, field_type));
-            }
+            fields.push((field_name, field_type));
+        }
 
-            Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                oid,
-                name: name.into(),
-                kind: PgTypeKind::Composite(Arc::from(fields)),
-            }))))
-        })
+        Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+            oid,
+            name: name.into(),
+            kind: PgTypeKind::Composite(Arc::from(fields)),
+        }))))
     }
 
-    fn fetch_domain_by_oid(
+    async fn fetch_domain_by_oid(
         &mut self,
         oid: Oid,
         base_type: Oid,
         name: String,
-    ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
-        Box::pin(async move {
-            let base_type = self.maybe_fetch_type_info_by_oid(base_type, true).await?;
+    ) -> Result<PgTypeInfo, Error> {
+        let base_type = self.maybe_fetch_type_info_by_oid(base_type, true).await?;
 
-            Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                oid,
-                name: name.into(),
-                kind: PgTypeKind::Domain(base_type),
-            }))))
-        })
+        Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+            oid,
+            name: name.into(),
+            kind: PgTypeKind::Domain(base_type),
+        }))))
     }
 
-    fn fetch_range_by_oid(
-        &mut self,
-        oid: Oid,
-        name: String,
-    ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
-        Box::pin(async move {
-            let element_oid: Oid = query_scalar(
-                r#"
+    async fn fetch_range_by_oid(&mut self, oid: Oid, name: String) -> Result<PgTypeInfo, Error> {
+        let element_oid: Oid = query_scalar(
+            r#"
 SELECT rngsubtype
 FROM pg_catalog.pg_range
 WHERE rngtypid = $1
                 "#,
-            )
-            .bind(oid)
-            .fetch_one(&mut *self)
-            .await?;
+        )
+        .bind(oid)
+        .fetch_one(&mut *self)
+        .await?;
 
-            let element = self.maybe_fetch_type_info_by_oid(element_oid, true).await?;
+        let element = self.maybe_fetch_type_info_by_oid(element_oid, true).await?;
 
-            Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                kind: PgTypeKind::Range(element),
-                name: name.into(),
-                oid,
-            }))))
-        })
+        Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+            kind: PgTypeKind::Range(element),
+            name: name.into(),
+            oid,
+        }))))
     }
 
     pub(crate) async fn resolve_type_id(&mut self, ty: &PgType) -> Result<Oid, Error> {
@@ -426,6 +412,15 @@ WHERE rngtypid = $1
         Ok(array_oid)
     }
 
+    /// Check whether EXPLAIN statements are supported by the current connection
+    fn is_explain_available(&self) -> bool {
+        let parameter_statuses = &self.inner.stream.parameter_statuses;
+        let is_cockroachdb = parameter_statuses.contains_key("crdb_version");
+        let is_materialize = parameter_statuses.contains_key("mz_version");
+        let is_questdb = parameter_statuses.contains_key("questdb_version");
+        !is_cockroachdb && !is_materialize && !is_questdb
+    }
+
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
         stmt_id: StatementId,
@@ -448,26 +443,45 @@ WHERE rngtypid = $1
         // This will include columns that don't have a `relation_id` (are not from a table);
         // assuming those are a minority of columns, it's less code to _not_ work around it
         // and just let Postgres return `NULL`.
-        let mut nullable_query = QueryBuilder::new("SELECT NOT pg_attribute.attnotnull FROM ( ");
+        //
+        // Use `UNION ALL` syntax instead of `VALUES` due to frequent lack of
+        // support for `VALUES` in pgwire supported databases.
+        let mut nullable_query = QueryBuilder::new("SELECT NOT attnotnull FROM ( ");
+        let mut separated = nullable_query.separated("UNION ALL ");
 
-        nullable_query.push_values(meta.columns.iter().zip(0i32..), |mut tuple, (column, i)| {
-            // ({i}::int4, {column.relation_id}::int4, {column.relation_attribute_no}::int2)
-            tuple.push_bind(i).push_unseparated("::int4");
-            tuple
-                .push_bind(column.relation_id)
-                .push_unseparated("::int4");
-            tuple
-                .push_bind(column.relation_attribute_no)
-                .push_unseparated("::int2");
-        });
+        let mut column_iter = meta.columns.iter().zip(0i32..);
+        if let Some((column, i)) = column_iter.next() {
+            separated.push("( SELECT ");
+            separated
+                .push_bind_unseparated(i)
+                .push_unseparated("::int4 AS idx, ");
+            separated
+                .push_bind_unseparated(column.relation_id)
+                .push_unseparated("::int4 AS table_id, ");
+            separated
+                .push_bind_unseparated(column.relation_attribute_no)
+                .push_unseparated("::int2 AS col_idx ) ");
+        }
+
+        for (column, i) in column_iter {
+            separated.push("( SELECT ");
+            separated
+                .push_bind_unseparated(i)
+                .push_unseparated("::int4, ");
+            separated
+                .push_bind_unseparated(column.relation_id)
+                .push_unseparated("::int4, ");
+            separated
+                .push_bind_unseparated(column.relation_attribute_no)
+                .push_unseparated("::int2 ) ");
+        }
 
         nullable_query.push(
-            ") as col(idx, table_id, col_idx) \
-            LEFT JOIN pg_catalog.pg_attribute \
+            ") AS col LEFT JOIN pg_catalog.pg_attribute \
                 ON table_id IS NOT NULL \
                AND attrelid = table_id \
                AND attnum = col_idx \
-            ORDER BY col.idx",
+            ORDER BY idx",
         );
 
         let mut nullables: Vec<Option<bool>> = nullable_query
@@ -481,18 +495,8 @@ WHERE rngtypid = $1
                 )
             })?;
 
-        // If the server is CockroachDB or Materialize, skip this step (#1248).
-        if !self
-            .inner
-            .stream
-            .parameter_statuses
-            .contains_key("crdb_version")
-            && !self
-                .inner
-                .stream
-                .parameter_statuses
-                .contains_key("mz_version")
-        {
+        // If the server doesn't support EXPLAIN statements, skip this step (#1248).
+        if self.is_explain_available() {
             // patch up our null inference with data from EXPLAIN
             let nullable_patch = self
                 .nullables_from_explain(stmt_id, meta.parameters.len())

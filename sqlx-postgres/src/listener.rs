@@ -5,7 +5,9 @@ use std::str::from_utf8;
 use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
-use futures_util::{FutureExt, StreamExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use sqlx_core::acquire::Acquire;
+use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 
 use crate::describe::Describe;
@@ -29,6 +31,7 @@ pub struct PgListener {
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
     ignore_close_event: bool,
+    eager_reconnect: bool,
 }
 
 /// An asynchronous notification from Postgres.
@@ -67,6 +70,7 @@ impl PgListener {
             buffer_tx: None,
             channels: Vec::new(),
             ignore_close_event: false,
+            eager_reconnect: true,
         })
     }
 
@@ -91,6 +95,19 @@ impl PgListener {
     /// internal pool just for the new instance of `PgListener` which cannot be closed manually.
     pub fn ignore_pool_close_event(&mut self, val: bool) {
         self.ignore_close_event = val;
+    }
+
+    /// Set whether a lost connection in `try_recv()` should be re-established before it returns
+    /// `Ok(None)`, or on the next call to `try_recv()`.
+    ///
+    /// By default, this is `true` and the connection is re-established before returning `Ok(None)`.
+    ///
+    /// If this is set to `false` then notifications will continue to be lost until the next call
+    /// to `try_recv()`. If your recovery logic uses a different database connection then
+    /// notifications that occur after it completes may be lost without any way to tell that they
+    /// have been.
+    pub fn eager_reconnect(&mut self, val: bool) {
+        self.eager_reconnect = val;
     }
 
     /// Starts listening for notifications on a channel.
@@ -212,7 +229,8 @@ impl PgListener {
     /// Receives the next notification available from any of the subscribed channels.
     ///
     /// If the connection to PostgreSQL is lost, `None` is returned, and the connection is
-    /// reconnected on the next call to `try_recv()`.
+    /// reconnected either immediately, or on the next call to `try_recv()`, depending on
+    /// the value of [`eager_reconnect`].
     ///
     /// # Example
     ///
@@ -232,11 +250,13 @@ impl PgListener {
     /// # Result::<(), sqlx::Error>::Ok(())
     /// # }).unwrap();
     /// ```
+    ///
+    /// [`eager_reconnect`]: PgListener::eager_reconnect
     pub async fn try_recv(&mut self) -> Result<Option<PgNotification>, Error> {
         // Flush the buffer first, if anything
         // This would only fill up if this listener is used as a connection
-        if let Ok(Some(notification)) = self.buffer_rx.try_next() {
-            return Ok(Some(PgNotification(notification)));
+        if let Some(notification) = self.next_buffered() {
+            return Ok(Some(notification));
         }
 
         // Fetch our `CloseEvent` listener, if applicable.
@@ -259,13 +279,23 @@ impl PgListener {
                 // The connection is dead, ensure that it is dropped,
                 // update self state, and loop to try again.
                 Err(Error::Io(err))
-                    if (err.kind() == io::ErrorKind::ConnectionAborted
-                        || err.kind() == io::ErrorKind::UnexpectedEof) =>
+                    if matches!(
+                        err.kind(),
+                        io::ErrorKind::ConnectionAborted |
+                        io::ErrorKind::UnexpectedEof |
+                        // see ERRORS section in tcp(7) man page (https://man7.org/linux/man-pages/man7/tcp.7.html)
+                        io::ErrorKind::TimedOut |
+                        io::ErrorKind::BrokenPipe
+                    ) =>
                 {
                     if let Some(mut conn) = self.connection.take() {
                         self.buffer_tx = conn.inner.stream.notifications.take();
                         // Close the connection in a background task, so we can continue.
                         conn.close_on_drop();
+                    }
+
+                    if self.eager_reconnect {
+                        self.connect_if_needed().await?;
                     }
 
                     // lost connection
@@ -292,6 +322,19 @@ impl PgListener {
                 // Ignore unexpected messages
                 _ => {}
             }
+        }
+    }
+
+    /// Receives the next notification that already exists in the connection buffer, if any.
+    ///
+    /// This is similar to `try_recv`, except it will not wait if the connection has not yet received a notification.
+    ///
+    /// This is helpful if you want to retrieve all buffered notifications and process them in batches.
+    pub fn next_buffered(&mut self) -> Option<PgNotification> {
+        if let Ok(Some(notification)) = self.buffer_rx.try_next() {
+            Some(PgNotification(notification))
+        } else {
+            None
         }
     }
 
@@ -325,6 +368,19 @@ impl Drop for PgListener {
             // Unregister any listeners before returning the connection to the pool.
             crate::rt::spawn(fut);
         }
+    }
+}
+
+impl<'c> Acquire<'c> for &'c mut PgListener {
+    type Database = Postgres;
+    type Connection = &'c mut PgConnection;
+
+    fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>> {
+        self.connection().boxed()
+    }
+
+    fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>> {
+        self.connection().and_then(|c| c.begin()).boxed()
     }
 }
 
