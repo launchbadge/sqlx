@@ -497,6 +497,7 @@ async fn test_from_row_json_attr() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_from_row_json_attr_nullable() -> anyhow::Result<()> {
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct J {
         a: u32,
         b: u32,

@@ -1,7 +1,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote_spanned;
 use syn::{
-    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type, Variant
+    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr,
+    Meta, Token, Type, Variant,
 };
 
 macro_rules! assert_attribute {
@@ -62,7 +63,7 @@ pub struct SqlxContainerAttributes {
 
 pub enum JsonAttribute {
     NonNullable,
-    Nullable
+    Nullable,
 }
 
 pub struct SqlxChildAttributes {
