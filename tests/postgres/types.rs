@@ -509,6 +509,11 @@ test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
     "line('((0.0, 0.0), (1.0,1.0))')" == sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
+    "lseg('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgLSeg { start_x: 1., start_y: 2., end_x: 3. , end_y: 4.},
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
