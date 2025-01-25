@@ -188,13 +188,18 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     ///
     /// If you're copying data from an `AsyncRead`, maybe consider [Self::read_from] instead.
     pub async fn send(&mut self, data: impl Deref<Target = [u8]>) -> Result<&mut Self> {
-        self.conn
-            .as_deref_mut()
-            .expect("send_data: conn taken")
-            .inner
-            .stream
-            .send(CopyData(data))
-            .await?;
+        // (1 GiB - 1) - command byte (1 byte) - length prefix (4 bytes)
+        const PG_COPY_MAX_DATA_LEN: usize = 1_073_741_824 - 1 - 1 - 4;
+
+        for chunk in data.deref().chunks(PG_COPY_MAX_DATA_LEN) {
+            self.conn
+                .as_deref_mut()
+                .expect("send_data: conn taken")
+                .inner
+                .stream
+                .send(CopyData(chunk))
+                .await?;
+        }
 
         Ok(self)
     }

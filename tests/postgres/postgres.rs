@@ -2042,3 +2042,26 @@ async fn test_issue_3052() {
         "expected encode error, got {too_large_error:?}",
     );
 }
+
+#[sqlx_macros::test]
+async fn test_pg_copy_chunked() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // (1 GiB - 1) - command byte (1 byte) - length prefix (4 bytes)
+    const COPY_MAX_DATA_LEN: usize = 1_073_741_824 - 1 - 1 - 4;
+
+    let mut row = "1".repeat(COPY_MAX_DATA_LEN / 10 - 1);
+    row.push_str("\n");
+
+    // creates a payload with COPY_MAX_DATA_LEN + 1 as size
+    let mut payload = row.repeat(10);
+    payload.push_str("12345678\n");
+
+    assert_eq!(payload.len(), COPY_MAX_DATA_LEN + 1);
+
+    let mut copy = conn.copy_in_raw("COPY products(name) FROM STDIN").await?;
+
+    assert!(copy.send(payload.as_bytes()).await.is_ok());
+    assert!(copy.finish().await.is_ok());
+    Ok(())
+}
