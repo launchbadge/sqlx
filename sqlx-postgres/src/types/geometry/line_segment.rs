@@ -24,6 +24,7 @@ const ERROR: &str = "error decoding LSEG";
 /// where `(start_x,start_y) and (end_x,end_y)` are the end points of the line segment.
 ///
 /// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LSEG
+#[doc(alias = "line segment")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgLSeg {
     pub start_x: f64,
