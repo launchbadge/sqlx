@@ -3,6 +3,17 @@
 version = 4
 
 [[package]]
+name = "accounts"
+version = "0.1.0"
+dependencies = [
+ "argon2 0.5.3",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1280,6 +1291,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "error-code"
+version = "2.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64f18991e7bf11e7ffee451b5318b5c1a73c52d0d0ada6e5a3017c8c1ced6a21"
+dependencies = [
+ "libc",
+ "str-buf",
+]
+
+[[package]]
 name = "etcetera"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2313,6 +2334,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi-tenant"
+version = "0.8.3"
+dependencies = [
+ "accounts",
+ "payments",
+ "sqlx",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2574,6 +2604,13 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "payments"
+version = "0.1.0"
+dependencies = [
+ "sqlx",
+]
 
 [[package]]
 name = "pem-rfc7468"
@@ -3105,19 +3142,6 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "rustix"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d97817398dd4bb2e6da002002db259209759911da105da92bec29ccb12cf58bf"
-dependencies = [
- "bitflags 2.7.0",
- "errno",
- "libc",
- "linux-raw-sys 0.9.4",
  "windows-sys 0.59.0",
 ]
 
