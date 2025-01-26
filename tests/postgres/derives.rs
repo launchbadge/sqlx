@@ -855,12 +855,12 @@ CREATE TABLE responses (
         headers: vec![
             HeaderPairRecord {
                 name: "Content-Type".to_owned(),
-                value: "text/html; charset=utf-8".to_owned()
+                value: "text/html; charset=utf-8".to_owned(),
             },
             HeaderPairRecord {
                 name: "Cache-Control".to_owned(),
-                value: "max-age=0".to_owned()
-            }
+                value: "max-age=0".to_owned(),
+            },
         ],
     };
 
