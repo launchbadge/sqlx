@@ -28,7 +28,7 @@ use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
 use crate::statement::VirtualStatement;
-use crate::{Sqlite, SqliteConnectOptions};
+use crate::{Sqlite, SqliteConnectOptions, SqliteError};
 
 pub(crate) mod collation;
 pub(crate) mod describe;
@@ -541,6 +541,10 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_rollback_hook(&mut self) {
         self.guard.remove_rollback_hook();
+    }
+
+    pub fn last_error(&mut self) -> Option<SqliteError> {
+        SqliteError::try_new(self.guard.handle.as_ptr())
     }
 }
 
