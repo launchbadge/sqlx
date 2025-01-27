@@ -1,4 +1,9 @@
-use crate::{error::Error, row::Row};
+use std::marker::PhantomData;
+
+use crate::{
+    error::{Error, UnexpectedNullError},
+    row::Row,
+};
 
 /// A record that can be built from a row returned by the database.
 ///
@@ -487,3 +492,47 @@ impl_from_row_for_tuple!(
     (14) -> T15;
     (15) -> T16;
 );
+
+pub struct Wrapper<T>(pub PhantomData<T>);
+
+pub trait FromOptRow<'r, R, T> {
+    fn __from_row(&self, row: &'r R) -> Result<T, Error>;
+}
+
+impl<'r, R, T> FromOptRow<'r, R, Option<T>> for Wrapper<Option<T>>
+where
+    R: Row,
+    T: FromRow<'r, R>,
+{
+    fn __from_row(&self, row: &'r R) -> Result<Option<T>, Error> {
+        let value = T::from_row(row).map(Some);
+        if let Err(Error::ColumnDecode { source, .. }) = value.as_ref() {
+            if let Some(UnexpectedNullError) = source.downcast_ref() {
+                return Ok(None);
+            }
+        }
+        value
+    }
+}
+
+impl<'r, R, T> FromOptRow<'r, R, T> for &Wrapper<T>
+where
+    R: Row,
+    T: FromRow<'r, R>,
+{
+    fn __from_row(&self, row: &'r R) -> Result<T, Error> {
+        T::from_row(row)
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __from_opt_row {
+    ($t:ty, $row:expr) => {{
+        use std::marker::PhantomData;
+        use $crate::from_row::{FromOptRow, Wrapper};
+        let wrapper = Wrapper(PhantomData::<$t>);
+        let value = (&wrapper).__from_row($row);
+        value
+    }};
+}
