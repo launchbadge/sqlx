@@ -111,7 +111,7 @@ impl MySqlConnection {
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
 
-        Ok(Box::pin(try_stream! {
+        Ok(try_stream! {
             // make a slot for the shared column data
             // as long as a reference to a row is not held past one iteration, this enables us
             // to re-use this memory freely between result sets
@@ -240,7 +240,7 @@ impl MySqlConnection {
                     r#yield!(v);
                 }
             }
-        }))
+        })
     }
 }
 
