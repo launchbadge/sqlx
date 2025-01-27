@@ -256,7 +256,7 @@ impl PgTypeInfo {
         ]
         .contains(self)
         {
-            Some("ipnetwork")
+            Some("ipnet")
         } else if [PgTypeInfo::MACADDR].contains(self) {
             Some("mac_address")
         } else if [PgTypeInfo::NUMERIC, PgTypeInfo::NUMERIC_ARRAY].contains(self) {

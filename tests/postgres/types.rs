@@ -171,6 +171,34 @@ test_type!(uuid_vec<Vec<sqlx::types::Uuid>>(Postgres,
         ]
 ));
 
+#[cfg(feature = "ipnet")]
+test_type!(ipnet<sqlx::types::ipnet::IpNet>(Postgres,
+    "'127.0.0.1'::inet"
+        == "127.0.0.1"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'8.8.8.8/24'::inet"
+        == "8.8.8.8/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0'::inet"
+        == "::ffff:1.2.3.0"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'2001:4f8:3:ba::/64'::inet"
+        == "2001:4f8:3:ba::/64"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'192.168'::cidr"
+        == "192.168.0.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0/120'::cidr"
+        == "::ffff:1.2.3.0/120"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+));
+
 #[cfg(feature = "ipnetwork")]
 test_type!(ipnetwork<sqlx::types::ipnetwork::IpNetwork>(Postgres,
     "'127.0.0.1'::inet"
@@ -230,6 +258,15 @@ test_type!(bitvec<sqlx::types::BitVec>(
         bit_vec.push(true);
         bit_vec
     },
+));
+
+#[cfg(feature = "ipnet")]
+test_type!(ipnet_vec<Vec<sqlx::types::ipnet::IpNet>>(Postgres,
+    "'{127.0.0.1,8.8.8.8/24}'::inet[]"
+        == vec![
+           "127.0.0.1".parse::<sqlx::types::ipnet::IpNet>().unwrap(),
+           "8.8.8.8/24".parse::<sqlx::types::ipnet::IpNet>().unwrap()
+        ]
 ));
 
 #[cfg(feature = "ipnetwork")]

@@ -17,8 +17,8 @@ fn ui_tests() {
             t.compile_fail("tests/ui/postgres/gated/uuid.rs");
         }
 
-        if cfg!(not(feature = "ipnetwork")) {
-            t.compile_fail("tests/ui/postgres/gated/ipnetwork.rs");
+        if cfg!(not(feature = "ipnet")) && cfg!(not(feature = "ipnetwork")) {
+            t.compile_fail("tests/ui/postgres/gated/ipnet.rs");
         }
     }
 

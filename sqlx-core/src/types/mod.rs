@@ -67,6 +67,13 @@ pub use bigdecimal::BigDecimal;
 #[doc(no_inline)]
 pub use rust_decimal::Decimal;
 
+#[cfg(feature = "ipnet")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ipnet")))]
+pub mod ipnet {
+    #[doc(no_inline)]
+    pub use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+}
+
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {

@@ -81,6 +81,21 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | UUID                                                 |
 //!
+//! ### [`ipnet`](https://crates.io/crates/ipnet)
+//!
+//! Requires the `ipnet` Cargo feature flag (takes precedence over `ipnetwork` if both are used).
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ipnet::IpNet`                        | INET, CIDR                                           |
+//! | `std::net::IpAddr`                    | INET, CIDR                                           |
+//!
+//! Note that because `IpAddr` does not support network prefixes, it is an error to attempt to decode
+//! an `IpAddr` from a `INET` or `CIDR` value with a network prefix smaller than the address' full width:
+//! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
+//!
+//! `IpNet` does not have this limitation.
+//!
 //! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
 //!
 //! Requires the `ipnetwork` Cargo feature flag.
@@ -90,11 +105,7 @@
 //! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
 //! | `std::net::IpAddr`                    | INET, CIDR                                           |
 //!
-//! Note that because `IpAddr` does not support network prefixes, it is an error to attempt to decode
-//! an `IpAddr` from a `INET` or `CIDR` value with a network prefix smaller than the address' full width:
-//! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
-//!
-//! `IpNetwork` does not have this limitation.
+//! The same `IpAddr` limitation for smaller network prefixes applies as with `ipnet`.
 //!
 //! ### [`mac_address`](https://crates.io/crates/mac_address)
 //!
@@ -244,11 +255,11 @@ mod time;
 #[cfg(feature = "uuid")]
 mod uuid;
 
-#[cfg(feature = "ipnetwork")]
-mod ipnetwork;
+#[cfg(feature = "ipnet")]
+mod ipnet;
 
 #[cfg(feature = "ipnetwork")]
-mod ipaddr;
+mod ipnetwork;
 
 #[cfg(feature = "mac_address")]
 mod mac_address;
