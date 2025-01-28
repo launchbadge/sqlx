@@ -271,6 +271,32 @@ use crate::{error::Error, row::Row};
 ///     }
 /// }
 /// ```
+///
+/// By default the `#[sqlx(json)]` attribute will assume that the underlying database row is
+/// _not_ NULL. This can cause issues when your field type is an `Option<T>` because this would be
+/// represented as the _not_ NULL (in terms of DB) JSON value of `null`.
+///
+/// If you wish to describe a database row which _is_ NULLable but _cannot_ contain the JSON value `null`,
+/// use the `#[sqlx(json(nullable))]` attrubute.
+///
+/// For example
+/// ```rust,ignore
+/// #[derive(serde::Deserialize)]
+/// struct Data {
+///     field1: String,
+///     field2: u64
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(json(nullable))]
+///     metadata: Option<Data>
+/// }
+/// ```
+/// Would describe a database field which _is_ NULLable but if it exists it must be the JSON representation of `Data`
+/// and cannot be the JSON value `null`
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }

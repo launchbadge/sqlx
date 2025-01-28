@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote_spanned;
 use syn::{
-    punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr, Meta, Token, Type,
-    Variant,
+    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr,
+    Meta, Token, Type, Variant,
 };
 
 macro_rules! assert_attribute {
@@ -61,13 +61,18 @@ pub struct SqlxContainerAttributes {
     pub default: bool,
 }
 
+pub enum JsonAttribute {
+    NonNullable,
+    Nullable,
+}
+
 pub struct SqlxChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
     pub try_from: Option<Type>,
     pub skip: bool,
-    pub json: bool,
+    pub json: Option<JsonAttribute>,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -144,7 +149,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
     let mut try_from = None;
     let mut flatten = false;
     let mut skip: bool = false;
-    let mut json = false;
+    let mut json = None;
 
     for attr in input.iter().filter(|a| a.path().is_ident("sqlx")) {
         attr.parse_nested_meta(|meta| {
@@ -163,13 +168,21 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
             } else if meta.path.is_ident("skip") {
                 skip = true;
             } else if meta.path.is_ident("json") {
-                json = true;
+                if meta.input.peek(syn::token::Paren) {
+                    let content;
+                    parenthesized!(content in meta.input);
+                    let literal: Ident = content.parse()?;
+                    assert_eq!(literal.to_string(), "nullable", "Unrecognized `json` attribute. Valid values are `json` or `json(nullable)`");
+                    json = Some(JsonAttribute::Nullable);
+                } else {
+                    json = Some(JsonAttribute::NonNullable);
+                }
             }
 
             Ok(())
         })?;
 
-        if json && flatten {
+        if json.is_some() && flatten {
             fail!(
                 attr,
                 "Cannot use `json` and `flatten` together on the same field"
