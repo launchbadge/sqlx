@@ -23,8 +23,16 @@ pub struct SqliteError {
 
 impl SqliteError {
     pub(crate) fn new(handle: *mut sqlite3) -> Self {
+        Self::try_new(handle).expect("There should be an error")
+    }
+
+    pub(crate) fn try_new(handle: *mut sqlite3) -> Option<Self> {
         // returns the extended result code even when extended result codes are disabled
         let code: c_int = unsafe { sqlite3_extended_errcode(handle) };
+
+        if code == 0 {
+            return None;
+        }
 
         // return English-language text that describes the error
         let message = unsafe {
@@ -34,10 +42,10 @@ impl SqliteError {
             from_utf8_unchecked(CStr::from_ptr(msg).to_bytes())
         };
 
-        Self {
+        Some(Self {
             code,
             message: message.to_owned(),
-        }
+        })
     }
 
     /// For errors during extension load, the error message is supplied via a separate pointer

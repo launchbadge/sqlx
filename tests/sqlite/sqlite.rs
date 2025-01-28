@@ -1172,3 +1172,24 @@ async fn test_multiple_set_preupdate_hook_calls_drop_old_handler() -> anyhow::Re
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_get_last_error() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let _ = sqlx::query("select 1").fetch_one(&mut conn).await?;
+
+    {
+        let mut handle = conn.lock_handle().await?;
+        assert!(handle.last_error().is_none());
+    }
+
+    let _ = sqlx::query("invalid statement").fetch_one(&mut conn).await;
+
+    {
+        let mut handle = conn.lock_handle().await?;
+        assert!(handle.last_error().is_some());
+    }
+
+    Ok(())
+}
