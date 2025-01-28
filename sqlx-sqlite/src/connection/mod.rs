@@ -105,9 +105,6 @@ unsafe impl Send for RollbackHookHandler {}
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
 
-    // transaction status
-    pub(crate) transaction_depth: usize,
-
     pub(crate) statements: Statements,
 
     log_settings: LogSettings,
@@ -255,11 +252,12 @@ impl Connection for SqliteConnection {
         Transaction::begin(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        self.worker.shared.get_transaction_depth()
+    }
+
     fn cached_statements_size(&self) -> usize {
-        self.worker
-            .shared
-            .cached_statements_size
-            .load(std::sync::atomic::Ordering::Acquire)
+        self.worker.shared.get_cached_statements_size()
     }
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {

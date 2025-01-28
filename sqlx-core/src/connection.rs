@@ -1,7 +1,7 @@
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
 use std::fmt::Debug;
@@ -48,6 +48,27 @@ pub trait Connection: Send {
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized;
+
+    /// Returns the current transaction depth.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&self) -> usize {
+        // Fallback implementation to avoid breaking changes
+        <Self::Database as Database>::TransactionManager::get_transaction_depth(self)
+    }
+
+    /// Checks if the connection is currently in a transaction.
+    ///
+    /// This method returns `true` if the current transaction depth is greater than 0,
+    /// indicating that a transaction is active. It returns `false` if the transaction depth is 0,
+    /// meaning no transaction is active.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        self.get_transaction_depth() != 0
+    }
 
     /// Execute the function inside a transaction.
     ///

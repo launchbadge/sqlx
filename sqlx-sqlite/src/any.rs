@@ -53,6 +53,10 @@ impl AnyConnectionBackend for SqliteConnection {
         SqliteTransactionManager::start_rollback(self)
     }
 
+    fn get_transaction_depth(&self) -> usize {
+        SqliteTransactionManager::get_transaction_depth(self)
+    }
+
     fn shrink_buffers(&mut self) {
         // NO-OP.
     }
