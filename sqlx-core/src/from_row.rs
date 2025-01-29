@@ -111,7 +111,8 @@ use crate::{error::Error, row::Row};
 /// different placeholder values, if applicable.
 ///
 /// This is similar to how `#[serde(default)]` behaves.
-/// ### `flatten`
+///
+/// #### `flatten`
 ///
 /// If you want to handle a field that implements [`FromRow`],
 /// you can use the `flatten` attribute to specify that you want
@@ -175,33 +176,6 @@ use crate::{error::Error, row::Row};
 ///
 /// // `Default` for `Vec<Address>` is an empty vector.
 /// assert!(user.addresses.is_empty());
-/// ```
-///
-/// ## Manual implementation
-///
-/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
-/// have a struct with a field that needs manual decoding:
-///
-///
-/// ```rust,ignore
-/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
-/// struct MyCustomType {
-///     custom: String,
-/// }
-///
-/// struct Foo {
-///     bar: MyCustomType,
-/// }
-///
-/// impl FromRow<'_, SqliteRow> for Foo {
-///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
-///         Ok(Self {
-///             bar: MyCustomType {
-///                 custom: row.try_get("custom")?
-///             }
-///         })
-///     }
-/// }
 /// ```
 ///
 /// #### `try_from`
@@ -297,6 +271,33 @@ use crate::{error::Error, row::Row};
 /// ```
 /// Would describe a database field which _is_ NULLable but if it exists it must be the JSON representation of `Data`
 /// and cannot be the JSON value `null`
+///
+/// ## Manual implementation
+///
+/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
+/// have a struct with a field that needs manual decoding:
+///
+///
+/// ```rust,ignore
+/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
+/// struct MyCustomType {
+///     custom: String,
+/// }
+///
+/// struct Foo {
+///     bar: MyCustomType,
+/// }
+///
+/// impl FromRow<'_, SqliteRow> for Foo {
+///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+///         Ok(Self {
+///             bar: MyCustomType {
+///                 custom: row.try_get("custom")?
+///             }
+///         })
+///     }
+/// }
+/// ```
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
