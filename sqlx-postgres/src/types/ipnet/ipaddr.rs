@@ -51,8 +51,8 @@ where
     fn decode(value: PgValueRef<'db>) -> Result<Self, BoxDynError> {
         let ipnet = IpNet::decode(value)?;
 
-        if matches!(ipnet, IpNet::V4(_)) && ipnet.prefix_len() != 32
-            || matches!(ipnet, IpNet::V6(_)) && ipnet.prefix_len() != 128
+        if matches!(ipnet, IpNet::V4(net) if net.prefix_len() != 32)
+            || matches!(ipnet, IpNet::V6(net) if net.prefix_len() != 128)
         {
             Err("lossy decode from inet/cidr")?
         }

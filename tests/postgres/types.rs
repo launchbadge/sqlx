@@ -2,6 +2,7 @@ extern crate time_ as time;
 
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::str::FromStr;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -9,7 +10,6 @@ use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
 use sqlx_core::executor::Executor;
 use sqlx_core::types::Text;
-use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
     "NULL::int2" == None::<i16>
@@ -174,15 +174,19 @@ test_type!(uuid_vec<Vec<sqlx::types::Uuid>>(Postgres,
 #[cfg(feature = "ipnet")]
 test_type!(ipnet<sqlx::types::ipnet::IpNet>(Postgres,
     "'127.0.0.1'::inet"
-        == "127.0.0.1"
+        == "127.0.0.1/32"
             .parse::<sqlx::types::ipnet::IpNet>()
             .unwrap(),
     "'8.8.8.8/24'::inet"
         == "8.8.8.8/24"
             .parse::<sqlx::types::ipnet::IpNet>()
             .unwrap(),
+    "'10.1.1/24'::inet"
+        == "10.1.1.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
     "'::ffff:1.2.3.0'::inet"
-        == "::ffff:1.2.3.0"
+        == "::ffff:1.2.3.0/128"
             .parse::<sqlx::types::ipnet::IpNet>()
             .unwrap(),
     "'2001:4f8:3:ba::/64'::inet"
@@ -264,7 +268,7 @@ test_type!(bitvec<sqlx::types::BitVec>(
 test_type!(ipnet_vec<Vec<sqlx::types::ipnet::IpNet>>(Postgres,
     "'{127.0.0.1,8.8.8.8/24}'::inet[]"
         == vec![
-           "127.0.0.1".parse::<sqlx::types::ipnet::IpNet>().unwrap(),
+           "127.0.0.1/32".parse::<sqlx::types::ipnet::IpNet>().unwrap(),
            "8.8.8.8/24".parse::<sqlx::types::ipnet::IpNet>().unwrap()
         ]
 ));

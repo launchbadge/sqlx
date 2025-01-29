@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[cfg(feature = "ipnet")]
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
@@ -75,7 +75,14 @@ impl Decode<'_, Postgres> for IpNet {
         let bytes = match value.format() {
             PgValueFormat::Binary => value.as_bytes()?,
             PgValueFormat::Text => {
-                return Ok(value.as_str()?.parse()?);
+                let s = value.as_str()?;
+                println!("{s}");
+                if s.contains('/') {
+                    return Ok(s.parse()?);
+                }
+                // IpNet::from_str doesn't handle conversion from IpAddr to IpNet
+                let addr: IpAddr = s.parse()?;
+                return Ok(addr.into());
             }
         };
 
