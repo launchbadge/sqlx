@@ -81,28 +81,28 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | UUID                                                 |
 //!
-//! ### [`ipnet`](https://crates.io/crates/ipnet)
+//! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
 //!
-//! Requires the `ipnet` Cargo feature flag (takes precedence over `ipnetwork` if both are used).
+//! Requires the `ipnetwork` Cargo feature flag (takes precedence over `ipnet` if both are used).
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `ipnet::IpNet`                        | INET, CIDR                                           |
+//! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
 //! | `std::net::IpAddr`                    | INET, CIDR                                           |
 //!
 //! Note that because `IpAddr` does not support network prefixes, it is an error to attempt to decode
 //! an `IpAddr` from a `INET` or `CIDR` value with a network prefix smaller than the address' full width:
 //! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
 //!
-//! `IpNet` does not have this limitation.
+//! `IpNetwork` does not have this limitation.
 //!
-//! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
+//! ### [`ipnet`](https://crates.io/crates/ipnet)
 //!
-//! Requires the `ipnetwork` Cargo feature flag.
+//! Requires the `ipnet` Cargo feature flag.
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
+//! | `ipnet::IpNet`                        | INET, CIDR                                           |
 //! | `std::net::IpAddr`                    | INET, CIDR                                           |
 //!
 //! The same `IpAddr` limitation for smaller network prefixes applies as with `ipnet`.
