@@ -38,6 +38,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgLSeg,
 
+        sqlx::postgres::types::PgBox,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 

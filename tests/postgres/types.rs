@@ -514,6 +514,16 @@ test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
     "lseg('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgLSeg { start_x: 1., start_y: 2., end_x: 3. , end_y: 4.},
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
+    "box('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1. , lower_left_y: 2.},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
+    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1., lower_left_y: 2. }, sqlx::postgres::types::PgBox { upper_right_x: 3.3, upper_right_y: 4.4, lower_left_x: 1.1, lower_left_y: 2.2 }],
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
