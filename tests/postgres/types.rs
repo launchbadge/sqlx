@@ -516,7 +516,7 @@ test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
 
 #[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
-    "box('((1.0, 2.0), (3.0,4.0))')" @= sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1. , lower_left_y: 2.},
+    "box('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1. , lower_left_y: 2.},
 ));
 
 #[cfg(feature = "rust_decimal")]
