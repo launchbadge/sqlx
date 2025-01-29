@@ -191,6 +191,14 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     fn try_from(opts: &'a AnyConnectOptions) -> Result<Self, Self::Error> {
         let mut opts_out = SqliteConnectOptions::from_url(&opts.database_url)?;
         opts_out.log_settings = opts.log_settings.clone();
+
+        if opts.enable_config {
+            let config = sqlx_core::config::Config::from_crate();
+            for extension in config.common.drivers.sqlite.load_extensions.iter() {
+                opts_out = opts_out.extension(extension);
+            }
+        }
+
         Ok(opts_out)
     }
 }

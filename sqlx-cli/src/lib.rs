@@ -131,7 +131,7 @@ pub async fn run(opt: Opt) -> Result<()> {
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
 async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect).await
+    retry_connect_errors(opts, AnyConnection::connect_with_config).await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,
