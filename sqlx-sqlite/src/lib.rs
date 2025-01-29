@@ -127,8 +127,15 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
 pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
-    let opts: SqliteConnectOptions = database_url.parse()?;
+    let mut opts: SqliteConnectOptions = database_url.parse()?;
+
+    let config = sqlx_core::config::Config::from_crate();
+    for extension in config.common.drivers.sqlite.load_extensions.iter() {
+        opts = opts.extension(extension);
+    }
+
     let params = EstablishParams::from_options(&opts)?;
+
     let mut conn = params.establish()?;
 
     // Execute any ancillary `PRAGMA`s
