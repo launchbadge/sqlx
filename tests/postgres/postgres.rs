@@ -2062,3 +2062,58 @@ async fn test_pg_copy_chunked() -> anyhow::Result<()> {
     assert!(copy.finish().await.is_ok());
     Ok(())
 }
+
+async fn test_copy_in_error_case(query: &str, expected_error: &str) -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute("CREATE TEMPORARY TABLE IF NOT EXISTS invalid_copy_target (id int4)")
+        .await?;
+    // Try the COPY operation
+    match conn.copy_in_raw(query).await {
+        Ok(_) => anyhow::bail!("expected error"),
+        Err(e) => assert!(
+            e.to_string().contains(expected_error),
+            "expected error to contain: {expected_error}, got: {e:?}"
+        ),
+    }
+    // Verify connection is still usable
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(2i32, value);
+    Ok(())
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_to_missing_table() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY nonexistent_table (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+        "#,
+        "does not exist",
+    )
+    .await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_empty_query() -> anyhow::Result<()> {
+    test_copy_in_error_case("", "EmptyQuery").await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_syntax_error() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY FROM STDIN WITH (FORMAT CSV);
+        "#,
+        "syntax error",
+    )
+    .await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_invalid_params() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY invalid_copy_target FROM STDIN WITH (FORMAT CSV, INVALID_PARAM true);
+        "#,
+        "invalid_param",
+    )
+    .await
+}
