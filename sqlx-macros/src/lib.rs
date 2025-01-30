@@ -63,6 +63,17 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
     }
 }
 
+#[cfg(feature = "derive")]
+#[proc_macro_derive(ToOrm, attributes(sqlx))]
+pub fn derive_to_orm(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    match derives::expand_derive_to_orm(&input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
 #[cfg(feature = "migrate")]
 #[proc_macro]
 pub fn migrate(input: TokenStream) -> TokenStream {

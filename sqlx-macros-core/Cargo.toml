@@ -67,6 +67,7 @@ syn = { version = "2.0.52", default-features = false, features = ["full", "deriv
 tempfile = { version = "3.10.1" }
 quote = { version = "1.0.26", default-features = false }
 url = { version = "2.2.2" }
+pluralizer = { version = "0.5" }
 
 [lints.rust.unexpected_cfgs]
 level = "warn"

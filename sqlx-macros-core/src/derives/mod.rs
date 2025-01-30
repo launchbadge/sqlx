@@ -2,12 +2,14 @@ mod attributes;
 mod decode;
 mod encode;
 mod row;
+mod orm;
 mod r#type;
 
 pub use decode::expand_derive_decode;
 pub use encode::expand_derive_encode;
 pub use r#type::expand_derive_type;
 pub use row::expand_derive_from_row;
+pub use orm::expand_derive_to_orm;
 
 use self::attributes::RenameAll;
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};

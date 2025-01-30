@@ -5,6 +5,10 @@ use sqlx_postgres::PgHasArrayType;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 use std::ops::Bound;
+use time_::format_description::well_known::iso8601::FormattedComponents::DateTime;
+use sqlx_core::types::chrono;
+use sqlx_core::types::chrono::FixedOffset;
+use sqlx_macros::ToOrm;
 
 // Transparent types are rust-side wrappers over DB types
 #[derive(PartialEq, Debug, sqlx::Type)]
@@ -876,3 +880,183 @@ VALUES ($1)
 
     Ok(())
 }
+
+
+#[sqlx_macros::test]
+async fn test_to_orm() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+CREATE TABLE accounts
+(
+    id         SERIAL PRIMARY KEY,
+    email      VARCHAR                  NOT NULL UNIQUE,
+    count      INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+    "#,
+    )
+        .await?;
+
+    #[derive(Debug, Default, Clone, FromRow, ToOrm)]
+    struct Account {
+        #[sqlx(pk)]
+        #[sqlx(new = "0")]
+        pub id: i32,
+
+        #[sqlx(by)]
+        pub email: String,
+
+        #[sqlx(readonly)]
+        pub count: Option<i32>,
+
+        #[sqlx(created_at)]
+        #[sqlx(new = "chrono::Utc::now().fixed_offset()")]
+        pub created_at: chrono::DateTime<FixedOffset>,
+
+        #[sqlx(updated_at)]
+        #[sqlx(new = "chrono::Utc::now().fixed_offset()")]
+        pub updated_at: chrono::DateTime<FixedOffset>,
+    }
+
+}
+// TODO: Write the following tests to validate the Orm works as expected.
+
+//          let res = Account::by_email(&conn, "alice.dupont@domain.com".to_string())
+//              .await
+//              .unwrap();
+//          assert_eq!(res.is_none(), true);
+
+//         let id = Uuid::new_v4();
+//         let res = User::by_id(&pool, id).await.unwrap();
+//         assert_eq!(res.is_none(), true);
+
+//         let mut u = User::default();
+//         u.email = "alice.dupont@domain.com".to_string();
+//         let u = u.save(&pool).await.unwrap();
+//
+//         let res = User::by_id(&pool, u.id.clone()).await.unwrap();
+//         assert_eq!(res.is_none(), false);
+//
+//         let u = res.unwrap();
+//         assert_eq!(u.created_at.to_rfc2822() == u.updated_at.to_rfc2822(), true);
+
+//         let mut u = User::default();
+//         u.email = "alice.dupont@domain.com".to_string();
+//         let mut u = u.save(&pool).await.unwrap();
+//
+//         // Needed for the created_at != updated_at assertion.
+//         sleep(Duration::from_secs(1));
+//
+//         u.email = "alice.dupont@new-domain.com".to_string();
+//         let u = u.save(&pool).await.unwrap();
+//         let res = User::by_id(&pool, u.id.clone()).await.unwrap();
+//         assert_eq!(res.is_none(), false);
+//         let u = res.unwrap();
+//         assert_eq!(u.email, "alice.dupont@new-domain.com".to_string());
+//         assert_eq!(u.created_at.to_rfc3339() != u.updated_at.to_rfc3339(), true);
+
+//         let mut u = User::default();
+//         u.email = "alice.dupont@domain.com".to_string();
+//         let u = u.save(&pool).await.unwrap();
+//
+//         let res = User::by_id(&pool, u.id.clone()).await.unwrap();
+//         assert_eq!(res.is_none(), false);
+//
+//         u.delete(&pool).await.unwrap();
+//         let res = User::by_id(&pool, u.id.clone()).await.unwrap();
+//         assert_eq!(res.is_none(), true);
+
+//         for i in 0..10 {
+//             let mut u = User::default();
+//             u.email = format!("alice.dupont@domain-{i}.com").to_string();
+//             let _ = u.save(&pool).await.unwrap();
+//         }
+//
+//         let res = User::query().limit(2).build(&pool).await.unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+
+//         for i in 0..10 {
+//             let mut u = User::default();
+//             u.email = format!("alice.dupont@domain-{i}.com").to_string();
+//             let _ = u.save(&pool).await.unwrap();
+//         }
+//
+//         let res = User::query()
+//             .order_by_email(OrderBy::Desc)
+//             .limit(2)
+//             .build(&pool)
+//             .await
+//             .unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+//         let u = res.last().unwrap();
+//         assert_eq!(u.email, "alice.dupont@domain-8.com");
+//
+//         let res = User::query()
+//             .order_by_email(OrderBy::Desc)
+//             .limit(2)
+//             .offset(2)
+//             .build(&pool)
+//             .await
+//             .unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+//         let u = res.last().unwrap();
+//         assert_eq!(u.email, "alice.dupont@domain-6.com");
+
+//         for i in 0..10 {
+//             let mut u = User::default();
+//             u.email = format!("alice.dupont@domain-{i}.com").to_string();
+//             let _ = u.save(&pool).await.unwrap();
+//         }
+//
+//         for i in 0..10 {
+//             let mut u = User::default();
+//             u.email = format!("jean.dupont@domain-{i}.com").to_string();
+//             let _ = u.save(&pool).await.unwrap();
+//         }
+//
+//         let res = User::query()
+//             .group_by_email()
+//             .group_by_id()
+//             .order_by_email(OrderBy::Desc)
+//             .limit(2)
+//             .build(&pool)
+//             .await
+//             .unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+//         let u = res.last().unwrap();
+//         assert_eq!(u.email, "jean.dupont@domain-8.com");
+//
+//         let res = User::query()
+//             .group_by_email()
+//             .group_by_id()
+//             .order_by_email(OrderBy::Desc)
+//             .limit(2)
+//             .offset(2)
+//             .build(&pool)
+//             .await
+//             .unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+//         let u = res.last().unwrap();
+//         assert_eq!(u.email, "jean.dupont@domain-6.com");
+//
+//         let res = User::query()
+//             .group_by_email()
+//             .group_by_id()
+//             .order_by_email(OrderBy::Asc)
+//             .limit(2)
+//             .offset(2)
+//             .build(&pool)
+//             .await
+//             .unwrap();
+//         assert_eq!(res.is_empty(), false);
+//         assert_eq!(res.len(), 2);
+//         let u = res.last().unwrap();
+//         assert_eq!(u.email, "alice.dupont@domain-3.com");
