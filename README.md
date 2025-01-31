@@ -208,7 +208,7 @@ be removed in the future.
 
 -   `migrate`: Add support for the migration management and `migrate!` macro, which allow compile-time embedded migrations.
 
--   `uuid`: Add support for UUID (in Postgres).
+-   `uuid`: Add support for UUID.
 
 -   `chrono`: Add support for date and time types from `chrono`.
 
