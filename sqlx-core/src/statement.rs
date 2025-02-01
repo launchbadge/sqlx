@@ -25,7 +25,9 @@ pub trait Statement: Send + Sync {
     fn to_owned(&self) -> <Self::Database as Database>::Statement;
 
     /// Get the original SQL text used to create this statement.
-    fn sql(&self) -> SqlStr;
+    fn sql_cloned(&self) -> SqlStr;
+
+    fn into_sql(self) -> SqlStr;
 
     /// Get the expected parameters for this statement.
     ///
