@@ -421,7 +421,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         self,
         query: &'q str,
         parameters: &'e [PgTypeInfo],
-    ) -> BoxFuture<'e, Result<PgStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {

@@ -28,8 +28,8 @@ use std::sync::Arc;
 /// The recommended way to incorporate dynamic data or user input in a query is to use
 /// bind parameters, which requires the query to execute as a prepared statement.
 /// See [`query()`] for details.
-/// 
-/// This trait and [`AssertSqlSafe`] are intentionally analogous to 
+///
+/// This trait and [`AssertSqlSafe`] are intentionally analogous to
 /// [`std::panic::UnwindSafe`] and [`std::panic::AssertUnwindSafe`], respectively.
 ///
 /// [injection]: https://en.wikipedia.org/wiki/SQL_injection
@@ -66,7 +66,7 @@ impl SqlSafeStr for &'static str {
 pub struct AssertSqlSafe<T>(pub T);
 
 /// Note: copies the string.
-/// 
+///
 /// It is recommended to pass one of the supported owned string types instead.
 impl<'a> SqlSafeStr for AssertSqlSafe<&'a str> {
     #[inline]
@@ -92,7 +92,7 @@ impl SqlSafeStr for AssertSqlSafe<Box<str>> {
 impl SqlSafeStr for AssertSqlSafe<Arc<str>> {
     #[inline]
     fn into_sql_str(self) -> SqlStr {
-        SqlStr(Repr::Arced(self.into()))
+        SqlStr(Repr::Arced(self.0))
     }
 }
 
@@ -139,7 +139,7 @@ impl SqlStr {
     pub(crate) fn from_arc_string(arc: Arc<String>) -> Self {
         SqlStr(Repr::ArcString(arc))
     }
-    
+
     /// Borrow the inner query string.
     #[inline]
     pub fn as_str(&self) -> &str {

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -6,6 +5,7 @@ use std::thread;
 
 use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use tracing::span::Span;
 
 use sqlx_core::describe::Describe;
@@ -54,7 +54,7 @@ impl WorkerSharedState {
 enum Command {
     Prepare {
         query: Box<str>,
-        tx: oneshot::Sender<Result<SqliteStatement<'static>, Error>>,
+        tx: oneshot::Sender<Result<SqliteStatement, Error>>,
     },
     Describe {
         query: Box<str>,
@@ -335,7 +335,7 @@ impl ConnectionWorker {
         establish_rx.await.map_err(|_| Error::WorkerCrashed)?
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<SqliteStatement<'static>, Error> {
+    pub(crate) async fn prepare(&mut self, query: &str) -> Result<SqliteStatement, Error> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -495,7 +495,7 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'static>, Error> {
+fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement, Error> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query, true)?;
 
@@ -514,7 +514,7 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'s
     }
 
     Ok(SqliteStatement {
-        sql: Cow::Owned(query.to_string()),
+        sql: AssertSqlSafe(query).into_sql_str(),
         columns: columns.unwrap_or_default(),
         column_names: column_names.unwrap_or_default(),
         parameters,

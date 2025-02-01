@@ -134,7 +134,7 @@ impl AnyConnectionBackend for SqliteConnection {
         &'c mut self,
         sql: &'q str,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
             AnyStatement::try_from_statement(sql, &statement, statement.column_names.clone())

@@ -149,7 +149,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn prepare<'e, 'q: 'e>(
         self,
         query: &'q str,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
     where
         'c: 'e,
     {
@@ -165,7 +165,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         self,
         sql: &'q str,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
     where
         'c: 'e;
 
@@ -195,7 +195,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     fn sql(&self) -> &'q str;
 
     /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&DB::Statement<'q>>;
+    fn statement(&self) -> Option<&DB::Statement>;
 
     /// Returns the arguments to be bound against the query string.
     ///
@@ -219,7 +219,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 
     #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
+    fn statement(&self) -> Option<&DB::Statement> {
         None
     }
 
@@ -241,7 +241,7 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as Database>::Ar
     }
 
     #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
+    fn statement(&self) -> Option<&DB::Statement> {
         None
     }
 

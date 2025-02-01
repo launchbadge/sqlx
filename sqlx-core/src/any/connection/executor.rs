@@ -47,7 +47,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         self,
         sql: &'q str,
         parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'e, Result<AnyStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<AnyStatement, Error>>
     where
         'c: 'e,
     {

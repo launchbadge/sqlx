@@ -22,7 +22,8 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
-use std::{borrow::Cow, pin::pin, sync::Arc};
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
+use std::{pin::pin, sync::Arc};
 
 impl MySqlConnection {
     async fn prepare_statement<'c>(
@@ -301,7 +302,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         self,
         sql: &'q str,
         _parameters: &'e [MySqlTypeInfo],
-    ) -> BoxFuture<'e, Result<MySqlStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<MySqlStatement, Error>>
     where
         'c: 'e,
     {
@@ -322,7 +323,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
             };
 
             Ok(MySqlStatement {
-                sql: Cow::Borrowed(sql),
+                sql: AssertSqlSafe(sql).into_sql_str(),
                 // metadata has internal Arcs for expensive data structures
                 metadata: metadata.clone(),
             })

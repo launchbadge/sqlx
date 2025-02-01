@@ -7,6 +7,7 @@ use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::{Execute, Executor};
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use sqlx_core::Either;
 use std::{future, pin::pin};
 
@@ -76,7 +77,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         self,
         sql: &'q str,
         _parameters: &[SqliteTypeInfo],
-    ) -> BoxFuture<'e, Result<SqliteStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<SqliteStatement, Error>>
     where
         'c: 'e,
     {
@@ -84,7 +85,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             let statement = self.worker.prepare(sql).await?;
 
             Ok(SqliteStatement {
-                sql: sql.into(),
+                sql: AssertSqlSafe(sql).into_sql_str(),
                 ..statement
             })
         })
