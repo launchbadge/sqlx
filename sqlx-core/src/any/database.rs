@@ -28,7 +28,7 @@ impl Database for Any {
     type Arguments<'q> = AnyArguments<'q>;
     type ArgumentBuffer<'q> = AnyArgumentBuffer<'q>;
 
-    type Statement<'q> = AnyStatement<'q>;
+    type Statement = AnyStatement;
 
     const NAME: &'static str = "Any";
 
