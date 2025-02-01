@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::Either;
 use crate::PgConnection;
 use hkdf::Hkdf;
-use once_cell::sync::OnceCell;
 use sha2::Sha256;
 use std::ops::{Deref, DerefMut};
+use std::sync::OnceLock;
 
 /// A mutex-like type utilizing [Postgres advisory locks].
 ///
@@ -37,7 +37,7 @@ use std::ops::{Deref, DerefMut};
 pub struct PgAdvisoryLock {
     key: PgAdvisoryLockKey,
     /// The query to execute to release this lock.
-    release_query: OnceCell<String>,
+    release_query: OnceLock<String>,
 }
 
 /// A key type natively used by Postgres advisory locks.
@@ -163,7 +163,7 @@ impl PgAdvisoryLock {
     pub fn with_key(key: PgAdvisoryLockKey) -> Self {
         Self {
             key,
-            release_query: OnceCell::new(),
+            release_query: OnceLock::new(),
         }
     }
 
