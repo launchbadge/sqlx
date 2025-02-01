@@ -52,7 +52,7 @@ where
         self,
         sql: &'q str,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>> {
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })

@@ -16,12 +16,12 @@ use either::Either;
 ///
 /// Statements can be re-used with any connection and on first-use it will be re-prepared and
 /// cached within the connection.
-pub trait Statement<'q>: Send + Sync {
+pub trait Statement: Send + Sync {
     type Database: Database;
 
     /// Creates an owned statement from this statement reference. This copies
     /// the original SQL text.
-    fn to_owned(&self) -> <Self::Database as Database>::Statement<'static>;
+    fn to_owned(&self) -> <Self::Database as Database>::Statement;
 
     /// Get the original SQL text used to create this statement.
     fn sql(&self) -> &str;

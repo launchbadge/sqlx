@@ -15,7 +15,7 @@ use crate::types::Type;
 /// A single SQL query as a prepared statement. Returned by [`query()`].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
-    pub(crate) statement: Either<&'q str, &'q DB::Statement<'q>>,
+    pub(crate) statement: Either<&'q str, &'q DB::Statement>,
     pub(crate) arguments: Option<Result<A, BoxDynError>>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,
@@ -51,7 +51,7 @@ where
         }
     }
 
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
+    fn statement(&self) -> Option<&DB::Statement> {
         match self.statement {
             Either::Right(statement) => Some(statement),
             Either::Left(_) => None,
@@ -308,7 +308,7 @@ where
     }
 
     #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
+    fn statement(&self) -> Option<&DB::Statement> {
         self.inner.statement()
     }
 
@@ -498,7 +498,7 @@ where
 
 /// Execute a single SQL query as a prepared statement (explicitly created).
 pub fn query_statement<'q, DB>(
-    statement: &'q DB::Statement<'q>,
+    statement: &'q DB::Statement,
 ) -> Query<'q, DB, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
@@ -513,7 +513,7 @@ where
 
 /// Execute a single SQL query as a prepared statement (explicitly created), with the given arguments.
 pub fn query_statement_with<'q, DB, A>(
-    statement: &'q DB::Statement<'q>,
+    statement: &'q DB::Statement,
     arguments: A,
 ) -> Query<'q, DB, A>
 where
