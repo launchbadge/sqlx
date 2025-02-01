@@ -9,7 +9,7 @@ use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -637,8 +637,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         sqlx_core::rt::spawn(async move {
             while !pool.is_closed() {
-                let acquire = pool.acquire();
-                futures::pin_mut!(acquire);
+                let mut acquire = pin!(pool.acquire());
 
                 // poll the acquire future once to put the waiter in the queue
                 future::poll_fn(move |cx| {

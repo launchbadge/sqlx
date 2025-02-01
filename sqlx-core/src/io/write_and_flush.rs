@@ -1,10 +1,9 @@
 use crate::error::Error;
-use futures_core::Future;
-use futures_util::ready;
 use sqlx_rt::AsyncWrite;
+use std::future::Future;
 use std::io::{BufRead, Cursor};
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 // Atomic operation that writes the full buffer to the stream, flushes the stream, and then
 // clears the buffer (even if either of the two previous operations failed).

@@ -8,7 +8,7 @@ use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::{Execute, Executor};
 use sqlx_core::Either;
-use std::future;
+use std::{future, pin::pin};
 
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
@@ -56,13 +56,11 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(async move {
-            let stream = self
+            let mut stream = pin!(self
                 .worker
                 .execute(sql, arguments, self.row_channel_size, persistent, Some(1))
                 .map_ok(flume::Receiver::into_stream)
-                .try_flatten_stream();
-
-            futures_util::pin_mut!(stream);
+                .try_flatten_stream());
 
             while let Some(res) = stream.try_next().await? {
                 if let Either::Right(row) = res {
