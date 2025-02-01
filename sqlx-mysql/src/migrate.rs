@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use futures_core::future::BoxFuture;
 pub(crate) use sqlx_core::migrate::*;
+use sqlx_core::sql_str::AssertSqlSafe;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -37,7 +38,7 @@ impl MigrateDatabase for MySql {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!("CREATE DATABASE `{database}`"))
+                .execute(AssertSqlSafe(format!("CREATE DATABASE `{database}`")))
                 .await?;
 
             Ok(())
@@ -66,7 +67,9 @@ impl MigrateDatabase for MySql {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!("DROP DATABASE IF EXISTS `{database}`"))
+                .execute(AssertSqlSafe(format!(
+                    "DROP DATABASE IF EXISTS `{database}`"
+                )))
                 .await?;
 
             Ok(())
@@ -200,7 +203,8 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .await?;
 
             let _ = tx
-                .execute(&*migration.sql)
+                // We can't use `SqlStr` in `Migration` because it can't be used in a const context
+                .execute(AssertSqlSafe(migration.sql.to_string()))
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -269,7 +273,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .execute(&mut *tx)
             .await?;
 
-            tx.execute(&*migration.sql).await?;
+            tx.execute(AssertSqlSafe(migration.sql.to_string())).await?;
 
             // language=SQL
             let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?"#)

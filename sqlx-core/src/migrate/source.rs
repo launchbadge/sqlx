@@ -1,6 +1,5 @@
 use crate::error::BoxDynError;
 use crate::migrate::{Migration, MigrationType};
-use crate::sql_str::AssertSqlSafe;
 use futures_core::future::BoxFuture;
 
 use std::borrow::Cow;
@@ -132,7 +131,7 @@ pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, Resolv
                 version,
                 Cow::Owned(description),
                 migration_type,
-                AssertSqlSafe(sql),
+                Cow::Owned(sql),
                 no_tx,
             ),
             entry_path,

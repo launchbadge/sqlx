@@ -4,6 +4,7 @@ use crate::executor::Executor;
 use crate::{MySqlConnectOptions, MySqlConnection};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::Url;
 use std::time::Duration;
 
@@ -77,7 +78,7 @@ impl ConnectOptions for MySqlConnectOptions {
             }
 
             if !options.is_empty() {
-                conn.execute(&*format!(r#"SET {};"#, options.join(",")))
+                conn.execute(AssertSqlSafe(format!(r#"SET {};"#, options.join(","))))
                     .await?;
             }
 
