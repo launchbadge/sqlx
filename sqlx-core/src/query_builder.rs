@@ -43,6 +43,8 @@ impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
     }
 }
 
+const ERROR: &str = "BUG: query must not be shared at this point in time";
+
 impl<'args, DB: Database> QueryBuilder<'args, DB>
 where
     DB: Database,
@@ -118,7 +120,7 @@ where
     /// e.g. check that strings aren't too long, numbers are within expected ranges, etc.
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
         self.sanity_check();
-        let query: &mut String = Arc::get_mut(&mut self.query).expect("");
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
 
         write!(query, "{sql}").expect("error formatting `sql`");
 
@@ -161,7 +163,7 @@ where
             .expect("BUG: Arguments taken already");
         arguments.add(value).expect("Failed to add argument");
 
-        let query: &mut String = Arc::get_mut(&mut self.query).expect("");
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
         arguments
             .format_placeholder(query)
             .expect("error in format_placeholder");
@@ -516,7 +518,7 @@ where
     /// The query is truncated to the initial fragment provided to [`new()`][Self::new] and
     /// the bind arguments are reset.
     pub fn reset(&mut self) -> &mut Self {
-        let query: &mut String = Arc::get_mut(&mut self.query).expect("");
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
         query.truncate(self.init_len);
         self.arguments = Some(Default::default());
 
