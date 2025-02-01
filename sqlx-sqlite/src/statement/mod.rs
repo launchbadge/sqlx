@@ -2,8 +2,8 @@ use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::{Sqlite, SqliteArguments, SqliteColumn, SqliteTypeInfo};
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::{Either, HashMap};
-use std::borrow::Cow;
 use std::sync::Arc;
 
 pub(crate) use sqlx_core::statement::*;
@@ -17,19 +17,19 @@ pub(crate) use r#virtual::VirtualStatement;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::rc_buffer)]
-pub struct SqliteStatement<'q> {
-    pub(crate) sql: Cow<'q, str>,
+pub struct SqliteStatement {
+    pub(crate) sql: SqlStr,
     pub(crate) parameters: usize,
     pub(crate) columns: Arc<Vec<SqliteColumn>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
-impl<'q> Statement<'q> for SqliteStatement<'q> {
+impl Statement for SqliteStatement {
     type Database = Sqlite;
 
-    fn to_owned(&self) -> SqliteStatement<'static> {
-        SqliteStatement::<'static> {
-            sql: Cow::Owned(self.sql.clone().into_owned()),
+    fn to_owned(&self) -> SqliteStatement {
+        SqliteStatement {
+            sql: self.sql.clone(),
             parameters: self.parameters,
             columns: Arc::clone(&self.columns),
             column_names: Arc::clone(&self.column_names),
@@ -37,7 +37,7 @@ impl<'q> Statement<'q> for SqliteStatement<'q> {
     }
 
     fn sql(&self) -> &str {
-        &self.sql
+        &self.sql.as_str()
     }
 
     fn parameters(&self) -> Option<Either<&[SqliteTypeInfo], usize>> {
@@ -51,8 +51,8 @@ impl<'q> Statement<'q> for SqliteStatement<'q> {
     impl_statement_query!(SqliteArguments<'_>);
 }
 
-impl ColumnIndex<SqliteStatement<'_>> for &'_ str {
-    fn index(&self, statement: &SqliteStatement<'_>) -> Result<usize, Error> {
+impl ColumnIndex<SqliteStatement> for &'_ str {
+    fn index(&self, statement: &SqliteStatement) -> Result<usize, Error> {
         statement
             .column_names
             .get(*self)

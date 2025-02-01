@@ -123,7 +123,7 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
         self.0
     }
 
-    fn statement(&self) -> Option<&<DB as Database>::Statement<'q>> {
+    fn statement(&self) -> Option<&<DB as Database>::Statement> {
         None
     }
 

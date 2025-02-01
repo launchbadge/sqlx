@@ -17,8 +17,9 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use sqlx_core::arguments::Arguments;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use sqlx_core::Either;
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 async fn prepare(
     conn: &mut PgConnection,
@@ -442,7 +443,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         self,
         sql: &'q str,
         parameters: &'e [PgTypeInfo],
-    ) -> BoxFuture<'e, Result<PgStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
@@ -452,7 +453,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
             let (_, metadata) = self.get_or_prepare(sql, parameters, true, None).await?;
 
             Ok(PgStatement {
-                sql: Cow::Borrowed(sql),
+                sql: AssertSqlSafe(sql).into_sql_str(),
                 metadata,
             })
         })
