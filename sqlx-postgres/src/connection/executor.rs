@@ -15,9 +15,9 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::TryStreamExt;
+use futures_util::{pin_mut, TryStreamExt};
 use sqlx_core::arguments::Arguments;
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
+use sqlx_core::sql_str::{SqlSafeStr, SqlStr};
 use sqlx_core::Either;
 use std::{pin::pin, sync::Arc};
 
@@ -193,14 +193,12 @@ impl PgConnection {
 
     pub(crate) async fn run<'e, 'c: 'e, 'q: 'e>(
         &'c mut self,
-        query: &'q str,
+        query: SqlStr,
         arguments: Option<PgArguments>,
         limit: u8,
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
-        let mut logger = QueryLogger::new(query, self.inner.log_settings.clone());
-
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
@@ -223,7 +221,7 @@ impl PgConnection {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
             let (statement, metadata_) = self
-                .get_or_prepare(query, &arguments.types, persistent, metadata_opt)
+                .get_or_prepare(query.as_str(), &arguments.types, persistent, metadata_opt)
                 .await?;
 
             metadata = metadata_;
@@ -274,7 +272,7 @@ impl PgConnection {
             PgValueFormat::Binary
         } else {
             // Query will trigger a ReadyForQuery
-            self.inner.stream.write_msg(Query(query))?;
+            self.inner.stream.write_msg(Query(query.as_str()))?;
             self.inner.pending_ready_for_query_count += 1;
 
             // metadata starts out as "nothing"
@@ -285,6 +283,7 @@ impl PgConnection {
         };
 
         self.inner.stream.flush().await?;
+        let mut logger = QueryLogger::new(query, self.inner.log_settings.clone());
 
         Ok(try_stream! {
             loop {
@@ -385,7 +384,6 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'q: 'e,
         E: 'q,
     {
-        let sql = query.sql();
         // False positive: https://github.com/rust-lang/rust-clippy/issues/12560
         #[allow(clippy::map_clone)]
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
@@ -394,7 +392,9 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
         Box::pin(try_stream! {
             let arguments = arguments?;
-            let mut s = pin!(self.run(sql, arguments, 0, persistent, metadata).await?);
+            let sql = query.sql();
+            let s = self.run(sql, arguments, 0, persistent, metadata).await?;
+            pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);
@@ -411,7 +411,6 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'q: 'e,
         E: 'q,
     {
-        let sql = query.sql();
         // False positive: https://github.com/rust-lang/rust-clippy/issues/12560
         #[allow(clippy::map_clone)]
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
@@ -419,6 +418,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let persistent = query.persistent();
 
         Box::pin(async move {
+            let sql = query.sql();
             let arguments = arguments?;
             let mut s = pin!(self.run(sql, arguments, 1, persistent, metadata).await?);
 
@@ -437,37 +437,38 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: impl SqlSafeStr,
         parameters: &'e [PgTypeInfo],
     ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
+        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, parameters, true, None).await?;
+            let (_, metadata) = self
+                .get_or_prepare(sql.as_str(), parameters, true, None)
+                .await?;
 
-            Ok(PgStatement {
-                sql: AssertSqlSafe(sql).into_sql_str(),
-                metadata,
-            })
+            Ok(PgStatement { sql, metadata })
         })
     }
 
-    fn describe<'e, 'q: 'e>(
+    fn describe<'e>(
         self,
-        sql: &'q str,
+        sql: impl SqlSafeStr,
     ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
+        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (stmt_id, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
+            let (stmt_id, metadata) = self.get_or_prepare(sql.as_str(), &[], true, None).await?;
 
             let nullable = self.get_nullable_for_columns(stmt_id, &metadata).await?;
 

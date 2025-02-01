@@ -17,7 +17,7 @@ impl TransactionManager for PgTransactionManager {
         Box::pin(async move {
             let rollback = Rollback::new(conn);
             let query = begin_ansi_transaction_sql(rollback.conn.inner.transaction_depth);
-            rollback.conn.queue_simple_query(&query)?;
+            rollback.conn.queue_simple_query(query.as_str())?;
             rollback.conn.inner.transaction_depth += 1;
             rollback.conn.wait_until_ready().await?;
             rollback.defuse();
@@ -29,7 +29,7 @@ impl TransactionManager for PgTransactionManager {
     fn commit(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             if conn.inner.transaction_depth > 0 {
-                conn.execute(&*commit_ansi_transaction_sql(conn.inner.transaction_depth))
+                conn.execute(commit_ansi_transaction_sql(conn.inner.transaction_depth))
                     .await?;
 
                 conn.inner.transaction_depth -= 1;
@@ -42,10 +42,8 @@ impl TransactionManager for PgTransactionManager {
     fn rollback(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             if conn.inner.transaction_depth > 0 {
-                conn.execute(&*rollback_ansi_transaction_sql(
-                    conn.inner.transaction_depth,
-                ))
-                .await?;
+                conn.execute(rollback_ansi_transaction_sql(conn.inner.transaction_depth))
+                    .await?;
 
                 conn.inner.transaction_depth -= 1;
             }
@@ -56,8 +54,10 @@ impl TransactionManager for PgTransactionManager {
 
     fn start_rollback(conn: &mut PgConnection) {
         if conn.inner.transaction_depth > 0 {
-            conn.queue_simple_query(&rollback_ansi_transaction_sql(conn.inner.transaction_depth))
-                .expect("BUG: Rollback query somehow too large for protocol");
+            conn.queue_simple_query(
+                rollback_ansi_transaction_sql(conn.inner.transaction_depth).as_str(),
+            )
+            .expect("BUG: Rollback query somehow too large for protocol");
 
             conn.inner.transaction_depth -= 1;
         }

@@ -7,6 +7,7 @@ use futures_core::future::BoxFuture;
 pub(crate) use sqlx_core::migrate::MigrateError;
 pub(crate) use sqlx_core::migrate::{AppliedMigration, Migration};
 pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase};
+use sqlx_core::sql_str::AssertSqlSafe;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -45,10 +46,10 @@ impl MigrateDatabase for Postgres {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!(
+                .execute(AssertSqlSafe(format!(
                     "CREATE DATABASE \"{}\"",
                     database.replace('"', "\"\"")
-                ))
+                )))
                 .await?;
 
             Ok(())
@@ -76,10 +77,10 @@ impl MigrateDatabase for Postgres {
             let mut conn = options.connect().await?;
 
             let _ = conn
-                .execute(&*format!(
+                .execute(AssertSqlSafe(format!(
                     "DROP DATABASE IF EXISTS \"{}\"",
                     database.replace('"', "\"\"")
-                ))
+                )))
                 .await?;
 
             Ok(())
@@ -99,10 +100,10 @@ impl MigrateDatabase for Postgres {
 
             let pid_type = if version >= 90200 { "pid" } else { "procpid" };
 
-            conn.execute(&*format!(
+            conn.execute(AssertSqlSafe(format!(
                 "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
                  WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
-            ))
+            )))
             .await?;
 
             Self::drop_database(url).await
@@ -277,7 +278,7 @@ async fn execute_migration(
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(&*migration.sql)
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -302,7 +303,7 @@ async fn revert_migration(
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(&*migration.sql)
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
