@@ -3,7 +3,7 @@ use crate::column::ColumnIndex;
 use crate::database::Database;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
-use crate::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
+use crate::sql_str::SqlStr;
 use crate::statement::Statement;
 use crate::HashMap;
 use either::Either;
@@ -32,8 +32,8 @@ impl Statement for AnyStatement {
         }
     }
 
-    fn sql(&self) -> &str {
-        &self.sql.as_str()
+    fn sql(&self) -> SqlStr {
+        self.sql.clone()
     }
 
     fn parameters(&self) -> Option<Either<&[AnyTypeInfo], usize>> {
@@ -64,7 +64,7 @@ impl<'i> ColumnIndex<AnyStatement> for &'i str {
 impl<'q> AnyStatement {
     #[doc(hidden)]
     pub fn try_from_statement<S>(
-        query: &'q str,
+        query: SqlStr,
         statement: &S,
         column_names: Arc<HashMap<UStr, usize>>,
     ) -> crate::Result<Self>
@@ -91,7 +91,7 @@ impl<'q> AnyStatement {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
-            sql: AssertSqlSafe(query).into_sql_str(),
+            sql: query,
             columns,
             column_names,
             parameters,

@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// A SQL string that is safe to execute on a database connection.
 ///
@@ -96,6 +96,13 @@ impl SqlSafeStr for AssertSqlSafe<Arc<str>> {
     }
 }
 
+impl SqlSafeStr for AssertSqlSafe<Arc<String>> {
+    #[inline]
+    fn into_sql_str(self) -> SqlStr {
+        SqlStr(Repr::ArcString(self.0))
+    }
+}
+
 /// A SQL string that is ready to execute on a database connection.
 ///
 /// This is essentially `Cow<'static, str>` but which can be constructed from additional types
@@ -118,8 +125,16 @@ enum Repr {
     ArcString(Arc<String>),
 }
 
+static COUNT_CLONES: Mutex<usize> = Mutex::new(0usize);
+
 impl Clone for SqlStr {
     fn clone(&self) -> Self {
+        let mut lock = COUNT_CLONES.lock().unwrap();
+        *lock += 1;
+        let clones: usize = *lock;
+        drop(lock);
+
+        println!("------- Count clones: {clones} --------\n\n\n");
         Self(match &self.0 {
             Repr::Static(s) => Repr::Static(s),
             Repr::Arced(s) => Repr::Arced(s.clone()),
@@ -136,10 +151,6 @@ impl SqlSafeStr for SqlStr {
 }
 
 impl SqlStr {
-    pub(crate) fn from_arc_string(arc: Arc<String>) -> Self {
-        SqlStr(Repr::ArcString(arc))
-    }
-
     /// Borrow the inner query string.
     #[inline]
     pub fn as_str(&self) -> &str {

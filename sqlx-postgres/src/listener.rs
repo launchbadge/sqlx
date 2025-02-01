@@ -7,6 +7,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 use tracing::Instrument;
@@ -116,7 +117,7 @@ impl PgListener {
     pub async fn listen(&mut self, channel: &str) -> Result<(), Error> {
         self.connection()
             .await?
-            .execute(&*format!(r#"LISTEN "{}""#, ident(channel)))
+            .execute(AssertSqlSafe(format!(r#"LISTEN "{}""#, ident(channel))))
             .await?;
 
         self.channels.push(channel.to_owned());
@@ -133,7 +134,10 @@ impl PgListener {
         self.channels.extend(channels.into_iter().map(|s| s.into()));
 
         let query = build_listen_all_query(&self.channels[beg..]);
-        self.connection().await?.execute(&*query).await?;
+        self.connection()
+            .await?
+            .execute(AssertSqlSafe(query))
+            .await?;
 
         Ok(())
     }
@@ -145,7 +149,7 @@ impl PgListener {
         // UNLISTEN (we've disconnected anyways)
         if let Some(connection) = self.connection.as_mut() {
             connection
-                .execute(&*format!(r#"UNLISTEN "{}""#, ident(channel)))
+                .execute(AssertSqlSafe(format!(r#"UNLISTEN "{}""#, ident(channel))))
                 .await?;
         }
 
@@ -176,7 +180,7 @@ impl PgListener {
             connection.inner.stream.notifications = self.buffer_tx.take();
 
             connection
-                .execute(&*build_listen_all_query(&self.channels))
+                .execute(AssertSqlSafe(build_listen_all_query(&self.channels)))
                 .await?;
 
             self.connection = Some(connection);
@@ -417,14 +421,15 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         async move { self.connection().await?.fetch_optional(query).await }.boxed()
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        query: &'q str,
+        query: impl SqlSafeStr,
         parameters: &'e [PgTypeInfo],
     ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
+        let query = query.into_sql_str();
         async move {
             self.connection()
                 .await?
@@ -435,13 +440,14 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
+    fn describe<'e>(
         self,
-        query: &'q str,
+        query: impl SqlSafeStr,
     ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
+        let query = query.into_sql_str();
         async move { self.connection().await?.describe(query).await }.boxed()
     }
 }

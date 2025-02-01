@@ -1,5 +1,6 @@
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
+use crate::sql_str::SqlStr;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -96,23 +97,23 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         parameters: &[AnyTypeInfo],
     ) -> BoxFuture<'c, crate::Result<AnyStatement>>;
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, crate::Result<Describe<Any>>>;
+    fn describe<'q>(&'q mut self, sql: SqlStr) -> BoxFuture<'q, crate::Result<Describe<Any>>>;
 }

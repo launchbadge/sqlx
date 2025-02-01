@@ -3,6 +3,7 @@ use sqlx::query_builder::QueryBuilder;
 use sqlx::Executor;
 use sqlx::Type;
 use sqlx::{Either, Execute};
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_test::new;
 
 #[test]
@@ -54,18 +55,20 @@ fn test_build() {
     qb.push(" WHERE id = ").push_bind(42i32);
     let query = qb.build();
 
-    assert_eq!(query.sql(), "SELECT * FROM users WHERE id = $1");
     assert_eq!(Execute::persistent(&query), true);
+    assert_eq!(query.sql(), "SELECT * FROM users WHERE id = $1");
 }
 
 #[test]
 fn test_reset() {
     let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
 
-    let _query = qb
-        .push("SELECT * FROM users WHERE id = ")
-        .push_bind(42i32)
-        .build();
+    {
+        let _query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+    }
 
     qb.reset();
 
@@ -76,10 +79,12 @@ fn test_reset() {
 fn test_query_builder_reuse() {
     let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
 
-    let _query = qb
-        .push("SELECT * FROM users WHERE id = ")
-        .push_bind(42i32)
-        .build();
+    {
+        let _query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+    }
 
     qb.reset();
 
@@ -97,8 +102,10 @@ fn test_query_builder_with_args() {
         .push_bind(42i32)
         .build();
 
+    let args = query.take_arguments().unwrap().unwrap();
+
     let mut qb: QueryBuilder<'_, Postgres> =
-        QueryBuilder::with_arguments(query.sql(), query.take_arguments().unwrap().unwrap());
+        QueryBuilder::with_arguments(query.sql().as_str(), args);
     let query = qb.push(" OR membership_level = ").push_bind(3i32).build();
 
     assert_eq!(
@@ -129,7 +136,7 @@ async fn test_max_number_of_binds() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // Indirectly ensures the macros support this many binds since this is what they use.
-    let describe = conn.describe(qb.sql()).await?;
+    let describe = conn.describe(AssertSqlSafe(qb.sql().to_string())).await?;
 
     match describe
         .parameters

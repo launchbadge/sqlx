@@ -4,6 +4,7 @@ use futures_core::stream::BoxStream;
 use crate::database::Database;
 use crate::error::BoxDynError;
 use crate::executor::{Execute, Executor};
+use crate::sql_str::{SqlSafeStr, SqlStr};
 use crate::Error;
 
 // AUTHOR'S NOTE: I was just going to call this API `sql()` and `Sql`, respectively,
@@ -15,7 +16,7 @@ use crate::Error;
 /// One or more raw SQL statements, separated by semicolons (`;`).
 ///
 /// See [`raw_sql()`] for details.
-pub struct RawSql<'q>(&'q str);
+pub struct RawSql(SqlStr);
 
 /// Execute one or more statements as raw SQL, separated by semicolons (`;`).
 ///
@@ -114,12 +115,12 @@ pub struct RawSql<'q>(&'q str);
 ///
 /// See [MySQL manual, section 13.3.3: Statements That Cause an Implicit Commit](https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html) for details.
 /// See also: [MariaDB manual: SQL statements That Cause an Implicit Commit](https://mariadb.com/kb/en/sql-statements-that-cause-an-implicit-commit/).
-pub fn raw_sql(sql: &str) -> RawSql<'_> {
-    RawSql(sql)
+pub fn raw_sql(sql: impl SqlSafeStr) -> RawSql {
+    RawSql(sql.into_sql_str())
 }
 
-impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
-    fn sql(&self) -> &'q str {
+impl<'q, DB: Database> Execute<'q, DB> for RawSql {
+    fn sql(self) -> SqlStr {
         self.0
     }
 
@@ -136,7 +137,7 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql<'q> {
     }
 }
 
-impl<'q> RawSql<'q> {
+impl<'q> RawSql {
     /// Execute the SQL string and return the total number of rows affected.
     #[inline]
     pub async fn execute<'e, E>(

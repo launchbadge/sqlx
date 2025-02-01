@@ -11,6 +11,7 @@ use crate::from_row::FromRow;
 use crate::query_as::{
     query_as, query_as_with_result, query_statement_as, query_statement_as_with, QueryAs,
 };
+use crate::sql_str::{SqlSafeStr, SqlStr};
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement which extracts only the first column of each row.
@@ -25,7 +26,7 @@ where
     A: 'q + IntoArguments<'q, DB>,
 {
     #[inline]
-    fn sql(&self) -> &'q str {
+    fn sql(self) -> SqlStr {
         self.inner.sql()
     }
 
@@ -319,7 +320,7 @@ where
 /// ```
 #[inline]
 pub fn query_scalar<'q, DB, O>(
-    sql: &'q str,
+    sql: impl SqlSafeStr,
 ) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
@@ -337,7 +338,10 @@ where
 ///
 /// For details about prepared statements and allowed SQL syntax, see [`query()`][crate::query::query].
 #[inline]
-pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScalar<'q, DB, O, A>
+pub fn query_scalar_with<'q, DB, O, A>(
+    sql: impl SqlSafeStr,
+    arguments: A,
+) -> QueryScalar<'q, DB, O, A>
 where
     DB: Database,
     A: IntoArguments<'q, DB>,
@@ -349,7 +353,7 @@ where
 /// Same as [`query_scalar_with`] but takes arguments as Result
 #[inline]
 pub fn query_scalar_with_result<'q, DB, O, A>(
-    sql: &'q str,
+    sql: impl SqlSafeStr,
     arguments: Result<A, BoxDynError>,
 ) -> QueryScalar<'q, DB, O, A>
 where

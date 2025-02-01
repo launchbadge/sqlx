@@ -6,6 +6,7 @@ use crate::from_row::FromRow;
 use crate::query::Query;
 use crate::query_as::QueryAs;
 use crate::query_scalar::QueryScalar;
+use crate::sql_str::SqlStr;
 use either::Either;
 
 /// An explicitly prepared statement.
@@ -24,7 +25,7 @@ pub trait Statement: Send + Sync {
     fn to_owned(&self) -> <Self::Database as Database>::Statement;
 
     /// Get the original SQL text used to create this statement.
-    fn sql(&self) -> &str;
+    fn sql(&self) -> SqlStr;
 
     /// Get the expected parameters for this statement.
     ///

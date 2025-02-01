@@ -12,6 +12,7 @@ use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
 use smallvec::SmallVec;
 use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::Arc;
 
 /// Describes the type of the `pg_type.typtype` column
@@ -543,7 +544,7 @@ WHERE rngtypid = $1
         }
 
         let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
-            query_as(&explain).fetch_one(self).await?;
+            query_as(AssertSqlSafe(explain)).fetch_one(self).await?;
 
         let mut nullables = Vec::new();
 
