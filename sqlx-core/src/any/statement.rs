@@ -32,8 +32,12 @@ impl Statement for AnyStatement {
         }
     }
 
-    fn sql(&self) -> SqlStr {
+    fn sql_cloned(&self) -> SqlStr {
         self.sql.clone()
+    }
+
+    fn into_sql(self) -> SqlStr {
+        self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[AnyTypeInfo], usize>> {
@@ -64,8 +68,7 @@ impl<'i> ColumnIndex<AnyStatement> for &'i str {
 impl<'q> AnyStatement {
     #[doc(hidden)]
     pub fn try_from_statement<S>(
-        query: SqlStr,
-        statement: &S,
+        statement: S,
         column_names: Arc<HashMap<UStr, usize>>,
     ) -> crate::Result<Self>
     where
@@ -91,7 +94,7 @@ impl<'q> AnyStatement {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
-            sql: query,
+            sql: statement.into_sql(),
             columns,
             column_names,
             parameters,

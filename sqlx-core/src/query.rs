@@ -47,7 +47,7 @@ where
     #[inline]
     fn sql(self) -> SqlStr {
         match self.statement {
-            Either::Right(statement) => statement.sql(),
+            Either::Right(statement) => statement.sql_cloned(),
             Either::Left(sql) => sql,
         }
     }
