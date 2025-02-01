@@ -34,8 +34,8 @@ impl Statement for PgStatement {
         }
     }
 
-    fn sql(&self) -> &str {
-        &self.sql.as_str()
+    fn sql(&self) -> SqlStr {
+        self.sql.clone()
     }
 
     fn parameters(&self) -> Option<Either<&[PgTypeInfo], usize>> {
