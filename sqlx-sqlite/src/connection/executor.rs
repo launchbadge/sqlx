@@ -7,7 +7,7 @@ use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::{Execute, Executor};
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
+use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::Either;
 use std::{future, pin::pin};
 
@@ -24,12 +24,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         'q: 'e,
         E: 'q,
     {
-        let sql = query.sql();
         let arguments = match query.take_arguments().map_err(Error::Encode) {
             Ok(arguments) => arguments,
             Err(error) => return stream::once(future::ready(Err(error))).boxed(),
         };
         let persistent = query.persistent() && arguments.is_some();
+        let sql = query.sql();
 
         Box::pin(
             self.worker
@@ -49,7 +49,6 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         'q: 'e,
         E: 'q,
     {
-        let sql = query.sql();
         let arguments = match query.take_arguments().map_err(Error::Encode) {
             Ok(arguments) => arguments,
             Err(error) => return future::ready(Err(error)).boxed(),
@@ -57,6 +56,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(async move {
+            let sql = query.sql();
             let mut stream = pin!(self
                 .worker
                 .execute(sql, arguments, self.row_channel_size, persistent, Some(1))
@@ -73,29 +73,28 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: impl SqlSafeStr,
         _parameters: &[SqliteTypeInfo],
     ) -> BoxFuture<'e, Result<SqliteStatement, Error>>
     where
         'c: 'e,
     {
+        let sql = sql.into_sql_str();
         Box::pin(async move {
             let statement = self.worker.prepare(sql).await?;
 
-            Ok(SqliteStatement {
-                sql: AssertSqlSafe(sql).into_sql_str(),
-                ..statement
-            })
+            Ok(statement)
         })
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
+    fn describe<'e>(self, sql: impl SqlSafeStr) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
     where
         'c: 'e,
     {
-        Box::pin(self.worker.describe(sql))
+        let sql = sql.into_sql_str();
+        Box::pin(async move { self.worker.describe(sql).await })
     }
 }
