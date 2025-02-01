@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A SQL string that is safe to execute on a database connection.
 ///
@@ -125,16 +125,8 @@ enum Repr {
     ArcString(Arc<String>),
 }
 
-static COUNT_CLONES: Mutex<usize> = Mutex::new(0usize);
-
 impl Clone for SqlStr {
     fn clone(&self) -> Self {
-        let mut lock = COUNT_CLONES.lock().unwrap();
-        *lock += 1;
-        let clones: usize = *lock;
-        drop(lock);
-
-        println!("------- Count clones: {clones} --------\n\n\n");
         Self(match &self.0 {
             Repr::Static(s) => Repr::Static(s),
             Repr::Arced(s) => Repr::Arced(s.clone()),
