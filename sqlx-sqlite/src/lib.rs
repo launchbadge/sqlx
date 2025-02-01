@@ -57,6 +57,7 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
@@ -132,9 +133,10 @@ pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sql
     let mut conn = params.establish()?;
 
     // Execute any ancillary `PRAGMA`s
-    connection::execute::iter(&mut conn, &opts.pragma_string(), None, false)?.finish()?;
+    connection::execute::iter(&mut conn, AssertSqlSafe(opts.pragma_string()), None, false)?
+        .finish()?;
 
-    connection::describe::describe(&mut conn, query)
+    connection::describe::describe(&mut conn, AssertSqlSafe(query.to_string()).into_sql_str())
 
     // SQLite database is closed immediately when `conn` is dropped
 }

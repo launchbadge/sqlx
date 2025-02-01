@@ -437,7 +437,7 @@ async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
 async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     async fn assert_literal_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
@@ -473,7 +473,7 @@ async fn it_describes_literal_subquery() -> anyhow::Result<()> {
 
 async fn assert_tweet_described(
     conn: &mut sqlx::SqliteConnection,
-    query: &str,
+    query: &'static str,
 ) -> anyhow::Result<()> {
     let info = conn.describe(query).await?;
     let columns = info.columns();
@@ -533,7 +533,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 
     async fn assert_literal_order_by_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
@@ -571,7 +571,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 async fn it_describes_union() -> anyhow::Result<()> {
     async fn assert_union_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
@@ -653,7 +653,7 @@ async fn it_describes_having_group_by() -> anyhow::Result<()> {
 async fn it_describes_strange_queries() -> anyhow::Result<()> {
     async fn assert_single_column_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
         typename: &str,
         nullable: bool,
     ) -> anyhow::Result<()> {

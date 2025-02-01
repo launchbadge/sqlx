@@ -36,8 +36,8 @@ impl Statement for SqliteStatement {
         }
     }
 
-    fn sql(&self) -> &str {
-        &self.sql.as_str()
+    fn sql(&self) -> SqlStr {
+        self.sql.clone()
     }
 
     fn parameters(&self) -> Option<Either<&[SqliteTypeInfo], usize>> {
