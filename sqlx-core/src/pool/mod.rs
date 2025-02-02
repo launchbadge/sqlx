@@ -56,7 +56,7 @@
 
 use std::fmt;
 use std::future::Future;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
@@ -565,11 +565,11 @@ impl CloseEvent {
             .await
             .map_or(Ok(()), |_| Err(Error::PoolClosed))?;
 
-        futures_util::pin_mut!(fut);
+        let mut fut = pin!(fut);
 
         // I find that this is clearer in intent than `futures_util::future::select()`
         // or `futures_util::select_biased!{}` (which isn't enabled anyway).
-        futures_util::future::poll_fn(|cx| {
+        std::future::poll_fn(|cx| {
             // Poll `fut` first as the wakeup event is more likely for it than `self`.
             if let Poll::Ready(ret) = fut.as_mut().poll(cx) {
                 return Poll::Ready(Ok(ret));

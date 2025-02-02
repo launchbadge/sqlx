@@ -5,7 +5,7 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
-use std::future;
+use std::{future, pin::pin};
 
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
@@ -115,8 +115,7 @@ impl AnyConnectionBackend for PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let stream = self.run(query, arguments, 1, persistent, None).await?;
-            futures_util::pin_mut!(stream);
+            let mut stream = pin!(self.run(query, arguments, 1, persistent, None).await?);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
                 return Ok(Some(AnyRow::try_from(&row)?));
