@@ -102,7 +102,8 @@ impl PgConnection {
     pub(super) async fn handle_row_description(
         &mut self,
         desc: Option<RowDescription>,
-        should_fetch: bool,
+        fetch_type_info: bool,
+        fetch_column_description: bool,
     ) -> Result<(Vec<PgColumn>, HashMap<UStr, usize>), Error> {
         let mut columns = Vec::new();
         let mut column_names = HashMap::new();
@@ -121,13 +122,13 @@ impl PgConnection {
             let name = UStr::from(field.name);
 
             let type_info = self
-                .maybe_fetch_type_info_by_oid(field.data_type_id, should_fetch)
+                .maybe_fetch_type_info_by_oid(field.data_type_id, fetch_type_info)
                 .await?;
 
             let origin = if let (Some(relation_oid), Some(attribute_no)) =
                 (field.relation_id, field.relation_attribute_no)
             {
-                self.maybe_fetch_column_origin(relation_oid, attribute_no, should_fetch)
+                self.maybe_fetch_column_origin(relation_oid, attribute_no, fetch_column_description)
                     .await?
             } else {
                 ColumnOrigin::Expression
