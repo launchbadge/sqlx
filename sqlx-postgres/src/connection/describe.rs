@@ -128,7 +128,7 @@ impl PgConnection {
             let origin = if let (Some(relation_oid), Some(attribute_no)) =
                 (field.relation_id, field.relation_attribute_no)
             {
-                self.maybe_fetch_column_origin(relation_oid, attribute_no, should_fetch)
+                self.maybe_fetch_column_origin(relation_oid, attribute_no, fetch_column_description)
                     .await?
             } else {
                 ColumnOrigin::Expression
