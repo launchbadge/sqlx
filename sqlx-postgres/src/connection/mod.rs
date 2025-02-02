@@ -19,7 +19,7 @@ use crate::types::Oid;
 use crate::{PgConnectOptions, PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::connection::*;
-
+use crate::notice::PgNoticeSink;
 pub use self::stream::PgStream;
 
 pub(crate) mod describe;
@@ -76,6 +76,16 @@ impl PgConnection {
     /// the version number of the server in `libpq` format
     pub fn server_version_num(&self) -> Option<u32> {
         self.inner.stream.server_version_num
+    }
+
+    /// Set a consumer for `NoticeResponse`s.
+    ///
+    /// By default, notices are logged at an appropriate level
+    /// under the target `sqlx::postgres::notice`.
+    ///
+    /// See [`PgNoticeSink::log()`] for details.
+    pub fn set_notice_sink(&mut self, sink: PgNoticeSink) {
+        self.inner.stream.notice_sink = sink;
     }
 
     // will return when the connection is ready for another query

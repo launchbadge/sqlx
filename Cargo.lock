@@ -3829,6 +3829,7 @@ dependencies = [
  "crc",
  "dotenvy",
  "etcetera",
+ "futures",
  "futures-channel",
  "futures-core",
  "futures-util",

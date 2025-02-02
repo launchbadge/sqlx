@@ -6,10 +6,10 @@ use smallvec::alloc::borrow::Cow;
 use sqlx_core::bytes::Bytes;
 pub(crate) use sqlx_core::error::*;
 
-use crate::message::{BackendMessage, BackendMessageFormat, Notice, PgSeverity};
+use crate::message::{BackendMessage, BackendMessageFormat, PgNotice, PgSeverity};
 
 /// An error returned from the PostgreSQL database.
-pub struct PgDatabaseError(pub(crate) Notice);
+pub struct PgDatabaseError(pub(crate) PgNotice);
 
 // Error message fields are documented:
 // https://www.postgresql.org/docs/current/protocol-error-fields.html
@@ -225,7 +225,7 @@ impl BackendMessage for PgDatabaseError {
 
     #[inline(always)]
     fn decode_body(buf: Bytes) -> std::result::Result<Self, Error> {
-        Ok(Self(Notice::decode_body(buf)?))
+        Ok(Self(PgNotice::decode_body(buf)?))
     }
 }
 

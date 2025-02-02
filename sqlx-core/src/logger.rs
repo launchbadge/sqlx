@@ -42,22 +42,26 @@ macro_rules! private_tracing_dynamic_event {
 pub fn private_level_filter_to_levels(
     filter: log::LevelFilter,
 ) -> Option<(tracing::Level, log::Level)> {
-    let tracing_level = match filter {
-        log::LevelFilter::Error => Some(tracing::Level::ERROR),
-        log::LevelFilter::Warn => Some(tracing::Level::WARN),
-        log::LevelFilter::Info => Some(tracing::Level::INFO),
-        log::LevelFilter::Debug => Some(tracing::Level::DEBUG),
-        log::LevelFilter::Trace => Some(tracing::Level::TRACE),
-        log::LevelFilter::Off => None,
-    };
-
-    tracing_level.zip(filter.to_level())
+    filter.to_level()
+        .map(|level| (log_level_to_tracing_level(level), level))
 }
 
 pub(crate) fn private_level_filter_to_trace_level(
     filter: log::LevelFilter,
 ) -> Option<tracing::Level> {
     private_level_filter_to_levels(filter).map(|(level, _)| level)
+}
+
+pub fn log_level_to_tracing_level(
+    level: log::Level,
+) -> tracing::Level {
+    match level {
+        log::Level::Error => tracing::Level::ERROR,
+        log::Level::Warn => tracing::Level::WARN,
+        log::Level::Info => tracing::Level::INFO,
+        log::Level::Debug => tracing::Level::DEBUG,
+        log::Level::Trace => tracing::Level::TRACE,
+    }
 }
 
 pub struct QueryLogger<'q> {

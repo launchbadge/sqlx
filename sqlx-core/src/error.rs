@@ -53,6 +53,9 @@ pub enum Error {
     #[error("encountered unexpected or invalid data: {0}")]
     Protocol(String),
 
+    #[error("internal error")]
+    Internal(#[source] BoxDynError),
+
     /// No rows returned by a query that expected to return at least one row.
     #[error("no rows returned by a query that expected to return at least one row")]
     RowNotFound,
