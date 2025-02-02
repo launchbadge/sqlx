@@ -4,3 +4,4 @@ migrations-table = "accounts._sqlx_migrations"
 
 [macros.table-overrides.'accounts.account']
 'account_id' = "crate::AccountId"
+'password_hash' = "sqlx::types::Text<password_hash::PasswordHashString>"
