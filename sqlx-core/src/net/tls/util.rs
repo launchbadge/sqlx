@@ -1,9 +1,8 @@
 use crate::net::Socket;
 
 use std::io::{self, Read, Write};
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
-use futures_core::ready;
 use futures_util::future;
 
 pub struct StdSocket<S> {

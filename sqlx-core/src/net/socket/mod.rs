@@ -2,10 +2,9 @@ use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use bytes::BufMut;
-use futures_core::ready;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
 
