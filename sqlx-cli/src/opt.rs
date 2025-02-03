@@ -7,6 +7,10 @@ use clap_complete::Shell;
 #[derive(Parser, Debug)]
 #[clap(version, about, author)]
 pub struct Opt {
+    /// Do not automatically load `.env` files.
+    #[clap(long, default_value = "false")]
+    pub no_dotenv: bool,
+
     #[clap(subcommand)]
     pub command: Command,
 }
