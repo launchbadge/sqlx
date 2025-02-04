@@ -72,6 +72,7 @@ _unstable-all-types = [
     "mac_address",
     "uuid",
     "bit-vec",
+    "bstr"
 ]
 
 # Base runtime features without TLS
@@ -122,6 +123,7 @@ rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mys
 time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
 uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
 regexp = ["sqlx-sqlite?/regexp"]
+bstr = ["sqlx-core/bstr"]
 
 [workspace.dependencies]
 # Core Crates

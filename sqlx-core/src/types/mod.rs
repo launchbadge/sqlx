@@ -85,6 +85,9 @@ pub mod mac_address {
 pub use json::{Json, JsonRawValue, JsonValue};
 pub use text::Text;
 
+#[cfg(feature = "bstr")]
+pub use bstr::{BStr, BString};
+
 /// Indicates that a SQL type is supported for a database.
 ///
 /// ## Compile-time verification
