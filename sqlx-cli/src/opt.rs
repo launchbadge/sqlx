@@ -8,7 +8,7 @@ use clap_complete::Shell;
 #[clap(version, about, author)]
 pub struct Opt {
     /// Do not automatically load `.env` files.
-    #[clap(long, default_value = "false")]
+    #[clap(long)]
     pub no_dotenv: bool,
 
     #[clap(subcommand)]
