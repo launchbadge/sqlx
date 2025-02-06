@@ -28,7 +28,7 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && !ty.flags.contains(ColumnFlags::BINARY)
+        )
     }
 }
 
