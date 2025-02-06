@@ -3,6 +3,7 @@ use std::str::from_utf8;
 use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 
+use crate::collation::Collation;
 use crate::error::Error;
 use crate::io::MySqlBufExt;
 use crate::io::ProtocolDecode;
@@ -62,6 +63,10 @@ bitflags! {
 }
 
 // https://dev.mysql.com/doc/internals/en/com-query-response.html#column-type
+// dead link ^
+// https://dev.mysql.com/doc/dev/mysql-server/9.0.0/page_protocol_com_query_response_text_resultset_column_definition.html
+// the "type of the column as defined in enum_field_types"
+// https://dev.mysql.com/doc/dev/mysql-server/9.0.0/field__types_8h.html
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
@@ -112,8 +117,7 @@ pub(crate) struct ColumnDefinition {
     table: Bytes,
     alias: Bytes,
     name: Bytes,
-    #[allow(unused)]
-    pub(crate) collation: u16,
+    pub(crate) collation: Collation,
     pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
@@ -156,7 +160,7 @@ impl ProtocolDecode<'_, Capabilities> for ColumnDefinition {
             table,
             alias,
             name,
-            collation,
+            collation: Collation::try_from(collation)?,
             max_size,
             r#type: ColumnType::try_from_u16(type_id)?,
             flags: ColumnFlags::from_bits_truncate(flags),
@@ -166,8 +170,13 @@ impl ProtocolDecode<'_, Capabilities> for ColumnDefinition {
 }
 
 impl ColumnType {
-    pub(crate) fn name(self, flags: ColumnFlags, max_size: Option<u32>) -> &'static str {
-        let is_binary = flags.contains(ColumnFlags::BINARY);
+    pub(crate) fn name(
+        self,
+        collation: Collation,
+        flags: ColumnFlags,
+        max_size: Option<u32>,
+    ) -> &'static str {
+        let is_binary = collation == Collation::binary;
         let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
         let is_enum = flags.contains(ColumnFlags::ENUM);
 
