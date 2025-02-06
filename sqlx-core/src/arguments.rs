@@ -27,6 +27,8 @@ pub trait Arguments<'q>: Send + Sized + Default {
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
         writer.write_str("?")
     }
+
+    fn merge(&mut self, other: Self);
 }
 
 pub trait IntoArguments<'q, DB: Database>: Sized + Send {
