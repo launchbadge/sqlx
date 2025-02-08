@@ -82,7 +82,7 @@ impl Migrator {
     }
 
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
-    pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
+    pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &mut Self {
         self.ignore_missing = ignore_missing;
         self
     }
@@ -95,7 +95,7 @@ impl Migrator {
     ///
     /// This should only be used if the database does not support locking, e.g. CockroachDB which talks the Postgres
     /// protocol but does not support advisory locks used by SQLx's migrations support for Postgres.
-    pub fn set_locking(&mut self, locking: bool) -> &Self {
+    pub fn set_locking(&mut self, locking: bool) -> &mut Self {
         self.locking = locking;
         self
     }
