@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -120,5 +121,28 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
 impl<'r> Decode<'r, Sqlite> for Cow<'r, str> {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(Cow::Borrowed)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Arc<str> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+
+        Ok(IsNull::No)
+    }
+
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+
+        Ok(IsNull::No)
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for Arc<str> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        value.text().map(Into::into)
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -81,5 +83,17 @@ impl Encode<'_, MySql> for Vec<u8> {
 impl Decode<'_, MySql> for Vec<u8> {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&[u8] as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
+    }
+}
+
+impl Encode<'_, MySql> for Arc<[u8]> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
+        <&[u8] as Encode<MySql>>::encode(&**self, buf)
+    }
+}
+
+impl Decode<'_, MySql> for Arc<[u8]> {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        <&[u8] as Decode<MySql>>::decode(value).map(Into::into)
     }
 }
