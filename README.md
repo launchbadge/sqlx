@@ -220,6 +220,8 @@ be removed in the future.
 
 -   `rust_decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
 
+-   `ipnet`: Add support for `INET` and `CIDR` (in postgres) using the `ipnet` crate.
+
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
