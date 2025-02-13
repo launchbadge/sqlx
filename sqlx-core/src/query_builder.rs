@@ -314,13 +314,7 @@ where
 
         let mut separated = self.separated(", ");
 
-        let mut empty_checker = false;
-
         for tuple in tuples {
-            if !empty_checker {
-                empty_checker = true;
-            }
-
             separated.push("(");
 
             // use a `Separated` with a separate (hah) internal state
@@ -329,9 +323,10 @@ where
             separated.push_unseparated(")");
         }
 
-        if empty_checker {
-            tracing::warn!("Pushing empty values, QueryBuilder may not build correct sql query!");
-        }
+        debug_assert!(
+            separated.push_separator,
+            "No value being pushed. QueryBuilder may not build correct sql query!"
+        );
 
         separated.query_builder
     }
