@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::os::raw::{c_char, c_int, c_void};
@@ -11,8 +11,9 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_int64, sqlite3_progress_handler, sqlite3_rollback_hook,
+    sqlite3_serialize, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_SERIALIZE_NOCOPY,
+    SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -545,6 +546,50 @@ impl LockedSqliteHandle<'_> {
 
     pub fn last_error(&mut self) -> Option<SqliteError> {
         SqliteError::try_new(self.guard.handle.as_ptr())
+    }
+
+    /// Serializes the SQLite database schema into a byte array without copying the data.
+    ///
+    /// This function uses SQLite's `sqlite3_serialize` function to serialize the specified schema
+    /// (e.g., "main") into a byte array. The `SQLITE_SERIALIZE_NOCOPY` flag is used to avoid copying
+    /// the data if possible, which means the returned slice may directly reference SQLite's internal memory.
+    ///
+    /// # Arguments
+    /// * `conn` - A mutable reference to the `SqliteConnection` representing the database connection.
+    /// * `schema` - The name of the schema to serialize (e.g., "main" for the main database).
+    ///
+    /// # Returns
+    /// - `Ok(Some(&[u8]))` - A reference to the serialized byte array if successful.
+    /// - `Ok(None)` - If there is no data to serialize (e.g., the database is empty).
+    /// - `Err(SqliteError)` - If an error occurs during serialization or if the schema name is invalid.
+    ///
+    /// # Safety
+    /// The returned slice references memory owned by SQLite. The data is valid only as long as:
+    /// 1. The database connection (`conn`) is alive.
+    /// 2. The database is not deserialized or modified in a way that invalidates the memory.
+    ///
+    /// # Errors
+    /// - Returns an error if the schema name cannot be converted into a C string (e.g., contains null bytes).
+    /// - Returns an error if SQLite fails to serialize the database.
+    pub fn serialize_nocopy<'a>(&'a mut self, schema: &str) -> Result<Option<&'a [u8]>, Error> {
+        let c_schema = CString::new(schema).map_err(|e| Error::Io(e.into()))?;
+        let mut size: sqlite3_int64 = 0;
+
+        unsafe {
+            let serialized_ptr = sqlite3_serialize(
+                self.as_raw_handle().as_mut(),
+                c_schema.as_ptr(),
+                &mut size,
+                SQLITE_SERIALIZE_NOCOPY,
+            );
+
+            if serialized_ptr.is_null() {
+                Ok(None)
+            } else {
+                let data = std::slice::from_raw_parts(serialized_ptr, size as usize);
+                Ok(Some(data))
+            }
+        }
     }
 }
 
