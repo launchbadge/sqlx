@@ -11,9 +11,10 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_int64, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_serialize, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_SERIALIZE_NOCOPY,
-    SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_int64, sqlite3_malloc,
+    sqlite3_progress_handler, sqlite3_rollback_hook, sqlite3_serialize, sqlite3_update_hook,
+    SQLITE_DELETE, SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY, SQLITE_INSERT,
+    SQLITE_OK, SQLITE_SERIALIZE_NOCOPY, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -207,11 +208,77 @@ impl SqliteConnection {
     // https://sqlite.org/c3ref/serialize.html
     pub async fn serialize(&mut self, schema: &str) -> Result<Option<Vec<u8>>, Error> {
         let mut locked_handle = self.lock_handle().await?;
-        Ok(
-            locked_handle
-                .serialize_nocopy(schema)?
-                .map(|serialized_bytes| serialized_bytes.to_vec())
-        )
+
+        Ok(locked_handle
+            .serialize_nocopy(schema)?
+            .map(|serialized_bytes| serialized_bytes.to_vec()))
+    }
+
+    /// Deserializes a SQLite database from a byte array into the specified schema.
+    ///
+    /// This function uses SQLite's `sqlite3_deserialize` to load a database from a byte array
+    /// into the given schema (e.g., "main"). The memory for the byte array is managed by SQLite
+    /// and will be freed when the database is closed or the schema is reset.
+    ///
+    /// # Arguments
+    /// * `schema` - The name of the schema to deserialize into (e.g., "main").
+    /// * `data` - The byte array containing the serialized database.
+    /// * `read_only` - If `true`, the deserialized database will be opened in read-only mode.
+    ///
+    /// # Returns
+    /// - `Ok(())` - If the deserialization succeeds.
+    /// - `Err(Error)` - If an error occurs during deserialization. Possible errors include:
+    ///   - Invalid schema name (e.g., contains null bytes).
+    ///   - Memory allocation failure (e.g., `sqlite3_malloc` fails).
+    ///   - SQLite deserialization error (e.g., invalid database format).
+    ///
+    /// # Safety
+    /// The memory for the `data` byte array is allocated using `sqlite3_malloc` and will be
+    /// freed by SQLite when the database is closed or the schema is reset. Do not use the
+    /// `data` byte array after calling this function.
+    ///
+    /// # Notes
+    /// - The `SQLITE_DESERIALIZE_FREEONCLOSE` flag is used, so SQLite will automatically free
+    ///   the memory when the database is closed or the schema is reset.
+    /// - If `read_only` is `true`, the `SQLITE_DESERIALIZE_READONLY` flag is also set, preventing
+    ///   modifications to the deserialized database.
+    ///
+    /// # Errors
+    /// - Returns an error if the schema name cannot be converted into a C string (e.g., contains null bytes).
+    /// - Returns an error if memory allocation fails (e.g., `sqlite3_malloc` returns `null`).
+    /// - Returns an error if SQLite fails to deserialize the database (e.g., invalid database format).
+    pub async fn deserialize(
+        &mut self,
+        schema: &str,
+        data: Vec<u8>,
+        read_only: bool,
+    ) -> Result<(), Error> {
+        let mut locked_handle = self.lock_handle().await?;
+
+        let c_schema = CString::new(schema).expect("invalid cstring");
+
+        let mut flags = SQLITE_DESERIALIZE_FREEONCLOSE;
+        if read_only {
+            flags |= SQLITE_DESERIALIZE_READONLY;
+        }
+
+        let mut buf = SqliteBuf::from(data).expect("could not initialize buffer");
+        unsafe {
+            let rc = sqlite3_deserialize(
+                locked_handle.as_raw_handle().as_mut(),
+                c_schema.as_ptr(),
+                buf.as_mut_ptr(),
+                buf.size() as i64,
+                buf.size() as i64,
+                flags,
+            );
+
+            if rc != SQLITE_OK {
+                return Err(SqliteError::new(locked_handle.as_raw_handle().as_ptr()).into());
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -653,5 +720,57 @@ impl Statements {
     fn clear(&mut self) {
         self.cached.clear();
         self.temp = None;
+    }
+}
+
+/// Memory buffer allocated and owned by sqlite
+struct SqliteBuf {
+    ptr: *mut u8,
+    size: usize,
+}
+
+impl Drop for SqliteBuf {
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            unsafe {
+                sqlite3_free(self.ptr as *mut std::ffi::c_void);
+            }
+            self.ptr = std::ptr::null_mut();
+        }
+    }
+}
+
+impl SqliteBuf {
+    /// Creates a new mem buffer of given size using `sqlite3_malloc`
+    pub fn new(size: usize) -> Result<Self, &'static str> {
+        // allocate buffer owned by sqlite so that
+        // this can be freed by sqlite3_free()
+        let buffer = unsafe { sqlite3_malloc(size as i32) as *mut u8 };
+
+        if buffer.is_null() {
+            return Err("sqlite3_malloc failed");
+        }
+
+        Ok(Self { ptr: buffer, size })
+    }
+
+    /// Creates a new mem buffer with length and content of given vector of bytes
+    fn from(bytes: Vec<u8>) -> Result<Self, &'static str> {
+        let buf = Self::new(bytes.len())?;
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), buf.ptr, bytes.len());
+        }
+
+        Ok(buf)
+    }
+
+    /// Get the pointer to the raw buffer
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.ptr
+    }
+
+    /// Get the size of the allocated buffer
+    pub fn size(&self) -> usize {
+        self.size
     }
 }
