@@ -202,6 +202,17 @@ impl SqliteConnection {
 
         Ok(LockedSqliteHandle { guard })
     }
+
+    /// Serializes the SQLite database. This function will return bytes only if `deserialize` was previously invoked.
+    // https://sqlite.org/c3ref/serialize.html
+    pub async fn serialize(&mut self, schema: &str) -> Result<Option<Vec<u8>>, Error> {
+        let mut locked_handle = self.lock_handle().await?;
+        Ok(
+            locked_handle
+                .serialize_nocopy(schema)?
+                .map(|serialized_bytes| serialized_bytes.to_vec())
+        )
+    }
 }
 
 impl Debug for SqliteConnection {
@@ -571,6 +582,7 @@ impl LockedSqliteHandle<'_> {
     /// # Errors
     /// - Returns an error if the schema name cannot be converted into a C string (e.g., contains null bytes).
     /// - Returns an error if SQLite fails to serialize the database.
+    // https://sqlite.org/c3ref/serialize.html
     pub fn serialize_nocopy<'a>(&'a mut self, schema: &str) -> Result<Option<&'a [u8]>, Error> {
         let c_schema = CString::new(schema).map_err(|e| Error::Io(e.into()))?;
         let mut size: sqlite3_int64 = 0;
