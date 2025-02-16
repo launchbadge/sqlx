@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::ffi::{CStr, CString};
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
-use std::marker::PhantomData;
 use std::os::raw::{c_char, c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
@@ -12,7 +11,7 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_int64, sqlite3_malloc,
+    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_malloc,
     sqlite3_progress_handler, sqlite3_rollback_hook, sqlite3_serialize, sqlite3_update_hook,
     SQLITE_DELETE, SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY,
     SQLITE_DESERIALIZE_RESIZEABLE, SQLITE_INSERT, SQLITE_OK, SQLITE_SERIALIZE_NOCOPY,
@@ -277,8 +276,8 @@ impl SqliteConnection {
                 locked_handle.as_raw_handle().as_mut(),
                 c_schema.as_ptr(),
                 buf,
-                size as i64,
-                size as i64,
+                i64::try_from(size).unwrap(),
+                i64::try_from(size).unwrap(),
                 flags,
             )
         };
@@ -657,7 +656,7 @@ impl LockedSqliteHandle<'_> {
         if ptr.is_null() {
             Ok(None)
         } else {
-            let data = unsafe { std::slice::from_raw_parts(ptr, size as usize) };
+            let data = unsafe { std::slice::from_raw_parts(ptr, usize::try_from(size).unwrap()) };
             Ok(Some(data))
         }
     }
@@ -731,7 +730,7 @@ impl Drop for SqliteOwnedBuf {
 impl SqliteOwnedBuf {
     /// Creates a new mem buffer of given size using `sqlite3_malloc`
     fn new(size: usize) -> Result<Self, &'static str> {
-        let ptr = unsafe { sqlite3_malloc(size as i32) }.cast::<u8>();
+        let ptr = unsafe { sqlite3_malloc(i32::try_from(size).unwrap()) }.cast::<u8>();
         if ptr.is_null() {
             return Err("sqlite3_malloc failed");
         }
