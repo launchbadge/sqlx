@@ -120,12 +120,11 @@ impl ConnectionWorker {
                     let _guard = span.enter();
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, query).map(|prepared| {
+                            tx.send(prepare(&mut conn, query).inspect(|_| {
                                 update_cached_statements_size(
                                     &conn,
                                     &shared.cached_statements_size,
                                 );
-                                prepared
                             }))
                             .ok();
                         }

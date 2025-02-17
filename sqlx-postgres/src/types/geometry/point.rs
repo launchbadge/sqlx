@@ -47,7 +47,7 @@ impl<'r> Decode<'r, Postgres> for PgPoint {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgPoint {
+impl Encode<'_, Postgres> for PgPoint {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("point"))
     }

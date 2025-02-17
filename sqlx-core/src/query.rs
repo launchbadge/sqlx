@@ -121,7 +121,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, A> Query<'q, DB, A>
+impl<DB, A> Query<'_, DB, A>
 where
     DB: Database + HasStatementCache,
 {
@@ -498,9 +498,9 @@ where
 }
 
 /// Execute a single SQL query as a prepared statement (explicitly created).
-pub fn query_statement<'q, DB>(
-    statement: &'q DB::Statement,
-) -> Query<'q, DB, <DB as Database>::Arguments<'_>>
+pub fn query_statement<DB>(
+    statement: &DB::Statement,
+) -> Query<'_, DB, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
 {

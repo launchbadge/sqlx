@@ -26,7 +26,7 @@ use sqlx_core::sql_str::{SqlSafeStr, SqlStr};
 use std::{pin::pin, sync::Arc};
 
 impl MySqlConnection {
-    async fn prepare_statement<'c>(
+    async fn prepare_statement(
         &mut self,
         sql: &str,
     ) -> Result<(u32, MySqlStatementMetadata), Error> {
@@ -73,7 +73,7 @@ impl MySqlConnection {
         Ok((id, metadata))
     }
 
-    async fn get_or_prepare_statement<'c>(
+    async fn get_or_prepare_statement(
         &mut self,
         sql: &str,
     ) -> Result<(u32, MySqlStatementMetadata), Error> {

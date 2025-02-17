@@ -55,7 +55,7 @@ impl Statement for AnyStatement {
     impl_statement_query!(AnyArguments<'_>);
 }
 
-impl<'i> ColumnIndex<AnyStatement> for &'i str {
+impl ColumnIndex<AnyStatement> for &'_ str {
     fn index(&self, statement: &AnyStatement) -> Result<usize, Error> {
         statement
             .column_names
@@ -65,7 +65,7 @@ impl<'i> ColumnIndex<AnyStatement> for &'i str {
     }
 }
 
-impl<'q> AnyStatement {
+impl AnyStatement {
     #[doc(hidden)]
     pub fn try_from_statement<S>(
         statement: S,

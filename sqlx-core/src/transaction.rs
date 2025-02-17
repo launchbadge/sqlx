@@ -183,7 +183,7 @@ where
 //     }
 // }
 
-impl<'c, DB> Debug for Transaction<'c, DB>
+impl<DB> Debug for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -193,7 +193,7 @@ where
     }
 }
 
-impl<'c, DB> Deref for Transaction<'c, DB>
+impl<DB> Deref for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -205,7 +205,7 @@ where
     }
 }
 
-impl<'c, DB> DerefMut for Transaction<'c, DB>
+impl<DB> DerefMut for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -219,13 +219,13 @@ where
 // `PgAdvisoryLockGuard`.
 //
 // See: https://github.com/launchbadge/sqlx/issues/2520
-impl<'c, DB: Database> AsMut<DB::Connection> for Transaction<'c, DB> {
+impl<DB: Database> AsMut<DB::Connection> for Transaction<'_, DB> {
     fn as_mut(&mut self) -> &mut DB::Connection {
         &mut self.connection
     }
 }
 
-impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'c, DB> {
+impl<'t, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'_, DB> {
     type Database = DB;
 
     type Connection = &'t mut <DB as Database>::Connection;
@@ -241,7 +241,7 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
     }
 }
 
-impl<'c, DB> Drop for Transaction<'c, DB>
+impl<DB> Drop for Transaction<'_, DB>
 where
     DB: Database,
 {

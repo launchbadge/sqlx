@@ -42,7 +42,6 @@ pub trait SqlSafeStr {
 
 impl SqlSafeStr for &'static str {
     #[inline]
-
     fn into_sql_str(self) -> SqlStr {
         SqlStr(Repr::Static(self))
     }
@@ -68,7 +67,7 @@ pub struct AssertSqlSafe<T>(pub T);
 /// Note: copies the string.
 ///
 /// It is recommended to pass one of the supported owned string types instead.
-impl<'a> SqlSafeStr for AssertSqlSafe<&'a str> {
+impl SqlSafeStr for AssertSqlSafe<&str> {
     #[inline]
     fn into_sql_str(self) -> SqlStr {
         SqlStr(Repr::Arced(self.0.into()))
