@@ -5,9 +5,8 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
-use std::borrow::Cow;
-use std::{future, pin::pin};
 use sqlx_core::sql_str::SqlStr;
+use std::borrow::Cow;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{

@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -99,6 +99,15 @@ impl SqlSafeStr for AssertSqlSafe<Arc<String>> {
     #[inline]
     fn into_sql_str(self) -> SqlStr {
         SqlStr(Repr::ArcString(self.0))
+    }
+}
+
+impl SqlSafeStr for AssertSqlSafe<Cow<'static, str>> {
+    fn into_sql_str(self) -> SqlStr {
+        match self.0 {
+            Cow::Borrowed(str) => str.into_sql_str(),
+            Cow::Owned(str) => AssertSqlSafe(str).into_sql_str(),
+        }
     }
 }
 

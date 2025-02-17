@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -5,7 +6,7 @@ use std::thread;
 
 use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
-use sqlx_core::sql_str::SqlStr;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
 use tracing::span::Span;
 
 use sqlx_core::describe::Describe;
@@ -219,12 +220,12 @@ impl ConnectionWorker {
                                     }
                                     continue;
                                 },
-                                Some(statement) => statement,
+                                Some(statement) => AssertSqlSafe(statement).into_sql_str(),
                                 None => begin_ansi_transaction_sql(depth),
                             };
                             let res =
                                 conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth).as_str())
+                                    .exec(statement.as_str())
                                     .map(|_| {
                                         shared.transaction_depth.fetch_add(1, Ordering::Release);
                                     });

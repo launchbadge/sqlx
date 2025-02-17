@@ -1,5 +1,6 @@
 use futures_core::future::BoxFuture;
 use sqlx_core::database::Database;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use std::borrow::Cow;
 
 use crate::error::Error;
@@ -25,13 +26,13 @@ impl TransactionManager for PgTransactionManager {
                 // custom `BEGIN` statements are not allowed if we're already in
                 // a transaction (we need to issue a `SAVEPOINT` instead)
                 Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
-                Some(statement) => statement,
+                Some(statement) => AssertSqlSafe(statement).into_sql_str(),
                 None => begin_ansi_transaction_sql(depth),
             };
 
             let rollback = Rollback::new(conn);
 
-            rollback.conn.queue_simple_query(&statement)?;
+            rollback.conn.queue_simple_query(statement.as_str())?;
             rollback.conn.wait_until_ready().await?;
             if !rollback.conn.in_transaction() {
                 return Err(Error::BeginFailed);

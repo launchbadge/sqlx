@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use futures_core::future::BoxFuture;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 
 use crate::connection::Waiting;
 use crate::error::Error;
@@ -27,10 +28,10 @@ impl TransactionManager for MySqlTransactionManager {
                 // custom `BEGIN` statements are not allowed if we're already in a transaction
                 // (we need to issue a `SAVEPOINT` instead)
                 Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
-                Some(statement) => statement,
+                Some(statement) => AssertSqlSafe(statement).into_sql_str(),
                 None => begin_ansi_transaction_sql(depth),
             };
-            conn.execute(&*statement).await?;
+            conn.execute(statement).await?;
             if !conn.in_transaction() {
                 return Err(Error::BeginFailed);
             }
