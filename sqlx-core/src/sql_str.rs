@@ -170,7 +170,10 @@ impl Borrow<str> for SqlStr {
     }
 }
 
-impl<T> PartialEq<T> for SqlStr where T: AsRef<str> {
+impl<T> PartialEq<T> for SqlStr
+where
+    T: AsRef<str>,
+{
     fn eq(&self, other: &T) -> bool {
         self.as_str() == other.as_ref()
     }
