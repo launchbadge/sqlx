@@ -143,7 +143,7 @@ impl AnyConnectionBackend for SqliteConnection {
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: SqlStr) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move { Executor::describe(self, sql).await?.try_into_any() })
     }
 }

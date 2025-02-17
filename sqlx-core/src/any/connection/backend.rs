@@ -115,5 +115,5 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         parameters: &[AnyTypeInfo],
     ) -> BoxFuture<'c, crate::Result<AnyStatement>>;
 
-    fn describe<'q>(&'q mut self, sql: SqlStr) -> BoxFuture<'q, crate::Result<Describe<Any>>>;
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, crate::Result<Describe<Any>>>;
 }

@@ -160,7 +160,7 @@ impl PgConnection {
         self.inner.pending_ready_for_query_count += 1;
     }
 
-    async fn get_or_prepare<'a>(
+    async fn get_or_prepare(
         &mut self,
         sql: &str,
         parameters: &[PgTypeInfo],

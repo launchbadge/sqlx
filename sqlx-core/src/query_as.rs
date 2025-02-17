@@ -58,7 +58,7 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
+impl<DB, O, A> QueryAs<'_, DB, O, A>
 where
     DB: Database + HasStatementCache,
 {
@@ -387,9 +387,9 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
-pub fn query_statement_as<'q, DB, O>(
-    statement: &'q DB::Statement,
-) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'_>>
+pub fn query_statement_as<DB, O>(
+    statement: &DB::Statement,
+) -> QueryAs<'_, DB, O, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
     O: for<'r> FromRow<'r, DB::Row>,

@@ -137,7 +137,7 @@ impl<'q, DB: Database> Execute<'q, DB> for RawSql {
     }
 }
 
-impl<'q> RawSql {
+impl RawSql {
     /// Execute the SQL string and return the total number of rows affected.
     #[inline]
     pub async fn execute<'e, E>(
@@ -145,7 +145,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> crate::Result<<E::Database as Database>::QueryResult>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.execute(self).await
@@ -158,7 +157,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> BoxStream<'e, crate::Result<<E::Database as Database>::QueryResult>>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.execute_many(self)
@@ -173,7 +171,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> BoxStream<'e, Result<<E::Database as Database>::Row, Error>>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.fetch(self)
@@ -195,7 +192,6 @@ impl<'q> RawSql {
         >,
     >
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.fetch_many(self)
@@ -214,7 +210,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> crate::Result<Vec<<E::Database as Database>::Row>>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.fetch_all(self).await
@@ -238,7 +233,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.fetch_one(self).await
@@ -262,7 +256,6 @@ impl<'q> RawSql {
         executor: E,
     ) -> crate::Result<<E::Database as Database>::Row>
     where
-        'q: 'e,
         E: Executor<'e>,
     {
         executor.fetch_one(self).await

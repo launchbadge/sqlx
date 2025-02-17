@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use std::ops::{Deref, Not};
 
 use clap::{Args, Parser};

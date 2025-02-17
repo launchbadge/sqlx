@@ -147,10 +147,7 @@ impl AnyConnectionBackend for PgConnection {
         })
     }
 
-    fn describe<'c, 'q>(
-        &'q mut self,
-        sql: SqlStr,
-    ) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe<'c>(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
 
