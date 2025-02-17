@@ -558,7 +558,7 @@ where
 /// let query = format!("SELECT * FROM articles WHERE content LIKE '%{user_input}%'");
 /// // where `conn` is `PgConnection` or `MySqlConnection`
 /// // or some other type that implements `Executor`.
-/// let results = sqlx::query(&query).fetch_all(&mut conn).await?;
+/// let results = sqlx::query(sqlx::AssertSqlSafe(query)).fetch_all(&mut conn).await?;
 /// # Ok(())
 /// # }
 /// ```
