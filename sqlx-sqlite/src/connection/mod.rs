@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::ffi::{CStr, CString};
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_char, c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
@@ -11,7 +12,7 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_malloc,
+    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_malloc64,
     sqlite3_progress_handler, sqlite3_rollback_hook, sqlite3_serialize, sqlite3_update_hook,
     SQLITE_DELETE, SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY,
     SQLITE_DESERIALIZE_RESIZEABLE, SQLITE_INSERT, SQLITE_OK, SQLITE_SERIALIZE_NOCOPY,
@@ -220,10 +221,25 @@ impl SqliteConnection {
     ///
     /// # See Also
     /// [SQLite Documentation](https://sqlite.org/c3ref/serialize.html)
-    pub async fn serialize(&mut self, schema: &str) -> Result<Option<Vec<u8>>, Error> {
+    pub async fn serialize(&mut self, schema: &str) -> Result<SqliteOwnedBuf, Error> {
         let mut locked_handle = self.lock_handle().await?;
 
-        Ok(locked_handle.serialize_nocopy(schema)?.map(Vec::from))
+        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
+        let mut size = 0;
+
+        let ptr = unsafe {
+            sqlite3_serialize(
+                locked_handle.as_raw_handle().as_mut(),
+                c_schema.as_ptr(),
+                &mut size,
+                0,
+            )
+        };
+
+        let buf = SqliteOwnedBuf::from(ptr, usize::try_from(size).unwrap())
+            .map_err(|e| Error::Configuration(Box::new(e)))?;
+
+        Ok(buf)
     }
 
     /// Deserializes a SQLite database from a byte array into the specified schema.
@@ -248,12 +264,12 @@ impl SqliteConnection {
     pub async fn deserialize(
         &mut self,
         schema: &str,
-        data: Vec<u8>,
+        data: &[u8],
         read_only: bool,
     ) -> Result<(), Error> {
         let mut locked_handle = self.lock_handle().await?;
 
-        let c_schema = CString::new(schema).expect("invalid cstring contains nul byte");
+        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
 
         // always use freeonclose flag here as the buffer
         // is allocated with sqlite3_malloc and therefore owned by sqlite
@@ -264,7 +280,7 @@ impl SqliteConnection {
             flags |= SQLITE_DESERIALIZE_RESIZEABLE;
         }
 
-        let sqlite_buf = SqliteOwnedBuf::try_from(data).expect("could not initialize buffer");
+        let sqlite_buf = SqliteOwnedBuf::try_from(data).map_err(|e| Error::Configuration(e))?;
 
         // this function prevents the buf to be dropped which is okay here because
         // we're using SQLITE_DESERIALIZE_FREEONCLOSE which delegates sqlite to freeing memory
@@ -641,7 +657,7 @@ impl LockedSqliteHandle<'_> {
     /// returned slice may directly reference SQLite's internal memory.
     // https://sqlite.org/c3ref/serialize.html
     pub fn serialize_nocopy<'a>(&'a mut self, schema: &str) -> Result<Option<&'a [u8]>, Error> {
-        let c_schema = CString::new(schema).expect("incalid cstring contains nul byte");
+        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
         let mut size = 0;
 
         let ptr = unsafe {
@@ -653,12 +669,12 @@ impl LockedSqliteHandle<'_> {
             )
         };
 
-        if ptr.is_null() {
-            Ok(None)
+        Ok(if ptr.is_null() {
+            None
         } else {
             let data = unsafe { std::slice::from_raw_parts(ptr, usize::try_from(size).unwrap()) };
-            Ok(Some(data))
-        }
+            Some(data)
+        })
     }
 }
 
@@ -713,8 +729,15 @@ impl Statements {
     }
 }
 
+/// Errors that could occurr when using `SqliteOwnedBuf`
+#[derive(Debug, thiserror::Error)]
+pub enum SqliteBufError {
+    #[error("error initializing buffer using sqlite3_malloc")]
+    Malloc,
+}
+
 /// Memory buffer owned and allocated by sqlite
-struct SqliteOwnedBuf {
+pub struct SqliteOwnedBuf {
     ptr: NonNull<u8>,
     size: usize,
 }
@@ -728,15 +751,21 @@ impl Drop for SqliteOwnedBuf {
 }
 
 impl SqliteOwnedBuf {
-    /// Creates a new mem buffer of given size using `sqlite3_malloc`
-    fn new(size: usize) -> Result<Self, &'static str> {
-        let ptr = unsafe { sqlite3_malloc(i32::try_from(size).unwrap()) }.cast::<u8>();
+    /// Uses `sqlite3_malloc` to allocate a buffer and returns a pointer to it
+    fn new(size: usize) -> Result<Self, SqliteBufError> {
+        let ptr = unsafe { sqlite3_malloc64(u64::try_from(size).unwrap()) }.cast::<u8>();
+
+        Self::from(ptr, size)
+    }
+
+    /// Creates a new mem buffer from a pointer that has been created with sqlite_malloc
+    fn from(ptr: *mut u8, size: usize) -> Result<Self, SqliteBufError> {
         if ptr.is_null() {
-            return Err("sqlite3_malloc failed");
+            return Err(SqliteBufError::Malloc);
         }
 
         Ok(Self {
-            ptr: NonNull::new(ptr).expect("failed creating new NonNull"),
+            ptr: NonNull::new(ptr).expect("infallible: NonNull on checked ptr not-null"),
             size,
         })
     }
@@ -750,15 +779,41 @@ impl SqliteOwnedBuf {
     }
 }
 
-impl TryFrom<Vec<u8>> for SqliteOwnedBuf {
-    type Error = &'static str;
+impl TryFrom<&[u8]> for SqliteOwnedBuf {
+    type Error = Box<SqliteBufError>;
 
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let mut buf = Self::new(bytes.len())?;
         unsafe {
             std::ptr::copy_nonoverlapping(bytes.as_ptr(), buf.ptr.as_mut(), buf.size);
         }
 
         Ok(buf)
+    }
+}
+
+impl Deref for SqliteOwnedBuf {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.size) }
+    }
+}
+
+impl DerefMut for SqliteOwnedBuf {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_mut(), self.size) }
+    }
+}
+
+impl AsRef<[u8]> for SqliteOwnedBuf {
+    fn as_ref(&self) -> &[u8] {
+        self.deref()
+    }
+}
+
+impl AsMut<[u8]> for SqliteOwnedBuf {
+    fn as_mut(&mut self) -> &mut [u8] {
+        self.deref_mut()
     }
 }
