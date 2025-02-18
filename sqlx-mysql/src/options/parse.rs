@@ -11,6 +11,8 @@ impl MySqlConnectOptions {
     pub(crate) fn parse_from_url(url: &Url) -> Result<Self, Error> {
         let mut options = Self::new();
 
+        debug_assert!(url.scheme() == "mysql", "Scheme must be 'mysql'. Please check your url");
+        
         if let Some(host) = url.host_str() {
             options = options.host(host);
         }

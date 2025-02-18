@@ -9,6 +9,8 @@ impl PgConnectOptions {
     pub(crate) fn parse_from_url(url: &Url) -> Result<Self, Error> {
         let mut options = Self::new_without_pgpass();
 
+        debug_assert!(url.scheme() == "postgres", "Scheme must be 'postgres'. Please check your url");
+
         if let Some(host) = url.host_str() {
             let host_decoded = percent_decode_str(host);
             options = match host_decoded.clone().next() {
