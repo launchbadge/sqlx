@@ -3,6 +3,7 @@ extern crate time_ as time;
 use std::net::SocketAddr;
 #[cfg(feature = "rust_decimal")]
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
@@ -382,5 +383,35 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_arc_str() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let name: Arc<str> = "Harold".into();
+
+    let username: Arc<str> = sqlx::query_scalar("SELECT ? AS username")
+        .bind(&name)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(username == name);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_arc_slice() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let name: Arc<[u8]> = [5, 0].into();
+
+    let username: Arc<[u8]> = sqlx::query_scalar("SELECT ?")
+        .bind(&name)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(username == name);
     Ok(())
 }
