@@ -30,7 +30,7 @@ impl TestSupport for Postgres {
         Box::pin(async move {
             let mut conn = MASTER_POOL
                 .get()
-                .expect("cleanup_test() invoked outside `#[sqlx::test]")
+                .expect("cleanup_test() invoked outside `#[sqlx::test]`")
                 .acquire()
                 .await?;
 
