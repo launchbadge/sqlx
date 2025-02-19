@@ -134,9 +134,9 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         // I couldn't find a bug on the mailing list for `CREATE SCHEMA` specifically,
         // but a clearly related bug with `CREATE TABLE` has been known since 2007:
         // https://www.postgresql.org/message-id/200710222037.l9MKbCJZ098744%40wwwmaster.postgresql.org
-        // magic constant 0x73716c7874657374 is just 8 ascii bytes 'sqlxtest'.
+        // magic constant 8318549251334697844 is just 8 ascii bytes 'sqlxtest'.
         r#"
-        select pg_advisory_xact_lock(0x73716c7874657374);
+        select pg_advisory_xact_lock(8318549251334697844);
 
         create schema if not exists _sqlx_test;
 
