@@ -484,7 +484,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///         .await?;
     ///
     ///         // Close the connection if the backend memory usage exceeds 256 MiB.
-    ///         Ok(total_memory_usage <= (2 << 28))
+    ///         Ok(total_memory_usage <= (1 << 28))
     ///     }))
     ///     .connect("postgres:// …").await?;
     /// # Ok(())
