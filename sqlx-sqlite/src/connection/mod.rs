@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -12,11 +12,8 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_deserialize, sqlite3_free, sqlite3_malloc64,
-    sqlite3_progress_handler, sqlite3_rollback_hook, sqlite3_serialize, sqlite3_update_hook,
-    SQLITE_DELETE, SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY,
-    SQLITE_DESERIALIZE_RESIZEABLE, SQLITE_INSERT, SQLITE_OK, SQLITE_SERIALIZE_NOCOPY,
-    SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_free, sqlite3_malloc64, sqlite3_progress_handler,
+    sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -36,6 +33,7 @@ use crate::{Sqlite, SqliteConnectOptions, SqliteError};
 
 pub(crate) mod collation;
 pub(crate) mod describe;
+pub(crate) mod deserialize;
 pub(crate) mod establish;
 pub(crate) mod execute;
 mod executor;
@@ -44,6 +42,7 @@ mod handle;
 pub(crate) mod intmap;
 #[cfg(feature = "preupdate-hook")]
 mod preupdate_hook;
+pub(crate) mod serialize;
 
 mod worker;
 
@@ -207,102 +206,18 @@ impl SqliteConnection {
     }
 
     /// Serializes the SQLite database into a byte vector.
-    ///
-    /// This function returns the serialized bytes of the database for the specified `schema`
-    /// only if `deserialize` was previously called. If no data is available, it returns `None`.
-    ///
-    /// # Arguments
-    /// * `schema` - The database schema to serialize (e.g., "main").
-    ///
-    /// # Returns
-    /// * `Ok(Some(Vec<u8>))` - The serialized database as a byte vector.
-    /// * `Ok(None)` - No data is available to serialize.
-    /// * `Err(Error)` - An error occurred during serialization.
-    ///
-    /// # See Also
-    /// [SQLite Documentation](https://sqlite.org/c3ref/serialize.html)
     pub async fn serialize(&mut self, schema: &str) -> Result<SqliteOwnedBuf, Error> {
-        let mut locked_handle = self.lock_handle().await?;
-
-        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
-        let mut size = 0;
-
-        let ptr = unsafe {
-            sqlite3_serialize(
-                locked_handle.as_raw_handle().as_mut(),
-                c_schema.as_ptr(),
-                &mut size,
-                0,
-            )
-        };
-
-        let buf = SqliteOwnedBuf::from(ptr, usize::try_from(size).unwrap())
-            .map_err(|e| Error::Configuration(Box::new(e)))?;
-
-        Ok(buf)
+        self.worker.serialize(schema).await
     }
 
     /// Deserializes a SQLite database from a byte array into the specified schema.
-    ///
-    /// This function uses SQLite's `sqlite3_deserialize` to load a database from a byte array
-    /// into the given schema (e.g., "main"). The memory for the byte array is managed by SQLite
-    /// and will be freed when the database is closed or the schema is reset.
-    ///
-    /// # Safety
-    /// The memory for the `data` byte array is allocated using `sqlite3_malloc` and will be
-    /// freed by SQLite when the database is closed or the schema is reset. Do not use the
-    /// `data` byte array after calling this function.
-    ///
-    /// # Notes
-    /// - The `SQLITE_DESERIALIZE_FREEONCLOSE` flag is used, so SQLite will automatically free
-    ///   the memory when the database is closed or the schema is reset.
-    /// - If `read_only` is `true`, the `SQLITE_DESERIALIZE_READONLY` flag is also set, preventing
-    ///   modifications to the deserialized database.
-    ///
-    /// # See Also
-    /// [SQLite Documentation](https://sqlite.org/c3ref/deserialize.html)
     pub async fn deserialize(
         &mut self,
         schema: &str,
         data: &[u8],
         read_only: bool,
     ) -> Result<(), Error> {
-        let mut locked_handle = self.lock_handle().await?;
-
-        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
-
-        // always use freeonclose flag here as the buffer
-        // is allocated with sqlite3_malloc and therefore owned by sqlite
-        let mut flags = SQLITE_DESERIALIZE_FREEONCLOSE;
-        if read_only {
-            flags |= SQLITE_DESERIALIZE_READONLY;
-        } else {
-            flags |= SQLITE_DESERIALIZE_RESIZEABLE;
-        }
-
-        let sqlite_buf = SqliteOwnedBuf::try_from(data).map_err(|e| Error::Configuration(e))?;
-
-        // this function prevents the buf to be dropped which is okay here because
-        // we're using SQLITE_DESERIALIZE_FREEONCLOSE which delegates sqlite to freeing memory
-        // when db connection is closed
-        let (buf, size) = sqlite_buf.into_raw();
-
-        let rc = unsafe {
-            sqlite3_deserialize(
-                locked_handle.as_raw_handle().as_mut(),
-                c_schema.as_ptr(),
-                buf,
-                i64::try_from(size).unwrap(),
-                i64::try_from(size).unwrap(),
-                flags,
-            )
-        };
-
-        if rc != SQLITE_OK {
-            return Err(SqliteError::new(locked_handle.as_raw_handle().as_ptr()).into());
-        }
-
-        Ok(())
+        self.worker.deserialize(schema, data, read_only).await
     }
 }
 
@@ -649,33 +564,6 @@ impl LockedSqliteHandle<'_> {
     pub fn last_error(&mut self) -> Option<SqliteError> {
         SqliteError::try_new(self.guard.handle.as_ptr())
     }
-
-    /// Serializes the SQLite database schema into a byte array without copying data.
-    ///
-    /// This function uses SQLite's `sqlite3_serialize` to serialize the specified schema (e.g., "main")
-    /// into a byte array. The `SQLITE_SERIALIZE_NOCOPY` flag avoids copying the data if possible, so the
-    /// returned slice may directly reference SQLite's internal memory.
-    // https://sqlite.org/c3ref/serialize.html
-    pub fn serialize_nocopy<'a>(&'a mut self, schema: &str) -> Result<Option<&'a [u8]>, Error> {
-        let c_schema = CString::new(schema).map_err(|e| Error::Configuration(Box::new(e)))?;
-        let mut size = 0;
-
-        let ptr = unsafe {
-            sqlite3_serialize(
-                self.as_raw_handle().as_mut(),
-                c_schema.as_ptr(),
-                &mut size,
-                SQLITE_SERIALIZE_NOCOPY,
-            )
-        };
-
-        Ok(if ptr.is_null() {
-            None
-        } else {
-            let data = unsafe { std::slice::from_raw_parts(ptr, usize::try_from(size).unwrap()) };
-            Some(data)
-        })
-    }
 }
 
 impl Drop for ConnectionState {
@@ -737,10 +625,14 @@ pub enum SqliteBufError {
 }
 
 /// Memory buffer owned and allocated by sqlite
+#[derive(Debug)]
 pub struct SqliteOwnedBuf {
     ptr: NonNull<u8>,
     size: usize,
 }
+
+unsafe impl Send for SqliteOwnedBuf {}
+unsafe impl Sync for SqliteOwnedBuf {}
 
 impl Drop for SqliteOwnedBuf {
     fn drop(&mut self) {
