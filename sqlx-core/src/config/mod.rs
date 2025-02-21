@@ -48,7 +48,7 @@ mod tests;
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
+    serde(default, rename_all = "kebab-case", deny_unknown_fields)
 )]
 pub struct Config {
     /// Configuration shared by multiple components.
@@ -209,6 +209,9 @@ impl Config {
                 Err(e @ ConfigError::ParseDisabled { .. }) => {
                     // Only returned if the file exists but the feature is not enabled.
                     panic!("{e}")
+                }
+                Err(ConfigError::Parse { error, path }) => {
+                    panic!("error parsing sqlx config {path:?}: {error}")
                 }
                 Err(e) => {
                     panic!("failed to read sqlx config: {e}")
