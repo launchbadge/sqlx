@@ -54,7 +54,7 @@ impl PgHasArrayType for JsonRawValue {
     }
 }
 
-impl<'q, T> Encode<'q, Postgres> for Json<T>
+impl<T> Encode<'_, Postgres> for Json<T>
 where
     T: Serialize,
 {

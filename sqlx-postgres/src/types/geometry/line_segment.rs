@@ -54,7 +54,7 @@ impl<'r> Decode<'r, Postgres> for PgLSeg {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgLSeg {
+impl Encode<'_, Postgres> for PgLSeg {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("lseg"))
     }

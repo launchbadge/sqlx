@@ -15,6 +15,7 @@ use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::transaction::TransactionManager;
 use std::{future, pin::pin};
 
@@ -74,7 +75,7 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
@@ -100,7 +101,7 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
@@ -127,20 +128,17 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            AnyStatement::try_from_statement(
-                sql,
-                &statement,
-                statement.metadata.column_names.clone(),
-            )
+            let column_names = statement.metadata.column_names.clone();
+            AnyStatement::try_from_statement(statement, column_names)
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
             describe.try_into_any()
