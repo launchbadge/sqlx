@@ -313,7 +313,7 @@ where
 }
 
 // implement FromRow for tuples of types that implement Decode
-// up to tuples of 9 values
+// up to tuples of 16 values
 
 macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {
