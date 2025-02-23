@@ -9,6 +9,7 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
+use tracing::{Instrument, Span};
 
 use crate::describe::Describe;
 use crate::error::Error;
@@ -30,6 +31,7 @@ pub struct PgListener {
     buffer_rx: mpsc::UnboundedReceiver<Notification>,
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
+    span: Span,
     ignore_close_event: bool,
     eager_reconnect: bool,
 }
@@ -69,6 +71,7 @@ impl PgListener {
             buffer_rx: receiver,
             buffer_tx: None,
             channels: Vec::new(),
+            span: Span::current(),
             ignore_close_event: false,
             eager_reconnect: true,
         })
@@ -366,7 +369,7 @@ impl Drop for PgListener {
             };
 
             // Unregister any listeners before returning the connection to the pool.
-            crate::rt::spawn(fut);
+            crate::rt::spawn(fut.instrument(self.span.clone()));
         }
     }
 }
