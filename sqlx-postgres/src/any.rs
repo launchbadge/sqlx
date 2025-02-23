@@ -5,6 +5,7 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
+use sqlx_core::sql_str::SqlStr;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{
@@ -76,7 +77,7 @@ impl AnyConnectionBackend for PgConnection {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
@@ -102,7 +103,7 @@ impl AnyConnectionBackend for PgConnection {
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
@@ -127,20 +128,17 @@ impl AnyConnectionBackend for PgConnection {
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            AnyStatement::try_from_statement(
-                sql,
-                &statement,
-                statement.metadata.column_names.clone(),
-            )
+            let colunn_names = statement.metadata.column_names.clone();
+            AnyStatement::try_from_statement(statement, colunn_names)
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe<'c>(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
 
