@@ -21,6 +21,9 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
+use super::deserialize::deserialize;
+use super::{serialize::serialize, SqliteOwnedBuf};
+
 // Each SQLite connection has a dedicated thread.
 
 // TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
@@ -53,6 +56,16 @@ enum Command {
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
         limit: Option<usize>,
+    },
+    Serialize {
+        schema: Box<str>,
+        tx: oneshot::Sender<Result<SqliteOwnedBuf, Error>>,
+    },
+    Deserialize {
+        schema: Box<str>,
+        data: Box<[u8]>,
+        read_only: bool,
+        tx: oneshot::Sender<Result<(), Error>>,
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -131,6 +144,9 @@ impl ConnectionWorker {
                         }
                         Command::Describe { query, tx } => {
                             tx.send(describe(&mut conn, &query)).ok();
+                        }
+                        Command::Deserialize { schema, data, read_only, tx } => {
+                            tx.send(deserialize(&mut conn, &schema, &data, read_only)).ok();
                         }
                         Command::Execute {
                             query,
@@ -263,6 +279,9 @@ impl ConnectionWorker {
                                 }
                             }
                         }
+                        Command::Serialize { schema, tx } => {
+                            tx.send(serialize(&mut conn, &schema)).ok();
+                        }
                         Command::ClearCache { tx } => {
                             conn.statements.clear();
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
@@ -356,6 +375,29 @@ impl ConnectionWorker {
 
     pub(crate) async fn ping(&mut self) -> Result<(), Error> {
         self.oneshot_cmd(|tx| Command::Ping { tx }).await
+    }
+
+    pub(crate) async fn deserialize(
+        &mut self,
+        schema: &str,
+        data: &[u8],
+        read_only: bool,
+    ) -> Result<(), Error> {
+        self.oneshot_cmd(|tx| Command::Deserialize {
+            schema: schema.into(),
+            data: data.into(),
+            read_only,
+            tx,
+        })
+        .await?
+    }
+
+    pub(crate) async fn serialize(&mut self, schema: &str) -> Result<SqliteOwnedBuf, Error> {
+        self.oneshot_cmd(|tx| Command::Serialize {
+            schema: schema.into(),
+            tx,
+        })
+        .await?
     }
 
     async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T, Error>
