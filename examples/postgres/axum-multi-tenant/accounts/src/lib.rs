@@ -1,11 +1,9 @@
 use argon2::{password_hash, Argon2, PasswordHasher, PasswordVerifier};
-use std::error::Error;
 use std::sync::Arc;
 
 use password_hash::PasswordHashString;
 
-use sqlx::{PgConnection, PgTransaction};
-use sqlx::types::Text;
+use sqlx::{PgConnection, PgPool, PgTransaction};
 
 use uuid::Uuid;
 
@@ -16,6 +14,37 @@ use tokio::sync::Semaphore;
 pub struct AccountId(pub Uuid);
 
 pub struct AccountsManager {
+    /// Controls how many blocking tasks are allowed to run concurrently for Argon2 hashing.
+    ///
+    /// ### Motivation
+    /// Tokio blocking tasks are generally not designed for CPU-bound work.
+    ///
+    /// If no threads are idle, Tokio will automatically spawn new ones to handle
+    /// new blocking tasks up to a very high limit--512 by default.
+    ///
+    /// This is because blocking tasks are expected to spend their time *blocked*, e.g. on
+    /// blocking I/O, and thus not consume CPU resources or require a lot of context switching.
+    ///
+    /// This strategy is not the most efficient way to use threads for CPU-bound work, which
+    /// should schedule work to a fixed number of threads to minimize context switching
+    /// and memory usage (each new thread needs significant space allocated for its stack).
+    ///
+    /// We can work around this by using a purpose-designed thread-pool, like Rayon,
+    /// but we still have the problem that those APIs usually are not designed to support `async`,
+    /// so we end up needing blocking tasks anyway, or implementing our own work queue using
+    /// channels. Rayon also does not shut down idle worker threads.
+    ///
+    /// `block_in_place` is not a silver bullet, either, as it simply uses `spawn_blocking`
+    /// internally to take over from the current thread while it is executing blocking work.
+    /// This also prevents futures from being polled concurrently in the current task.
+    ///
+    /// We can lower the limit for blocking threads when creating the runtime, but this risks
+    /// starving other blocking tasks that are being created by the application or the Tokio
+    /// runtime itself
+    /// (which are used for `tokio::fs`, stdio, resolving of hostnames by `ToSocketAddrs`, etc.).
+    ///
+    /// Instead, we can just use a Semaphore to limit how many blocking tasks are spawned at once,
+    /// emulating the behavior of a thread pool like Rayon without needing any additional crates.
     hashing_semaphore: Arc<Semaphore>,
 }
 
@@ -57,7 +86,7 @@ pub enum GeneralError {
     PasswordHash(
         #[source]
         #[from]
-        argon2::password_hash::Error,
+        password_hash::Error,
     ),
     #[error("task panicked")]
     Task(
@@ -68,12 +97,9 @@ pub enum GeneralError {
 }
 
 impl AccountsManager {
-    pub async fn new(
-        conn: &mut PgConnection,
-        max_hashing_threads: usize,
-    ) -> Result<Self, GeneralError> {
+    pub async fn setup(pool: &PgPool, max_hashing_threads: usize) -> Result<Self, GeneralError> {
         sqlx::migrate!()
-            .run(conn)
+            .run(pool)
             .await
             .map_err(sqlx::Error::from)?;
 
@@ -147,8 +173,8 @@ impl AccountsManager {
         let hash = self.hash_password(password).await?;
 
         // Thanks to `sqlx.toml`, `account_id` maps to `AccountId`
-        // language=PostgreSQL
         sqlx::query_scalar!(
+            // language=PostgreSQL
             "insert into accounts.account(email, password_hash) \
              values ($1, $2) \
              returning account_id",
@@ -158,7 +184,9 @@ impl AccountsManager {
         .fetch_one(&mut **txn)
         .await
         .map_err(|e| {
-            if e.as_database_error().and_then(|dbe| dbe.constraint()) == Some("account_account_id_key") {
+            if e.as_database_error().and_then(|dbe| dbe.constraint())
+                == Some("account_account_id_key")
+            {
                 CreateError::EmailInUse
             } else {
                 GeneralError::from(e).into()
@@ -193,7 +221,8 @@ impl AccountsManager {
             return Err(AuthenticateError::UnknownEmail);
         };
 
-        self.verify_password(password, account.password_hash.into_inner()).await?;
+        self.verify_password(password, account.password_hash.into_inner())
+            .await?;
 
         Ok(account.account_id)
     }
