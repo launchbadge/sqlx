@@ -5,7 +5,7 @@ use sqlx::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
     PgPoolOptions, PgRow, PgSeverity, Postgres, PG_COPY_MAX_DATA_LEN,
 };
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx::{Arguments, Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
@@ -2115,4 +2115,81 @@ async fn it_can_recover_from_copy_in_invalid_params() -> anyhow::Result<()> {
         "invalid_param",
     )
     .await
+}
+
+#[sqlx_macros::test]
+async fn it_can_insert_on_conflict_and_ignore() -> anyhow::Result<()> {
+    use anyhow::anyhow;
+    let mut conn = new::<Postgres>().await?;
+
+    sqlx::raw_sql("
+        drop type if exists conflict_table_kind;
+        create type conflict_table_kind as enum ('constrained', 'not_constrained');
+        create temporary table conflict_table(id int4 primary key, secondary_id int4 not null, kind conflict_table_kind not null);
+        create unique index on conflict_table(secondary_id) where kind = 'constrained'::conflict_table_kind;
+    ")
+        .execute(&mut conn)
+        .await?;
+
+    let mut initial_insert_args = sqlx_postgres::PgArguments::default();
+    initial_insert_args.add(1).map_err(|e| anyhow!("{e:?}"))?; // primary key
+    initial_insert_args.add(1).map_err(|e| anyhow!("{e:?}"))?; // secondary key
+    initial_insert_args
+        .add("constrained")
+        .map_err(|e| anyhow!("{e:?}"))?; // kind
+    let mut duplicate_insert_args = sqlx_postgres::PgArguments::default();
+    duplicate_insert_args.add(2).map_err(|e| anyhow!("{e:?}"))?; // primary key
+    duplicate_insert_args.add(1).map_err(|e| anyhow!("{e:?}"))?; // secondary key
+    duplicate_insert_args
+        .add("not_constrained")
+        .map_err(|e| anyhow!("{e:?}"))?; // kind
+    let mut unique_insert_args = sqlx_postgres::PgArguments::default();
+    unique_insert_args.add(3).map_err(|e| anyhow!("{e:?}"))?; // primary key
+    unique_insert_args.add(2).map_err(|e| anyhow!("{e:?}"))?; // secondary key
+    unique_insert_args
+        .add("constrained")
+        .map_err(|e| anyhow!("{e:?}"))?; // kind
+    let mut conflict_insert_args = sqlx_postgres::PgArguments::default();
+    conflict_insert_args.add(4).map_err(|e| anyhow!("{e:?}"))?; // primary key
+    conflict_insert_args.add(1).map_err(|e| anyhow!("{e:?}"))?; // secondary key
+    conflict_insert_args
+        .add("constrained")
+        .map_err(|e| anyhow!("{e:?}"))?; // kind
+
+    for mut args in [
+        initial_insert_args,
+        duplicate_insert_args,
+        unique_insert_args,
+        conflict_insert_args,
+    ] {
+        args.add("constrained").map_err(|e| anyhow!("{e:?}"))?;
+        sqlx::query_with(
+            // The below query passes this test:
+            // "insert into conflict_table(id, secondary_id, kind) values ($1, $2, cast($3 as conflict_table_kind))
+            // on conflict (secondary_id) where kind = (cast($4 as conflict_table_kind)) do nothing",
+            // Presumably because arguments cannot be passed into the conflict condition.
+            "insert into conflict_table(id, secondary_id, kind) values ($1, $2, cast($3 as conflict_table_kind))
+            on conflict (secondary_id) where kind = 'constrained'::conflict_table_kind do nothing",
+            args,
+        )
+        .execute(&mut conn)
+        .await?;
+    }
+    conn.ping().await?;
+
+    // Check what records were successfully inserted
+    let rows: Vec<(i32, i32, String)> = sqlx::query_as(
+        "select id, secondary_id, cast(kind as text) as kind from conflict_table order by id",
+    )
+    .fetch_all(&mut conn)
+    .await?;
+
+    // We should have 3 rows - initial, duplicate (with different primary key), and unique
+    // The conflicting insert should have been ignored
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[0], (1, 1, "constrained".to_string())); // initial insert
+    assert_eq!(rows[1], (2, 1, "not_constrained".to_string())); // duplicate with different kind (not filtered by constraint)
+    assert_eq!(rows[2], (3, 2, "constrained".to_string())); // unique insert
+
+    Ok(())
 }
