@@ -1,14 +1,34 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+use accounts::AccountId;
+use sqlx::PgPool;
+use time::OffsetDateTime;
+use uuid::Uuid;
+
+#[derive(sqlx::Type, Debug)]
+#[sqlx(transparent)]
+pub struct PaymentId(pub Uuid);
+
+#[derive(sqlx::Type, Debug)]
+#[sqlx(type_name = "payments.payment_status")]
+#[sqlx(rename_all = "snake_case")]
+pub enum PaymentStatus {
+    Pending,
+    Successful,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug)]
+pub struct Payment {
+    pub payment_id: PaymentId,
+    pub account_id: AccountId,
+    pub status: PaymentStatus,
+    pub currency: String,
+    // `rust_decimal::Decimal` has more than enough precision for any real-world amount of money.
+    pub amount: rust_decimal::Decimal,
+    pub external_payment_id: String,
+    pub created_at: OffsetDateTime,
+    pub updated_at: Option<OffsetDateTime>,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub async fn migrate(pool: &PgPool) -> sqlx::Result<()> {
+    sqlx::migrate!().run(pool).await?;
+    Ok(())
 }

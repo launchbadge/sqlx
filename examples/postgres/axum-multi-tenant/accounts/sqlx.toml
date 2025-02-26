@@ -1,6 +1,6 @@
 [migrate]
 create-schemas = ["accounts"]
-migrations-table = "accounts._sqlx_migrations"
+table-name = "accounts._sqlx_migrations"
 
 [macros.table-overrides.'accounts.account']
 'account_id' = "crate::AccountId"
