@@ -136,22 +136,13 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
         proc_macro::tracked_path::path(path);
     }
 
-    let table_name = config.migrate.table_name.as_deref().map_or_else(
-        || quote! {},
-        |name| quote! { table_name: Some(::std::borrow::Cow::Borrowed(#name)), },
-    );
-
-    let create_schemas = config.migrate.create_schemas.iter().map(|schema_name| {
-        quote! { ::std::borrow::Cow::Borrowed(#schema_name) }
-    });
-
     Ok(quote! {
         ::sqlx::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(&[
                     #(#migrations),*
             ]),
             create_schemas: ::std::borrow::Cow::Borrowed(&[#(#create_schemas),*]),
-            #table_name
+            table_name: ::std::borrow::Cow::Borrowed(#table_name),
             ..::sqlx::migrate::Migrator::DEFAULT
         }
     })
