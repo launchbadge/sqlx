@@ -2164,7 +2164,7 @@ async fn it_can_insert_on_conflict_and_ignore() -> anyhow::Result<()> {
     ] {
         args.add("constrained").map_err(|e| anyhow!("{e:?}"))?;
         sqlx::query_with(
-            // The below query passes this test:
+            // The below query fails this test:
             // "insert into conflict_table(id, secondary_id, kind) values ($1, $2, cast($3 as conflict_table_kind))
             // on conflict (secondary_id) where kind = (cast($4 as conflict_table_kind)) do nothing",
             // Presumably because arguments cannot be passed into the conflict condition.
