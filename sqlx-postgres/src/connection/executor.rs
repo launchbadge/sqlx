@@ -80,7 +80,9 @@ async fn prepare(
 
         let parameters = conn.handle_parameter_description(parameters).await?;
 
-        let (columns, column_names) = conn.handle_row_description(rows, true, fetch_column_origin).await?;
+        let (columns, column_names) = conn
+            .handle_row_description(rows, true, fetch_column_origin)
+            .await?;
 
         // ensure that if we did fetch custom data, we wait until we are fully ready before
         // continuing
@@ -449,7 +451,9 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, parameters, true, None, true).await?;
+            let (_, metadata) = self
+                .get_or_prepare(sql, parameters, true, None, true)
+                .await?;
 
             Ok(PgStatement {
                 sql: Cow::Borrowed(sql),
