@@ -21,8 +21,7 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
-use super::deserialize::deserialize;
-use super::{serialize::serialize, SqliteOwnedBuf};
+use super::serialize::{deserialize, serialize, SqliteOwnedBuf};
 
 // Each SQLite connection has a dedicated thread.
 
