@@ -45,10 +45,7 @@ async fn main() -> eyre::Result<()> {
 
     txn.commit().await?;
 
-    println!(
-        "created account ID: {}, email: {user_email:?}, password: {user_password:?}",
-        account_id.0
-    );
+    println!("created account ID: {}, email: {user_email:?}, password: {user_password:?}", account_id.0);
 
     // POST /session
     // Log the user in.
