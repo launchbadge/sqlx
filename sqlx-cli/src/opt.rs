@@ -433,15 +433,16 @@ impl AddMigrationOpts {
     pub fn version_prefix(&self, config: &Config, migrator: &Migrator) -> String {
         let default_versioning = &config.migrate.defaults.migration_versioning;
 
-        if self.timestamp || matches!(default_versioning, DefaultVersioning::Timestamp) {
-            return next_timestamp();
+        match (self.timestamp, self.sequential, default_versioning) {
+            (true, false, _) | (false, false, DefaultVersioning::Timestamp) => next_timestamp(),
+            (false, true, _) | (false, false, DefaultVersioning::Sequential) => {
+                next_sequential(migrator).unwrap_or_else(|| fmt_sequential(1))
+            }
+            (false, false, DefaultVersioning::Inferred) => {
+                next_sequential(migrator).unwrap_or_else(next_timestamp)
+            }
+            (true, true, _) => unreachable!("BUG: Clap should have rejected this case"),
         }
-
-        if self.sequential || matches!(default_versioning, DefaultVersioning::Sequential) {
-            return next_sequential(migrator).unwrap_or_else(|| fmt_sequential(1));
-        }
-
-        next_sequential(migrator).unwrap_or_else(next_timestamp)
     }
 }
 
