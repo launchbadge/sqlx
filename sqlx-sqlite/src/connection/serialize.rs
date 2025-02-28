@@ -3,7 +3,7 @@ use crate::{error::Error, SqliteConnection, SqliteError};
 use libsqlite3_sys::{
     sqlite3_deserialize, sqlite3_free, sqlite3_malloc64, sqlite3_serialize,
     SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY, SQLITE_DESERIALIZE_RESIZEABLE,
-    SQLITE_ERROR, SQLITE_NOMEM, SQLITE_OK,
+    SQLITE_NOMEM, SQLITE_OK,
 };
 use std::ffi::c_char;
 use std::fmt::Debug;
