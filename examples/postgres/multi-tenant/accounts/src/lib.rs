@@ -1,17 +1,24 @@
 use argon2::{password_hash, Argon2, PasswordHasher, PasswordVerifier};
-use std::sync::Arc;
-
 use password_hash::PasswordHashString;
-
-use sqlx::{PgConnection, PgPool, PgTransaction};
-
+use rand::distributions::{Alphanumeric, DistString};
+use sqlx::{Acquire, Executor, PgTransaction, Postgres};
+use std::sync::Arc;
 use uuid::Uuid;
 
 use tokio::sync::Semaphore;
 
-#[derive(sqlx::Type, Debug)]
+#[derive(sqlx::Type, Copy, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[sqlx(transparent)]
 pub struct AccountId(pub Uuid);
+
+#[derive(sqlx::Type, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[sqlx(transparent)]
+pub struct SessionToken(pub String);
+
+pub struct Session {
+    pub account_id: AccountId,
+    pub session_token: SessionToken,
+}
 
 pub struct AccountsManager {
     /// Controls how many blocking tasks are allowed to run concurrently for Argon2 hashing.
@@ -49,7 +56,7 @@ pub struct AccountsManager {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum CreateError {
+pub enum CreateAccountError {
     #[error("error creating account: email in-use")]
     EmailInUse,
     #[error("error creating account")]
@@ -61,7 +68,7 @@ pub enum CreateError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum AuthenticateError {
+pub enum CreateSessionError {
     #[error("unknown email")]
     UnknownEmail,
     #[error("invalid password")]
@@ -97,7 +104,10 @@ pub enum GeneralError {
 }
 
 impl AccountsManager {
-    pub async fn setup(pool: &PgPool, max_hashing_threads: usize) -> Result<Self, GeneralError> {
+    pub async fn setup(
+        pool: impl Acquire<'_, Database = Postgres>,
+        max_hashing_threads: usize,
+    ) -> Result<Self, GeneralError> {
         sqlx::migrate!()
             .run(pool)
             .await
@@ -119,7 +129,7 @@ impl AccountsManager {
         // We transfer ownership to the blocking task and back to ensure Tokio doesn't spawn
         // excess threads.
         let (_guard, res) = tokio::task::spawn_blocking(move || {
-            let salt = argon2::password_hash::SaltString::generate(rand::thread_rng());
+            let salt = password_hash::SaltString::generate(rand::thread_rng());
             (
                 guard,
                 Argon2::default()
@@ -136,7 +146,7 @@ impl AccountsManager {
         &self,
         password: String,
         hash: PasswordHashString,
-    ) -> Result<(), AuthenticateError> {
+    ) -> Result<(), CreateSessionError> {
         let guard = self
             .hashing_semaphore
             .clone()
@@ -154,7 +164,7 @@ impl AccountsManager {
         .map_err(GeneralError::from)?;
 
         if let Err(password_hash::Error::Password) = res {
-            return Err(AuthenticateError::InvalidPassword);
+            return Err(CreateSessionError::InvalidPassword);
         }
 
         res.map_err(GeneralError::from)?;
@@ -167,7 +177,7 @@ impl AccountsManager {
         txn: &mut PgTransaction<'_>,
         email: &str,
         password: String,
-    ) -> Result<AccountId, CreateError> {
+    ) -> Result<AccountId, CreateAccountError> {
         // Hash password whether the account exists or not to make it harder
         // to tell the difference in the timing.
         let hash = self.hash_password(password).await?;
@@ -187,29 +197,47 @@ impl AccountsManager {
             if e.as_database_error().and_then(|dbe| dbe.constraint())
                 == Some("account_account_id_key")
             {
-                CreateError::EmailInUse
+                CreateAccountError::EmailInUse
             } else {
                 GeneralError::from(e).into()
             }
         })
     }
 
-    pub async fn authenticate(
+    pub async fn create_session(
         &self,
-        conn: &mut PgConnection,
+        db: impl Acquire<'_, Database = Postgres>,
         email: &str,
         password: String,
-    ) -> Result<AccountId, AuthenticateError> {
+    ) -> Result<Session, CreateSessionError> {
+        let mut txn = db.begin().await.map_err(GeneralError::from)?;
+
+        // To save a round-trip to the database, we'll speculatively insert the session token
+        // at the same time as we're looking up the password hash.
+        //
+        // This does nothing until the transaction is actually committed.
+        let session_token = SessionToken::generate();
+
         // Thanks to `sqlx.toml`:
         // * `account_id` maps to `AccountId`
         // * `password_hash` maps to `Text<PasswordHashString>`
+        // * `session_token` maps to `SessionToken`
         let maybe_account = sqlx::query!(
-            "select account_id, password_hash \
-             from accounts.account \
-             where email = $1",
-            email
+            // language=PostgreSQL
+            "with account as (
+                select account_id, password_hash \
+                from accounts.account \
+                where email = $1
+            ), session as (
+                insert into accounts.session(session_token, account_id)
+                select $2, account_id
+                from account
+            )
+            select account.account_id, account.password_hash from account",
+            email,
+            session_token.0
         )
-        .fetch_optional(&mut *conn)
+        .fetch_optional(&mut *txn)
         .await
         .map_err(GeneralError::from)?;
 
@@ -218,12 +246,39 @@ impl AccountsManager {
             self.hash_password(password)
                 .await
                 .map_err(GeneralError::from)?;
-            return Err(AuthenticateError::UnknownEmail);
+            return Err(CreateSessionError::UnknownEmail);
         };
 
         self.verify_password(password, account.password_hash.into_inner())
             .await?;
 
-        Ok(account.account_id)
+        txn.commit().await.map_err(GeneralError::from)?;
+
+        Ok(Session {
+            account_id: account.account_id,
+            session_token,
+        })
+    }
+
+    pub async fn auth_session(
+        &self,
+        db: impl Executor<'_, Database = Postgres>,
+        session_token: &str,
+    ) -> Result<Option<AccountId>, GeneralError> {
+        sqlx::query_scalar!(
+            "select account_id from accounts.session where session_token = $1",
+            session_token
+        )
+        .fetch_optional(db)
+        .await
+        .map_err(GeneralError::from)
+    }
+}
+
+impl SessionToken {
+    const LEN: usize = 32;
+
+    fn generate() -> Self {
+        SessionToken(Alphanumeric.sample_string(&mut rand::thread_rng(), Self::LEN))
     }
 }
