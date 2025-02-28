@@ -452,8 +452,8 @@ fn next_timestamp() -> String {
 fn next_sequential(migrator: &Migrator) -> Option<String> {
     let next_version = migrator
         .migrations
-        .windows(2)
-        .last()
+        .rchunks(2)
+        .next()
         .and_then(|migrations| {
             match migrations {
                 [previous, latest] => {
