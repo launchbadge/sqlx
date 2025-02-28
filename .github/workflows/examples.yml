@@ -175,6 +175,20 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
         run: cargo run -p sqlx-example-postgres-mockable-todos
 
+      - name: Multi-Tenant (Setup)
+        working-directory: examples/postgres/multi-tenant
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
+        run: |
+          (cd accounts && sqlx db setup)
+          (cd payments && sqlx migrate run)
+          sqlx migrate run
+
+      - name: Mockable TODOs (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
+        run: cargo run -p sqlx-example-postgres-mockable-todos
+
       - name: TODOs (Setup)
         working-directory: examples/postgres/todos
         env:

@@ -1,5 +1,5 @@
 [package]
-name = "axum-multi-tenant"
+name = "sqlx-example-postgres-multi-tenant"
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -9,9 +9,6 @@ categories.workspace = true
 authors.workspace = true
 
 [dependencies]
-accounts = { path = "accounts" }
-payments = { path = "payments" }
-
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 sqlx = { path = "../../..", version = "0.8.3", features = ["runtime-tokio", "postgres"] }
@@ -25,6 +22,14 @@ tracing-subscriber = "0.3.19"
 rust_decimal = "1.36.0"
 
 rand = "0.8.5"
+
+[dependencies.accounts]
+package = "sqlx-example-postgres-multi-tenant-accounts"
+path = "accounts"
+
+[dependencies.payments]
+package = "sqlx-example-postgres-multi-tenant-accounts"
+path = "payments"
 
 [lints]
 workspace = true
