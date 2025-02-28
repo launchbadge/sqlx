@@ -32,20 +32,23 @@ impl SqliteConnection {
         self.worker.serialize(schema).await
     }
 
-    /// Deserialize a SQLite database from a byte slice into the specified schema using [`sqlite3_deserialize()`].
+    /// Deserialize a SQLite database from a buffer into the specified schema using [`sqlite3_deserialize()`].
     ///
-    /// The given schema will be disconnected and re-connected as an in-memory database.
+    /// The given schema will be disconnected and re-connected as an in-memory database
+    /// backed by `data`, which should be the serialized form of a database previously returned
+    /// by a call to [`Self::serialize()`], documented as being equivalent to
+    /// the contents of the database file on disk.
     ///
-    /// An error will be returned if a schema with the given name is not already attached.
+    /// An error will be returned if a schema with the given name is not already attached.  
     /// You can use `ATTACH ':memory' as "<schema name>"` to create an empty schema first.
     ///
     /// Pass `None` to deserialize to the primary, unqualified schema (`main`).
     ///
     /// The SQLite connection will take ownership of `data` and will free it when the connection
-    /// is closed or the schema is detached (`SQLITE_DESERIALIZE_FREEONCLOSE`).
+    /// is closed or the schema is detached ([`SQLITE_DESERIALIZE_FREEONCLOSE`][deserialize-flags]).
     ///
-    /// If `read_only` is `true`, the schema is opened as read-only (`SQLITE_DESERIALIZE_READONLY`).
-    /// If `false`, the database is marked as resizable (`SQLITE_DESERIALiZE_RESIZABLE`).
+    /// If `read_only` is `true`, the schema is opened as read-only ([`SQLITE_DESERIALIZE_READONLY`][deserialize-flags]).  
+    /// If `false`, the schema is marked as resizable ([`SQLITE_DESERIALIZE_RESIZABLE`][deserialize-flags]).
     ///
     /// If the database is in WAL mode, an error is returned.
     /// See [`sqlite3_deserialize()`] for details.
@@ -54,7 +57,8 @@ impl SqliteConnection {
     /// * [`Error::InvalidArgument`] if the schema name contains a zero/NUL byte (`\0`).
     /// * [`Error::Database`] if an error occurs during deserialization.
     ///
-    /// [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/serialize.html
+    /// [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
+    /// [deserialize-flags]: https://sqlite.org/c3ref/c_deserialize_freeonclose.html
     pub async fn deserialize(
         &mut self,
         schema: Option<&str>,
@@ -147,7 +151,11 @@ pub(crate) fn deserialize(
     }
 }
 
-/// Memory buffer owned and allocated by SQLite.
+/// Memory buffer owned and allocated by SQLite. Freed on drop.
+///
+/// Intended primarily for use with [`SqliteConnection::serialize()`] and [`SqliteConnection::deserialize()`].
+///
+/// Can be created from `&[u8]` using the `TryFrom` impl. The slice must not be empty.
 #[derive(Debug)]
 pub struct SqliteOwnedBuf {
     ptr: NonNull<u8>,
@@ -166,12 +174,13 @@ impl Drop for SqliteOwnedBuf {
 }
 
 impl SqliteOwnedBuf {
-    /// Uses `sqlite3_malloc` to allocate a buffer and returns a pointer to it
-    fn with_capacity(size: usize) -> Option<SqliteOwnedBuf> {
-        unsafe {
-            let ptr = sqlite3_malloc64(u64::try_from(size).unwrap()).cast::<u8>();
-            Self::from_raw(ptr, size)
-        }
+    /// Uses `sqlite3_malloc` to allocate a buffer and returns a pointer to it.
+    ///
+    /// # Safety
+    /// The allocated buffer is uninitialized.
+    unsafe fn with_capacity(size: usize) -> Option<SqliteOwnedBuf> {
+        let ptr = sqlite3_malloc64(u64::try_from(size).unwrap()).cast::<u8>();
+        Self::from_raw(ptr, size)
     }
 
     /// Creates a new mem buffer from a pointer that has been created with sqlite_malloc
@@ -200,14 +209,14 @@ impl TryFrom<&[u8]> for SqliteOwnedBuf {
     type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let mut buf = Self::with_capacity(bytes.len()).ok_or_else(|| {
-            Error::InvalidArgument("SQLite owned buffer cannot be empty".to_string())
-        })?;
         unsafe {
+            // SAFETY: `buf` is not initialized until `ptr::copy_nonoverlapping` completes.
+            let mut buf = Self::with_capacity(bytes.len()).ok_or_else(|| {
+                Error::InvalidArgument("SQLite owned buffer cannot be empty".to_string())
+            })?;
             ptr::copy_nonoverlapping(bytes.as_ptr(), buf.ptr.as_mut(), buf.size);
+            Ok(buf)
         }
-
-        Ok(buf)
     }
 }
 
