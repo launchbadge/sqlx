@@ -18,7 +18,6 @@ use libsqlite3_sys::{
 pub use preupdate_hook::*;
 
 pub(crate) use handle::ConnectionHandle;
-use serialize::SqliteOwnedBuf;
 use sqlx_core::common::StatementCache;
 pub(crate) use sqlx_core::connection::*;
 use sqlx_core::error::Error;
@@ -202,57 +201,6 @@ impl SqliteConnection {
         let guard = self.worker.unlock_db().await?;
 
         Ok(LockedSqliteHandle { guard })
-    }
-
-    /// Serializes a SQLite database schema into a binary format.
-    ///
-    /// This method serializes the database schema and returns an sqlite owned buffer
-    /// containing the serialized schema. The schema is provided as a string slice.
-    ///
-    /// # Arguments
-    /// * `schema` - A string slice representing the schema to be serialized.
-    ///
-    /// # Returns
-    /// - On success, returns an `SqliteOwnedBuf`.
-    /// - On failure, returns an `Err` containing a [`Error`](crate::Error).
-    ///
-    /// # See Also
-    /// [SQLite Documentation](https://sqlite.org/c3ref/serialize.html)
-    pub async fn serialize(&mut self, schema: &str) -> Result<SqliteOwnedBuf, Error> {
-        self.worker.serialize(schema).await
-    }
-
-    /// Deserializes a SQLite database from a byte array into the specified schema.
-    ///
-    /// This function loads an sqlite database from a byte array into the given
-    /// schema (e.g., "main"). The memory for the byte array is managed by
-    /// SQLite and will be freed when the database is closed or the schema is
-    /// reset.
-    ///
-    /// # Arguments
-    /// - `schema`: The name of the schema (e.g., "main") into which the database will be deserialized.
-    /// - `data`: A byte slice containing the serialized SQLite database. Under
-    /// the hood, this data is copied into another buffer that is managed by
-    /// sqlite using `std::ptr::copy_nooverlapping`, any change to this slice won't affect the underlying buffer.
-    /// - `read_only`: If true, the deserialized database will be opened in read-only mode to prevent modifications.
-    ///
-    /// # Returns
-    /// - On success, returns `Ok(())`.
-    /// - On failure, returns an `Err` containing a [`Error`](crate::Error).
-    ///
-    /// # Notes
-    /// - The `SQLITE_DESERIALIZE_FREEONCLOSE` flag is used, so SQLite will automatically free the memory when the database is closed or the schema is reset.
-    /// - If `read_only` is true, the `SQLITE_DESERIALIZE_READONLY` flag is also set to prevent modifications to the deserialized database.
-    ///
-    /// # See Also
-    /// [SQLite Documentation](https://sqlite.org/c3ref/deserialize.html)
-    pub async fn deserialize(
-        &mut self,
-        schema: &str,
-        data: &[u8],
-        read_only: bool,
-    ) -> Result<(), Error> {
-        self.worker.deserialize(schema, data, read_only).await
     }
 }
 
@@ -597,7 +545,7 @@ impl LockedSqliteHandle<'_> {
     }
 
     pub fn last_error(&mut self) -> Option<SqliteError> {
-        SqliteError::try_new(self.guard.handle.as_ptr())
+        self.guard.handle.last_error()
     }
 }
 
