@@ -19,7 +19,7 @@ This example uses schema-qualified names everywhere for clarity.
 It can be tempting to change the `search_path` of the connection (MySQL, Postgres) to eliminate the need for schema
 prefixes, but this can cause some really confusing issues when names conflict.
 
-This example will generate a `_sqlx_migrations` table in three different schemas, and if `search_path` is set
+This example will generate a `_sqlx_migrations` table in three different schemas; if `search_path` is set
 to `public,accounts,payments` and the migrator for the main application attempts to reference the table unqualified,
 it would throw an error.
 
@@ -27,11 +27,23 @@ it would throw an error.
 
 This example requires running three different sets of migrations.
 
-Ensure `sqlx-cli` is installed with Postgres support.
+Ensure `sqlx-cli` is installed with Postgres and `sqlx.toml` support:
 
-Start a Postgres server.
+```
+cargo install sqlx-cli --features postgres,sqlx-toml
+```
 
-Create `.env` with `DATABASE_URL` or set it in your shell environment.
+Start a Postgres server (shown here using Docker, `run` command also works with `podman`):
+
+```
+docker run -d -e POSTGRES_PASSWORD=password -p 5432:5432 --name postgres postgres:latest
+```
+
+Create `.env` with `DATABASE_URL` or set the variable in your shell environment;
+
+```
+DATABASE_URL=postgres://postgres:password@localhost/example-multi-tenant
+```
 
 Run the following commands:
 
