@@ -11,7 +11,7 @@ members = [
     "sqlx-postgres",
     "sqlx-sqlite",
     "examples/mysql/todos",
-    "examples/postgres/axum-multi-tenant",
+    "examples/postgres/multi-tenant",
     "examples/postgres/axum-social-with-tests",
     "examples/postgres/chat",
     "examples/postgres/files",

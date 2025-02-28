@@ -5,6 +5,8 @@ with their own set of migrations.
 
 * The main crate, an Axum app.
     * Owns the `public` schema (tables are referenced unqualified).
+    * Migrations are moved to `src/migrations` using config key `migrate.migrations-dir`
+      to visually separate them from the subcrate folders.
 * `accounts`: a subcrate simulating a reusable account-management crate.
     * Owns schema `accounts`.
 * `payments`: a subcrate simulating a wrapper for a payments API.
@@ -20,3 +22,27 @@ prefixes, but this can cause some really confusing issues when names conflict.
 This example will generate a `_sqlx_migrations` table in three different schemas, and if `search_path` is set
 to `public,accounts,payments` and the migrator for the main application attempts to reference the table unqualified,
 it would throw an error.
+
+# Setup
+
+This example requires running three different sets of migrations.
+
+Ensure `sqlx-cli` is installed with Postgres support.
+
+Start a Postgres server.
+
+Create `.env` with `DATABASE_URL` or set it in your shell environment.
+
+Run the following commands:
+
+```
+(cd accounts && sqlx db setup)
+(cd payments && sqlx migrate run)
+sqlx migrate run
+```
+
+It is an open question how to make this more convenient; `sqlx-cli` could gain a `--recursive` flag that checks
+subdirectories for `sqlx.toml` files, but that would only work for crates within the same workspace. If the `accounts`
+and `payments` crates were instead crates.io dependencies, we would need Cargo's help to resolve that information.
+
+An issue has been opened for discussion: <https://github.com/launchbadge/sqlx/issues/3761>
