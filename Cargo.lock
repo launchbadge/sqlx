@@ -516,22 +516,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-multi-tenant"
-version = "0.8.3"
-dependencies = [
- "accounts",
- "axum 0.8.1",
- "color-eyre",
- "dotenvy",
- "payments",
- "rand",
- "rust_decimal",
- "sqlx",
- "tokio",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "backoff"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3989,6 +3973,22 @@ dependencies = [
  "mockall",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "sqlx-example-postgres-multi-tenant"
+version = "0.8.3"
+dependencies = [
+ "accounts",
+ "axum 0.8.1",
+ "color-eyre",
+ "dotenvy",
+ "payments",
+ "rand",
+ "rust_decimal",
+ "sqlx",
+ "tokio",
+ "tracing-subscriber",
 ]
 
 [[package]]

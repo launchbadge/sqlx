@@ -22,12 +22,12 @@ jobs:
           key: sqlx-cli
 
       - run: >
-            cargo build
-            -p sqlx-cli
-            --bin sqlx
-            --release
-            --no-default-features
-            --features mysql,postgres,sqlite
+          cargo build
+          -p sqlx-cli
+          --bin sqlx
+          --release
+          --no-default-features
+          --features mysql,postgres,sqlite
 
       - uses: actions/upload-artifact@v4
         with:
@@ -98,7 +98,7 @@ jobs:
           name: sqlx-cli
           path: /home/runner/.local/bin
 
-      - run:  |
+      - run: |
           ls -R /home/runner/.local/bin
           chmod +x $HOME/.local/bin/sqlx
           echo $HOME/.local/bin >> $GITHUB_PATH
@@ -169,6 +169,20 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
         run: sqlx db setup
+
+      - name: Mockable TODOs (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
+        run: cargo run -p sqlx-example-postgres-mockable-todos
+
+      - name: Multi-Tenant (Setup)
+        working-directory: examples/postgres/multi-tenant
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
+        run: |
+          (cd accounts && sqlx db setup)
+          (cd payments && sqlx migrate run)
+          sqlx migrate run
 
       - name: Mockable TODOs (Run)
         env:
