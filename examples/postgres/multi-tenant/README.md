@@ -3,7 +3,7 @@
 This example project involves three crates, each owning a different schema in one database,
 with their own set of migrations.
 
-* The main crate, an Axum app.
+* The main crate, a simple binary simulating the action of a REST API.
     * Owns the `public` schema (tables are referenced unqualified).
     * Migrations are moved to `src/migrations` using config key `migrate.migrations-dir`
       to visually separate them from the subcrate folders.
