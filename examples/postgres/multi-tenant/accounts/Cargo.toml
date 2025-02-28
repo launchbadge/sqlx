@@ -10,11 +10,13 @@ tokio = { version = "1", features = ["rt", "sync"] }
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 password-hash = { version = "0.5", features = ["std"] }
 
-uuid = "1"
+uuid = { version = "1", features = ["serde"] }
 thiserror = "1"
 rand = "0.8"
 
-time = "0.3.37"
+time = { version = "0.3.37", features = ["serde"] }
+
+serde = { version = "1.0.218", features = ["derive"] }
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio"] }
