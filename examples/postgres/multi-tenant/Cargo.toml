@@ -24,12 +24,12 @@ rust_decimal = "1.36.0"
 rand = "0.8.5"
 
 [dependencies.accounts]
-package = "sqlx-example-postgres-multi-tenant-accounts"
 path = "accounts"
+package = "sqlx-example-postgres-multi-tenant-accounts"
 
 [dependencies.payments]
-package = "sqlx-example-postgres-multi-tenant-accounts"
 path = "payments"
+package = "sqlx-example-postgres-multi-tenant-payments"
 
 [lints]
 workspace = true
