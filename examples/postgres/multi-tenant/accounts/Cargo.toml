@@ -1,5 +1,5 @@
 [package]
-name = "accounts"
+name = "sqlx-example-postgres-multi-tenant-accounts"
 version = "0.1.0"
 edition = "2021"
 
