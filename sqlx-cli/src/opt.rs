@@ -12,6 +12,10 @@ use std::ops::{Deref, Not};
 #[derive(Parser, Debug)]
 #[clap(version, about, author)]
 pub struct Opt {
+    /// Do not automatically load `.env` files.
+    #[clap(long)]
+    pub no_dotenv: bool,
+
     #[clap(subcommand)]
     pub command: Command,
 }

@@ -21,8 +21,10 @@
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
 //! | [`PgCube`]                            | CUBE                                                 |
-//! | [`PgPoint]                            | POINT                                                |
-//! | [`PgLine]                             | LINE                                                 |
+//! | [`PgPoint`]                           | POINT                                                |
+//! | [`PgLine`]                            | LINE                                                 |
+//! | [`PgLSeg`]                            | LSEG                                                 |
+//! | [`PgBox`]                             | BOX                                                  |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -259,7 +261,9 @@ pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
 pub use geometry::line::PgLine;
+pub use geometry::line_segment::PgLSeg;
 pub use geometry::point::PgPoint;
+pub use geometry::r#box::PgBox;
 pub use hstore::PgHstore;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;

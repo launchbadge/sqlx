@@ -76,9 +76,10 @@ _unstable-all-types = [
     "mac_address",
     "uuid",
     "bit-vec",
+    "bstr"
 ]
 # Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
-_unstable-doc = []
+_unstable-doc = ["sqlite-preupdate-hook"]
 
 # Base runtime features without TLS
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
@@ -114,6 +115,7 @@ postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
 sqlite = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
 
 # types
 json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
@@ -127,6 +129,7 @@ rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mys
 time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
 uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
 regexp = ["sqlx-sqlite?/regexp"]
+bstr = ["sqlx-core/bstr"]
 
 [workspace.dependencies]
 # Core Crates

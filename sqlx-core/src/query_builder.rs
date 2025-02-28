@@ -323,6 +323,11 @@ where
             separated.push_unseparated(")");
         }
 
+        debug_assert!(
+            separated.push_separator,
+            "No value being pushed. QueryBuilder may not build correct sql query!"
+        );
+
         separated.query_builder
     }
 

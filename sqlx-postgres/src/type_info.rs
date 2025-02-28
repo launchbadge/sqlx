@@ -185,7 +185,7 @@ pub enum PgTypeKind {
     Range(PgTypeInfo),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgArrayOf {
     pub(crate) elem_name: UStr,

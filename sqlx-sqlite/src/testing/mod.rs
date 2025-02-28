@@ -30,6 +30,10 @@ impl TestSupport for Sqlite {
     ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
         todo!()
     }
+
+    fn db_name(args: &TestArgs) -> String {
+        convert_path(args.test_path)
+    }
 }
 
 async fn test_context(args: &TestArgs) -> Result<TestContext<Sqlite>, Error> {

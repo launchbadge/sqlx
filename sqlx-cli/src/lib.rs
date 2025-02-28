@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
+use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
@@ -24,6 +25,26 @@ pub use crate::opt::Opt;
 pub use sqlx::_unstable::config::{self, Config};
 
 pub async fn run(opt: Opt) -> Result<()> {
+    // This `select!` is here so that when the process receives a `SIGINT` (CTRL + C),
+    // the futures currently running on this task get dropped before the program exits.
+    // This is currently necessary for the consumers of the `dialoguer` crate to restore
+    // the user's terminal if the process is interrupted while a dialog is being displayed.
+
+    let ctrlc_fut = signal::ctrl_c();
+    let do_run_fut = do_run(opt);
+
+    select! {
+        biased;
+        _ = ctrlc_fut => {
+            Ok(())
+        },
+        do_run_outcome = do_run_fut => {
+            do_run_outcome
+        }
+    }
+}
+
+async fn do_run(opt: Opt) -> Result<()> {
     let config = config_from_current_dir().await?;
 
     match opt.command {
