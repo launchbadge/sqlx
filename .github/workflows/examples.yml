@@ -27,7 +27,7 @@ jobs:
           --bin sqlx
           --release
           --no-default-features
-          --features mysql,postgres,sqlite
+          --features mysql,postgres,sqlite,sqlx-toml
 
       - uses: actions/upload-artifact@v4
         with:
