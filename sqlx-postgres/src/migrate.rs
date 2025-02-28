@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let row: Option<(i64,)> = query_as(&*format!(
+            let row: Option<(i64,)> = query_as(&format!(
                 "SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"
             ))
             .fetch_optional(self)
@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let rows: Vec<(i64, Vec<u8>)> = query_as(&*format!(
+            let rows: Vec<(i64, Vec<u8>)> = query_as(&format!(
                 "SELECT version, checksum FROM {table_name} ORDER BY version"
             ))
             .fetch_all(self)
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
 
             // language=SQL
             #[allow(clippy::cast_possible_truncation)]
-            let _ = query(&*format!(
+            let _ = query(&format!(
                 r#"
     UPDATE {table_name}
     SET execution_time = $1
@@ -306,7 +306,7 @@ async fn execute_migration(
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
     // language=SQL
-    let _ = query(&*format!(
+    let _ = query(&format!(
         r#"
     INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( $1, $2, TRUE, $3, -1 )
@@ -332,7 +332,7 @@ async fn revert_migration(
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
     // language=SQL
-    let _ = query(&*format!(r#"DELETE FROM {table_name} WHERE version = $1"#))
+    let _ = query(&format!(r#"DELETE FROM {table_name} WHERE version = $1"#))
         .bind(migration.version)
         .execute(conn)
         .await?;
