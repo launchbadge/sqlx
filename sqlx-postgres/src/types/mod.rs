@@ -24,6 +24,7 @@
 //! | [`PgCube`]                            | CUBE                                                 |
 //! | [`PgLSeg`]                            | LSEG                                                 |
 //! | [`PgLine`]                            | LINE                                                 |
+//! | [`PgPath`]                            | PATH                                                 |
 //! | [`PgPoint`]                           | POINT                                                |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
