@@ -20,12 +20,12 @@
 //! | [`PgLTree`]                           | LTREE                                                |
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
-//! | [`PgBox`]                             | BOX                                                  |
 //! | [`PgCube`]                            | CUBE                                                 |
-//! | [`PgLSeg`]                            | LSEG                                                 |
-//! | [`PgLine`]                            | LINE                                                 |
-//! | [`PgPath`]                            | PATH                                                 |
 //! | [`PgPoint`]                           | POINT                                                |
+//! | [`PgLine`]                            | LINE                                                 |
+//! | [`PgLSeg`]                            | LSEG                                                 |
+//! | [`PgBox`]                             | BOX                                                  |
+//! | [`PgPath`]                            | PATH                                                 |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
