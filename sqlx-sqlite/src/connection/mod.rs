@@ -40,6 +40,7 @@ mod handle;
 pub(crate) mod intmap;
 #[cfg(feature = "preupdate-hook")]
 mod preupdate_hook;
+pub(crate) mod serialize;
 
 mod worker;
 
@@ -544,7 +545,7 @@ impl LockedSqliteHandle<'_> {
     }
 
     pub fn last_error(&mut self) -> Option<SqliteError> {
-        SqliteError::try_new(self.guard.handle.as_ptr())
+        self.guard.handle.last_error()
     }
 }
 
