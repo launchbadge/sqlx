@@ -251,19 +251,27 @@ impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
     }
 }
 
-impl<T, DB: Database> Type<DB> for Arc<T>
-where
-    T: Type<DB>,
-    T: ?Sized,
-{
-    fn type_info() -> DB::TypeInfo {
-        <T as Type<DB>>::type_info()
-    }
+macro_rules! impl_type_for_smartpointer {
+    ($smart_pointer:ty) => {
+        impl<T, DB: Database> Type<DB> for $smart_pointer
+        where
+            T: Type<DB>,
+            T: ?Sized,
+        {
+            fn type_info() -> DB::TypeInfo {
+                <T as Type<DB>>::type_info()
+            }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        ty.is_null() || <T as Type<DB>>::compatible(ty)
-    }
+            fn compatible(ty: &DB::TypeInfo) -> bool {
+                <T as Type<DB>>::compatible(ty)
+            }
+        }
+    };
 }
+
+impl_type_for_smartpointer!(Arc<T>);
+impl_type_for_smartpointer!(Box<T>);
+impl_type_for_smartpointer!(Rc<T>);
 
 impl<T, DB: Database> Type<DB> for Cow<'_, T>
 where
@@ -275,26 +283,6 @@ where
     }
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
-        ty.is_null() || <T as Type<DB>>::compatible(ty)
-    }
-}
-
-impl<T: Type<DB>, DB: Database> Type<DB> for Box<T> {
-    fn type_info() -> DB::TypeInfo {
-        <T as Type<DB>>::type_info()
-    }
-
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        ty.is_null() || <T as Type<DB>>::compatible(ty)
-    }
-}
-
-impl<T: Type<DB>, DB: Database> Type<DB> for Rc<T> {
-    fn type_info() -> DB::TypeInfo {
-        <T as Type<DB>>::type_info()
-    }
-
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        ty.is_null() || <T as Type<DB>>::compatible(ty)
+        <T as Type<DB>>::compatible(ty)
     }
 }
