@@ -12,7 +12,7 @@ pub mod rt_tokio;
 
 #[derive(Debug, thiserror::Error)]
 #[error("operation timed out")]
-pub struct TimeoutError(());
+pub struct TimeoutError;
 
 pub enum JoinHandle<T> {
     #[cfg(feature = "_rt-async-std")]
@@ -28,14 +28,14 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     if rt_tokio::available() {
         return tokio::time::timeout(duration, f)
             .await
-            .map_err(|_| TimeoutError(()));
+            .map_err(|_| TimeoutError);
     }
 
     #[cfg(feature = "_rt-async-std")]
     {
         async_std::future::timeout(duration, f)
             .await
-            .map_err(|_| TimeoutError(()))
+            .map_err(|_| TimeoutError);
     }
 
     #[cfg(not(feature = "_rt-async-std"))]
