@@ -1,6 +1,7 @@
 //! Provides [`Decode`] for decoding values from the database.
 
 use std::borrow::Cow;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::database::Database;
@@ -112,5 +113,16 @@ where
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Box::new(T::decode(value)?))
+    }
+}
+
+// implement `Decode` for Rc<T> for all SQL types
+impl<'r, DB, T> Decode<'r, DB> for Rc<T>
+where
+    DB: Database,
+    T: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Rc::new(T::decode(value)?))
     }
 }
