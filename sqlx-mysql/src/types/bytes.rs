@@ -40,16 +40,6 @@ impl<'r> Decode<'r, MySql> for &'r [u8] {
     }
 }
 
-impl Type<MySql> for Box<[u8]> {
-    fn type_info() -> MySqlTypeInfo {
-        <&[u8] as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <&[u8] as Type<MySql>>::compatible(ty)
-    }
-}
-
 impl Encode<'_, MySql> for Box<[u8]> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<MySql>>::encode(self.as_ref(), buf)

@@ -30,12 +30,6 @@ impl<'r> Decode<'r, Sqlite> for &'r str {
     }
 }
 
-impl Type<Sqlite> for Box<str> {
-    fn type_info() -> SqliteTypeInfo {
-        <&str as Type<Sqlite>>::type_info()
-    }
-}
-
 impl Encode<'_, Sqlite> for Box<str> {
     fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self.into_string())));
@@ -87,16 +81,6 @@ impl<'q> Encode<'q, Sqlite> for String {
 impl<'r> Decode<'r, Sqlite> for String {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(ToOwned::to_owned)
-    }
-}
-
-impl Type<Sqlite> for Cow<'_, str> {
-    fn type_info() -> SqliteTypeInfo {
-        <&str as Type<Sqlite>>::type_info()
-    }
-
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
-        <&str as Type<Sqlite>>::compatible(ty)
     }
 }
 
