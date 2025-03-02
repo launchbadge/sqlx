@@ -302,7 +302,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 
             let stream = Async::<UnixStream>::connect(path).await?;
 
-            Ok(with_socket.with_socket(stream).await)
+            return Ok(with_socket.with_socket(stream).await);
         }
 
         #[cfg(feature = "_rt-async-std")]
@@ -312,10 +312,11 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 
             let stream = Async::<UnixStream>::connect(path).await?;
 
-            Ok(with_socket.with_socket(stream).await)
+            return Ok(with_socket.with_socket(stream).await);
         }
 
         #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std")))]
+        #[allow(unreachable_code)]
         {
             crate::rt::missing_rt((path, with_socket))
         }
