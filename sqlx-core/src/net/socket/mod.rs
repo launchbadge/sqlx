@@ -204,7 +204,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
 
     #[cfg(feature = "_rt-async-std")]
     {
-        use async_io::Async;
+        use async_io_std::Async;
         use async_std::net::ToSocketAddrs;
         use std::net::TcpStream;
 
@@ -262,7 +262,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 
         #[cfg(feature = "_rt-async-std")]
         {
-            use async_io::Async;
+            use async_io_std::Async;
             use std::os::unix::net::UnixStream;
 
             let stream = Async::<UnixStream>::connect(path).await?;

@@ -19,7 +19,7 @@ any = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
-_rt-async-std = ["async-std", "async-io"]
+_rt-async-std = ["async-std", "async-io-std"]
 _rt-tokio = ["tokio", "tokio-stream"]
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
@@ -52,7 +52,7 @@ ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
-async-io = { version = "1.9.0", optional = true }
+async-io-std = { package = "async-io", version = "1.9.0", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }

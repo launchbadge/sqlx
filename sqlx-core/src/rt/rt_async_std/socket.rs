@@ -7,7 +7,7 @@ use std::net::{Shutdown, TcpStream};
 use std::task::{Context, Poll};
 
 use crate::io::ReadBuf;
-use async_io::Async;
+use async_io_std::Async;
 
 impl Socket for Async<TcpStream> {
     fn try_read(&mut self, buf: &mut dyn ReadBuf) -> io::Result<usize> {
