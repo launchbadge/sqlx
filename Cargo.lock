@@ -214,6 +214,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-global-executor"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13f937e26114b93193065fd44f507aa2e9169ad0cdabbb996920b1fe1ddea7ba"
+dependencies = [
+ "async-channel 2.3.1",
+ "async-executor",
+ "async-io 2.4.0",
+ "async-lock 3.4.0",
+ "blocking",
+ "futures-lite 2.5.0",
+]
+
+[[package]]
 name = "async-io"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -273,6 +287,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-net"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b948000fad4873c1c9339d60f2623323a0cfd3816e5181033c6a5cb68b2accf7"
+dependencies = [
+ "async-io 2.4.0",
+ "blocking",
+ "futures-lite 2.5.0",
+]
+
+[[package]]
 name = "async-std"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -280,7 +305,7 @@ checksum = "c634475f29802fde2b8f0b505b1bd00dfe4df7d4a000f0b36f7671197d5c3615"
 dependencies = [
  "async-attributes",
  "async-channel 1.9.0",
- "async-global-executor",
+ "async-global-executor 2.4.1",
  "async-io 2.4.0",
  "async-lock 3.4.0",
  "crossbeam-utils",
@@ -3424,7 +3449,10 @@ dependencies = [
 name = "sqlx-core"
 version = "0.8.3"
 dependencies = [
+ "async-global-executor 3.1.0",
  "async-io 1.13.0",
+ "async-io 2.4.0",
+ "async-net",
  "async-std",
  "base64 0.22.1",
  "bigdecimal",
@@ -3610,6 +3638,7 @@ dependencies = [
 name = "sqlx-macros-core"
 version = "0.8.3"
 dependencies = [
+ "async-global-executor 3.1.0",
  "async-std",
  "dotenvy",
  "either",

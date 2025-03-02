@@ -4,6 +4,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+#[cfg(feature = "_rt-async-global-executor")]
+pub mod rt_async_global_executor;
+
 #[cfg(feature = "_rt-async-std")]
 pub mod rt_async_std;
 
@@ -12,9 +15,11 @@ pub mod rt_tokio;
 
 #[derive(Debug, thiserror::Error)]
 #[error("operation timed out")]
-pub struct TimeoutError(());
+pub struct TimeoutError;
 
 pub enum JoinHandle<T> {
+    #[cfg(feature = "_rt-async-global-executor")]
+    AsyncGlobalExecutor(rt_async_global_executor::JoinHandle<T>),
     #[cfg(feature = "_rt-async-std")]
     AsyncStd(async_std::task::JoinHandle<T>),
     #[cfg(feature = "_rt-tokio")]
@@ -28,17 +33,23 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     if rt_tokio::available() {
         return tokio::time::timeout(duration, f)
             .await
-            .map_err(|_| TimeoutError(()));
+            .map_err(|_| TimeoutError);
+    }
+
+    #[cfg(feature = "_rt-async-global-executor")]
+    {
+        return rt_async_global_executor::timeout(duration, f).await;
     }
 
     #[cfg(feature = "_rt-async-std")]
     {
-        async_std::future::timeout(duration, f)
+        return async_std::future::timeout(duration, f)
             .await
-            .map_err(|_| TimeoutError(()))
+            .map_err(|_| TimeoutError);
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
     missing_rt((duration, f))
 }
 
@@ -48,12 +59,18 @@ pub async fn sleep(duration: Duration) {
         return tokio::time::sleep(duration).await;
     }
 
-    #[cfg(feature = "_rt-async-std")]
+    #[cfg(feature = "_rt-async-global-executor")]
     {
-        async_std::task::sleep(duration).await
+        return rt_async_global_executor::sleep(duration).await;
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(feature = "_rt-async-std")]
+    {
+        return async_std::task::sleep(duration).await;
+    }
+
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
     missing_rt(duration)
 }
 
@@ -68,12 +85,20 @@ where
         return JoinHandle::Tokio(handle.spawn(fut));
     }
 
-    #[cfg(feature = "_rt-async-std")]
+    #[cfg(feature = "_rt-async-global-executor")]
     {
-        JoinHandle::AsyncStd(async_std::task::spawn(fut))
+        return JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
+            task: Some(async_global_executor::spawn(fut)),
+        });
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(feature = "_rt-async-std")]
+    {
+        return JoinHandle::AsyncStd(async_std::task::spawn(fut));
+    }
+
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
     missing_rt(fut)
 }
 
@@ -88,12 +113,20 @@ where
         return JoinHandle::Tokio(handle.spawn_blocking(f));
     }
 
-    #[cfg(feature = "_rt-async-std")]
+    #[cfg(feature = "_rt-async-global-executor")]
     {
-        JoinHandle::AsyncStd(async_std::task::spawn_blocking(f))
+        return JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
+            task: Some(async_global_executor::spawn_blocking(f)),
+        });
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(feature = "_rt-async-std")]
+    {
+        return JoinHandle::AsyncStd(async_std::task::spawn_blocking(f));
+    }
+
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
     missing_rt(f)
 }
 
@@ -103,12 +136,18 @@ pub async fn yield_now() {
         return tokio::task::yield_now().await;
     }
 
-    #[cfg(feature = "_rt-async-std")]
+    #[cfg(feature = "_rt-async-global-executor")]
     {
-        async_std::task::yield_now().await;
+        return rt_async_global_executor::yield_now().await;
     }
 
-    #[cfg(not(feature = "_rt-async-std"))]
+    #[cfg(feature = "_rt-async-std")]
+    {
+        return async_std::task::yield_now().await;
+    }
+
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
     missing_rt(())
 }
 
@@ -123,15 +162,19 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
             .block_on(f);
     }
 
-    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
+    #[cfg(feature = "_rt-async-global-executor")]
     {
-        async_std::task::block_on(f)
+        return async_io_global_executor::block_on(f);
     }
 
-    #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
+    #[cfg(feature = "_rt-async-std")]
     {
-        missing_rt(f)
+        return async_std::task::block_on(f);
     }
+
+    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std",)))]
+    #[allow(unreachable_code)]
+    missing_rt(f)
 }
 
 #[track_caller]
@@ -140,7 +183,7 @@ pub fn missing_rt<T>(_unused: T) -> ! {
         panic!("this functionality requires a Tokio context")
     }
 
-    panic!("either the `runtime-async-std` or `runtime-tokio` feature must be enabled")
+    panic!("one of the `runtime-async-global-executor`, `runtime-async-std`, or `runtime-tokio` feature must be enabled")
 }
 
 impl<T: Send + 'static> Future for JoinHandle<T> {
@@ -149,6 +192,8 @@ impl<T: Send + 'static> Future for JoinHandle<T> {
     #[track_caller]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match &mut *self {
+            #[cfg(feature = "_rt-async-global-executor")]
+            Self::AsyncGlobalExecutor(handle) => Pin::new(handle).poll(cx),
             #[cfg(feature = "_rt-async-std")]
             Self::AsyncStd(handle) => Pin::new(handle).poll(cx),
             #[cfg(feature = "_rt-tokio")]
