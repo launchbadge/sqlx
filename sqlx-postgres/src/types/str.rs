@@ -24,16 +24,6 @@ impl Type<Postgres> for str {
     }
 }
 
-impl Type<Postgres> for Cow<'_, str> {
-    fn type_info() -> PgTypeInfo {
-        <&str as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <&str as Type<Postgres>>::compatible(ty)
-    }
-}
-
 impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
         <&str as Type<Postgres>>::type_info()
