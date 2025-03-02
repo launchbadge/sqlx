@@ -19,6 +19,11 @@ any = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
+_rt-async-global-executor = [
+    "async-global-executor",
+    "async-io-global-executor",
+    "async-net",
+]
 _rt-async-std = ["async-std", "async-io-std"]
 _rt-tokio = ["tokio", "tokio-stream"]
 _tls-native-tls = ["native-tls"]
@@ -33,6 +38,7 @@ offline = ["serde", "either/serde"]
 
 [dependencies]
 # Runtimes
+async-global-executor = { workspace = true, optional = true }
 async-std = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
@@ -52,7 +58,9 @@ ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
+async-io-global-executor = { package = "async-io", version = "2.2", optional = true }
 async-io-std = { package = "async-io", version = "1.9.0", optional = true }
+async-net = { package = "async-net", version = "2.0.0", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }
