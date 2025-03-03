@@ -61,7 +61,7 @@ impl TransactionManager for PgTransactionManager {
                 conn.execute(&*rollback_ansi_transaction_sql(
                     conn.inner.transaction_depth,
                 ))
-                    .await?;
+                .await?;
 
                 conn.inner.transaction_depth -= 1;
             }
