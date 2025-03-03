@@ -61,7 +61,7 @@ impl TransactionManager for PgTransactionManager {
                 conn.execute(&*rollback_ansi_transaction_sql(
                     conn.inner.transaction_depth,
                 ))
-                .await?;
+                    .await?;
 
                 conn.inner.transaction_depth -= 1;
             }
@@ -80,7 +80,7 @@ impl TransactionManager for PgTransactionManager {
     }
 
     fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize {
-        conn.transaction_depth
+        conn.inner.transaction_depth
     }
 }
 

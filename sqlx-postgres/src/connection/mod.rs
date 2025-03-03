@@ -201,7 +201,7 @@ impl Connection for PgConnection {
     }
 
     fn get_transaction_depth(&self) -> usize {
-        self.transaction_depth
+        self.inner.transaction_depth
     }
 
     fn cached_statements_size(&self) -> usize {

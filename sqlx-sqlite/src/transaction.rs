@@ -1,7 +1,6 @@
 use futures_core::future::BoxFuture;
 use std::borrow::Cow;
 
-use crate::{Sqlite, SqliteConnection};
 use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
 
