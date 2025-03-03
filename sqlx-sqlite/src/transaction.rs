@@ -1,4 +1,7 @@
 use futures_core::future::BoxFuture;
+use std::borrow::Cow;
+
+use crate::{Sqlite, SqliteConnection};
 use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
 
@@ -10,8 +13,22 @@ pub struct SqliteTransactionManager;
 impl TransactionManager for SqliteTransactionManager {
     type Database = Sqlite;
 
-    fn begin(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(conn.worker.begin())
+    fn begin<'conn>(
+        conn: &'conn mut SqliteConnection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>> {
+        Box::pin(async {
+            let is_custom_statement = statement.is_some();
+            conn.worker.begin(statement).await?;
+            if is_custom_statement {
+                // Check that custom statement actually put the connection into a transaction.
+                let mut handle = conn.lock_handle().await?;
+                if !handle.in_transaction() {
+                    return Err(Error::BeginFailed);
+                }
+            }
+            Ok(())
+        })
     }
 
     fn commit(conn: &mut SqliteConnection) -> BoxFuture<'_, Result<(), Error>> {

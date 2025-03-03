@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
@@ -48,6 +49,22 @@ pub trait Connection: Send {
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized;
+
+    /// Begin a new transaction with a custom statement.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    ///
+    /// Returns an error if the connection is already in a transaction or if
+    /// `statement` does not put the connection into a transaction.
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
+    }
 
     /// Returns the current transaction depth.
     ///
