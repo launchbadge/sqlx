@@ -1,6 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::postgres::types::PgRange;
 use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx_postgres::PgHasArrayType;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 use std::ops::Bound;
@@ -790,5 +791,22 @@ async fn test_from_row_hygiene() -> anyhow::Result<()> {
     assert_eq!(foo.row, 1234);
     assert_eq!(foo.bar, 5678);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_custom_pg_array() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    #[sqlx(no_pg_array)]
+    pub struct User {
+        pub id: i32,
+        pub username: String,
+    }
+
+    impl PgHasArrayType for User {
+        fn array_type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::array_of("Gebruiker")
+        }
+    }
     Ok(())
 }

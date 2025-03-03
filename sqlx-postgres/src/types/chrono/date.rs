@@ -23,7 +23,13 @@ impl PgHasArrayType for NaiveDate {
 impl Encode<'_, Postgres> for NaiveDate {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         // DATE is encoded as the days since epoch
-        let days = (*self - postgres_epoch_date()).num_days() as i32;
+        let days: i32 = (*self - postgres_epoch_date())
+            .num_days()
+            .try_into()
+            .map_err(|_| {
+                format!("value {self:?} would overflow binary encoding for Postgres DATE")
+            })?;
+
         Encode::<Postgres>::encode(days, buf)
     }
 

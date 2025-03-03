@@ -26,7 +26,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct PgRange<T> {
     pub start: Bound<T>,
     pub end: Bound<T>,
@@ -350,7 +350,7 @@ where
 
                 if !flags.contains(RangeFlags::LB_INF) {
                     let value =
-                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone()))?;
+                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone())?)?;
 
                     start = if flags.contains(RangeFlags::LB_INC) {
                         Bound::Included(value)
@@ -361,7 +361,7 @@ where
 
                 if !flags.contains(RangeFlags::UB_INF) {
                     let value =
-                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone()))?;
+                        T::decode(PgValueRef::get(&mut buf, value.format, element_ty.clone())?)?;
 
                     end = if flags.contains(RangeFlags::UB_INC) {
                         Bound::Included(value)

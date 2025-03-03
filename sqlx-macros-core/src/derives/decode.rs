@@ -225,7 +225,7 @@ fn expand_derive_decode_strong_enum(
         ));
     }
 
-    if cfg!(feature = "sqlite") {
+    if cfg!(feature = "_sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
             impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite> for #ident {

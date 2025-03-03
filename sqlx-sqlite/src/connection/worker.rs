@@ -163,7 +163,8 @@ impl ConnectionWorker {
                             match limit {
                                 None => {
                                     for res in iter {
-                                        if tx.send(res).is_err() {
+                                        let has_error = res.is_err();
+                                        if tx.send(res).is_err() || has_error {
                                             break;
                                         }
                                     }
@@ -183,7 +184,8 @@ impl ConnectionWorker {
                                                 }
                                             }
                                         }
-                                        if tx.send(res).is_err() {
+                                        let has_error = res.is_err();
+                                        if tx.send(res).is_err() || has_error {
                                             break;
                                         }
                                     }

@@ -1,16 +1,18 @@
 use std::collections::BTreeMap;
-use std::ops::{Deref, DerefMut};
+use std::ops::{ControlFlow, Deref, DerefMut};
 use std::str::FromStr;
 
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
-use sqlx_core::bytes::{Buf, Bytes};
+use sqlx_core::bytes::Buf;
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
-use crate::io::{Decode, Encode};
-use crate::message::{Message, MessageFormat, Notice, Notification, ParameterStatus};
+use crate::message::{
+    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, Notification,
+    ParameterStatus, ReceivedMessage,
+};
 use crate::net::{self, BufferedSocket, Socket};
 use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
 
@@ -40,12 +42,12 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
-        let socket_future = match options.fetch_socket() {
+        let socket_result = match options.fetch_socket() {
             Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,
             None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
         };
 
-        let socket = socket_future.await?;
+        let socket = socket_result?;
 
         Ok(Self {
             inner: BufferedSocket::new(socket),
@@ -55,59 +57,80 @@ impl PgStream {
         })
     }
 
-    pub(crate) async fn send<'en, T>(&mut self, message: T) -> Result<(), Error>
+    #[inline(always)]
+    pub(crate) fn write_msg(&mut self, message: impl FrontendMessage) -> Result<(), Error> {
+        self.write(EncodeMessage(message))
+    }
+
+    pub(crate) async fn send<T>(&mut self, message: T) -> Result<(), Error>
     where
-        T: Encode<'en>,
+        T: FrontendMessage,
     {
-        self.write(message);
+        self.write_msg(message)?;
         self.flush().await?;
         Ok(())
     }
 
     // Expect a specific type and format
-    pub(crate) async fn recv_expect<'de, T: Decode<'de>>(
-        &mut self,
-        format: MessageFormat,
-    ) -> Result<T, Error> {
-        let message = self.recv().await?;
-
-        if message.format != format {
-            return Err(err_protocol!(
-                "expecting {:?} but received {:?}",
-                format,
-                message.format
-            ));
-        }
-
-        message.decode()
+    pub(crate) async fn recv_expect<B: BackendMessage>(&mut self) -> Result<B, Error> {
+        self.recv().await?.decode()
     }
 
-    pub(crate) async fn recv_unchecked(&mut self) -> Result<Message, Error> {
-        // all packets in postgres start with a 5-byte header
-        // this header contains the message type and the total length of the message
-        let mut header: Bytes = self.inner.read(5).await?;
+    pub(crate) async fn recv_unchecked(&mut self) -> Result<ReceivedMessage, Error> {
+        // NOTE: to not break everything, this should be cancel-safe;
+        // DO NOT modify `buf` unless a full message has been read
+        self.inner
+            .try_read(|buf| {
+                // all packets in postgres start with a 5-byte header
+                // this header contains the message type and the total length of the message
+                let Some(mut header) = buf.get(..5) else {
+                    return Ok(ControlFlow::Continue(5));
+                };
 
-        let format = MessageFormat::try_from_u8(header.get_u8())?;
-        let size = (header.get_u32() - 4) as usize;
+                let format = BackendMessageFormat::try_from_u8(header.get_u8())?;
 
-        let contents = self.inner.read(size).await?;
+                let message_len = header.get_u32() as usize;
 
-        Ok(Message { format, contents })
+                let expected_len = message_len
+                    .checked_add(1)
+                    // this shouldn't really happen but is mostly a sanity check
+                    .ok_or_else(|| {
+                        err_protocol!("message_len + 1 overflows usize: {message_len}")
+                    })?;
+
+                if buf.len() < expected_len {
+                    return Ok(ControlFlow::Continue(expected_len));
+                }
+
+                // `buf` SHOULD NOT be modified ABOVE this line
+
+                // pop off the format code since it's not counted in `message_len`
+                buf.advance(1);
+
+                // consume the message, including the length prefix
+                let mut contents = buf.split_to(message_len).freeze();
+
+                // cut off the length prefix
+                contents.advance(4);
+
+                Ok(ControlFlow::Break(ReceivedMessage { format, contents }))
+            })
+            .await
     }
 
     // Get the next message from the server
     // May wait for more data from the server
-    pub(crate) async fn recv(&mut self) -> Result<Message, Error> {
+    pub(crate) async fn recv(&mut self) -> Result<ReceivedMessage, Error> {
         loop {
             let message = self.recv_unchecked().await?;
 
             match message.format {
-                MessageFormat::ErrorResponse => {
+                BackendMessageFormat::ErrorResponse => {
                     // An error returned from the database server.
-                    return Err(PgDatabaseError(message.decode()?).into());
+                    return Err(message.decode::<PgDatabaseError>()?.into());
                 }
 
-                MessageFormat::NotificationResponse => {
+                BackendMessageFormat::NotificationResponse => {
                     if let Some(buffer) = &mut self.notifications {
                         let notification: Notification = message.decode()?;
                         let _ = buffer.send(notification).await;
@@ -116,7 +139,7 @@ impl PgStream {
                     }
                 }
 
-                MessageFormat::ParameterStatus => {
+                BackendMessageFormat::ParameterStatus => {
                     // informs the frontend about the current (initial)
                     // setting of backend parameters
 
@@ -135,7 +158,7 @@ impl PgStream {
                     continue;
                 }
 
-                MessageFormat::NoticeResponse => {
+                BackendMessageFormat::NoticeResponse => {
                     // do we need this to be more configurable?
                     // if you are reading this comment and think so, open an issue
 

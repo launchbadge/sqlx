@@ -15,8 +15,6 @@
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
-// See `clippy.toml` at the workspace root
-#![deny(clippy::disallowed_methods)]
 // The only unsafe code in SQLx is that necessary to interact with native APIs like with SQLite,
 // and that can live in its own separate driver crate.
 #![forbid(unsafe_code)]

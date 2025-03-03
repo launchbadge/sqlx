@@ -88,9 +88,16 @@ pub async fn handshake<S>(socket: S, tls_config: TlsConfig<'_>) -> Result<Rustls
 where
     S: Socket,
 {
-    #[cfg(all(feature = "_tls-rustls-aws-lc-rs", not(feature = "_tls-rustls-ring")))]
+    #[cfg(all(
+        feature = "_tls-rustls-aws-lc-rs",
+        not(feature = "_tls-rustls-ring-webpki"),
+        not(feature = "_tls-rustls-ring-native-roots")
+    ))]
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    #[cfg(feature = "_tls-rustls-ring")]
+    #[cfg(any(
+        feature = "_tls-rustls-ring-webpki",
+        feature = "_tls-rustls-ring-native-roots"
+    ))]
     let provider = Arc::new(rustls::crypto::ring::default_provider());
 
     // Unwrapping is safe here because we use a default provider.
@@ -127,8 +134,10 @@ where
                 .with_no_client_auth()
         }
     } else {
-        let mut cert_store = RootCertStore::empty();
-        cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        #[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
+        let mut cert_store = certs_from_webpki();
+        #[cfg(feature = "_tls-rustls-ring-native-roots")]
+        let mut cert_store = certs_from_native_store();
 
         if let Some(ca) = tls_config.root_cert_path {
             let data = ca.data().await?;
@@ -202,6 +211,28 @@ fn private_key_from_pem(pem: Vec<u8>) -> Result<PrivateKeyDer<'static>, Error> {
         Ok(None) => Err(Error::Configuration("no keys found pem file".into())),
         Err(e) => Err(Error::Configuration(e.to_string().into())),
     }
+}
+
+#[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
+fn certs_from_webpki() -> RootCertStore {
+    RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
+}
+
+#[cfg(feature = "_tls-rustls-ring-native-roots")]
+fn certs_from_native_store() -> RootCertStore {
+    let mut root_cert_store = RootCertStore::empty();
+
+    let load_results = rustls_native_certs::load_native_certs();
+    for e in load_results.errors {
+        log::warn!("Error loading native certificates: {e:?}");
+    }
+    for cert in load_results.certs {
+        if let Err(e) = root_cert_store.add(cert.into()) {
+            log::warn!("rustls failed to parse native certificate: {e:?}");
+        }
+    }
+
+    root_cert_store
 }
 
 #[derive(Debug)]

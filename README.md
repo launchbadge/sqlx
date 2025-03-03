@@ -40,6 +40,14 @@
     <a href="https://docs.rs/sqlx">
       Docs
     </a>
+    <span> | </span>
+    <a href="https://github.com/launchbadge/sqlx/wiki/Ecosystem">
+      Ecosystem
+    </a>    
+    <span> | </span>
+    <a href="https://discord.gg/uuruzJ7">
+      Discord
+    </a>
   </h4>
 </div>
 
@@ -128,8 +136,10 @@ SQLx is compatible with the [`async-std`], [`tokio`], and [`actix`] runtimes; an
 sqlx = { version = "0.8", features = [ "runtime-tokio" ] }
 # tokio + native-tls
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" ] }
-# tokio + rustls with ring
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring" ] }
+# tokio + rustls with ring and WebPKI CA certificates
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-webpki" ] }
+# tokio + rustls with ring and platform's native CA certificates
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-ring-native-roots" ] }
 # tokio + rustls with aws-lc-rs
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ] }
 
@@ -137,8 +147,10 @@ sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls-aws-lc-rs" ]
 sqlx = { version = "0.8", features = [ "runtime-async-std" ] }
 # async-std + native-tls
 sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-native-tls" ] }
-# async-std + rustls with ring
-sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring" ] }
+# async-std + rustls with ring and WebPKI CA certificates
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring-webpki" ] }
+# async-std + rustls with ring and platform's native CA certificates
+sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-ring-native-roots" ] }
 # async-std + rustls with aws-lc-rs
 sqlx = { version = "0.8", features = [ "runtime-async-std", "tls-rustls-aws-lc-rs" ] }
 ```
@@ -175,7 +187,18 @@ be removed in the future.
 
 -   `mssql`: Add support for the MSSQL database server.
 
--   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
+-   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine with SQLite bundled and statically-linked.
+
+-   `sqlite-unbundled`: The same as above (`sqlite`), but link SQLite from the system instead of the bundled version.
+    * Allows updating SQLite independently of SQLx or using forked versions.
+    * You must have SQLite installed on the system or provide a path to the library at build time.
+       See [the `rusqlite` README](https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys) for details.
+    * May result in link errors if the SQLite version is too old. Version `3.20.0` or newer is recommended.
+    * Can increase build time due to the use of bindgen.
+
+-   `sqlite-preupdate-hook`: enables SQLite's [preupdate hook](https://sqlite.org/c3ref/preupdate_count.html) API.
+    * Exposed as a separate feature because it's generally not enabled by default.
+    * Using this feature with `sqlite-unbundled` may cause linker failures if the system SQLite version does not support it.
 
 -   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
@@ -218,8 +241,7 @@ some info on) your SQL queries. This has some potentially surprising implication
 - Due to the different amount of information databases let you retrieve about queries, the extent of
   SQL verification you get from the query macros depends on the database
 
-**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`] or [`SeaORM`], which is built on top
-of SQLx.
+**If you are looking for an (asynchronous) ORM,** you can check out our new [Ecosystem wiki page](https://github.com/launchbadge/sqlx/wiki/Ecosystem#orms)!
 
 [`ormx`]: https://crates.io/crates/ormx
 [`SeaORM`]: https://github.com/SeaQL/sea-orm
@@ -311,6 +333,8 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 ```rust
 // provides `try_next`
 use futures::TryStreamExt;
+// provides `try_get`
+use sqlx::Row;
 
 let mut rows = sqlx::query("SELECT * FROM users WHERE email = ?")
     .bind(email)

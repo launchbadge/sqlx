@@ -7,6 +7,6 @@ workspace = "../../../"
 [dependencies]
 anyhow = "1.0"
 futures = "0.3"
-sqlx = { path = "../../../", features = ["sqlite", "runtime-tokio-native-tls"] }
+sqlx = { path = "../../../", features = [ "sqlite", "runtime-tokio", "tls-native-tls" ] }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1.20.0", features = ["rt", "macros"]}

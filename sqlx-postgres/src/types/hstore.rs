@@ -1,19 +1,19 @@
 use std::{
     collections::{btree_map, BTreeMap},
-    mem::size_of,
+    mem,
     ops::{Deref, DerefMut},
-    str::from_utf8,
+    str,
 };
-
-use serde::{Deserialize, Serialize};
 
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
     types::Type,
-    PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres,
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef, Postgres,
 };
+use serde::{Deserialize, Serialize};
+use sqlx_core::bytes::Buf;
 
 /// Key-value support (`hstore`) for Postgres.
 ///
@@ -138,25 +138,35 @@ impl Type<Postgres> for PgHstore {
     }
 }
 
+impl PgHasArrayType for PgHstore {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::array_of("hstore")
+    }
+}
+
 impl<'r> Decode<'r, Postgres> for PgHstore {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let mut buf = <&[u8] as Decode<Postgres>>::decode(value)?;
         let len = read_length(&mut buf)?;
 
-        if len < 0 {
-            Err(format!("hstore, invalid entry count: {len}"))?;
-        }
+        let len =
+            usize::try_from(len).map_err(|_| format!("PgHstore: length out of range: {len}"))?;
 
         let mut result = Self::default();
 
-        while !buf.is_empty() {
-            let key_len = read_length(&mut buf)?;
-            let key = read_value(&mut buf, key_len)?.ok_or("hstore, key not found")?;
+        for i in 0..len {
+            let key = read_string(&mut buf)
+                .map_err(|e| format!("PgHstore: error reading {i}th key: {e}"))?
+                .ok_or_else(|| format!("PgHstore: expected {i}th key, got nothing"))?;
 
-            let value_len = read_length(&mut buf)?;
-            let value = read_value(&mut buf, value_len)?;
+            let value = read_string(&mut buf)
+                .map_err(|e| format!("PgHstore: error reading value for key {key:?}: {e}"))?;
 
             result.insert(key, value);
+        }
+
+        if !buf.is_empty() {
+            tracing::warn!("{} unread bytes at the end of HSTORE value", buf.len());
         }
 
         Ok(result)
@@ -165,19 +175,38 @@ impl<'r> Decode<'r, Postgres> for PgHstore {
 
 impl Encode<'_, Postgres> for PgHstore {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        buf.extend_from_slice(&i32::to_be_bytes(self.0.len() as i32));
+        buf.extend_from_slice(&i32::to_be_bytes(
+            self.0
+                .len()
+                .try_into()
+                .map_err(|_| format!("PgHstore length out of range: {}", self.0.len()))?,
+        ));
 
-        for (key, val) in &self.0 {
+        for (i, (key, val)) in self.0.iter().enumerate() {
             let key_bytes = key.as_bytes();
 
-            buf.extend_from_slice(&i32::to_be_bytes(key_bytes.len() as i32));
+            let key_len = i32::try_from(key_bytes.len()).map_err(|_| {
+                // Doesn't make sense to print the key itself: it's more than 2 GiB long!
+                format!(
+                    "PgHstore: length of {i}th key out of range: {} bytes",
+                    key_bytes.len()
+                )
+            })?;
+
+            buf.extend_from_slice(&i32::to_be_bytes(key_len));
             buf.extend_from_slice(key_bytes);
 
             match val {
                 Some(val) => {
                     let val_bytes = val.as_bytes();
 
-                    buf.extend_from_slice(&i32::to_be_bytes(val_bytes.len() as i32));
+                    let val_len = i32::try_from(val_bytes.len()).map_err(|_| {
+                        format!(
+                            "PgHstore: value length for key {key:?} out of range: {} bytes",
+                            val_bytes.len()
+                        )
+                    })?;
+                    buf.extend_from_slice(&i32::to_be_bytes(val_len));
                     buf.extend_from_slice(val_bytes);
                 }
                 None => {
@@ -190,30 +219,36 @@ impl Encode<'_, Postgres> for PgHstore {
     }
 }
 
-fn read_length(buf: &mut &[u8]) -> Result<i32, BoxDynError> {
-    let (bytes, rest) = buf.split_at(size_of::<i32>());
+fn read_length(buf: &mut &[u8]) -> Result<i32, String> {
+    if buf.len() < mem::size_of::<i32>() {
+        return Err(format!(
+            "expected {} bytes, got {}",
+            mem::size_of::<i32>(),
+            buf.len()
+        ));
+    }
 
-    *buf = rest;
-
-    Ok(i32::from_be_bytes(
-        bytes
-            .try_into()
-            .map_err(|err| format!("hstore, reading length: {err}"))?,
-    ))
+    Ok(buf.get_i32())
 }
 
-fn read_value(buf: &mut &[u8], len: i32) -> Result<Option<String>, BoxDynError> {
-    match len {
-        len if len <= 0 => Ok(None),
-        len => {
-            let (val, rest) = buf.split_at(len as usize);
+fn read_string(buf: &mut &[u8]) -> Result<Option<String>, String> {
+    let len = read_length(buf)?;
 
+    match len {
+        -1 => Ok(None),
+        len => {
+            let len =
+                usize::try_from(len).map_err(|_| format!("string length out of range: {len}"))?;
+
+            if buf.len() < len {
+                return Err(format!("expected {len} bytes, got {}", buf.len()));
+            }
+
+            let (val, rest) = buf.split_at(len);
             *buf = rest;
 
             Ok(Some(
-                from_utf8(val)
-                    .map_err(|err| format!("hstore, reading value: {err}"))?
-                    .to_string(),
+                str::from_utf8(val).map_err(|e| e.to_string())?.to_string(),
             ))
         }
     }
@@ -258,7 +293,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "hstore, invalid entry count: -5")]
+    #[should_panic(expected = "PgHstore: length out of range: -5")]
     fn hstore_deserialize_buffer_length_error() {
         let buf = PgValueRef {
             value: Some(&[255, 255, 255, 251]),

@@ -1,14 +1,39 @@
+use anyhow::Context;
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx_core::connection::ConnectOptions;
+use sqlx_mysql::MySqlConnectOptions;
 use sqlx_test::{new, setup_if_needed};
 use std::env;
+use url::Url;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     conn.ping().await?;
+    conn.close().await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_connects_without_password() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    let mut url = Url::parse(&env::var("DATABASE_URL").context("expected DATABASE_URL")?)
+        .context("error parsing DATABASE_URL")?;
+
+    url.set_username("no_password").unwrap();
+    url.set_password(None).unwrap();
+
+    let mut conn = MySqlConnectOptions::from_url(&url)?.connect().await?;
+
+    let vars = sqlx::raw_sql("SHOW VARIABLES").fetch_all(&mut conn).await?;
+
+    assert!(!vars.is_empty());
+
     conn.close().await?;
 
     Ok(())

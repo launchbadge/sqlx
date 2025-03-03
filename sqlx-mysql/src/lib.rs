@@ -1,4 +1,7 @@
 //! **MySQL** database driver.
+#![deny(clippy::cast_possible_truncation)]
+#![deny(clippy::cast_possible_wrap)]
+#![deny(clippy::cast_sign_loss)]
 
 #[macro_use]
 extern crate sqlx_core;
@@ -56,6 +59,9 @@ pub type MySqlPoolOptions = crate::pool::PoolOptions<MySql>;
 /// An alias for [`Executor<'_, Database = MySql>`][Executor].
 pub trait MySqlExecutor<'c>: Executor<'c, Database = MySql> {}
 impl<'c, T: Executor<'c, Database = MySql>> MySqlExecutor<'c> for T {}
+
+/// An alias for [`Transaction`][crate::transaction::Transaction], specialized for MySQL.
+pub type MySqlTransaction<'c> = crate::transaction::Transaction<'c, MySql>;
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);

@@ -37,12 +37,10 @@ clap = { version = "4.3.10", features = ["derive", "env"] }
 clap_complete = { version = "4.3.1", optional = true }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 anyhow = "1.0.52"
-url = { version = "2.2.2", default-features = false }
 async-trait = "0.1.52"
 console = "0.15.0"
 promptly = "0.3.0"
 serde_json = "1.0.73"
-serde = { version = "1.0.132", features = ["derive"] }
 glob = "0.3.0"
 openssl = { version = "0.10.38", optional = true }
 cargo_metadata = "0.18.1"
@@ -59,6 +57,7 @@ native-tls = ["sqlx/runtime-tokio-native-tls"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]
+sqlite-unbundled = ["sqlx/sqlite-unbundled"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
@@ -68,3 +67,6 @@ completions = ["dep:clap_complete"]
 [dev-dependencies]
 assert_cmd = "2.0.11"
 tempfile = "3.10.1"
+
+[lints]
+workspace = true

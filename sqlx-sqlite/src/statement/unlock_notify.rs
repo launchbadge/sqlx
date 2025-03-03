@@ -27,7 +27,8 @@ pub unsafe fn wait(conn: *mut sqlite3) -> Result<(), SqliteError> {
 
 unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
     let ptr = ptr as *mut &Notify;
-    let slice = slice::from_raw_parts(ptr, len as usize);
+    // We don't have a choice; we can't panic and unwind into FFI here.
+    let slice = slice::from_raw_parts(ptr, usize::try_from(len).unwrap_or(0));
 
     for notify in slice {
         notify.fire();

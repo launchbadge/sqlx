@@ -258,7 +258,7 @@ pub struct ConnectOpts {
     /// However, if your application sets a `journal_mode` on `SqliteConnectOptions` to something
     /// other than `Wal`, then it will have to take the database file out of WAL mode on connecting,
     /// which requires an exclusive lock and may return a `database is locked` (`SQLITE_BUSY`) error.
-    #[cfg(feature = "sqlite")]
+    #[cfg(feature = "_sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
 }

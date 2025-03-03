@@ -22,3 +22,11 @@ CREATE TABLE products (
     name TEXT,
     price NUMERIC CHECK (price > 0)
 );
+
+-- Create a user without a password to test passwordless auth.
+CREATE USER 'no_password'@'%';
+
+-- The minimum privilege apparently needed to connect to a specific database.
+-- Granting no privileges, or just `GRANT USAGE`, gives an "access denied" error.
+-- https://github.com/launchbadge/sqlx/issues/3484#issuecomment-2350901546
+GRANT SELECT ON sqlx.* TO 'no_password'@'%';

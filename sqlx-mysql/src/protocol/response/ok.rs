@@ -1,8 +1,8 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Decode;
 use crate::io::MySqlBufExt;
+use crate::io::ProtocolDecode;
 use crate::protocol::response::Status;
 
 /// Indicates successful completion of a previous command sent by the client.
@@ -14,7 +14,7 @@ pub struct OkPacket {
     pub warnings: u16,
 }
 
-impl Decode<'_> for OkPacket {
+impl ProtocolDecode<'_> for OkPacket {
     fn decode_with(mut buf: Bytes, _: ()) -> Result<Self, Error> {
         let header = buf.get_u8();
         if header != 0 && header != 0xfe {

@@ -51,6 +51,18 @@ macro_rules! test_type {
         }
     };
 
+    ($name:ident<$ty:ty>($db:ident, $($text:literal ~= $value:expr),+ $(,)?)) => {
+        paste::item! {
+            $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_geometric_type >]!(), $($text == $value),+));
+        }
+    };
+    ($name:ident<$ty:ty>($db:ident, $($text:literal @= $value:expr),+ $(,)?)) => {
+        paste::item! {
+            $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_geometric_array_type >]!(), $($text == $value),+));
+        }
+    };
+
+
     ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::test_type!($name<$name>($db, $($text == $value),+));
     };
@@ -81,6 +93,7 @@ macro_rules! test_prepared_type {
             $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_type >]!(), $($text == $value),+));
         }
     };
+
 
     ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::__test_prepared_type!($name<$name>($db, $($text == $value),+));
@@ -221,5 +234,19 @@ macro_rules! Sqlite_query_for_test_prepared_type {
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
         "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
+    };
+}
+
+#[macro_export]
+macro_rules! Postgres_query_for_test_prepared_geometric_type {
+    () => {
+        "SELECT ({0} ~= $1)::int4, {0}, $2"
+    };
+}
+
+#[macro_export]
+macro_rules! Postgres_query_for_test_prepared_geometric_array_type {
+    () => {
+        "SELECT (SELECT bool_and(geo1.geometry ~= geo2.geometry) FROM unnest({0}) WITH ORDINALITY AS geo1(geometry, idx) JOIN unnest($1) WITH ORDINALITY AS geo2(geometry, idx) ON geo1.idx = geo2.idx)::int4, {0}, $2"
     };
 }

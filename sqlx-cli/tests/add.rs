@@ -17,7 +17,7 @@ fn add_migration_ambiguous() -> anyhow::Result<()> {
 
 #[derive(Debug, PartialEq, Eq)]
 struct FileName {
-    id: usize,
+    id: u64,
     description: String,
     suffix: String,
 }
@@ -50,7 +50,7 @@ impl From<PathBuf> for FileName {
     fn from(path: PathBuf) -> Self {
         let filename = path.file_name().unwrap().to_string_lossy();
         let (id, rest) = filename.split_once("_").unwrap();
-        let id: usize = id.parse().unwrap();
+        let id: u64 = id.parse().unwrap();
         let (description, suffix) = rest.split_once(".").unwrap();
         Self {
             id,

@@ -57,7 +57,6 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(mysql_8)]
 #[sqlx_macros::test]
 async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;

@@ -1,10 +1,10 @@
+use crate::error::Error;
 use crate::net::Socket;
 use bytes::BytesMut;
+use std::ops::ControlFlow;
 use std::{cmp, io};
 
-use crate::error::Error;
-
-use crate::io::{AsyncRead, AsyncReadExt, Decode, Encode};
+use crate::io::{AsyncRead, AsyncReadExt, ProtocolDecode, ProtocolEncode};
 
 // Tokio, async-std, and std all use this as the default capacity for their buffered I/O.
 const DEFAULT_BUF_SIZE: usize = 8192;
@@ -45,8 +45,39 @@ impl<S: Socket> BufferedSocket<S> {
         }
     }
 
-    pub async fn read_buffered(&mut self, len: usize) -> io::Result<BytesMut> {
-        self.read_buf.read(len, &mut self.socket).await
+    pub async fn read_buffered(&mut self, len: usize) -> Result<BytesMut, Error> {
+        self.try_read(|buf| {
+            Ok(if buf.len() < len {
+                ControlFlow::Continue(len)
+            } else {
+                ControlFlow::Break(buf.split_to(len))
+            })
+        })
+        .await
+    }
+
+    /// Retryable read operation.
+    ///
+    /// The callback should check the contents of the buffer passed to it and either:
+    ///
+    /// * Remove a full message from the buffer and return [`ControlFlow::Break`], or:
+    /// * Return [`ControlFlow::Continue`] with the expected _total_ length of the buffer,
+    ///   _without_ modifying it.
+    ///
+    /// Cancel-safe as long as the callback does not modify the passed `BytesMut`
+    /// before returning [`ControlFlow::Continue`].
+    pub async fn try_read<F, R>(&mut self, mut try_read: F) -> Result<R, Error>
+    where
+        F: FnMut(&mut BytesMut) -> Result<ControlFlow<R, usize>, Error>,
+    {
+        loop {
+            let read_len = match try_read(&mut self.read_buf.read)? {
+                ControlFlow::Continue(read_len) => read_len,
+                ControlFlow::Break(ret) => return Ok(ret),
+            };
+
+            self.read_buf.read(read_len, &mut self.socket).await?;
+        }
     }
 
     pub fn write_buffer(&self) -> &WriteBuffer {
@@ -59,32 +90,36 @@ impl<S: Socket> BufferedSocket<S> {
 
     pub async fn read<'de, T>(&mut self, byte_len: usize) -> Result<T, Error>
     where
-        T: Decode<'de, ()>,
+        T: ProtocolDecode<'de, ()>,
     {
         self.read_with(byte_len, ()).await
     }
 
     pub async fn read_with<'de, T, C>(&mut self, byte_len: usize, context: C) -> Result<T, Error>
     where
-        T: Decode<'de, C>,
+        T: ProtocolDecode<'de, C>,
     {
         T::decode_with(self.read_buffered(byte_len).await?.freeze(), context)
     }
 
-    pub fn write<'en, T>(&mut self, value: T)
+    #[inline(always)]
+    pub fn write<'en, T>(&mut self, value: T) -> Result<(), Error>
     where
-        T: Encode<'en, ()>,
+        T: ProtocolEncode<'en, ()>,
     {
         self.write_with(value, ())
     }
 
-    pub fn write_with<'en, T, C>(&mut self, value: T, context: C)
+    #[inline(always)]
+    pub fn write_with<'en, T, C>(&mut self, value: T, context: C) -> Result<(), Error>
     where
-        T: Encode<'en, C>,
+        T: ProtocolEncode<'en, C>,
     {
-        value.encode_with(self.write_buf.buf_mut(), context);
+        value.encode_with(self.write_buf.buf_mut(), context)?;
         self.write_buf.bytes_written = self.write_buf.buf.len();
         self.write_buf.sanity_check();
+
+        Ok(())
     }
 
     pub async fn flush(&mut self) -> io::Result<()> {
@@ -240,7 +275,7 @@ impl WriteBuffer {
 }
 
 impl ReadBuffer {
-    async fn read(&mut self, len: usize, socket: &mut impl Socket) -> io::Result<BytesMut> {
+    async fn read(&mut self, len: usize, socket: &mut impl Socket) -> io::Result<()> {
         // Because of how `BytesMut` works, we should only be shifting capacity back and forth
         // between `read` and `available` unless we have to read an oversize message.
         while self.read.len() < len {
@@ -262,7 +297,7 @@ impl ReadBuffer {
             self.advance(read);
         }
 
-        Ok(self.drain(len))
+        Ok(())
     }
 
     fn reserve(&mut self, amt: usize) {
@@ -273,10 +308,6 @@ impl ReadBuffer {
 
     fn advance(&mut self, amt: usize) {
         self.read.unsplit(self.available.split_to(amt));
-    }
-
-    fn drain(&mut self, amt: usize) -> BytesMut {
-        self.read.split_to(amt)
     }
 
     fn shrink(&mut self) {

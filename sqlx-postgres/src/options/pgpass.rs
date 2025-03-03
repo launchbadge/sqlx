@@ -43,10 +43,20 @@ fn load_password_from_file(
 ) -> Option<String> {
     let file = File::open(&path)
         .map_err(|e| {
-            tracing::warn!(
-                path = %path.display(),
-                "Failed to open `.pgpass` file: {e:?}",
-            );
+            match e.kind() {
+                std::io::ErrorKind::NotFound => {
+                    tracing::debug!(
+                        path = %path.display(),
+                        "`.pgpass` file not found",
+                    );
+                }
+                _ => {
+                    tracing::warn!(
+                        path = %path.display(),
+                        "Failed to open `.pgpass` file: {e:?}",
+                    );
+                }
+            };
         })
         .ok()?;
 

@@ -4,22 +4,22 @@ use std::ops::{Deref, DerefMut};
 use bytes::Bytes;
 
 use crate::error::Error;
-use crate::io::{Decode, Encode};
+use crate::io::{ProtocolDecode, ProtocolEncode};
 use crate::protocol::response::{EofPacket, OkPacket};
 use crate::protocol::Capabilities;
 
 #[derive(Debug)]
 pub struct Packet<T>(pub(crate) T);
 
-impl<'en, 'stream, T> Encode<'stream, (Capabilities, &'stream mut u8)> for Packet<T>
+impl<'en, 'stream, T> ProtocolEncode<'stream, (Capabilities, &'stream mut u8)> for Packet<T>
 where
-    T: Encode<'en, Capabilities>,
+    T: ProtocolEncode<'en, Capabilities>,
 {
     fn encode_with(
         &self,
         buf: &mut Vec<u8>,
         (capabilities, sequence_id): (Capabilities, &'stream mut u8),
-    ) {
+    ) -> Result<(), Error> {
         let mut next_header = |len: u32| {
             let mut buf = len.to_le_bytes();
             buf[3] = *sequence_id;
@@ -33,13 +33,15 @@ where
         buf.extend(&[0_u8; 4]);
 
         // encode the payload
-        self.0.encode_with(buf, capabilities);
+        self.0.encode_with(buf, capabilities)?;
 
         // determine the length of the encoded payload
         // and write to our reserved space
         let len = buf.len() - offset - 4;
         let header = &mut buf[offset..];
 
+        // // `min(.., 0xFF_FF_FF)` cannot overflow
+        #[allow(clippy::cast_possible_truncation)]
         header[..4].copy_from_slice(&next_header(min(len, 0xFF_FF_FF) as u32));
 
         // add more packets if we need to split the data
@@ -49,6 +51,9 @@ where
 
             for chunk in chunks.by_ref() {
                 buf.reserve(chunk.len() + 4);
+
+                // `chunk.len() == 0xFF_FF_FF`
+                #[allow(clippy::cast_possible_truncation)]
                 buf.extend(&next_header(chunk.len() as u32));
                 buf.extend(chunk);
             }
@@ -56,23 +61,28 @@ where
             // this will also handle adding a zero sized packet if the data size is a multiple of 0xFF_FF_FF
             let remainder = chunks.remainder();
             buf.reserve(remainder.len() + 4);
+
+            // `remainder.len() < 0xFF_FF_FF`
+            #[allow(clippy::cast_possible_truncation)]
             buf.extend(&next_header(remainder.len() as u32));
             buf.extend(remainder);
         }
+
+        Ok(())
     }
 }
 
 impl Packet<Bytes> {
     pub(crate) fn decode<'de, T>(self) -> Result<T, Error>
     where
-        T: Decode<'de, ()>,
+        T: ProtocolDecode<'de, ()>,
     {
         self.decode_with(())
     }
 
     pub(crate) fn decode_with<'de, T, C>(self, context: C) -> Result<T, Error>
     where
-        T: Decode<'de, C>,
+        T: ProtocolDecode<'de, C>,
     {
         T::decode_with(self.0, context)
     }

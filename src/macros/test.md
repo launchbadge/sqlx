@@ -203,7 +203,7 @@ use sqlx::PgPool;
 use serde_json::json;
 
 // Alternatives:
-// #[sqlx::test(fixtures("./fixtures/users.sql", "./fixtures/users.sql"))]
+// #[sqlx::test(fixtures("./fixtures/users.sql", "./fixtures/posts.sql"))]
 // or
 // #[sqlx::test(fixtures(path = "./fixtures", scripts("users", "posts")))]
 #[sqlx::test(fixtures("users", "posts"))]

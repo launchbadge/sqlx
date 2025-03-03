@@ -34,6 +34,9 @@ mod value;
 #[doc(hidden)]
 pub mod any;
 
+#[doc(hidden)]
+pub use copy::PG_COPY_MAX_DATA_LEN;
+
 #[cfg(feature = "migrate")]
 mod migrate;
 
@@ -69,6 +72,9 @@ pub type PgPoolOptions = crate::pool::PoolOptions<Postgres>;
 /// An alias for [`Executor<'_, Database = Postgres>`][Executor].
 pub trait PgExecutor<'c>: Executor<'c, Database = Postgres> {}
 impl<'c, T: Executor<'c, Database = Postgres>> PgExecutor<'c> for T {}
+
+/// An alias for [`Transaction`][crate::transaction::Transaction], specialized for Postgres.
+pub type PgTransaction<'c> = crate::transaction::Transaction<'c, Postgres>;
 
 impl_into_arguments_for_arguments!(PgArguments);
 impl_acquire!(Postgres, PgConnection);

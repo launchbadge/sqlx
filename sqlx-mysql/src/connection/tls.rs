@@ -72,7 +72,7 @@ pub(super) async fn maybe_upgrade<S: Socket>(
     stream.write_packet(SslRequest {
         max_packet_size: super::MAX_PACKET_SIZE,
         collation: stream.collation as u8,
-    });
+    })?;
 
     stream.flush().await?;
 
@@ -94,7 +94,7 @@ pub(super) async fn maybe_upgrade<S: Socket>(
 impl WithSocket for MapStream {
     type Output = MySqlStream;
 
-    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+    async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
         MySqlStream {
             socket: BufferedSocket::new(Box::new(socket)),
             server_version: self.server_version,

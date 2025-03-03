@@ -1,3 +1,11 @@
+// Bad casts in this module SHOULD NOT result in a SQL injection
+// https://github.com/launchbadge/sqlx/issues/3440
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)]
+
 use crate::connection::intmap::IntMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -408,11 +416,13 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
             summary.push_str(" …");
             format!(
                 "\n\n{}\n",
-                sqlformat::format(
-                    self.sql,
-                    &sqlformat::QueryParams::None,
-                    sqlformat::FormatOptions::default()
-                )
+                self.sql /*
+                         sqlformat::format(
+                             self.sql,
+                             &sqlformat::QueryParams::None,
+                             sqlformat::FormatOptions::default()
+                         )
+                         */
             )
         } else {
             String::new()

@@ -7,7 +7,10 @@ use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
 use std::future;
 
-pub use sqlx_core::any::*;
+use sqlx_core::any::{
+    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
+};
 
 use crate::type_info::PgType;
 use sqlx_core::connection::Connection;

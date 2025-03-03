@@ -1,6 +1,5 @@
 use bytes::buf::Buf;
 use bytes::Bytes;
-use futures_core::future::BoxFuture;
 
 use crate::collation::{CharSet, Collation};
 use crate::common::StatementCache;
@@ -22,7 +21,7 @@ impl MySqlConnection {
             None => crate::net::connect_tcp(&options.host, options.port, do_handshake).await?,
         };
 
-        let stream = handshake.await?;
+        let stream = handshake?;
 
         Ok(Self {
             inner: Box::new(MySqlConnectionInner {
@@ -131,7 +130,7 @@ impl<'a> DoHandshake<'a> {
             database: options.database.as_deref(),
             auth_plugin: plugin,
             auth_response: auth_response.as_deref(),
-        });
+        })?;
 
         stream.flush().await?;
 
@@ -160,7 +159,7 @@ impl<'a> DoHandshake<'a> {
                         )
                         .await?;
 
-                    stream.write_packet(AuthSwitchResponse(response));
+                    stream.write_packet(AuthSwitchResponse(response))?;
                     stream.flush().await?;
                 }
 
@@ -187,9 +186,9 @@ impl<'a> DoHandshake<'a> {
 }
 
 impl<'a> WithSocket for DoHandshake<'a> {
-    type Output = BoxFuture<'a, Result<MySqlStream, Error>>;
+    type Output = Result<MySqlStream, Error>;
 
-    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
-        Box::pin(self.do_handshake(socket))
+    async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+        self.do_handshake(socket).await
     }
 }

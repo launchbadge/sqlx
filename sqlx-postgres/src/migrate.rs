@@ -230,6 +230,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let elapsed = start.elapsed();
 
             // language=SQL
+            #[allow(clippy::cast_possible_truncation)]
             let _ = query(
                 r#"
     UPDATE _sqlx_migrations
@@ -251,20 +252,18 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
-            // Use a single transaction for the actual migration script and the essential bookeeping so we never
-            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
-            let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let _ = tx.execute(&*migration.sql).await?;
-
-            // language=SQL
-            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
-                .bind(migration.version)
-                .execute(&mut *tx)
-                .await?;
-
-            tx.commit().await?;
+            // execute migration queries
+            if migration.no_tx {
+                revert_migration(self, migration).await?;
+            } else {
+                // Use a single transaction for the actual migration script and the essential bookeeping so we never
+                // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+                let mut tx = self.begin().await?;
+                revert_migration(&mut tx, migration).await?;
+                tx.commit().await?;
+            }
 
             let elapsed = start.elapsed();
 
@@ -294,6 +293,24 @@ async fn execute_migration(
     .bind(&*migration.checksum)
     .execute(conn)
     .await?;
+
+    Ok(())
+}
+
+async fn revert_migration(
+    conn: &mut PgConnection,
+    migration: &Migration,
+) -> Result<(), MigrateError> {
+    let _ = conn
+        .execute(&*migration.sql)
+        .await
+        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+
+    // language=SQL
+    let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
+        .bind(migration.version)
+        .execute(conn)
+        .await?;
 
     Ok(())
 }

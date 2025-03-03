@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let elapsed = start.elapsed();
 
             // language=SQL
+            #[allow(clippy::cast_possible_truncation)]
             let _ = query(
                 r#"
     UPDATE _sqlx_migrations
