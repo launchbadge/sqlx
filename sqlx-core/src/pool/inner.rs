@@ -10,6 +10,7 @@ use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
 use std::cmp;
 use std::future::Future;
+use std::pin::pin;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 use std::task::Poll;
@@ -130,19 +131,12 @@ impl<DB: Database> PoolInner<DB> {
             // This is just going to cause unnecessary churn in `acquire()`.
             .filter(|_| self.size() < self.options.max_connections);
 
-        let acquire_self = self.semaphore.acquire(1).fuse();
-        let mut close_event = self.close_event();
+        let mut acquire_self = pin!(self.semaphore.acquire(1).fuse());
+        let mut close_event = pin!(self.close_event());
 
         if let Some(parent) = parent {
-            let acquire_parent = parent.0.semaphore.acquire(1);
-            let parent_close_event = parent.0.close_event();
-
-            futures_util::pin_mut!(
-                acquire_parent,
-                acquire_self,
-                close_event,
-                parent_close_event
-            );
+            let mut acquire_parent = pin!(parent.0.semaphore.acquire(1));
+            let mut parent_close_event = pin!(parent.0.close_event());
 
             let mut poll_parent = false;
 

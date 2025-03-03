@@ -184,7 +184,7 @@ fn prepare(
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteError::new(conn).into());
+            return Err(unsafe { SqliteError::new(conn).into() });
         }
 
         // tail should point to the first byte past the end of the first SQL

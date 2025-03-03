@@ -19,6 +19,7 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
+use std::pin::pin;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Sqlite);
 
@@ -114,12 +115,12 @@ impl AnyConnectionBackend for SqliteConnection {
         let args = arguments.map(map_arguments);
 
         Box::pin(async move {
-            let stream = self
-                .worker
-                .execute(query, args, self.row_channel_size, persistent, Some(1))
-                .map_ok(flume::Receiver::into_stream)
-                .await?;
-            futures_util::pin_mut!(stream);
+            let mut stream = pin!(
+                self.worker
+                    .execute(query, args, self.row_channel_size, persistent, Some(1))
+                    .map_ok(flume::Receiver::into_stream)
+                    .await?
+            );
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
                 return Ok(Some(AnyRow::try_from(&row)?));

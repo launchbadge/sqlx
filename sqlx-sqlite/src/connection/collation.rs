@@ -10,7 +10,6 @@ use libsqlite3_sys::{sqlite3_create_collation_v2, SQLITE_OK, SQLITE_UTF8};
 
 use crate::connection::handle::ConnectionHandle;
 use crate::error::Error;
-use crate::SqliteError;
 
 #[derive(Clone)]
 pub struct Collation {
@@ -67,7 +66,7 @@ impl Collation {
         } else {
             // The xDestroy callback is not called if the sqlite3_create_collation_v2() function fails.
             drop(unsafe { Arc::from_raw(raw_f) });
-            Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))))
+            Err(handle.expect_error().into())
         }
     }
 }
@@ -112,7 +111,7 @@ where
     } else {
         // The xDestroy callback is not called if the sqlite3_create_collation_v2() function fails.
         drop(unsafe { Box::from_raw(boxed_f) });
-        Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))))
+        Err(handle.expect_error().into())
     }
 }
 

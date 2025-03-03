@@ -15,10 +15,10 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::{pin_mut, TryStreamExt};
+use futures_util::TryStreamExt;
 use sqlx_core::arguments::Arguments;
 use sqlx_core::Either;
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, pin::pin, sync::Arc};
 
 async fn prepare(
     conn: &mut PgConnection,
@@ -393,8 +393,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
         Box::pin(try_stream! {
             let arguments = arguments?;
-            let s = self.run(sql, arguments, 0, persistent, metadata).await?;
-            pin_mut!(s);
+            let mut s = pin!(self.run(sql, arguments, 0, persistent, metadata).await?);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);
@@ -420,8 +419,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let s = self.run(sql, arguments, 1, persistent, metadata).await?;
-            pin_mut!(s);
+            let mut s = pin!(self.run(sql, arguments, 1, persistent, metadata).await?);
 
             // With deferred constraints we need to check all responses as we
             // could get a OK response (with uncommitted data), only to get an

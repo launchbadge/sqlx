@@ -6,7 +6,7 @@ use syn::{
 };
 
 use super::{
-    attributes::{parse_child_attributes, parse_container_attributes},
+    attributes::{parse_child_attributes, parse_container_attributes, JsonAttribute},
     rename_all,
 };
 
@@ -99,7 +99,7 @@ fn expand_derive_from_row_struct(
 
             let expr: Expr = match (attributes.flatten, attributes.try_from, attributes.json) {
                 // <No attributes>
-                (false, None, false) => {
+                (false, None, None) => {
                     predicates
                         .push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
@@ -107,12 +107,12 @@ fn expand_derive_from_row_struct(
                     parse_quote!(__row.try_get(#id_s))
                 }
                 // Flatten
-                (true, None, false) => {
+                (true, None, None) => {
                     predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
                     parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(__row))
                 }
                 // Flatten + Try from
-                (true, Some(try_from), false) => {
+                (true, Some(try_from), None) => {
                     predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
                     parse_quote!(
                         <#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(__row)
@@ -130,11 +130,11 @@ fn expand_derive_from_row_struct(
                     )
                 }
                 // Flatten + Json
-                (true, _, true) => {
+                (true, _, Some(_)) => {
                     panic!("Cannot use both flatten and json")
                 }
                 // Try from
-                (false, Some(try_from), false) => {
+                (false, Some(try_from), None) => {
                     predicates
                         .push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>)); 
@@ -154,8 +154,8 @@ fn expand_derive_from_row_struct(
                             })
                     )
                 }
-                // Try from + Json
-                (false, Some(try_from), true) => {
+                // Try from + Json mandatory
+                (false, Some(try_from), Some(JsonAttribute::NonNullable)) => {
                     predicates
                         .push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(::sqlx::types::Json<#try_from>: ::sqlx::types::Type<R::Database>));
@@ -175,13 +175,24 @@ fn expand_derive_from_row_struct(
                             })
                     )
                 },
+                // Try from + Json nullable
+                (false, Some(_), Some(JsonAttribute::Nullable)) => {
+                    panic!("Cannot use both try from and json nullable")
+                },
                 // Json
-                (false, None, true) => {
+                (false, None, Some(JsonAttribute::NonNullable)) => {
                     predicates
                         .push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::decode::Decode<#lifetime, R::Database>));
                     predicates.push(parse_quote!(::sqlx::types::Json<#ty>: ::sqlx::types::Type<R::Database>));
 
                     parse_quote!(__row.try_get::<::sqlx::types::Json<_>, _>(#id_s).map(|x| x.0))
+                },
+                (false, None, Some(JsonAttribute::Nullable)) => {
+                    predicates
+                        .push(parse_quote!(::core::option::Option<::sqlx::types::Json<#ty>>: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(::core::option::Option<::sqlx::types::Json<#ty>>: ::sqlx::types::Type<R::Database>));
+
+                    parse_quote!(__row.try_get::<::core::option::Option<::sqlx::types::Json<_>>, _>(#id_s).map(|x| x.and_then(|y| y.0)))
                 },
             };
 

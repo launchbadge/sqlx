@@ -20,7 +20,7 @@ const IS_POINT_FLAG: u32 = 1 << 31;
 #[derive(Debug, Clone, PartialEq)]
 pub enum PgCube {
     /// A one-dimensional point.
-    // FIXME: `Point1D(f64)
+    // FIXME: `Point1D(f64)`
     Point(f64),
     /// An N-dimensional point ("represented internally as a zero-volume cube").
     // FIXME: `PointND(f64)`
@@ -32,7 +32,7 @@ pub enum PgCube {
 
     // FIXME: add `Cube3D { lower_left: [f64; 3], upper_right: [f64; 3] }`?
     /// An N-dimensional cube with points representing lower-left and upper-right corners, respectively.
-    // FIXME: CubeND { lower_left: Vec<f64>, upper_right: Vec<f64> }`
+    // FIXME: `CubeND { lower_left: Vec<f64>, upper_right: Vec<f64> }`
     MultiDimension(Vec<Vec<f64>>),
 }
 

@@ -29,7 +29,7 @@ use crate::connection::establish::EstablishParams;
 use crate::connection::worker::ConnectionWorker;
 use crate::options::OptimizeOnClose;
 use crate::statement::VirtualStatement;
-use crate::{Sqlite, SqliteConnectOptions};
+use crate::{Sqlite, SqliteConnectOptions, SqliteError};
 
 pub(crate) mod collation;
 pub(crate) mod describe;
@@ -41,6 +41,7 @@ mod handle;
 pub(crate) mod intmap;
 #[cfg(feature = "preupdate-hook")]
 mod preupdate_hook;
+pub(crate) mod serialize;
 
 mod worker;
 
@@ -550,6 +551,10 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_rollback_hook(&mut self) {
         self.guard.remove_rollback_hook();
+    }
+
+    pub fn last_error(&mut self) -> Option<SqliteError> {
+        self.guard.handle.last_error()
     }
 
     pub(crate) fn in_transaction(&mut self) -> bool {

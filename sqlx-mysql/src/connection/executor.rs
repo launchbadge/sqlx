@@ -21,8 +21,8 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::{pin_mut, TryStreamExt};
-use std::{borrow::Cow, sync::Arc};
+use futures_util::TryStreamExt;
+use std::{borrow::Cow, pin::pin, sync::Arc};
 
 impl MySqlConnection {
     async fn prepare_statement<'c>(
@@ -111,7 +111,7 @@ impl MySqlConnection {
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
 
-        Ok(Box::pin(try_stream! {
+        Ok(try_stream! {
             // make a slot for the shared column data
             // as long as a reference to a row is not held past one iteration, this enables us
             // to re-use this memory freely between result sets
@@ -244,7 +244,7 @@ impl MySqlConnection {
                     r#yield!(v);
                 }
             }
-        }))
+        })
     }
 }
 
@@ -267,8 +267,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
 
         Box::pin(try_stream! {
             let arguments = arguments?;
-            let s = self.run(sql, arguments, persistent).await?;
-            pin_mut!(s);
+            let mut s = pin!(self.run(sql, arguments, persistent).await?);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);

@@ -2,12 +2,10 @@ use futures::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
-use sqlx::Decode;
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
-use sqlx::{Value, ValueRef};
 use sqlx_sqlite::LockedSqliteHandle;
 use sqlx_test::new;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -272,7 +270,7 @@ async fn it_handles_empty_queries() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
-fn it_binds_parameters() -> anyhow::Result<()> {
+async fn it_binds_parameters() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let v: i32 = sqlx::query_scalar("SELECT ?")
@@ -294,7 +292,7 @@ fn it_binds_parameters() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
-fn it_binds_dollar_parameters() -> anyhow::Result<()> {
+async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let v: (i32, i32) = sqlx::query_as("SELECT $1, $2")
@@ -974,6 +972,8 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
 #[cfg(feature = "sqlite-preupdate-hook")]
 #[sqlx_macros::test]
 async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
+    use sqlx::Decode;
+
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
@@ -1022,6 +1022,8 @@ async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
 #[cfg(feature = "sqlite-preupdate-hook")]
 #[sqlx_macros::test]
 async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
+    use sqlx::Decode;
+
     let mut conn = new::<Sqlite>().await?;
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 5, 'Hello, World' )")
         .execute(&mut conn)
@@ -1065,6 +1067,9 @@ async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
 #[cfg(feature = "sqlite-preupdate-hook")]
 #[sqlx_macros::test]
 async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
+    use sqlx::Decode;
+    use sqlx::{Value, ValueRef};
+
     let mut conn = new::<Sqlite>().await?;
     let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 6, 'Hello, World' )")
         .execute(&mut conn)
@@ -1171,6 +1176,145 @@ async fn test_multiple_set_preupdate_hook_calls_drop_old_handler() -> anyhow::Re
     }
 
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_get_last_error() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let _ = sqlx::query("select 1").fetch_one(&mut conn).await?;
+
+    {
+        let mut handle = conn.lock_handle().await?;
+        assert!(handle.last_error().is_none());
+    }
+
+    let _ = sqlx::query("invalid statement").fetch_one(&mut conn).await;
+
+    {
+        let mut handle = conn.lock_handle().await?;
+        assert!(handle.last_error().is_some());
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_serialize_deserialize() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    sqlx::raw_sql("create table foo(bar integer not null, baz text not null)")
+        .execute(&mut conn)
+        .await?;
+
+    sqlx::query("insert into foo(bar, baz) values (1234, 'Lorem ipsum'), (5678, 'dolor sit amet')")
+        .execute(&mut conn)
+        .await?;
+
+    let serialized = conn.serialize(None).await?;
+
+    // Close and open a new connection to ensure cleanliness.
+    conn.close().await?;
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    conn.deserialize(None, serialized, false).await?;
+
+    let rows = sqlx::query_as::<_, (i32, String)>("select bar, baz from foo")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(rows.len(), 2);
+
+    assert_eq!(rows[0].0, 1234);
+    assert_eq!(rows[0].1, "Lorem ipsum");
+
+    assert_eq!(rows[1].0, 5678);
+    assert_eq!(rows[1].1, "dolor sit amet");
+
+    Ok(())
+}
+#[sqlx_macros::test]
+async fn test_serialize_deserialize_with_schema() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    sqlx::raw_sql(
+        "attach ':memory:' as foo; create table foo.foo(bar integer not null, baz text not null)",
+    )
+    .execute(&mut conn)
+    .await?;
+
+    sqlx::query(
+        "insert into foo.foo(bar, baz) values (1234, 'Lorem ipsum'), (5678, 'dolor sit amet')",
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let serialized = conn.serialize(Some("foo")).await?;
+
+    // Close and open a new connection to ensure cleanliness.
+    conn.close().await?;
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    // Unexpected quirk: the schema must exist before deserialization.
+    sqlx::raw_sql("attach ':memory:' as foo")
+        .execute(&mut conn)
+        .await?;
+
+    conn.deserialize(Some("foo"), serialized, false).await?;
+
+    let rows = sqlx::query_as::<_, (i32, String)>("select bar, baz from foo.foo")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(rows.len(), 2);
+
+    assert_eq!(rows[0].0, 1234);
+    assert_eq!(rows[0].1, "Lorem ipsum");
+
+    assert_eq!(rows[1].0, 5678);
+    assert_eq!(rows[1].1, "dolor sit amet");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_serialize_nonexistent_schema() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    let err = conn
+        .serialize(Some("foobar"))
+        .await
+        .expect_err("an error should have been returned");
+
+    let sqlx::Error::Database(dbe) = err else {
+        panic!("expected DatabaseError: {err:?}")
+    };
+
+    assert_eq!(dbe.code().as_deref(), Some("1"));
+    assert_eq!(dbe.message(), "database foobar does not exist");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_serialize_invalid_schema() -> anyhow::Result<()> {
+    let mut conn = SqliteConnection::connect("sqlite::memory:").await?;
+
+    let err = conn
+        .serialize(Some("foo\0bar"))
+        .await
+        .expect_err("an error should have been returned");
+
+    let sqlx::Error::InvalidArgument(msg) = err else {
+        panic!("expected InvalidArgument: {err:?}")
+    };
+
+    assert_eq!(
+        msg,
+        "schema name \"foo\\0bar\" contains a zero byte at index 3"
+    );
+
     Ok(())
 }
 

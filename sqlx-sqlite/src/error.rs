@@ -2,12 +2,12 @@ use std::error::Error as StdError;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
-use std::{borrow::Cow, str::from_utf8_unchecked};
+use std::{borrow::Cow, str};
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_errmsg, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
+    sqlite3, sqlite3_errmsg, sqlite3_errstr, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
     SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL, SQLITE_CONSTRAINT_PRIMARYKEY,
-    SQLITE_CONSTRAINT_UNIQUE,
+    SQLITE_CONSTRAINT_UNIQUE, SQLITE_ERROR,
 };
 
 pub(crate) use sqlx_core::error::*;
@@ -18,33 +18,65 @@ pub(crate) use sqlx_core::error::*;
 #[derive(Debug)]
 pub struct SqliteError {
     code: c_int,
-    message: String,
+    message: Cow<'static, str>,
 }
 
 impl SqliteError {
-    pub(crate) fn new(handle: *mut sqlite3) -> Self {
+    pub(crate) unsafe fn new(handle: *mut sqlite3) -> Self {
+        Self::try_new(handle).expect("There should be an error")
+    }
+
+    pub(crate) unsafe fn try_new(handle: *mut sqlite3) -> Option<Self> {
         // returns the extended result code even when extended result codes are disabled
         let code: c_int = unsafe { sqlite3_extended_errcode(handle) };
+
+        if code == 0 {
+            return None;
+        }
 
         // return English-language text that describes the error
         let message = unsafe {
             let msg = sqlite3_errmsg(handle);
             debug_assert!(!msg.is_null());
 
-            from_utf8_unchecked(CStr::from_ptr(msg).to_bytes())
+            str::from_utf8_unchecked(CStr::from_ptr(msg).to_bytes()).to_owned()
         };
 
-        Self {
+        Some(Self {
             code,
-            message: message.to_owned(),
-        }
+            message: message.into(),
+        })
     }
 
     /// For errors during extension load, the error message is supplied via a separate pointer
-    pub(crate) fn extension(handle: *mut sqlite3, error_msg: &CStr) -> Self {
-        let mut err = Self::new(handle);
-        err.message = unsafe { from_utf8_unchecked(error_msg.to_bytes()).to_owned() };
-        err
+    pub(crate) fn with_message(mut self, error_msg: String) -> Self {
+        self.message = error_msg.into();
+        self
+    }
+
+    pub(crate) fn from_code(code: c_int) -> Self {
+        let message = unsafe {
+            let errstr = sqlite3_errstr(code);
+
+            if !errstr.is_null() {
+                // SAFETY: `errstr` is guaranteed to be UTF-8
+                // The lifetime of the string is "internally managed";
+                // the implementation just selects from an array of static strings.
+                // We copy to an owned buffer in case `libsqlite3` is dynamically loaded somehow.
+                Cow::Owned(str::from_utf8_unchecked(CStr::from_ptr(errstr).to_bytes()).into())
+            } else {
+                Cow::Borrowed("<error message unavailable>")
+            }
+        };
+
+        SqliteError { code, message }
+    }
+
+    pub(crate) fn generic(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            code: SQLITE_ERROR,
+            message: message.into(),
+        }
     }
 }
 
