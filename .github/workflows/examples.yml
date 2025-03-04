@@ -14,20 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use latest Rust
-        run: rustup override set stable
+      - name: Setup Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup override set stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: sqlx-cli
 
       - run: >
-            cargo build
-            -p sqlx-cli
-            --bin sqlx
-            --release
-            --no-default-features
-            --features mysql,postgres,sqlite
+          cargo build
+          -p sqlx-cli
+          --bin sqlx
+          --release
+          --no-default-features
+          --features mysql,postgres,sqlite
 
       - uses: actions/upload-artifact@v4
         with:
@@ -63,9 +63,10 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: mysql-examples
 
       - name: Todos (Setup)
         working-directory: examples/mysql/todos
@@ -98,7 +99,7 @@ jobs:
           name: sqlx-cli
           path: /home/runner/.local/bin
 
-      - run:  |
+      - run: |
           ls -R /home/runner/.local/bin
           chmod +x $HOME/.local/bin/sqlx
           echo $HOME/.local/bin >> $GITHUB_PATH
@@ -106,9 +107,8 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: pg-examples
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
 
       - name: Axum Social with Tests (Setup)
         working-directory: examples/postgres/axum-social-with-tests
@@ -217,9 +217,10 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: sqlite-examples
 
       - name: TODOs (Setup)
         env:
