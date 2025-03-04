@@ -10,7 +10,7 @@ on:
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: rustup component add rustfmt
@@ -18,7 +18,7 @@ jobs:
 
   check:
     name: Check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         runtime: [ async-std, tokio ]
@@ -53,7 +53,7 @@ jobs:
 
   check-minimal-versions:
     name: Check build using minimal versions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
@@ -65,7 +65,7 @@ jobs:
 
   test:
     name: Unit Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -115,7 +115,7 @@ jobs:
 
   sqlite:
     name: SQLite
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         runtime: [ async-std, tokio ]
@@ -183,7 +183,7 @@ jobs:
 
   postgres:
     name: Postgres
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         postgres: [ 17, 13 ]
@@ -284,7 +284,7 @@ jobs:
 
   mysql:
     name: MySQL
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         mysql: [ 8 ]
@@ -373,7 +373,7 @@ jobs:
 
   mariadb:
     name: MariaDB
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         mariadb: [ verylatest, 11_4, 10_11, 10_4 ]
