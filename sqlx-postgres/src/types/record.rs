@@ -200,11 +200,7 @@ impl<'r> PgRecordDecoder<'r> {
             }
             PgTypeKind::Domain(d) => self.find_type_info(d, oid),
 
-            _ => {
-                return Err(
-                    "unexpected non-composite type being decoded as a composite type".into(),
-                );
-            }
+            _ => Err("unexpected non-composite type being decoded as a composite type".into()),
         }
     }
 }
