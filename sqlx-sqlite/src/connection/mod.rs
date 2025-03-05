@@ -264,10 +264,6 @@ impl Connection for SqliteConnection {
         Transaction::begin(self, Some(statement.into()))
     }
 
-    fn get_transaction_depth(&self) -> usize {
-        self.worker.shared.get_transaction_depth()
-    }
-
     fn cached_statements_size(&self) -> usize {
         self.worker.shared.get_cached_statements_size()
     }

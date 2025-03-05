@@ -66,25 +66,15 @@ pub trait Connection: Send {
         Transaction::begin(self, Some(statement.into()))
     }
 
-    /// Returns the current transaction depth.
+    /// Returns `true` if the connection is currently in a transaction.
     ///
-    /// Transaction depth indicates the level of nested transactions:
-    /// - Level 0: No active transaction.
-    /// - Level 1: A transaction is active.
-    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
-    fn get_transaction_depth(&self) -> usize {
-        // Fallback implementation to avoid breaking changes
-        <Self::Database as Database>::TransactionManager::get_transaction_depth(self)
-    }
-
-    /// Checks if the connection is currently in a transaction.
-    ///
-    /// This method returns `true` if the current transaction depth is greater than 0,
-    /// indicating that a transaction is active. It returns `false` if the transaction depth is 0,
-    /// meaning no transaction is active.
+    /// # Note: Automatic Rollbacks May Not Be Counted
+    /// Certain database errors (such as a serializable isolation failure)
+    /// can cause automatic rollbacks of a transaction
+    /// which may not be indicated in the return value of this method.
     #[inline]
     fn is_in_transaction(&self) -> bool {
-        self.get_transaction_depth() != 0
+        <Self::Database as Database>::TransactionManager::get_transaction_depth(self) != 0
     }
 
     /// Execute the function inside a transaction.

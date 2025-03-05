@@ -200,10 +200,6 @@ impl Connection for PgConnection {
         Transaction::begin(self, Some(statement.into()))
     }
 
-    fn get_transaction_depth(&self) -> usize {
-        self.inner.transaction_depth
-    }
-
     fn cached_statements_size(&self) -> usize {
         self.inner.cache_statement.len()
     }
