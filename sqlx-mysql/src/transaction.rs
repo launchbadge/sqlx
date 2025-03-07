@@ -18,7 +18,7 @@ impl TransactionManager for MySqlTransactionManager {
         Box::pin(async move {
             let depth = conn.inner.transaction_depth;
 
-            conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
+            conn.execute(begin_ansi_transaction_sql(depth)).await?;
             conn.inner.transaction_depth = depth + 1;
 
             Ok(())
@@ -30,7 +30,7 @@ impl TransactionManager for MySqlTransactionManager {
             let depth = conn.inner.transaction_depth;
 
             if depth > 0 {
-                conn.execute(&*commit_ansi_transaction_sql(depth)).await?;
+                conn.execute(commit_ansi_transaction_sql(depth)).await?;
                 conn.inner.transaction_depth = depth - 1;
             }
 
@@ -43,7 +43,7 @@ impl TransactionManager for MySqlTransactionManager {
             let depth = conn.inner.transaction_depth;
 
             if depth > 0 {
-                conn.execute(&*rollback_ansi_transaction_sql(depth)).await?;
+                conn.execute(rollback_ansi_transaction_sql(depth)).await?;
                 conn.inner.transaction_depth = depth - 1;
             }
 
@@ -59,7 +59,7 @@ impl TransactionManager for MySqlTransactionManager {
             conn.inner.stream.sequence_id = 0;
             conn.inner
                 .stream
-                .write_packet(Query(&rollback_ansi_transaction_sql(depth)))
+                .write_packet(Query(rollback_ansi_transaction_sql(depth).as_str()))
                 .expect("BUG: unexpected error queueing ROLLBACK");
 
             conn.inner.transaction_depth = depth - 1;

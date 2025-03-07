@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
@@ -7,6 +6,7 @@ use futures_core::future::BoxFuture;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::MaybePoolConnection;
+use crate::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
 
 /// Generic management of database transactions.
 ///
@@ -183,7 +183,7 @@ where
 //     }
 // }
 
-impl<'c, DB> Debug for Transaction<'c, DB>
+impl<DB> Debug for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -193,7 +193,7 @@ where
     }
 }
 
-impl<'c, DB> Deref for Transaction<'c, DB>
+impl<DB> Deref for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -205,7 +205,7 @@ where
     }
 }
 
-impl<'c, DB> DerefMut for Transaction<'c, DB>
+impl<DB> DerefMut for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -219,13 +219,13 @@ where
 // `PgAdvisoryLockGuard`.
 //
 // See: https://github.com/launchbadge/sqlx/issues/2520
-impl<'c, DB: Database> AsMut<DB::Connection> for Transaction<'c, DB> {
+impl<DB: Database> AsMut<DB::Connection> for Transaction<'_, DB> {
     fn as_mut(&mut self) -> &mut DB::Connection {
         &mut self.connection
     }
 }
 
-impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'c, DB> {
+impl<'t, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'_, DB> {
     type Database = DB;
 
     type Connection = &'t mut <DB as Database>::Connection;
@@ -241,7 +241,7 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
     }
 }
 
-impl<'c, DB> Drop for Transaction<'c, DB>
+impl<DB> Drop for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -258,29 +258,30 @@ where
     }
 }
 
-pub fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn begin_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 0 {
-        Cow::Borrowed("BEGIN")
+        "BEGIN".into_sql_str()
     } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{depth}"))
+        AssertSqlSafe(format!("SAVEPOINT _sqlx_savepoint_{depth}")).into_sql_str()
     }
 }
 
-pub fn commit_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn commit_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 1 {
-        Cow::Borrowed("COMMIT")
+        "COMMIT".into_sql_str()
     } else {
-        Cow::Owned(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1))
+        AssertSqlSafe(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1)).into_sql_str()
     }
 }
 
-pub fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn rollback_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 1 {
-        Cow::Borrowed("ROLLBACK")
+        "ROLLBACK".into_sql_str()
     } else {
-        Cow::Owned(format!(
+        AssertSqlSafe(format!(
             "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
             depth - 1
         ))
+        .into_sql_str()
     }
 }

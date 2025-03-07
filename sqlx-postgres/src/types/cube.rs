@@ -71,7 +71,7 @@ impl<'r> Decode<'r, Postgres> for PgCube {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgCube {
+impl Encode<'_, Postgres> for PgCube {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("cube"))
     }

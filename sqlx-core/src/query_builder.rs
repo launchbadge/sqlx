@@ -3,6 +3,7 @@
 use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::Database;
@@ -11,6 +12,8 @@ use crate::from_row::FromRow;
 use crate::query::Query;
 use crate::query_as::QueryAs;
 use crate::query_scalar::QueryScalar;
+use crate::sql_str::AssertSqlSafe;
+use crate::sql_str::SqlSafeStr;
 use crate::types::Type;
 use crate::Either;
 
@@ -25,20 +28,22 @@ pub struct QueryBuilder<'args, DB>
 where
     DB: Database,
 {
-    query: String,
+    query: Arc<String>,
     init_len: usize,
     arguments: Option<<DB as Database>::Arguments<'args>>,
 }
 
-impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
+impl<DB: Database> Default for QueryBuilder<'_, DB> {
     fn default() -> Self {
         QueryBuilder {
             init_len: 0,
-            query: String::default(),
+            query: String::default().into(),
             arguments: Some(Default::default()),
         }
     }
 }
+
+const ERROR: &str = "BUG: query must not be shared at this point in time";
 
 impl<'args, DB: Database> QueryBuilder<'args, DB>
 where
@@ -55,7 +60,7 @@ where
 
         QueryBuilder {
             init_len: init.len(),
-            query: init,
+            query: init.into(),
             arguments: Some(Default::default()),
         }
     }
@@ -73,7 +78,7 @@ where
 
         QueryBuilder {
             init_len: init.len(),
-            query: init,
+            query: init.into(),
             arguments: Some(arguments.into_arguments()),
         }
     }
@@ -115,8 +120,9 @@ where
     /// e.g. check that strings aren't too long, numbers are within expected ranges, etc.
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
         self.sanity_check();
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
 
-        write!(self.query, "{sql}").expect("error formatting `sql`");
+        write!(query, "{sql}").expect("error formatting `sql`");
 
         self
     }
@@ -157,8 +163,9 @@ where
             .expect("BUG: Arguments taken already");
         arguments.add(value).expect("Failed to add argument");
 
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
         arguments
-            .format_placeholder(&mut self.query)
+            .format_placeholder(query)
             .expect("error in format_placeholder");
 
         self
@@ -191,7 +198,6 @@ where
     /// assert!(sql.ends_with("in (?, ?) "));
     /// # }
     /// ```
-
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
     where
         'args: 'qb,
@@ -454,7 +460,7 @@ where
         self.sanity_check();
 
         Query {
-            statement: Either::Left(&self.query),
+            statement: Either::Left(AssertSqlSafe(self.query.clone()).into_sql_str()),
             arguments: self.arguments.take().map(Ok),
             database: PhantomData,
             persistent: true,
@@ -511,7 +517,8 @@ where
     /// The query is truncated to the initial fragment provided to [`new()`][Self::new] and
     /// the bind arguments are reset.
     pub fn reset(&mut self) -> &mut Self {
-        self.query.truncate(self.init_len);
+        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
+        query.truncate(self.init_len);
         self.arguments = Some(Default::default());
 
         self
@@ -524,7 +531,7 @@ where
 
     /// Deconstruct this `QueryBuilder`, returning the built SQL. May not be syntactically correct.
     pub fn into_sql(self) -> String {
-        self.query
+        Arc::into_inner(self.query).unwrap()
     }
 }
 
