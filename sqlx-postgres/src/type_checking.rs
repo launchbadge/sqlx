@@ -42,6 +42,8 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgPath,
 
+        sqlx::postgres::types::PgPolygon,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
