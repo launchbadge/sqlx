@@ -1,5 +1,9 @@
 //! Provides [`Decode`] for decoding values from the database.
 
+use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
+
 use crate::database::Database;
 use crate::error::BoxDynError;
 
@@ -75,5 +79,35 @@ where
         } else {
             Ok(Some(T::decode(value)?))
         }
+    }
+}
+
+macro_rules! impl_decode_for_smartpointer {
+    ($smart_pointer:ty) => {
+        impl<'r, DB, T> Decode<'r, DB> for $smart_pointer
+        where
+            DB: Database,
+            T: Decode<'r, DB>,
+        {
+            fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+                Ok(Self::new(T::decode(value)?))
+            }
+        }
+    };
+}
+
+impl_decode_for_smartpointer!(Arc<T>);
+impl_decode_for_smartpointer!(Box<T>);
+impl_decode_for_smartpointer!(Rc<T>);
+
+// implement `Decode` for Cow<T> for all SQL types
+impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
+where
+    DB: Database,
+    T: Decode<'r, DB>,
+    T: ToOwned<Owned = T>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Cow::Owned(T::decode(value)?))
     }
 }
