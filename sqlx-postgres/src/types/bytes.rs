@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -23,6 +25,12 @@ impl PgHasArrayType for Box<[u8]> {
 }
 
 impl PgHasArrayType for Vec<u8> {
+    fn array_type_info() -> PgTypeInfo {
+        <[&[u8]] as Type<Postgres>>::type_info()
+    }
+}
+
+impl PgHasArrayType for Arc<[u8]> {
     fn array_type_info() -> PgTypeInfo {
         <[&[u8]] as Type<Postgres>>::type_info()
     }
@@ -57,6 +65,12 @@ impl Encode<'_, Postgres> for Vec<u8> {
 impl<const N: usize> Encode<'_, Postgres> for [u8; N] {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<Postgres>>::encode(self.as_slice(), buf)
+    }
+}
+
+impl Encode<'_, Postgres> for Arc<[u8]> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        <&[u8] as Encode<Postgres>>::encode(self, buf)
     }
 }
 
@@ -108,5 +122,14 @@ impl<const N: usize> Decode<'_, Postgres> for [u8; N] {
             PgValueFormat::Text => hex::decode_to_slice(text_hex_decode_input(value)?, &mut bytes)?,
         };
         Ok(bytes)
+    }
+}
+
+impl Decode<'_, Postgres> for Arc<[u8]> {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(match value.format() {
+            PgValueFormat::Binary => value.as_bytes()?.into(),
+            PgValueFormat::Text => hex::decode(text_hex_decode_input(value)?)?.into(),
+        })
     }
 }

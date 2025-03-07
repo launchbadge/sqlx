@@ -6,6 +6,7 @@ use crate::protocol::text::{ColumnFlags, ColumnType};
 use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use std::borrow::Cow;
+use std::sync::Arc;
 
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
@@ -46,16 +47,6 @@ impl<'r> Decode<'r, MySql> for &'r str {
     }
 }
 
-impl Type<MySql> for Box<str> {
-    fn type_info() -> MySqlTypeInfo {
-        <&str as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <&str as Type<MySql>>::compatible(ty)
-    }
-}
-
 impl Encode<'_, MySql> for Box<str> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         <&str as Encode<MySql>>::encode(&**self, buf)
@@ -90,16 +81,6 @@ impl Decode<'_, MySql> for String {
     }
 }
 
-impl Type<MySql> for Cow<'_, str> {
-    fn type_info() -> MySqlTypeInfo {
-        <&str as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <&str as Type<MySql>>::compatible(ty)
-    }
-}
-
 impl Encode<'_, MySql> for Cow<'_, str> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         match self {
@@ -112,5 +93,17 @@ impl Encode<'_, MySql> for Cow<'_, str> {
 impl<'r> Decode<'r, MySql> for Cow<'r, str> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         value.as_str().map(Cow::Borrowed)
+    }
+}
+
+impl Encode<'_, MySql> for Arc<str> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
+        <&str as Encode<MySql>>::encode(&**self, buf)
+    }
+}
+
+impl Decode<'_, MySql> for Arc<str> {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        <&str as Decode<MySql>>::decode(value).map(Into::into)
     }
 }
