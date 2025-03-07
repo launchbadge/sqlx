@@ -3,6 +3,7 @@ use crate::describe::Describe;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use std::borrow::Cow;
 use std::fmt::Debug;
 
 pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
@@ -26,13 +27,39 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(&mut self) -> BoxFuture<'_, crate::Result<()>>;
+    ///
+    /// If this is a new transaction, `statement` may be used instead of the
+    /// default "BEGIN" statement.
+    ///
+    /// If we are already inside a transaction and `statement.is_some()`, then
+    /// `Error::InvalidSavePoint` is returned without running any statements.
+    fn begin(&mut self, statement: Option<Cow<'static, str>>) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     fn rollback(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
     fn start_rollback(&mut self);
+
+    /// Returns the current transaction depth.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(&self) -> usize {
+        unimplemented!("get_transaction_depth() is not implemented for this backend. This is a provided method to avoid a breaking change, but it will become a required method in version 0.9 and later.");
+    }
+
+    /// Checks if the connection is currently in a transaction.
+    ///
+    /// This method returns `true` if the current transaction depth is greater than 0,
+    /// indicating that a transaction is active. It returns `false` if the transaction depth is 0,
+    /// meaning no transaction is active.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        self.get_transaction_depth() != 0
+    }
 
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize {

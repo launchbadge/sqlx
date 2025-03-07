@@ -5,6 +5,7 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
+use std::borrow::Cow;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{
@@ -39,8 +40,11 @@ impl AnyConnectionBackend for PgConnection {
         Connection::ping(self)
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::begin(self)
+    fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        PgTransactionManager::begin(self, statement)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
@@ -53,6 +57,10 @@ impl AnyConnectionBackend for PgConnection {
 
     fn start_rollback(&mut self) {
         PgTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&self) -> usize {
+        PgTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {

@@ -1,4 +1,6 @@
 use futures_core::future::BoxFuture;
+use sqlx_core::database::Database;
+use std::borrow::Cow;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -13,13 +15,27 @@ pub struct PgTransactionManager;
 impl TransactionManager for PgTransactionManager {
     type Database = Postgres;
 
-    fn begin(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin<'conn>(
+        conn: &'conn mut PgConnection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>> {
         Box::pin(async move {
+            let depth = conn.inner.transaction_depth;
+            let statement = match statement {
+                // custom `BEGIN` statements are not allowed if we're already in
+                // a transaction (we need to issue a `SAVEPOINT` instead)
+                Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
+                Some(statement) => statement,
+                None => begin_ansi_transaction_sql(depth),
+            };
+
             let rollback = Rollback::new(conn);
-            let query = begin_ansi_transaction_sql(rollback.conn.inner.transaction_depth);
-            rollback.conn.queue_simple_query(&query)?;
-            rollback.conn.inner.transaction_depth += 1;
+            rollback.conn.queue_simple_query(&statement)?;
             rollback.conn.wait_until_ready().await?;
+            if !rollback.conn.in_transaction() {
+                return Err(Error::BeginFailed);
+            }
+            rollback.conn.inner.transaction_depth += 1;
             rollback.defuse();
 
             Ok(())
@@ -61,6 +77,10 @@ impl TransactionManager for PgTransactionManager {
 
             conn.inner.transaction_depth -= 1;
         }
+    }
+
+    fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize {
+        conn.inner.transaction_depth
     }
 }
 

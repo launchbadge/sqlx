@@ -1,9 +1,10 @@
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
@@ -48,6 +49,33 @@ pub trait Connection: Send {
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized;
+
+    /// Begin a new transaction with a custom statement.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    ///
+    /// Returns an error if the connection is already in a transaction or if
+    /// `statement` does not put the connection into a transaction.
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
+    }
+
+    /// Returns `true` if the connection is currently in a transaction.
+    ///
+    /// # Note: Automatic Rollbacks May Not Be Counted
+    /// Certain database errors (such as a serializable isolation failure)
+    /// can cause automatic rollbacks of a transaction
+    /// which may not be indicated in the return value of this method.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        <Self::Database as Database>::TransactionManager::get_transaction_depth(self) != 0
+    }
 
     /// Execute the function inside a transaction.
     ///

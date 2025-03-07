@@ -36,8 +36,19 @@ pub(crate) struct ConnectionWorker {
 }
 
 pub(crate) struct WorkerSharedState {
-    pub(crate) cached_statements_size: AtomicUsize,
+    transaction_depth: AtomicUsize,
+    cached_statements_size: AtomicUsize,
     pub(crate) conn: Mutex<ConnectionState>,
+}
+
+impl WorkerSharedState {
+    pub(crate) fn get_transaction_depth(&self) -> usize {
+        self.transaction_depth.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn get_cached_statements_size(&self) -> usize {
+        self.cached_statements_size.load(Ordering::Acquire)
+    }
 }
 
 enum Command {
@@ -68,6 +79,7 @@ enum Command {
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
+        statement: Option<Cow<'static, str>>,
     },
     Commit {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -105,6 +117,7 @@ impl ConnectionWorker {
                 };
 
                 let shared = Arc::new(WorkerSharedState {
+                    transaction_depth: AtomicUsize::new(0),
                     cached_statements_size: AtomicUsize::new(0),
                     // note: must be fair because in `Command::UnlockDb` we unlock the mutex
                     // and then immediately try to relock it; an unfair mutex would immediately
@@ -194,13 +207,27 @@ impl ConnectionWorker {
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                         }
-                        Command::Begin { tx } => {
-                            let depth = conn.transaction_depth;
+                        Command::Begin { tx, statement } => {
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
+
+                            let statement = match statement {
+                                // custom `BEGIN` statements are not allowed if
+                                // we're already in a transaction (we need to
+                                // issue a `SAVEPOINT` instead)
+                                Some(_) if depth > 0 => {
+                                    if tx.blocking_send(Err(Error::InvalidSavePointStatement)).is_err() {
+                                        break;
+                                    }
+                                    continue;
+                                },
+                                Some(statement) => statement,
+                                None => begin_ansi_transaction_sql(depth),
+                            };
                             let res =
                                 conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth))
+                                    .exec(statement)
                                     .map(|_| {
-                                        conn.transaction_depth += 1;
+                                        shared.transaction_depth.fetch_add(1, Ordering::Release);
                                     });
                             let res_ok = res.is_ok();
 
@@ -213,7 +240,7 @@ impl ConnectionWorker {
                                     .handle
                                     .exec(rollback_ansi_transaction_sql(depth + 1))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                                 {
                                     // The rollback failed. To prevent leaving the connection
@@ -225,13 +252,13 @@ impl ConnectionWorker {
                             }
                         }
                         Command::Commit { tx } => {
-                            let depth = conn.transaction_depth;
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
 
                             let res = if depth > 0 {
                                 conn.handle
                                     .exec(commit_ansi_transaction_sql(depth))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                             } else {
                                 Ok(())
@@ -251,13 +278,13 @@ impl ConnectionWorker {
                                 continue;
                             }
 
-                            let depth = conn.transaction_depth;
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
 
                             let res = if depth > 0 {
                                 conn.handle
                                     .exec(rollback_ansi_transaction_sql(depth))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                             } else {
                                 Ok(())
@@ -351,8 +378,11 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<(), Error> {
-        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
+    pub(crate) async fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> Result<(), Error> {
+        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx, statement })
             .await?
     }
 
