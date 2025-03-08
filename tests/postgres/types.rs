@@ -539,6 +539,14 @@ test_type!(polygon<sqlx::postgres::types::PgPolygon>(Postgres,
     ]},
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
+    "circle('<(1.1, -2.2), 3.3>')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('((1.1, -2.2), 3.3)')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('(1.1, -2.2), 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('1.1, -2.2, 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),

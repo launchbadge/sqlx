@@ -19,7 +19,10 @@ use std::str::FromStr;
 /// ````
 /// where x and y are the respective coordinates, as floating-point numbers.
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-POINTS
+/// See [Postgres Manual, Section 8.8.1, Geometric Types - Points][PG.S.8.8.1] for details.
+///
+/// [PG.S.8.8.1]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-GEOMETRIC-POINTS
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPoint {
     pub x: f64,
