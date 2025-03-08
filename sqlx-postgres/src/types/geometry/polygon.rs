@@ -28,7 +28,10 @@ const BYTE_WIDTH: usize = mem::size_of::<f64>();
 ///
 /// where the points are the end points of the line segments comprising the boundary of the polygon.
 ///
-/// Seeh ttps://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON
+/// See [Postgres Manual, Section 8.8.6, Geometric Types - Polygons][PG.S.8.8.6] for details.
+///
+/// [PG.S.8.8.6]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-POLYGON
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPolygon {
     pub points: Vec<PgPoint>,

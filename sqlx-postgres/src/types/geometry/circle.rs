@@ -22,7 +22,10 @@ const ERROR: &str = "error decoding CIRCLE";
 /// ```
 /// where `(x,y)` is the center point.
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-CIRCLE
+/// See [Postgres Manual, Section 8.8.7, Geometric Types - Circles][PG.S.8.8.7] for details.
+///
+/// [PG.S.8.8.7]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgCircle {
     pub x: f64,
