@@ -4,3 +4,4 @@ pub mod line_segment;
 pub mod path;
 pub mod point;
 pub mod polygon;
+pub mod circle;
