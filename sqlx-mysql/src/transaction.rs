@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use futures_core::future::BoxFuture;
 
 use crate::connection::Waiting;
@@ -14,12 +16,24 @@ pub struct MySqlTransactionManager;
 impl TransactionManager for MySqlTransactionManager {
     type Database = MySql;
 
-    fn begin(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin<'conn>(
+        conn: &'conn mut MySqlConnection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>> {
         Box::pin(async move {
             let depth = conn.inner.transaction_depth;
-
-            conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
-            conn.inner.transaction_depth = depth + 1;
+            let statement = match statement {
+                // custom `BEGIN` statements are not allowed if we're already in a transaction
+                // (we need to issue a `SAVEPOINT` instead)
+                Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
+                Some(statement) => statement,
+                None => begin_ansi_transaction_sql(depth),
+            };
+            conn.execute(&*statement).await?;
+            if !conn.in_transaction() {
+                return Err(Error::BeginFailed);
+            }
+            conn.inner.transaction_depth += 1;
 
             Ok(())
         })
@@ -64,5 +78,9 @@ impl TransactionManager for MySqlTransactionManager {
 
             conn.inner.transaction_depth = depth - 1;
         }
+    }
+
+    fn get_transaction_depth(conn: &MySqlConnection) -> usize {
+        conn.inner.transaction_depth
     }
 }

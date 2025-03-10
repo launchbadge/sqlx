@@ -1,4 +1,5 @@
 use futures_core::future::BoxFuture;
+use std::borrow::Cow;
 
 use crate::any::{Any, AnyConnectOptions};
 use crate::connection::{ConnectOptions, Connection};
@@ -87,7 +88,17 @@ impl Connection for AnyConnection {
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self, None)
+    }
+
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
     }
 
     fn cached_statements_size(&self) -> usize {

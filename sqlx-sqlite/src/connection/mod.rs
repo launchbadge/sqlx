@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::CStr;
 use std::fmt::Write;
@@ -11,8 +12,8 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_get_autocommit, sqlite3_progress_handler,
+    sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -105,9 +106,6 @@ unsafe impl Send for RollbackHookHandler {}
 
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
-
-    // transaction status
-    pub(crate) transaction_depth: usize,
 
     pub(crate) statements: Statements,
 
@@ -253,14 +251,21 @@ impl Connection for SqliteConnection {
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self, None)
+    }
+
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
     }
 
     fn cached_statements_size(&self) -> usize {
-        self.worker
-            .shared
-            .cached_statements_size
-            .load(std::sync::atomic::Ordering::Acquire)
+        self.worker.shared.get_cached_statements_size()
     }
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
@@ -546,6 +551,11 @@ impl LockedSqliteHandle<'_> {
 
     pub fn last_error(&mut self) -> Option<SqliteError> {
         self.guard.handle.last_error()
+    }
+
+    pub(crate) fn in_transaction(&mut self) -> bool {
+        let ret = unsafe { sqlite3_get_autocommit(self.as_raw_handle().as_ptr()) };
+        ret == 0
     }
 }
 
