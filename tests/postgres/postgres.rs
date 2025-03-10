@@ -524,7 +524,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin
     let mut tx = conn.begin().await?; // transaction
-    assert!(conn.is_in_transaction());
+    assert!(tx.is_in_transaction());
 
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -534,7 +534,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin once more
     let mut tx2 = tx.begin().await?; // savepoint
-    assert!(conn.is_in_transaction());
+    assert!(tx2.is_in_transaction());
 
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -544,7 +544,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // never mind, rollback
     tx2.rollback().await?; // roll that one back
-    assert!(conn.is_in_transaction());
+    assert!(tx.is_in_transaction());
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
