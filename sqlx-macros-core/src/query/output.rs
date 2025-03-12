@@ -191,6 +191,71 @@ pub fn quote_query_as<DB: DatabaseExt>(
     }
 }
 
+pub fn quote_query_tuple<DB: DatabaseExt>(
+    input: &QueryMacroInput,
+    bind_args: &Ident,
+    columns: &[RustColumn],
+) -> TokenStream {
+    let instantiations = columns.iter().enumerate().map(
+        |(
+            i,
+            RustColumn {
+                var_name, type_, ..
+            },
+        )| {
+            match (input.checked, type_) {
+                // we guarantee the type is valid so we can skip the runtime check
+                (true, ColumnType::Exact(type_)) => quote! {
+                    // binding to a `let` avoids confusing errors about
+                    // "try expression alternatives have incompatible types"
+                    // it doesn't seem to hurt inference in the other branches
+                    #[allow(non_snake_case)]
+                    let #var_name: #type_ = row.try_get_unchecked::<#type_, _>(#i)?.into();
+                },
+                // type was overridden to be a wildcard so we fallback to the runtime check
+                (true, ColumnType::Wildcard) => quote! (
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get(#i)?;
+                ),
+                (true, ColumnType::OptWildcard) => {
+                    quote! (
+                    #[allow(non_snake_case)]
+                    let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?;
+                    )
+                }
+                // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
+                (false, _) => quote!(
+                #[allow(non_snake_case)]
+                let #var_name = row.try_get_unchecked(#i)?;
+                ),
+            }
+        },
+    );
+
+    let var_name = columns.iter().map(|col| &col.var_name);
+
+    let db_path = DB::db_path();
+    let row_path = DB::row_path();
+
+    // if this query came from a file, use `include_str!()` to tell the compiler where it came from
+    let sql = if let Some(ref path) = &input.file_path {
+        quote::quote_spanned! { input.src_span => include_str!(#path) }
+    } else {
+        let sql = &input.sql;
+        quote! { #sql }
+    };
+
+    quote! {
+        ::sqlx::__query_with_result::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
+            use ::sqlx::Row as _;
+
+            #(#instantiations)*
+
+            ::std::result::Result::Ok((#(#var_name),*))
+        })
+    }
+}
+
 pub fn quote_query_scalar<DB: DatabaseExt>(
     input: &QueryMacroInput,
     bind_args: &Ident,

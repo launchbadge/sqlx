@@ -48,7 +48,7 @@
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
 /// | Multiple   | `.fetch_all(...)`               | `sqlx::Result<Vec<{adhoc struct}>>`  | |
 ///
-/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.  
+/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// † Only callable if the query returns no columns; otherwise it's assumed the query *may* return at least one row.
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
@@ -672,6 +672,20 @@ macro_rules! query_scalar (
     );
     ($query:expr, $($args:tt)*) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source = $query, args = [$($args)*])
+    )
+);
+
+/// A variant of [`query!`][`crate::query!`] which returns a tuple instead of an anonymous row type.
+///
+/// See [`query!`][`crate::query!`] for more information.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_tuple (
+    ($query:expr) => (
+        $crate::sqlx_macros::expand_query!(tuple = _, source = $query)
+    );
+    ($query:expr, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(tuple = _, source = $query, args = [$($args)*])
     )
 );
 

@@ -200,7 +200,7 @@ pub fn expand_input<'a>(
             database_url_parsed,
             ..
         } => Err(format!(
-            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled", 
+            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled",
             database_url_parsed.scheme()
         ).into()),
         QueryDataSource::Cached(data) => {
@@ -315,6 +315,11 @@ where
                 ));
 
                 record_tokens
+            }
+            RecordType::Tuple => {
+                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+
+                output::quote_query_tuple::<DB>(&input, &query_args, &columns)
             }
             RecordType::Given(ref out_ty) => {
                 let columns = output::columns_to_rust::<DB>(&data.describe)?;
