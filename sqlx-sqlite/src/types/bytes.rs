@@ -1,4 +1,8 @@
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use sqlx_core::database::Database;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -34,25 +38,6 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
     }
 }
 
-impl Encode<'_, Sqlite> for Box<[u8]> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.into_vec())));
-
-        Ok(IsNull::No)
-    }
-
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'_>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(
-            self.clone().into_vec(),
-        )));
-
-        Ok(IsNull::No)
-    }
-}
-
 impl Type<Sqlite> for Vec<u8> {
     fn type_info() -> SqliteTypeInfo {
         <&[u8] as Type<Sqlite>>::type_info()
@@ -85,3 +70,8 @@ impl<'r> Decode<'r, Sqlite> for Vec<u8> {
         Ok(value.blob().to_owned())
     }
 }
+
+forward_encode_impl!(Arc<[u8]>, Vec<u8>, Sqlite, |v: &[u8]| v.to_vec());
+forward_encode_impl!(Rc<[u8]>, Vec<u8>, Sqlite, |v: &[u8]| v.to_vec());
+forward_encode_impl!(Box<[u8]>, Vec<u8>, Sqlite, |v: &[u8]| v.to_vec());
+forward_encode_impl!(Cow<'_, [u8]>, Vec<u8>, Sqlite, |v: &[u8]| v.to_vec());

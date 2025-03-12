@@ -709,3 +709,29 @@ CREATE TEMPORARY TABLE user_login (
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_arc_str_slice() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let arc_str: Arc<str> = "Paul".into();
+    let arc_slice: Arc<[u8]> = [5, 0].into();
+    let rc_str: Rc<str> = "George".into();
+    let rc_slice: Rc<[u8]> = [5, 0].into();
+
+    let row = sqlx::query("SELECT $1, $2, $3, $4")
+        .bind(&arc_str)
+        .bind(&arc_slice)
+        .bind(&rc_str)
+        .bind(&rc_slice)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let data: (Arc<str>, Arc<[u8]>, Rc<str>, Rc<[u8]>) = FromRow::from_row(&row)?;
+
+    assert!(data.0 == arc_str);
+    assert!(data.1 == arc_slice);
+    assert!(data.2 == rc_str);
+    assert!(data.3 == rc_slice);
+    Ok(())
+}

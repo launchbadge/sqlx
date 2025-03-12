@@ -1,3 +1,9 @@
+use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use sqlx_core::database::Database;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -40,12 +46,6 @@ impl<'r> Decode<'r, MySql> for &'r [u8] {
     }
 }
 
-impl Encode<'_, MySql> for Box<[u8]> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        <&[u8] as Encode<MySql>>::encode(self.as_ref(), buf)
-    }
-}
-
 impl Type<MySql> for Vec<u8> {
     fn type_info() -> MySqlTypeInfo {
         <[u8] as Type<MySql>>::type_info()
@@ -67,3 +67,8 @@ impl Decode<'_, MySql> for Vec<u8> {
         <&[u8] as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }
+
+forward_encode_impl!(Arc<[u8]>, &[u8], MySql);
+forward_encode_impl!(Rc<[u8]>, &[u8], MySql);
+forward_encode_impl!(Box<[u8]>, &[u8], MySql);
+forward_encode_impl!(Cow<'_, [u8]>, &[u8], MySql);
