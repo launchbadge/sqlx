@@ -53,12 +53,6 @@ impl Encode<'_, Sqlite> for Box<[u8]> {
     }
 }
 
-impl Decode<'_, Sqlite> for Box<[u8]> {
-    fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(Box::from(value.blob()))
-    }
-}
-
 impl Type<Sqlite> for Vec<u8> {
     fn type_info() -> SqliteTypeInfo {
         <&[u8] as Type<Sqlite>>::type_info()

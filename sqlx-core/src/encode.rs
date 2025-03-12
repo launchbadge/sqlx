@@ -175,11 +175,11 @@ impl_encode_for_smartpointer!(Rc<T>);
 impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'_, T>
 where
     T: Encode<'q, DB>,
-    T: ToOwned<Owned = T>,
+    T: ToOwned,
 {
     #[inline]
     fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
-        <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+        <&T as Encode<DB>>::encode_by_ref(&self.as_ref(), buf)
     }
 
     #[inline]
@@ -187,16 +187,16 @@ where
         &self,
         buf: &mut <DB as Database>::ArgumentBuffer<'q>,
     ) -> Result<IsNull, BoxDynError> {
-        <&T as Encode<DB>>::encode(self, buf)
+        <&T as Encode<DB>>::encode_by_ref(&self.as_ref(), buf)
     }
 
     #[inline]
     fn produces(&self) -> Option<DB::TypeInfo> {
-        (**self).produces()
+        <&T as Encode<DB>>::produces(&self.as_ref())
     }
 
     #[inline]
     fn size_hint(&self) -> usize {
-        (**self).size_hint()
+        <&T as Encode<DB>>::size_hint(&self.as_ref())
     }
 }

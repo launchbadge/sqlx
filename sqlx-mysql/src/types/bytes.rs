@@ -46,12 +46,6 @@ impl Encode<'_, MySql> for Box<[u8]> {
     }
 }
 
-impl<'r> Decode<'r, MySql> for Box<[u8]> {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        <&[u8] as Decode<MySql>>::decode(value).map(Box::from)
-    }
-}
-
 impl Type<MySql> for Vec<u8> {
     fn type_info() -> MySqlTypeInfo {
         <[u8] as Type<MySql>>::type_info()

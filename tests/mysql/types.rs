@@ -1,11 +1,14 @@
 extern crate time_ as time;
 
+use std::borrow::Cow;
 use std::net::SocketAddr;
+use std::rc::Rc;
 #[cfg(feature = "rust_decimal")]
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::mysql::MySql;
-use sqlx::{Executor, Row};
+use sqlx::{Executor, FromRow, Row};
 
 use sqlx::types::Text;
 
@@ -382,5 +385,51 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_smartpointers() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let user_age: (Arc<i32>, Cow<'static, i32>, Box<i32>, i32) =
+        sqlx::query_as("SELECT ?, ?, ?, ?")
+            .bind(Arc::new(1i32))
+            .bind(Cow::<'_, i32>::Borrowed(&2i32))
+            .bind(Box::new(3i32))
+            .bind(Rc::new(4i32))
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert!(user_age.0.as_ref() == &1);
+    assert!(user_age.1.as_ref() == &2);
+    assert!(user_age.2.as_ref() == &3);
+    assert!(user_age.3 == 4);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_str_slice() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let box_str: Box<str> = "John".into();
+    let box_slice: Box<[u8]> = [1, 2, 3, 4].into();
+    let cow_str: Cow<'static, str> = "Phil".into();
+    let cow_slice: Cow<'static, [u8]> = Cow::Borrowed(&[1, 2, 3, 4]);
+
+    let row = sqlx::query("SELECT ?, ?, ?, ?")
+        .bind(&box_str)
+        .bind(&box_slice)
+        .bind(&cow_str)
+        .bind(&cow_slice)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let data: (Box<str>, Box<[u8]>, Cow<'_, str>, Cow<'_, [u8]>) = FromRow::from_row(&row)?;
+
+    assert!(data.0 == box_str);
+    assert!(data.1 == box_slice);
+    assert!(data.2 == cow_str);
+    assert!(data.3 == cow_slice);
     Ok(())
 }

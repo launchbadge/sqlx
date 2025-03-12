@@ -80,15 +80,6 @@ fn text_hex_decode_input(value: PgValueRef<'_>) -> Result<&[u8], BoxDynError> {
         .map_err(Into::into)
 }
 
-impl Decode<'_, Postgres> for Box<[u8]> {
-    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => Box::from(value.as_bytes()?),
-            PgValueFormat::Text => Box::from(hex::decode(text_hex_decode_input(value)?)?),
-        })
-    }
-}
-
 impl Decode<'_, Postgres> for Vec<u8> {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {

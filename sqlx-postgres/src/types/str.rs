@@ -82,15 +82,6 @@ impl Encode<'_, Postgres> for &'_ str {
     }
 }
 
-impl Encode<'_, Postgres> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        match self {
-            Cow::Borrowed(str) => <&str as Encode<Postgres>>::encode(*str, buf),
-            Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf),
-        }
-    }
-}
-
 impl Encode<'_, Postgres> for Box<str> {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
         <&str as Encode<Postgres>>::encode(&**self, buf)
@@ -109,20 +100,23 @@ impl<'r> Decode<'r, Postgres> for &'r str {
     }
 }
 
-impl<'r> Decode<'r, Postgres> for Cow<'r, str> {
-    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(Cow::Borrowed(value.as_str()?))
-    }
-}
-
-impl<'r> Decode<'r, Postgres> for Box<str> {
-    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(Box::from(value.as_str()?))
-    }
-}
-
 impl Decode<'_, Postgres> for String {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_str()?.to_owned())
+    }
+}
+
+impl Encode<'_, Postgres> for Cow<'_, str> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        match self {
+            Cow::Borrowed(str) => <&str as Encode<Postgres>>::encode(*str, buf),
+            Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf),
+        }
+    }
+}
+
+impl Encode<'_, Postgres> for Cow<'_, [u8]> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
     }
 }
