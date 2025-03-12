@@ -49,12 +49,6 @@ impl Encode<'_, Sqlite> for Box<str> {
     }
 }
 
-impl Decode<'_, Sqlite> for Box<str> {
-    fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
-        value.text().map(Box::from)
-    }
-}
-
 impl Type<Sqlite> for String {
     fn type_info() -> SqliteTypeInfo {
         <&str as Type<Sqlite>>::type_info()
@@ -101,8 +95,19 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for Cow<'r, str> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.text().map(Cow::Borrowed)
+impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Blob(self));
+
+        Ok(IsNull::No)
+    }
+
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Blob(self.clone()));
+
+        Ok(IsNull::No)
     }
 }

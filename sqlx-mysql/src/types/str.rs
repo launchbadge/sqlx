@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -5,7 +7,6 @@ use crate::io::MySqlBufMutExt;
 use crate::protocol::text::{ColumnFlags, ColumnType};
 use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
-use std::borrow::Cow;
 
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
@@ -52,12 +53,6 @@ impl Encode<'_, MySql> for Box<str> {
     }
 }
 
-impl<'r> Decode<'r, MySql> for Box<str> {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        <&str as Decode<MySql>>::decode(value).map(Box::from)
-    }
-}
-
 impl Type<MySql> for String {
     fn type_info() -> MySqlTypeInfo {
         <str as Type<MySql>>::type_info()
@@ -89,8 +84,8 @@ impl Encode<'_, MySql> for Cow<'_, str> {
     }
 }
 
-impl<'r> Decode<'r, MySql> for Cow<'r, str> {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.as_str().map(Cow::Borrowed)
+impl Encode<'_, MySql> for Cow<'_, [u8]> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
+        <&[u8] as Encode<MySql>>::encode(self.as_ref(), buf)
     }
 }

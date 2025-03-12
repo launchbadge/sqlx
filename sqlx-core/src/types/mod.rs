@@ -276,7 +276,7 @@ impl_type_for_smartpointer!(Rc<T>);
 impl<T, DB: Database> Type<DB> for Cow<'_, T>
 where
     T: Type<DB>,
-    T: ToOwned<Owned = T>,
+    T: ToOwned,
     T: ?Sized,
 {
     fn type_info() -> DB::TypeInfo {

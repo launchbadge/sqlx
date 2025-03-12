@@ -83,8 +83,8 @@ where
 }
 
 macro_rules! impl_decode_for_smartpointer {
-    ($smart_pointer:ty) => {
-        impl<'r, DB, T> Decode<'r, DB> for $smart_pointer
+    ($smart_pointer:tt) => {
+        impl<'r, DB, T> Decode<'r, DB> for $smart_pointer<T>
         where
             DB: Database,
             T: Decode<'r, DB>,
@@ -93,21 +93,66 @@ macro_rules! impl_decode_for_smartpointer {
                 Ok(Self::new(T::decode(value)?))
             }
         }
+
+        impl<'r, DB> Decode<'r, DB> for $smart_pointer<str>
+        where
+            DB: Database,
+            &'r str: Decode<'r, DB>,
+        {
+            fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+                let ref_str = <&str as Decode<DB>>::decode(value)?;
+                Ok(ref_str.into())
+            }
+        }
+
+        impl<'r, DB> Decode<'r, DB> for $smart_pointer<[u8]>
+        where
+            DB: Database,
+            &'r [u8]: Decode<'r, DB>,
+        {
+            fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+                let ref_str = <&[u8] as Decode<DB>>::decode(value)?;
+                Ok(ref_str.into())
+            }
+        }
     };
 }
 
-impl_decode_for_smartpointer!(Arc<T>);
-impl_decode_for_smartpointer!(Box<T>);
-impl_decode_for_smartpointer!(Rc<T>);
+impl_decode_for_smartpointer!(Arc);
+impl_decode_for_smartpointer!(Box);
+impl_decode_for_smartpointer!(Rc);
 
 // implement `Decode` for Cow<T> for all SQL types
 impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
 where
     DB: Database,
-    T: Decode<'r, DB>,
-    T: ToOwned<Owned = T>,
+    T: ToOwned,
+    <T as ToOwned>::Owned: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(Cow::Owned(T::decode(value)?))
+        let owned = <<T as ToOwned>::Owned as Decode<DB>>::decode(value)?;
+        Ok(Cow::Owned(owned))
+    }
+}
+
+impl<'r, DB> Decode<'r, DB> for Cow<'r, str>
+where
+    DB: Database,
+    &'r str: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        let borrowed = <&str as Decode<DB>>::decode(value)?;
+        Ok(Cow::Borrowed(borrowed))
+    }
+}
+
+impl<'r, DB> Decode<'r, DB> for Cow<'r, [u8]>
+where
+    DB: Database,
+    &'r [u8]: Decode<'r, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        let borrowed = <&[u8] as Decode<DB>>::decode(value)?;
+        Ok(Cow::Borrowed(borrowed))
     }
 }

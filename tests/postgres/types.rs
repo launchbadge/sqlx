@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
+use sqlx::FromRow;
 use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
 use sqlx_core::executor::Executor;
@@ -741,7 +742,7 @@ CREATE TEMPORARY TABLE user_login (
 }
 
 #[sqlx_macros::test]
-async fn test_arc() -> anyhow::Result<()> {
+async fn test_smartpointers() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let user_age: (Arc<i32>, Cow<'static, i32>, Box<i32>, i32) =
@@ -757,5 +758,31 @@ async fn test_arc() -> anyhow::Result<()> {
     assert!(user_age.1.as_ref() == &2);
     assert!(user_age.2.as_ref() == &3);
     assert!(user_age.3 == 4);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_str_slice() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let box_str: Box<str> = "John".into();
+    let box_slice: Box<[u8]> = [1, 2, 3, 4].into();
+    let cow_str: Cow<'static, str> = "Phil".into();
+    let cow_slice: Cow<'static, [u8]> = Cow::Borrowed(&[1, 2, 3, 4]);
+
+    let row = sqlx::query("SELECT $1, $2, $3, $4")
+        .bind(&box_str)
+        .bind(&box_slice)
+        .bind(&cow_str)
+        .bind(&cow_slice)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let data: (Box<str>, Box<[u8]>, Cow<'_, str>, Cow<'_, [u8]>) = FromRow::from_row(&row)?;
+
+    assert!(data.0 == box_str);
+    assert!(data.1 == box_slice);
+    assert!(data.2 == cow_str);
+    assert!(data.3 == cow_slice);
     Ok(())
 }
