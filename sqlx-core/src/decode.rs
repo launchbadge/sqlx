@@ -88,6 +88,7 @@ macro_rules! impl_decode_for_smartpointer {
         where
             DB: Database,
             T: Decode<'r, DB>,
+            T: ?Sized,
         {
             fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
                 Ok(Self::new(T::decode(value)?))
