@@ -77,11 +77,11 @@ impl_type_checking!(
         #[cfg(feature = "rust_decimal")]
         sqlx::types::Decimal,
 
-        #[cfg(all(feature = "ipnet", not(feature = "ipnetwork")))]
-        sqlx::types::ipnet::IpNet,
-
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
+
+        #[cfg(feature = "ipnet")]
+        sqlx::types::ipnet::IpNet,
 
         #[cfg(feature = "mac_address")]
         sqlx::types::mac_address::MacAddress,
