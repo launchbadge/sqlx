@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        runtime: [async-global-executor, async-std, tokio]
+        runtime: [async-global-executor, async-std, smol, tokio]
         tls: [native-tls, rustls, none]
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        runtime: [async-global-executor, async-std, tokio]
+        runtime: [async-global-executor, async-std, smol, tokio]
         linking: [sqlite, sqlite-unbundled]
     needs: check
     steps:
@@ -183,7 +183,7 @@ jobs:
     strategy:
       matrix:
         postgres: [17, 13]
-        runtime: [async-global-executor, async-std, tokio]
+        runtime: [async-global-executor, async-std, smol, tokio]
         tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
@@ -283,7 +283,7 @@ jobs:
     strategy:
       matrix:
         mysql: [8]
-        runtime: [async-global-executor, async-std, tokio]
+        runtime: [async-global-executor, async-std, smol, tokio]
         tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
@@ -371,7 +371,7 @@ jobs:
     strategy:
       matrix:
         mariadb: [verylatest, 11_4, 10_11, 10_4]
-        runtime: [async-global-executor, async-std, tokio]
+        runtime: [async-global-executor, async-std, smol, tokio]
         tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
     needs: check
     steps:
