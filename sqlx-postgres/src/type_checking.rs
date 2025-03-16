@@ -88,6 +88,9 @@ impl_type_checking!(
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
 
+        #[cfg(feature = "ipnet")]
+        sqlx::types::ipnet::IpNet,
+
         #[cfg(feature = "mac_address")]
         sqlx::types::mac_address::MacAddress,
 
@@ -145,6 +148,9 @@ impl_type_checking!(
 
         #[cfg(feature = "rust_decimal")]
         Vec<sqlx::types::Decimal> | &[sqlx::types::Decimal],
+
+        #[cfg(all(feature = "ipnet", not(feature = "ipnetwork")))]
+        Vec<sqlx::types::ipnet::IpNet> | &[sqlx::types::ipnet::IpNet],
 
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
