@@ -3517,6 +3517,7 @@ dependencies = [
  "async-global-executor 3.1.0",
  "async-io 1.13.0",
  "async-io 2.4.0",
+ "async-lock 3.4.0",
  "async-net",
  "async-std",
  "base64 0.22.1",

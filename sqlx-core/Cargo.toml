@@ -22,6 +22,7 @@ json = ["serde", "serde_json"]
 _rt-async-global-executor = [
     "async-global-executor",
     "async-io-global-executor",
+    "async-lock",
     "async-net",
 ]
 _rt-async-std = ["async-std", "async-io-std"]
@@ -62,6 +63,7 @@ uuid = { workspace = true, optional = true }
 
 async-io-global-executor = { package = "async-io", version = "2.2", optional = true }
 async-io-std = { package = "async-io", version = "1.9.0", optional = true }
+async-lock = { version = "3.4.0", optional = true }
 async-net = { package = "async-net", version = "2.0.0", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"

@@ -202,10 +202,16 @@ pub async fn connect_tcp<Ws: WithSocket>(
         return Ok(with_socket.with_socket(stream).await);
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
+    #[cfg(any(feature = "_rt-async-global-executor", feature = "_rt-smol"))]
     {
+        #[cfg(feature = "_rt-async-global-executor")]
         use async_io_global_executor::Async;
+        #[cfg(feature = "_rt-async-global-executor")]
         use async_net::resolve;
+        #[cfg(feature = "_rt-smol")]
+        use smol::Async;
+        #[cfg(feature = "_rt-smol")]
+        use smol::net::resolve;
         use std::net::TcpStream;
 
         let mut last_err = None;
@@ -270,7 +276,11 @@ pub async fn connect_tcp<Ws: WithSocket>(
         };
     }
 
-    #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std")))]
+    #[cfg(not(all(
+        feature = "_rt-async-global-executor",
+        feature = "_rt-async-std",
+        feature = "_rt-smol"
+    )))]
     #[allow(unreachable_code)]
     {
         crate::rt::missing_rt((host, port, with_socket))
@@ -315,7 +325,21 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
             return Ok(with_socket.with_socket(stream).await);
         }
 
-        #[cfg(not(all(feature = "_rt-async-global-executor", feature = "_rt-async-std")))]
+        #[cfg(feature = "_rt-smol")]
+        {
+            use smol::Async;
+            use std::os::unix::net::UnixStream;
+
+            let stream = Async::<UnixStream>::connect(path).await?;
+
+            return Ok(with_socket.with_socket(stream).await);
+        }
+
+        #[cfg(not(all(
+            feature = "_rt-async-global-executor",
+            feature = "_rt-async-std",
+            feature = "_rt-smol"
+        )))]
         #[allow(unreachable_code)]
         {
             crate::rt::missing_rt((path, with_socket))

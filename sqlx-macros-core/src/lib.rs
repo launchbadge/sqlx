@@ -72,11 +72,24 @@ where
         TOKIO_RT.block_on(f)
     }
 
-    #[cfg(all(feature = "_rt-async-std", not(feature = "tokio")))]
+    #[cfg(all(
+        any(feature = "_rt-async-global-executor", feature = "_rt-smol"),
+        not(feature = "_rt-tokio")
+    ))]
+    {
+        sqlx_core::rt::test_block_on(f)
+    }
+
+    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
     {
         async_std::task::block_on(f)
     }
 
-    #[cfg(not(any(feature = "_rt-async-std", feature = "tokio")))]
+    #[cfg(not(any(
+        feature = "_rt-async-global-executor",
+        feature = "_rt-async-std",
+        feature = "_rt-smol",
+        feature = "_rt-tokio"
+    )))]
     sqlx_core::rt::missing_rt(f)
 }
