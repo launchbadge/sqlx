@@ -25,6 +25,7 @@ _rt-async-global-executor = [
     "async-net",
 ]
 _rt-async-std = ["async-std", "async-io-std"]
+_rt-smol = ["smol"]
 _rt-tokio = ["tokio", "tokio-stream"]
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
@@ -40,6 +41,7 @@ offline = ["serde", "either/serde"]
 # Runtimes
 async-global-executor = { workspace = true, optional = true }
 async-std = { workspace = true, optional = true }
+smol = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
 # TLS
