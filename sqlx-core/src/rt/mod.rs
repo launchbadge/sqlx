@@ -138,22 +138,17 @@ pub async fn yield_now() {
 
 #[track_caller]
 pub fn test_block_on<F: Future>(f: F) -> F::Output {
-    #[cfg(feature = "_rt-tokio")]
-    {
-        if rt_tokio::available() {
-            return tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to start Tokio runtime")
-                .block_on(f);
-        }
-    }
-
     cfg_if! {
         if #[cfg(feature = "_rt-async-std")] {
             async_std::task::block_on(f)
         } else if #[cfg(feature = "_rt-smol")] {
             smol::block_on(f)
+        } else if #[cfg(feature = "_rt-tokio")] {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("failed to start Tokio runtime")
+                .block_on(f)
         } else {
             missing_rt(f)
         }
