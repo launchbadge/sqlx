@@ -6,10 +6,7 @@ use std::time::Duration;
 
 use cfg_if::cfg_if;
 
-#[cfg(any(
-    feature = "_rt-async-std",
-    feature = "_rt-smol"
-))]
+#[cfg(any(feature = "_rt-async-std", feature = "_rt-smol"))]
 pub mod rt_async_io;
 
 #[cfg(feature = "_rt-smol")]

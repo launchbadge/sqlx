@@ -17,10 +17,7 @@ pub struct AsyncSemaphore {
     // in MIRI due to the necessitated mutable aliasing):
     // https://github.com/launchbadge/sqlx/issues/1668
     #[cfg(all(
-        any(
-            feature = "_rt-async-std",
-            feature = "_rt-smol"
-        ),
+        any(feature = "_rt-async-std", feature = "_rt-smol"),
         not(feature = "_rt-tokio")
     ))]
     inner: futures_intrusive::sync::Semaphore,
@@ -42,10 +39,7 @@ impl AsyncSemaphore {
 
         AsyncSemaphore {
             #[cfg(all(
-                any(
-                    feature = "_rt-async-std",
-                    feature = "_rt-smol"
-                ),
+                any(feature = "_rt-async-std", feature = "_rt-smol"),
                 not(feature = "_rt-tokio")
             ))]
             inner: futures_intrusive::sync::Semaphore::new(fair, permits),
@@ -155,10 +149,7 @@ pub struct AsyncSemaphoreReleaser<'a> {
     // in MIRI due to the necessitated mutable aliasing):
     // https://github.com/launchbadge/sqlx/issues/1668
     #[cfg(all(
-        any(
-            feature = "_rt-async-std",
-            feature = "_rt-smol"
-        ),
+        any(feature = "_rt-async-std", feature = "_rt-smol"),
         not(feature = "_rt-tokio")
     ))]
     inner: futures_intrusive::sync::SemaphoreReleaser<'a>,
@@ -166,11 +157,7 @@ pub struct AsyncSemaphoreReleaser<'a> {
     #[cfg(feature = "_rt-tokio")]
     inner: tokio::sync::SemaphorePermit<'a>,
 
-    #[cfg(not(any(
-        feature = "_rt-async-std",
-        feature = "_rt-smol",
-        feature = "_rt-tokio"
-    )))]
+    #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-smol", feature = "_rt-tokio")))]
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
