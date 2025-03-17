@@ -4,11 +4,17 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use cfg_if::cfg_if;
+
+#[cfg(any(
+    feature = "_rt-async-global-executor",
+    feature = "_rt-async-std",
+    feature = "_rt-smol"
+))]
+pub mod rt_async_io;
+
 #[cfg(feature = "_rt-async-global-executor")]
 pub mod rt_async_global_executor;
-
-#[cfg(feature = "_rt-async-std")]
-pub mod rt_async_std;
 
 #[cfg(feature = "_rt-smol")]
 pub mod rt_smol;
@@ -41,30 +47,19 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
             .map_err(|_| TimeoutError);
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return rt_async_global_executor::timeout(duration, f).await;
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            rt_async_global_executor::timeout(duration, f).await
+        } else if #[cfg(feature = "_rt-async-std")] {
+            async_std::future::timeout(duration, f)
+                .await
+                .map_err(|_| TimeoutError)
+        } else if #[cfg(feature = "_rt-smol")] {
+            rt_smol::timeout(duration, f).await
+        } else {
+            missing_rt((duration, f))
+        }
     }
-
-    #[cfg(feature = "_rt-smol")]
-    {
-        return rt_smol::timeout(duration, f).await;
-    }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return async_std::future::timeout(duration, f)
-            .await
-            .map_err(|_| TimeoutError);
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt((duration, f))
 }
 
 pub async fn sleep(duration: Duration) {
@@ -73,28 +68,17 @@ pub async fn sleep(duration: Duration) {
         return tokio::time::sleep(duration).await;
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return rt_async_global_executor::sleep(duration).await;
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            rt_async_global_executor::sleep(duration).await
+        } else if #[cfg(feature = "_rt-async-std")] {
+            async_std::task::sleep(duration).await
+        } else if #[cfg(feature = "_rt-smol")] {
+            rt_smol::sleep(duration).await
+        } else {
+            missing_rt(duration)
+        }
     }
-
-    #[cfg(feature = "_rt-smol")]
-    {
-        return rt_smol::sleep(duration).await;
-    }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return async_std::task::sleep(duration).await;
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt(duration)
 }
 
 #[track_caller]
@@ -108,25 +92,21 @@ where
         return JoinHandle::Tokio(handle.spawn(fut));
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
-            task: Some(async_global_executor::spawn(fut)),
-        });
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
+                task: Some(async_global_executor::spawn(fut)),
+            })
+        } else if #[cfg(feature = "_rt-async-std")] {
+            JoinHandle::AsyncStd(async_std::task::spawn(fut))
+        } else if #[cfg(feature = "_rt-smol")] {
+            JoinHandle::Smol(rt_smol::JoinHandle {
+                task: Some(smol::spawn(fut)),
+            })
+        } else {
+            missing_rt(fut)
+        }
     }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return JoinHandle::AsyncStd(async_std::task::spawn(fut));
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt(fut)
 }
 
 #[track_caller]
@@ -140,32 +120,21 @@ where
         return JoinHandle::Tokio(handle.spawn_blocking(f));
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
-            task: Some(async_global_executor::spawn_blocking(f)),
-        });
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            JoinHandle::AsyncGlobalExecutor(rt_async_global_executor::JoinHandle {
+                task: Some(async_global_executor::spawn_blocking(f)),
+            })
+        } else if #[cfg(feature = "_rt-async-std")] {
+            JoinHandle::AsyncStd(async_std::task::spawn_blocking(f))
+        } else if #[cfg(feature = "_rt-smol")] {
+            JoinHandle::Smol(rt_smol::JoinHandle {
+                task: Some(smol::unblock(f)),
+            })
+        } else {
+            missing_rt(f)
+        }
     }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return JoinHandle::AsyncStd(async_std::task::spawn_blocking(f));
-    }
-
-    #[cfg(feature = "_rt-smol")]
-    {
-        return JoinHandle::Smol(rt_smol::JoinHandle {
-            task: Some(smol::unblock(f)),
-        });
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt(f)
 }
 
 pub async fn yield_now() {
@@ -174,28 +143,17 @@ pub async fn yield_now() {
         return tokio::task::yield_now().await;
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return rt_async_global_executor::yield_now().await;
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            rt_async_global_executor::yield_now().await
+        } else if #[cfg(feature = "_rt-async-std")] {
+            async_std::task::yield_now().await
+        } else if #[cfg(feature = "_rt-smol")] {
+            smol::future::yield_now().await
+        } else {
+            missing_rt(())
+        }
     }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return async_std::task::yield_now().await;
-    }
-
-    #[cfg(feature = "_rt-smol")]
-    {
-        return smol::future::yield_now().await;
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt(())
 }
 
 #[track_caller]
@@ -211,28 +169,17 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
         }
     }
 
-    #[cfg(feature = "_rt-async-global-executor")]
-    {
-        return async_io_global_executor::block_on(f);
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            async_io_global_executor::block_on(f)
+        } else if #[cfg(feature = "_rt-async-std")] {
+            async_std::task::block_on(f)
+        } else if #[cfg(feature = "_rt-smol")] {
+            smol::block_on(f)
+        } else {
+            missing_rt(())
+        }
     }
-
-    #[cfg(feature = "_rt-async-std")]
-    {
-        return async_std::task::block_on(f);
-    }
-
-    #[cfg(feature = "_rt-smol")]
-    {
-        return smol::block_on(f);
-    }
-
-    #[cfg(not(all(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol"
-    )))]
-    #[allow(unreachable_code)]
-    missing_rt(f)
 }
 
 #[track_caller]

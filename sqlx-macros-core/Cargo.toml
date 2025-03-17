@@ -57,6 +57,7 @@ async-std = { workspace = true, optional = true }
 smol = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
+cfg-if = { workspace = true}
 dotenvy = { workspace = true }
 
 hex = { version = "0.4.3" }

@@ -1,20 +1,10 @@
+use cfg_if::cfg_if;
+
 // For types with identical signatures that don't require runtime support,
 // we can just arbitrarily pick one to use based on what's enabled.
 //
 // We'll generally lean towards Tokio's types as those are more featureful
 // (including `tokio-console` support) and more widely deployed.
-
-#[cfg(all(feature = "_rt-async-global-executor", not(feature = "_rt-tokio")))]
-pub use async_lock::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-pub use async_std::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(all(feature = "_rt-smol", not(feature = "_rt-tokio")))]
-pub use smol::lock::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(feature = "_rt-tokio")]
-pub use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 
 pub struct AsyncSemaphore {
     // We use the semaphore from futures-intrusive as the one from async-lock
@@ -71,117 +61,93 @@ impl AsyncSemaphore {
     }
 
     pub fn permits(&self) -> usize {
-        #[cfg(all(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            not(feature = "_rt-tokio")
-        ))]
-        return self.inner.permits();
-
-        #[cfg(feature = "_rt-tokio")]
-        return self.inner.available_permits();
-
-        #[cfg(not(any(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            feature = "_rt-tokio"
-        )))]
-        crate::rt::missing_rt(())
+        cfg_if! {
+            if #[cfg(all(
+                any(
+                    feature = "_rt-async-global-executor",
+                    feature = "_rt-async-std",
+                    feature = "_rt-smol"
+                ),
+                not(feature = "_rt-tokio")
+            ))] {
+                self.inner.permits()
+            } else if #[cfg(feature = "_rt-tokio")] {
+                self.inner.available_permits()
+            } else {
+                crate::rt::missing_rt(())
+            }
+        }
     }
 
     pub async fn acquire(&self, permits: u32) -> AsyncSemaphoreReleaser<'_> {
-        #[cfg(all(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            not(feature = "_rt-tokio")
-        ))]
-        return AsyncSemaphoreReleaser {
-            inner: self.inner.acquire(permits as usize).await,
-        };
-
-        #[cfg(feature = "_rt-tokio")]
-        return AsyncSemaphoreReleaser {
-            inner: self
-                .inner
-                // Weird quirk: `tokio::sync::Semaphore` mostly uses `usize` for permit counts,
-                // but `u32` for this and `try_acquire_many()`.
-                .acquire_many(permits)
-                .await
-                .expect("BUG: we do not expose the `.close()` method"),
-        };
-
-        #[cfg(not(any(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            feature = "_rt-tokio"
-        )))]
-        crate::rt::missing_rt(permits)
+        cfg_if! {
+            if #[cfg(all(
+                any(
+                    feature = "_rt-async-global-executor",
+                    feature = "_rt-async-std",
+                    feature = "_rt-smol"
+                ),
+                not(feature = "_rt-tokio")
+            ))] {
+                AsyncSemaphoreReleaser {
+                    inner: self.inner.acquire(permits as usize).await,
+                }
+            } else if #[cfg(feature = "_rt-tokio")] {
+                AsyncSemaphoreReleaser {
+                    inner: self
+                        .inner
+                        // Weird quirk: `tokio::sync::Semaphore` mostly uses `usize` for permit counts,
+                        // but `u32` for this and `try_acquire_many()`.
+                        .acquire_many(permits)
+                        .await
+                        .expect("BUG: we do not expose the `.close()` method"),
+                }
+            } else {
+                crate::rt::missing_rt(permits)
+            }
+        }
     }
 
     pub fn try_acquire(&self, permits: u32) -> Option<AsyncSemaphoreReleaser<'_>> {
-        #[cfg(all(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            not(feature = "_rt-tokio")
-        ))]
-        return Some(AsyncSemaphoreReleaser {
-            inner: self.inner.try_acquire(permits as usize)?,
-        });
-
-        #[cfg(feature = "_rt-tokio")]
-        return Some(AsyncSemaphoreReleaser {
-            inner: self.inner.try_acquire_many(permits).ok()?,
-        });
-
-        #[cfg(not(any(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            feature = "_rt-tokio"
-        )))]
-        crate::rt::missing_rt(permits)
+        cfg_if! {
+            if #[cfg(all(
+                any(
+                    feature = "_rt-async-global-executor",
+                    feature = "_rt-async-std",
+                    feature = "_rt-smol"
+                ),
+                not(feature = "_rt-tokio")
+            ))] {
+                Some(AsyncSemaphoreReleaser {
+                    inner: self.inner.try_acquire(permits as usize)?,
+                })
+            } else if #[cfg(feature = "_rt-tokio")] {
+                Some(AsyncSemaphoreReleaser {
+                    inner: self.inner.try_acquire_many(permits).ok()?,
+                })
+            } else {
+                crate::rt::missing_rt(permits)
+            }
+        }
     }
 
     pub fn release(&self, permits: usize) {
-        #[cfg(all(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            not(feature = "_rt-tokio")
-        ))]
-        return self.inner.release(permits);
-
-        #[cfg(feature = "_rt-tokio")]
-        return self.inner.add_permits(permits);
-
-        #[cfg(not(any(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            feature = "_rt-tokio"
-        )))]
-        crate::rt::missing_rt(permits)
+        cfg_if! {
+            if #[cfg(all(
+                any(
+                    feature = "_rt-async-global-executor",
+                    feature = "_rt-async-std",
+                    feature = "_rt-smol"
+                ),
+                not(feature = "_rt-tokio")
+            ))] {
+                self.inner.release(permits);
+            } else if #[cfg(feature = "_rt-tokio")] {
+                self.inner.add_permits(permits);
+            } else {
+                crate::rt::missing_rt(permits);
+            }
+        }
     }
 }
 
@@ -209,11 +175,9 @@ pub struct AsyncSemaphoreReleaser<'a> {
     inner: tokio::sync::SemaphorePermit<'a>,
 
     #[cfg(not(any(
-        any(
-            feature = "_rt-async-global-executor",
-            feature = "_rt-async-std",
-            feature = "_rt-smol"
-        ),
+        feature = "_rt-async-global-executor",
+        feature = "_rt-async-std",
+        feature = "_rt-smol",
         feature = "_rt-tokio"
     )))]
     _phantom: std::marker::PhantomData<&'a ()>,
@@ -221,32 +185,22 @@ pub struct AsyncSemaphoreReleaser<'a> {
 
 impl AsyncSemaphoreReleaser<'_> {
     pub fn disarm(self) {
-        #[cfg(all(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            not(feature = "_rt-tokio")
-        ))]
-        {
-            let mut this = self;
-            this.inner.disarm();
+        cfg_if! {
+            if #[cfg(all(
+                any(
+                    feature = "_rt-async-global-executor",
+                    feature = "_rt-async-std",
+                    feature = "_rt-smol"
+                ),
+                not(feature = "_rt-tokio")
+            ))] {
+                let mut this = self;
+                this.inner.disarm();
+            } else if #[cfg(feature = "_rt-tokio")] {
+                self.inner.forget();
+            } else {
+                crate::rt::missing_rt(());
+            }
         }
-
-        #[cfg(feature = "_rt-tokio")]
-        {
-            self.inner.forget();
-        }
-
-        #[cfg(not(any(
-            any(
-                feature = "_rt-async-global-executor",
-                feature = "_rt-async-std",
-                feature = "_rt-smol"
-            ),
-            feature = "_rt-tokio"
-        )))]
-        crate::rt::missing_rt(())
     }
 }

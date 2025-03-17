@@ -19,6 +19,8 @@
     feature(track_path)
 )]
 
+use cfg_if::cfg_if;
+
 #[cfg(feature = "macros")]
 use crate::query::QueryDriver;
 
@@ -55,41 +57,29 @@ pub fn block_on<F>(f: F) -> F::Output
 where
     F: std::future::Future,
 {
-    #[cfg(feature = "_rt-tokio")]
-    {
-        use once_cell::sync::Lazy;
-        use tokio::runtime::{self, Runtime};
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            sqlx_core::rt::test_block_on(f)
+        } else if #[cfg(feature = "_rt-async-std")] {
+            async_std::task::block_on(f)
+        } else if #[cfg(feature = "_rt-smol")] {
+            sqlx_core::rt::test_block_on(f)
+        } else if #[cfg(feature = "_rt-tokio")] {
+            use once_cell::sync::Lazy;
+            use tokio::runtime::{self, Runtime};
 
-        // We need a single, persistent Tokio runtime since we're caching connections,
-        // otherwise we'll get "IO driver has terminated" errors.
-        static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
-            runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to start Tokio runtime")
-        });
+            // We need a single, persistent Tokio runtime since we're caching connections,
+            // otherwise we'll get "IO driver has terminated" errors.
+            static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
+                runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to start Tokio runtime")
+            });
 
-        TOKIO_RT.block_on(f)
+            TOKIO_RT.block_on(f)
+        } else {
+            sqlx_core::rt::missing_rt(f)
+        }
     }
-
-    #[cfg(all(
-        any(feature = "_rt-async-global-executor", feature = "_rt-smol"),
-        not(feature = "_rt-tokio")
-    ))]
-    {
-        sqlx_core::rt::test_block_on(f)
-    }
-
-    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-    {
-        async_std::task::block_on(f)
-    }
-
-    #[cfg(not(any(
-        feature = "_rt-async-global-executor",
-        feature = "_rt-async-std",
-        feature = "_rt-smol",
-        feature = "_rt-tokio"
-    )))]
-    sqlx_core::rt::missing_rt(f)
 }

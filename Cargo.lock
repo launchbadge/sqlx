@@ -3525,6 +3525,7 @@ dependencies = [
  "bit-vec",
  "bstr",
  "bytes",
+ "cfg-if",
  "chrono",
  "crc",
  "crossbeam-queue",
@@ -3707,6 +3708,7 @@ version = "0.8.3"
 dependencies = [
  "async-global-executor 3.1.0",
  "async-std",
+ "cfg-if",
  "dotenvy",
  "either",
  "heck 0.5.0",
