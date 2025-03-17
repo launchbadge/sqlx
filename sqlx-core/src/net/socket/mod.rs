@@ -204,39 +204,8 @@ pub async fn connect_tcp<Ws: WithSocket>(
     }
 
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            use async_io_global_executor::Async;
-            use async_net::resolve;
-            use std::net::TcpStream;
-
-            let mut last_err = None;
-
-            // Loop through all the Socket Addresses that the hostname resolves to
-            for socket_addr in resolve((host, port)).await? {
-                let stream = Async::<TcpStream>::connect(socket_addr)
-                    .await
-                    .and_then(|s| {
-                        s.get_ref().set_nodelay(true)?;
-                        Ok(s)
-                    });
-                match stream {
-                    Ok(stream) => return Ok(with_socket.with_socket(stream).await),
-                    Err(e) => last_err = Some(e),
-                }
-            }
-
-            // If we reach this point, it means we failed to connect to any of the addresses.
-            // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
-            Err(match last_err {
-                Some(err) => err,
-                None => io::Error::new(
-                    io::ErrorKind::AddrNotAvailable,
-                    "Hostname did not resolve to any addresses",
-                ),
-            }
-            .into())
-        } else if #[cfg(feature = "_rt-async-std")] {
-            use async_io_std::Async;
+        if #[cfg(feature = "_rt-async-std")] {
+            use async_io::Async;
             use async_std::net::ToSocketAddrs;
             use std::net::TcpStream;
 
@@ -322,15 +291,8 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
         }
 
         cfg_if! {
-            if #[cfg(feature = "_rt-async-global-executor")] {
-                use async_io_global_executor::Async;
-                use std::os::unix::net::UnixStream;
-
-                let stream = Async::<UnixStream>::connect(path).await?;
-
-                Ok(with_socket.with_socket(stream).await)
-            } else if #[cfg(feature = "_rt-async-std")] {
-                use async_io_std::Async;
+            if #[cfg(feature = "_rt-async-std")] {
+                use async_io::Async;
                 use std::os::unix::net::UnixStream;
 
                 let stream = Async::<UnixStream>::connect(path).await?;

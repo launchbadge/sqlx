@@ -10,10 +10,8 @@ use cfg_if::cfg_if;
 use crate::io::ReadBuf;
 
 cfg_if! {
-    if #[cfg(feature = "_rt-async-global-executor")] {
-        use async_io_global_executor::Async;
-    } else if #[cfg(feature = "_rt-async-std")] {
-        use async_io_std::Async;
+    if #[cfg(feature = "_rt-async-std")] {
+        use async_io::Async;
     } else if #[cfg(feature = "_rt-smol")] {
         use smol::Async;
     }

@@ -58,9 +58,7 @@ where
     F: std::future::Future,
 {
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            sqlx_core::rt::test_block_on(f)
-        } else if #[cfg(feature = "_rt-async-std")] {
+        if #[cfg(feature = "_rt-async-std")] {
             async_std::task::block_on(f)
         } else if #[cfg(feature = "_rt-smol")] {
             sqlx_core::rt::test_block_on(f)

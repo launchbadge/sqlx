@@ -18,7 +18,6 @@ pub struct AsyncSemaphore {
     // https://github.com/launchbadge/sqlx/issues/1668
     #[cfg(all(
         any(
-            feature = "_rt-async-global-executor",
             feature = "_rt-async-std",
             feature = "_rt-smol"
         ),
@@ -34,7 +33,6 @@ impl AsyncSemaphore {
     #[track_caller]
     pub fn new(fair: bool, permits: usize) -> Self {
         if cfg!(not(any(
-            feature = "_rt-async-global-executor",
             feature = "_rt-async-std",
             feature = "_rt-smol",
             feature = "_rt-tokio"
@@ -45,7 +43,6 @@ impl AsyncSemaphore {
         AsyncSemaphore {
             #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),
@@ -64,7 +61,6 @@ impl AsyncSemaphore {
         cfg_if! {
             if #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),
@@ -83,7 +79,6 @@ impl AsyncSemaphore {
         cfg_if! {
             if #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),
@@ -112,7 +107,6 @@ impl AsyncSemaphore {
         cfg_if! {
             if #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),
@@ -135,7 +129,6 @@ impl AsyncSemaphore {
         cfg_if! {
             if #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),
@@ -163,7 +156,6 @@ pub struct AsyncSemaphoreReleaser<'a> {
     // https://github.com/launchbadge/sqlx/issues/1668
     #[cfg(all(
         any(
-            feature = "_rt-async-global-executor",
             feature = "_rt-async-std",
             feature = "_rt-smol"
         ),
@@ -175,7 +167,6 @@ pub struct AsyncSemaphoreReleaser<'a> {
     inner: tokio::sync::SemaphorePermit<'a>,
 
     #[cfg(not(any(
-        feature = "_rt-async-global-executor",
         feature = "_rt-async-std",
         feature = "_rt-smol",
         feature = "_rt-tokio"
@@ -188,7 +179,6 @@ impl AsyncSemaphoreReleaser<'_> {
         cfg_if! {
             if #[cfg(all(
                 any(
-                    feature = "_rt-async-global-executor",
                     feature = "_rt-async-std",
                     feature = "_rt-smol"
                 ),

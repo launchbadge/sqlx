@@ -11,7 +11,6 @@ repository.workspace = true
 default = []
 
 # for conditional compilation
-_rt-async-global-executor = ["async-global-executor", "sqlx-core/_rt-async-global-executor"]
 _rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
 _rt-smol = ["smol", "sqlx-core/_rt-smol"]
 _rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
@@ -52,7 +51,6 @@ sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = t
 sqlx-postgres = { workspace = true, features = ["offline", "migrate"], optional = true }
 sqlx-sqlite = { workspace = true, features = ["offline", "migrate"], optional = true }
 
-async-global-executor = { workspace = true, optional = true }
 async-std = { workspace = true, optional = true }
 smol = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
