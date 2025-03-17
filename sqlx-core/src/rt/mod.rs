@@ -177,7 +177,7 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
         } else if #[cfg(feature = "_rt-smol")] {
             smol::block_on(f)
         } else {
-            missing_rt(())
+            missing_rt(f)
         }
     }
 }
