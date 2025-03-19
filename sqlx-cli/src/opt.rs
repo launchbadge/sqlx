@@ -174,6 +174,9 @@ pub enum MigrateCommand {
         ignore_missing: IgnoreMissing,
 
         #[clap(flatten)]
+        ignore_checksum: IgnoreChecksum,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
 
         /// Apply migrations up to the specified version. If unspecified, apply all
@@ -296,6 +299,14 @@ pub struct IgnoreMissing {
     ignore_missing: bool,
 }
 
+/// Argument for ignoring checksums.
+#[derive(Args, Copy, Clone, Debug)]
+pub struct IgnoreChecksum {
+    /// Ignore checksums when running migrations
+    #[clap(long)]
+    ignore_checksum: bool,
+}
+
 impl Deref for IgnoreMissing {
     type Target = bool;
 
@@ -309,5 +320,21 @@ impl Not for IgnoreMissing {
 
     fn not(self) -> Self::Output {
         !self.ignore_missing
+    }
+}
+
+impl Deref for IgnoreChecksum {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.ignore_checksum
+    }
+}
+
+impl Not for IgnoreChecksum {
+    type Output = bool;
+
+    fn not(self) -> Self::Output {
+        !self.ignore_checksum
     }
 }

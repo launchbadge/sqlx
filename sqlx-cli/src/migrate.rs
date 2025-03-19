@@ -276,6 +276,7 @@ pub async fn run(
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
+    ignore_checksum: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
@@ -321,7 +322,7 @@ pub async fn run(
 
         match applied_migrations.get(&migration.version) {
             Some(applied_migration) => {
-                if migration.checksum != applied_migration.checksum {
+                if !ignore_checksum && migration.checksum != applied_migration.checksum {
                     bail!(MigrateError::VersionMismatch(migration.version));
                 }
             }

@@ -55,6 +55,7 @@ async fn do_run(opt: Opt) -> Result<()> {
                 source,
                 dry_run,
                 ignore_missing,
+                ignore_checksum,
                 connect_opts,
                 target_version,
             } => {
@@ -63,6 +64,7 @@ async fn do_run(opt: Opt) -> Result<()> {
                     &connect_opts,
                     dry_run,
                     *ignore_missing,
+                    *ignore_checksum,
                     target_version,
                 )
                 .await?
