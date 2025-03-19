@@ -8,7 +8,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use sqlx::mysql::MySql;
-use sqlx::{Executor, FromRow, Row};
+use sqlx::{Executor, Row};
 
 use sqlx::types::Text;
 
@@ -310,9 +310,13 @@ test_type!(test_rc<Rc<i32>>(MySql, "1" == Rc::new(1i32)));
 
 test_type!(test_box_str<Box<str>>(MySql, "'John'" == Box::<str>::from("John")));
 test_type!(test_cow_str<Cow<'_, str>>(MySql, "'Phil'" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(MySql, "'John'" == Arc::<str>::from("John")));
+test_type!(test_rc_str<Rc<str>>(MySql, "'Phil'" == Rc::<str>::from("Phil")));
 
 test_prepared_type!(test_box_slice<Box<[u8]>>(MySql, "X'01020304'" == Box::<[u8]>::from([1,2,3,4])));
 test_prepared_type!(test_cow_slice<Cow<'_, [u8]>>(MySql, "X'01020304'" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_prepared_type!(test_arc_slice<Arc<[u8]>>(MySql, "X'01020304'" == Arc::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_rc_slice<Rc<[u8]>>(MySql, "X'01020304'" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_bits() -> anyhow::Result<()> {
@@ -396,31 +400,5 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
-    Ok(())
-}
-
-#[sqlx_macros::test]
-async fn test_arc_str_slice() -> anyhow::Result<()> {
-    let mut conn = new::<MySql>().await?;
-
-    let arc_str: Arc<str> = "Paul".into();
-    let arc_slice: Arc<[u8]> = [5, 0].into();
-    let rc_str: Rc<str> = "George".into();
-    let rc_slice: Rc<[u8]> = [5, 0].into();
-
-    let row = sqlx::query("SELECT ?, ?, ?, ?")
-        .bind(&arc_str)
-        .bind(&arc_slice)
-        .bind(&rc_str)
-        .bind(&rc_slice)
-        .fetch_one(&mut conn)
-        .await?;
-
-    let data: (Arc<str>, Arc<[u8]>, Rc<str>, Rc<[u8]>) = FromRow::from_row(&row)?;
-
-    assert!(data.0 == arc_str);
-    assert!(data.1 == arc_slice);
-    assert!(data.2 == rc_str);
-    assert!(data.3 == rc_slice);
     Ok(())
 }

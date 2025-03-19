@@ -1,7 +1,6 @@
 extern crate time_ as time;
 
 use sqlx::sqlite::{Sqlite, SqliteRow};
-use sqlx::FromRow;
 use sqlx_core::executor::Executor;
 use sqlx_core::row::Row;
 use sqlx_core::types::Text;
@@ -219,9 +218,13 @@ test_type!(test_rc<Rc<i32>>(Sqlite, "1" == Rc::new(1i32)));
 
 test_type!(test_box_str<Box<str>>(Sqlite, "'John'" == Box::<str>::from("John")));
 test_type!(test_cow_str<Cow<'_, str>>(Sqlite, "'Phil'" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(Sqlite, "'John'" == Arc::<str>::from("John")));
+test_type!(test_rc_str<Rc<str>>(Sqlite, "'John'" == Rc::<str>::from("John")));
 
 test_type!(test_box_slice<Box<[u8]>>(Sqlite, "X'01020304'" == Box::<[u8]>::from([1,2,3,4])));
 test_type!(test_cow_slice<Cow<'_, [u8]>>(Sqlite, "X'01020304'" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_type!(test_arc_slice<Arc<[u8]>>(Sqlite, "X'01020304'" == Arc::<[u8]>::from([1,2,3,4])));
+test_type!(test_rc_slice<Rc<[u8]>>(Sqlite, "X'01020304'" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {
@@ -263,31 +266,5 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
-    Ok(())
-}
-
-#[sqlx_macros::test]
-async fn test_arc_str_slice() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
-
-    let arc_str: Arc<str> = "Paul".into();
-    let arc_slice: Arc<[u8]> = [5, 0].into();
-    let rc_str: Rc<str> = "George".into();
-    let rc_slice: Rc<[u8]> = [5, 0].into();
-
-    let row = sqlx::query("SELECT ?, ?, ?, ?")
-        .bind(&arc_str)
-        .bind(&arc_slice)
-        .bind(&rc_str)
-        .bind(&rc_slice)
-        .fetch_one(&mut conn)
-        .await?;
-
-    let data: (Arc<str>, Arc<[u8]>, Rc<str>, Rc<[u8]>) = FromRow::from_row(&row)?;
-
-    assert!(data.0 == arc_str);
-    assert!(data.1 == arc_slice);
-    assert!(data.2 == rc_str);
-    assert!(data.3 == rc_slice);
     Ok(())
 }
