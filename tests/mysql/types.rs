@@ -1,8 +1,11 @@
 extern crate time_ as time;
 
+use std::borrow::Cow;
 use std::net::SocketAddr;
+use std::rc::Rc;
 #[cfg(feature = "rust_decimal")]
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
@@ -12,7 +15,7 @@ use sqlx::types::Text;
 use sqlx::mysql::types::MySqlTime;
 use sqlx_mysql::types::MySqlTimeSign;
 
-use sqlx_test::{new, test_type};
+use sqlx_test::{new, test_prepared_type, test_type};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
 
@@ -299,6 +302,21 @@ mod json_tests {
         "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
     ));
 }
+
+test_type!(test_arc<Arc<i32>>(MySql, "1" == Arc::new(1i32)));
+test_type!(test_cow<Cow<'_, i32>>(MySql, "1" == Cow::<i32>::Owned(1i32)));
+test_type!(test_box<Box<i32>>(MySql, "1" == Box::new(1i32)));
+test_type!(test_rc<Rc<i32>>(MySql, "1" == Rc::new(1i32)));
+
+test_type!(test_box_str<Box<str>>(MySql, "'John'" == Box::<str>::from("John")));
+test_type!(test_cow_str<Cow<'_, str>>(MySql, "'Phil'" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(MySql, "'John'" == Arc::<str>::from("John")));
+test_type!(test_rc_str<Rc<str>>(MySql, "'Phil'" == Rc::<str>::from("Phil")));
+
+test_prepared_type!(test_box_slice<Box<[u8]>>(MySql, "X'01020304'" == Box::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_cow_slice<Cow<'_, [u8]>>(MySql, "X'01020304'" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_prepared_type!(test_arc_slice<Arc<[u8]>>(MySql, "X'01020304'" == Arc::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_rc_slice<Rc<[u8]>>(MySql, "X'01020304'" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_bits() -> anyhow::Result<()> {

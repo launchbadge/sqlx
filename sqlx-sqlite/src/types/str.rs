@@ -1,4 +1,8 @@
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use sqlx_core::database::Database;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -30,57 +34,9 @@ impl<'r> Decode<'r, Sqlite> for &'r str {
     }
 }
 
-impl Type<Sqlite> for Box<str> {
-    fn type_info() -> SqliteTypeInfo {
-        <&str as Type<Sqlite>>::type_info()
-    }
-}
-
-impl Encode<'_, Sqlite> for Box<str> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.into_string())));
-
-        Ok(IsNull::No)
-    }
-
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'_>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(
-            self.clone().into_string(),
-        )));
-
-        Ok(IsNull::No)
-    }
-}
-
-impl Decode<'_, Sqlite> for Box<str> {
-    fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
-        value.text().map(Box::from)
-    }
-}
-
 impl Type<Sqlite> for String {
     fn type_info() -> SqliteTypeInfo {
         <&str as Type<Sqlite>>::type_info()
-    }
-}
-
-impl<'q> Encode<'q, Sqlite> for String {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
-
-        Ok(IsNull::No)
-    }
-
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
-
-        Ok(IsNull::No)
     }
 }
 
@@ -90,35 +46,30 @@ impl<'r> Decode<'r, Sqlite> for String {
     }
 }
 
-impl Type<Sqlite> for Cow<'_, str> {
-    fn type_info() -> SqliteTypeInfo {
-        <&str as Type<Sqlite>>::type_info()
-    }
-
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
-        <&str as Type<Sqlite>>::compatible(ty)
-    }
-}
-
-impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self));
-
-        Ok(IsNull::No)
-    }
-
+impl<'q> Encode<'q, Sqlite> for String {
     fn encode_by_ref(
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
     ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.clone()));
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
+
+        Ok(IsNull::No)
+    }
+
+    fn encode(
+        self,
+        buf: &mut <Sqlite as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError>
+    where
+        Self: Sized,
+    {
+        buf.push(SqliteArgumentValue::Text(Cow::Owned(self)));
 
         Ok(IsNull::No)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for Cow<'r, str> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.text().map(Cow::Borrowed)
-    }
-}
+forward_encode_impl!(Arc<str>, String, Sqlite, |s: &str| s.to_string());
+forward_encode_impl!(Rc<str>, String, Sqlite, |s: &str| s.to_string());
+forward_encode_impl!(Cow<'_, str>, String, Sqlite, |s: &str| s.to_string());
+forward_encode_impl!(Box<str>, String, Sqlite, |s: &str| s.to_string());
