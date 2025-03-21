@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::env::var;
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 pub use ssl_mode::PgSslMode;
@@ -515,7 +515,16 @@ impl PgConnectOptions {
                 options_str.push(' ');
             }
 
-            write!(options_str, "-c {k}={v}").expect("failed to write an option to the string");
+            // Escape options per
+            // https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS
+            options_str.push_str("-c ");
+            for c in format!("{k}={v}").chars() {
+                match c {
+                    '\\' => options_str.push_str("\\\\"),
+                    ' ' => options_str.push_str("\\ "),
+                    c => options_str.push(c),
+                };
+            }
         }
         self
     }
@@ -682,6 +691,12 @@ fn test_options_formatting() {
     assert_eq!(
         options.options,
         Some("-c geqo=off -c statement_timeout=5min".to_string())
+    );
+    // https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS
+    let options = PgConnectOptions::new().options([("passfile", "/back\\slash/ and\\ spaces")]);
+    assert_eq!(
+        options.options,
+        Some("-c passfile=/back\\\\slash/\\ and\\\\\\ spaces".to_string())
     );
     let options = PgConnectOptions::new();
     assert_eq!(options.options, None);
