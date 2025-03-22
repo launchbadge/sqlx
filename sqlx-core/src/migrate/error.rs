@@ -39,4 +39,7 @@ pub enum MigrateError {
         "migration {0} is partially applied; fix and remove row from `_sqlx_migrations` table"
     )]
     Dirty(i64),
+
+    #[error("migration {0} was missing a parameter")]
+    MissingParameter(String),
 }

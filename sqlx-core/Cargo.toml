@@ -67,7 +67,7 @@ log = { version = "0.4.18", default-features = false }
 memchr = { version = "2.4.1", default-features = false }
 once_cell = "1.9.0"
 percent-encoding = "2.1.0"
-regex = { version = "1.5.5", optional = true }
+regex = { version = "1.5.5"}
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
@@ -82,6 +82,7 @@ hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
 hashbrown = "0.15.0"
+subst = "0.3.7"
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }

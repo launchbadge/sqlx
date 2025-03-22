@@ -3459,6 +3459,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "sqlx",
+ "subst",
  "thiserror 2.0.11",
  "time",
  "tokio",
@@ -3818,6 +3819,16 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.96",
+]
+
+[[package]]
+name = "subst"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33e7942675ea19db01ef8cf15a1e6443007208e6c74568bd64162da26d40160d"
+dependencies = [
+ "memchr",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
