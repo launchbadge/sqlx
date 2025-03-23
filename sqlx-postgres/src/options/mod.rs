@@ -693,10 +693,10 @@ fn test_options_formatting() {
         Some("-c geqo=off -c statement_timeout=5min".to_string())
     );
     // https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS
-    let options = PgConnectOptions::new().options([("passfile", "/back\\slash/ and\\ spaces")]);
+    let options = PgConnectOptions::new().options([("passfile", r"/back\slash/ and\ spaces")]);
     assert_eq!(
         options.options,
-        Some("-c passfile=/back\\\\slash/\\ and\\\\\\ spaces".to_string())
+        Some(r"-c passfile=/back\\slash/\ and\\\ spaces".to_string())
     );
     let options = PgConnectOptions::new();
     assert_eq!(options.options, None);
