@@ -495,6 +495,9 @@ impl PgConnectOptions {
 
     /// Set additional startup options for the connection as a list of key-value pairs.
     ///
+    /// Escapes the options’ backslash and space characters as per
+    /// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS
+    ///
     /// # Example
     ///
     /// ```rust
