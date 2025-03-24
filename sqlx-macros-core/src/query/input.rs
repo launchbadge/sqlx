@@ -28,6 +28,7 @@ enum QuerySrc {
 
 pub enum RecordType {
     Given(Type),
+    Tuple,
     Scalar,
     Generated,
 }
@@ -65,13 +66,13 @@ impl Parse for QueryMacroInput {
                 args = Some(exprs.elems.into_iter().collect())
             } else if key == "record" {
                 if !matches!(record_type, RecordType::Generated) {
-                    return Err(input.error("colliding `scalar` or `record` key"));
+                    return Err(input.error("colliding `scalar`, `tuple` or `record` key"));
                 }
 
                 record_type = RecordType::Given(input.parse()?);
             } else if key == "scalar" {
                 if !matches!(record_type, RecordType::Generated) {
-                    return Err(input.error("colliding `scalar` or `record` key"));
+                    return Err(input.error("colliding `scalar`, `tuple` or `record` key"));
                 }
 
                 // we currently expect only `scalar = _`
@@ -79,6 +80,14 @@ impl Parse for QueryMacroInput {
                 // of the column in SQL
                 input.parse::<syn::Token![_]>()?;
                 record_type = RecordType::Scalar;
+            } else if key == "tuple" {
+                if !matches!(record_type, RecordType::Generated) {
+                    return Err(input.error("colliding `scalar`, `tuple` or `record` key"));
+                }
+
+                // we currently expect only `tuple = _`
+                input.parse::<syn::Token![_]>()?;
+                record_type = RecordType::Tuple;
             } else if key == "checked" {
                 let lit_bool = input.parse::<LitBool>()?;
                 checked = lit_bool.value;
