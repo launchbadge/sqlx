@@ -68,6 +68,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // The stream is holding one connection. It needs to be dropped to allow the connection to
+    // return to the pool, otherwise `pool.close()` would never return.
+    drop(stream);
+
     pool.close().await;
 
     Ok(())
