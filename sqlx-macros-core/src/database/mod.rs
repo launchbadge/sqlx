@@ -54,7 +54,27 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
             let conn = match cache.entry(database_url.to_string()) {
                 hash_map::Entry::Occupied(hit) => hit.into_mut(),
                 hash_map::Entry::Vacant(miss) => {
-                    miss.insert(DB::Connection::connect(database_url).await?)
+                    let conn = miss.insert(DB::Connection::connect(database_url).await?);
+
+                    #[cfg(feature = "postgres")]
+                    if DB::NAME == sqlx_postgres::Postgres::NAME {
+                        conn.execute(
+                            "
+                            DO $$
+                            BEGIN
+                                IF EXISTS (
+                                    SELECT 1
+                                    FROM pg_settings
+                                    WHERE name = 'plan_cache_mode'
+                                ) THEN
+                                    SET SESSION plan_cache_mode = 'force_generic_plan';
+                                END IF;
+                            END $$;
+                        ",
+                        )
+                        .await?;
+                    }
+                    conn
                 }
             };
 
