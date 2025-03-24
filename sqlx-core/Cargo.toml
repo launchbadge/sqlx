@@ -48,6 +48,7 @@ bit-vec = { workspace = true, optional = true }
 bigdecimal = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
+ipnet = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }

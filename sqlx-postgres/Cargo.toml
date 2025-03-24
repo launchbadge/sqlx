@@ -19,6 +19,7 @@ offline = ["sqlx-core/offline"]
 bigdecimal = ["dep:bigdecimal", "dep:num-bigint", "sqlx-core/bigdecimal"]
 bit-vec = ["dep:bit-vec", "sqlx-core/bit-vec"]
 chrono = ["dep:chrono", "sqlx-core/chrono"]
+ipnet = ["dep:ipnet", "sqlx-core/ipnet"]
 ipnetwork = ["dep:ipnetwork", "sqlx-core/ipnetwork"]
 mac_address = ["dep:mac_address", "sqlx-core/mac_address"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal/maths", "sqlx-core/rust_decimal"]
@@ -43,6 +44,7 @@ sha2 = { version = "0.10.0", default-features = false }
 bigdecimal = { workspace = true, optional = true }
 bit-vec = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
+ipnet = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
