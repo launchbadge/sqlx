@@ -332,7 +332,7 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
-                    conn.apply(migration).await?
+                    conn.apply(&migration.process_parameters()?).await?
                 };
                 let text = if skip {
                     "Skipped"
@@ -421,7 +421,7 @@ pub async fn revert(
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
-                conn.revert(migration).await?
+                conn.revert(&migration.process_parameters()?).await?
             };
             let text = if skip {
                 "Skipped"

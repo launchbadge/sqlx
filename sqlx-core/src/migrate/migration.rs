@@ -37,7 +37,7 @@ impl Migration {
         }
     }
 
-    pub(crate) fn process_parameters(&self) -> Result<Self, MigrateError> {
+    pub fn process_parameters(&self) -> Result<Self, MigrateError> {
         let Migration {
             version,
             description,
