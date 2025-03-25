@@ -55,21 +55,18 @@ impl Migration {
         for cap in re.captures_iter(sql) {
             let m = cap.get(1).unwrap();
             new_sql.push_str(&sql[last_match..m.start()]);
-            let replacement = format!(
-                "{}",
-                subst::substitute(&cap[1], &subst::Env)
-                    .map_err(|e| MigrateError::MissingParameter(e.to_string()))?
-            );
+            let replacement = subst::substitute(&cap[1], &subst::Env)
+                .map_err(|e| MigrateError::MissingParameter(e.to_string()))?;
             new_sql.push_str(&replacement);
             last_match = m.end();
         }
         new_sql.push_str(&sql[last_match..]);
         Ok(Migration {
             version: *version,
-            description: description.to_owned(),
+            description: description.clone(),
             migration_type: *migration_type,
             sql: Cow::Owned(new_sql),
-            checksum: checksum.to_owned(),
+            checksum: checksum.clone(),
             no_tx: *no_tx,
         })
     }
