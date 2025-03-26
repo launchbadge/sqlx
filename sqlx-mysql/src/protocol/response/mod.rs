@@ -5,10 +5,12 @@
 
 mod eof;
 mod err;
+mod localinfile;
 mod ok;
 mod status;
 
 pub use eof::EofPacket;
 pub use err::ErrPacket;
+pub use localinfile::LocalInfilePacket;
 pub use ok::OkPacket;
 pub use status::Status;

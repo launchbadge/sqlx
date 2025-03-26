@@ -18,6 +18,7 @@ use crate::{MySql, MySqlConnectOptions};
 mod auth;
 mod establish;
 mod executor;
+pub mod infile;
 mod stream;
 mod tls;
 

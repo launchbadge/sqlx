@@ -589,6 +589,41 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_upload_local_infile() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
+        "#,
+        )
+        .await?;
+
+    let _ = conn.execute("SET GLOBAL local_infile = 1").await?;
+
+    let res = {
+        let mut stream = conn
+            .load_local_infile("LOAD DATA LOCAL INFILE 'dummy' INTO TABLE users")
+            .await?;
+        stream.send(&b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10"[..]).await?;
+        stream.finish().await?
+    };
+
+    assert_eq!(res, 10);
+
+    let sum: i32 = sqlx::query("SELECT id FROM users")
+        .try_map(|row: MySqlRow| row.try_get::<i32, _>(0))
+        .fetch(&mut conn)
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
+        .await?;
+
+    assert_eq!(sum, 55);
+
+    Ok(())
+}
+
 async fn select_statement_count(conn: &mut MySqlConnection) -> Result<i64, sqlx::Error> {
     // Fails if performance schema does not exist
     sqlx::query_scalar(
