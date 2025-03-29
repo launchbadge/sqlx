@@ -9,6 +9,7 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
+use tracing::Instrument;
 
 use crate::describe::Describe;
 use crate::error::Error;
@@ -366,7 +367,7 @@ impl Drop for PgListener {
             };
 
             // Unregister any listeners before returning the connection to the pool.
-            crate::rt::spawn(fut);
+            crate::rt::spawn(fut.in_current_span());
         }
     }
 }

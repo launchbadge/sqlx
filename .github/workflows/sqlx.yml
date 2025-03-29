@@ -10,7 +10,7 @@ on:
 jobs:
   format:
     name: Format
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: rustup component add rustfmt
@@ -18,23 +18,24 @@ jobs:
 
   check:
     name: Check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls, none]
+        runtime: [ async-std, tokio ]
+        tls: [ native-tls, rustls, none ]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}"
-
-      - run: |
-          rustup update
+      # Swatinem/rust-cache recommends setting up the rust toolchain first because it's used in cache keys
+      - name: Setup Rust
+        # https://blog.rust-lang.org/2025/03/02/Rustup-1.28.0.html
+        run: |
+          rustup show active-toolchain || rustup toolchain install
           rustup component add clippy
           rustup toolchain install beta
           rustup component add --toolchain beta clippy
+
+      - uses: Swatinem/rust-cache@v2
 
       - run: >
           cargo clippy
@@ -52,26 +53,27 @@ jobs:
 
   check-minimal-versions:
     name: Check build using minimal versions
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update
-      - run: rustup toolchain install nightly
+      - name: Setup Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup toolchain install nightly
       - run: cargo +nightly generate-lockfile -Z minimal-versions
       - run: cargo build --all-features
 
   test:
     name: Unit Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-test
+      # https://blog.rust-lang.org/2025/03/02/Rustup-1.28.0.html
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
 
-      - name: Install Rust
-        run: rustup update
+      - uses: Swatinem/rust-cache@v2
 
       - name: Test sqlx-core
         run: >
@@ -113,20 +115,22 @@ jobs:
 
   sqlite:
     name: SQLite
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        runtime: [async-std, tokio]
-        linking: [sqlite, sqlite-unbundled]
+        runtime: [ async-std, tokio ]
+        linking: [ sqlite, sqlite-unbundled ]
     needs: check
     steps:
       - uses: actions/checkout@v4
 
       - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
 
+      # https://blog.rust-lang.org/2025/03/02/Rustup-1.28.0.html
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ runner.os }}-${{ matrix.linking }}-${{ matrix.runtime }}-${{ matrix.tls }}"
 
       - name: Install system sqlite library
         if: ${{ matrix.linking == 'sqlite-unbundled' }}
@@ -179,19 +183,20 @@ jobs:
 
   postgres:
     name: Postgres
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        postgres: [17, 13]
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
+        postgres: [ 17, 13 ]
+        runtime: [ async-std, tokio ]
+        tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}"
 
       - env:
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
@@ -279,19 +284,20 @@ jobs:
 
   mysql:
     name: MySQL
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        mysql: [8]
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
+        mysql: [ 8 ]
+        runtime: [ async-std, tokio ]
+        tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}"
 
       - run: cargo build --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
@@ -367,19 +373,20 @@ jobs:
 
   mariadb:
     name: MariaDB
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        mariadb: [verylatest, 11_4, 10_11, 10_4]
-        runtime: [async-std, tokio]
-        tls: [native-tls, rustls-aws-lc-rs, rustls-ring, none]
+        mariadb: [ verylatest, 11_4, 10_11, 10_4 ]
+        runtime: [ async-std, tokio ]
+        tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}"
 
       - run: cargo build --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 

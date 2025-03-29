@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     Either, Sqlite, SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnectOptions,
     SqliteConnection, SqliteQueryResult, SqliteRow, SqliteTransactionManager, SqliteTypeInfo,
@@ -38,8 +40,11 @@ impl AnyConnectionBackend for SqliteConnection {
         Connection::ping(self)
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::begin(self)
+    fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        SqliteTransactionManager::begin(self, statement)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
@@ -52,6 +57,10 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn start_rollback(&mut self) {
         SqliteTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&self) -> usize {
+        SqliteTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {

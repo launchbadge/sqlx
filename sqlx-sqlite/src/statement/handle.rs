@@ -84,8 +84,8 @@ impl StatementHandle {
     }
 
     #[inline]
-    pub(crate) fn last_error(&self) -> SqliteError {
-        SqliteError::new(unsafe { self.db_handle() })
+    pub(crate) fn last_error(&mut self) -> SqliteError {
+        unsafe { SqliteError::new(self.db_handle()) }
     }
 
     #[inline]

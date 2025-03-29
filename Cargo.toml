@@ -72,6 +72,7 @@ _unstable-all-types = [
     "json",
     "time",
     "chrono",
+    "ipnet",
     "ipnetwork",
     "mac_address",
     "uuid",
@@ -123,6 +124,7 @@ json = ["sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sq
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros?/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec", "sqlx-postgres?/bit-vec"]
 chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-mysql?/chrono", "sqlx-postgres?/chrono", "sqlx-sqlite?/chrono"]
+ipnet = ["sqlx-core/ipnet", "sqlx-macros?/ipnet", "sqlx-postgres?/ipnet"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork", "sqlx-postgres?/ipnetwork"]
 mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address", "sqlx-postgres?/mac_address"]
 rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mysql?/rust_decimal", "sqlx-postgres?/rust_decimal"]
@@ -150,6 +152,7 @@ sqlx = { version = "=0.8.3", path = ".", default-features = false }
 bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
+ipnet = "2.3.0"
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
@@ -195,6 +198,7 @@ rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempfile = "3.10.1"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
+libsqlite3-sys = { version = "0.30.1" }
 
 # If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,
 # even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.

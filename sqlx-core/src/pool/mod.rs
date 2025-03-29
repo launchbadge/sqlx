@@ -54,6 +54,7 @@
 //! [`Pool::acquire`] or
 //! [`Pool::begin`].
 
+use std::borrow::Cow;
 use std::fmt;
 use std::future::Future;
 use std::pin::{pin, Pin};
@@ -109,7 +110,8 @@ mod options;
 /// application/daemon/web server/etc. and then shared with all tasks throughout the process'
 /// lifetime. How best to accomplish this depends on your program architecture.
 ///
-/// In Actix-Web, for example, you can share a single pool with all request handlers using [web::Data].
+/// In Actix-Web, for example, you can efficiently share a single pool with all request handlers
+/// using [web::ThinData].
 ///
 /// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state.
 /// When the last remaining handle to the pool is dropped, the connections owned by the pool are
@@ -131,7 +133,7 @@ mod options;
 /// * [PgPool][crate::postgres::PgPool] (PostgreSQL)
 /// * [SqlitePool][crate::sqlite::SqlitePool] (SQLite)
 ///
-/// [web::Data]: https://docs.rs/actix-web/3/actix_web/web/struct.Data.html
+/// [web::ThinData]: https://docs.rs/actix-web/4.9.0/actix_web/web/struct.ThinData.html
 ///
 /// ### Note: Drop Behavior
 /// Due to a lack of async `Drop`, dropping the last `Pool` handle may not immediately clean
@@ -367,15 +369,49 @@ impl<DB: Database> Pool<DB> {
 
     /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
-        Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
+        Transaction::begin(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            None,
+        )
+        .await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
     pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
-            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
+            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn), None)
                 .await
                 .map(Some),
+
+            None => Ok(None),
+        }
+    }
+
+    /// Retrieves a connection and immediately begins a new transaction using `statement`.
+    pub async fn begin_with(
+        &self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> Result<Transaction<'static, DB>, Error> {
+        Transaction::begin(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            Some(statement.into()),
+        )
+        .await
+    }
+
+    /// Attempts to retrieve a connection and, if successful, immediately begins a new
+    /// transaction using `statement`.
+    pub async fn try_begin_with(
+        &self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> Result<Option<Transaction<'static, DB>>, Error> {
+        match self.try_acquire() {
+            Some(conn) => Transaction::begin(
+                MaybePoolConnection::PoolConnection(conn),
+                Some(statement.into()),
+            )
+            .await
+            .map(Some),
 
             None => Ok(None),
         }

@@ -93,7 +93,7 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
         let conn = self.acquire();
 
         Box::pin(async move {
-            Transaction::begin(MaybePoolConnection::PoolConnection(conn.await?)).await
+            Transaction::begin(MaybePoolConnection::PoolConnection(conn.await?), None).await
         })
     }
 }
@@ -121,7 +121,7 @@ macro_rules! impl_acquire {
                 'c,
                 Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
             > {
-                $crate::transaction::Transaction::begin(self)
+                $crate::transaction::Transaction::begin(self, None)
             }
         }
     };

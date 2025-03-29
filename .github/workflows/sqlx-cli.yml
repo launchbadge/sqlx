@@ -15,8 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: |
-          rustup update
+      - name: Setup Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
           rustup component add clippy
           rustup toolchain install beta
           rustup component add --toolchain beta clippy
@@ -40,18 +41,19 @@ jobs:
       matrix:
         # Note: macOS-latest uses M1 Silicon (ARM64)
         os:
-         - ubuntu-latest
-         # FIXME: migrations tests fail on Windows for whatever reason
-         # - windows-latest
-         - macOS-13
-         - macOS-latest
+          - ubuntu-latest
+          # FIXME: migrations tests fail on Windows for whatever reason
+          # - windows-latest
+          - macOS-13
+          - macOS-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-test
 
       - run: cargo test --manifest-path sqlx-cli/Cargo.toml
 
@@ -85,12 +87,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use latest Rust
-        run: rustup override set stable
+      - name: Setup Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup override set stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-cli
 
       - run: cargo build --manifest-path sqlx-cli/Cargo.toml --bin cargo-sqlx ${{ matrix.args }}
 

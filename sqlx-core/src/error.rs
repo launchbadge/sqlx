@@ -34,6 +34,12 @@ pub enum Error {
     #[error("error with configuration: {0}")]
     Configuration(#[source] BoxDynError),
 
+    /// One or more of the arguments to the called function was invalid.
+    ///
+    /// The string contains more information.
+    #[error("{0}")]
+    InvalidArgument(String),
+
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
     Database(#[source] Box<dyn DatabaseError>),
@@ -79,7 +85,7 @@ pub enum Error {
     },
 
     /// Error occured while encoding a value.
-    #[error("error occured while encoding a value: {0}")]
+    #[error("error occurred while encoding a value: {0}")]
     Encode(#[source] BoxDynError),
 
     /// Error occurred while decoding a value.
@@ -111,6 +117,12 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    #[error("attempted to call begin_with at non-zero transaction depth")]
+    InvalidSavePointStatement,
+
+    #[error("got unexpected connection status after attempting to begin transaction")]
+    BeginFailed,
 }
 
 impl StdError for Box<dyn DatabaseError> {}
@@ -134,6 +146,12 @@ impl Error {
     #[inline]
     pub fn protocol(err: impl Display) -> Self {
         Error::Protocol(err.to_string())
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn database(err: impl DatabaseError) -> Self {
+        Error::Database(Box::new(err))
     }
 
     #[doc(hidden)]
