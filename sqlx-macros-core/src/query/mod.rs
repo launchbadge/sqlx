@@ -282,7 +282,9 @@ where
         }
     }
 
-    let args_tokens = args::quote_args(&input, config, &data.describe)?;
+    let mut warnings = Warnings::default();
+
+    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
@@ -301,7 +303,7 @@ where
     } else {
         match input.record_type {
             RecordType::Generated => {
-                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
@@ -337,28 +339,32 @@ where
                 record_tokens
             }
             RecordType::Given(ref out_ty) => {
-                let columns = output::columns_to_rust::<DB>(&data.describe, config)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
-            RecordType::Scalar => {
-                output::quote_query_scalar::<DB>(&input, config, &query_args, &data.describe)?
-            }
+            RecordType::Scalar => output::quote_query_scalar::<DB>(
+                &input,
+                config,
+                &mut warnings,
+                &query_args,
+                &data.describe,
+            )?,
         }
     };
 
-    let mut warnings = TokenStream::new();
+    let mut warnings_out = TokenStream::new();
 
-    if config.macros.preferred_crates.date_time.is_inferred() {
+    if warnings.ambiguous_datetime {
         // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
-        warnings.extend(quote! {
+        warnings_out.extend(quote! {
             ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
         });
     }
 
-    if config.macros.preferred_crates.numeric.is_inferred() {
+    if warnings.ambiguous_numeric {
         // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
-        warnings.extend(quote! {
+        warnings_out.extend(quote! {
             ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
         });
     }
@@ -369,7 +375,7 @@ where
             {
                 use ::sqlx::Arguments as _;
 
-                #warnings
+                #warnings_out
 
                 #args_tokens
 
