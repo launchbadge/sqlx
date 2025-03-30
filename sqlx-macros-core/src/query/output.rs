@@ -7,7 +7,7 @@ use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
 
-use crate::query::QueryMacroInput;
+use crate::query::{QueryMacroInput, Warnings};
 use sqlx_core::config::Config;
 use sqlx_core::type_checking;
 use sqlx_core::type_checking::TypeChecking;
@@ -82,15 +82,17 @@ impl Display for DisplayColumn<'_> {
 pub fn columns_to_rust<DB: DatabaseExt>(
     describe: &Describe<DB>,
     config: &Config,
+    warnings: &mut Warnings,
 ) -> crate::Result<Vec<RustColumn>> {
     (0..describe.columns().len())
-        .map(|i| column_to_rust(describe, config, i))
+        .map(|i| column_to_rust(describe, config, warnings, i))
         .collect::<crate::Result<Vec<_>>>()
 }
 
 fn column_to_rust<DB: DatabaseExt>(
     describe: &Describe<DB>,
     config: &Config,
+    warnings: &mut Warnings,
     i: usize,
 ) -> crate::Result<RustColumn> {
     let column = &describe.columns()[i];
@@ -116,7 +118,7 @@ fn column_to_rust<DB: DatabaseExt>(
         (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,
 
         (ColumnTypeOverride::None, _) => {
-            let type_ = get_column_type::<DB>(config, i, column);
+            let type_ = get_column_type::<DB>(config, warnings, i, column);
             if !nullable {
                 ColumnType::Exact(type_)
             } else {
@@ -204,6 +206,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
 pub fn quote_query_scalar<DB: DatabaseExt>(
     input: &QueryMacroInput,
     config: &Config,
+    warnings: &mut Warnings,
     bind_args: &Ident,
     describe: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
@@ -218,10 +221,10 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     }
 
     // attempt to parse a column override, otherwise fall back to the inferred type of the column
-    let ty = if let Ok(rust_col) = column_to_rust(describe, config, 0) {
+    let ty = if let Ok(rust_col) = column_to_rust(describe, config, warnings, 0) {
         rust_col.type_.to_token_stream()
     } else if input.checked {
-        let ty = get_column_type::<DB>(config, 0, &columns[0]);
+        let ty = get_column_type::<DB>(config, warnings, 0, &columns[0]);
         if describe.nullable(0).unwrap_or(true) {
             quote! { ::std::option::Option<#ty> }
         } else {
@@ -239,7 +242,12 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     })
 }
 
-fn get_column_type<DB: DatabaseExt>(config: &Config, i: usize, column: &DB::Column) -> TokenStream {
+fn get_column_type<DB: DatabaseExt>(
+    config: &Config,
+    warnings: &mut Warnings,
+    i: usize,
+    column: &DB::Column,
+) -> TokenStream {
     if let ColumnOrigin::Table(origin) = column.origin() {
         if let Some(column_override) = config.macros.column_override(&origin.table, &origin.name) {
             return column_override.parse().unwrap();
@@ -321,6 +329,14 @@ fn get_column_type<DB: DatabaseExt>(config: &Config, i: usize, column: &DB::Colu
                     name: column.name()
                 }
             )
+        }
+        type_checking::Error::AmbiguousDateTimeType { fallback } => {
+            warnings.ambiguous_datetime = true;
+            return fallback.parse().unwrap();
+        }
+        type_checking::Error::AmbiguousNumericType { fallback } => {
+            warnings.ambiguous_numeric = true;
+            return fallback.parse().unwrap();
         }
     };
 

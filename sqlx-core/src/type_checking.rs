@@ -60,6 +60,10 @@ pub enum Error {
     DateTimeCrateFeatureNotEnabled,
     #[error("Cargo feature for configured `macros.preferred-crates.numeric` not enabled")]
     NumericCrateFeatureNotEnabled,
+    #[error("multiple date-time types are possible; falling back to `{fallback}`")]
+    AmbiguousDateTimeType { fallback: &'static str },
+    #[error("multiple numeric types are possible; falling back to `{fallback}`")]
+    AmbiguousNumericType { fallback: &'static str },
 }
 
 /// An adapter for [`Value`] which attempts to decode the value and format it when printed using [`Debug`].
@@ -195,12 +199,24 @@ macro_rules! impl_type_checking {
                 if matches!(preferred_crates.date_time, DateTimeCrate::Time | DateTimeCrate::Inferred) {
                     $(
                         if <$time_ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                            if cfg!(feature = "chrono") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: $crate::select_input_type!($time_ty $(, $time_input)?),
+                                });
+                            }
+
                             return Ok($crate::select_input_type!($time_ty $(, $time_input)?));
                         }
                     )*
 
                     $(
                         if <$time_ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                            if cfg!(feature = "chrono") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: $crate::select_input_type!($time_ty $(, $time_input)?),
+                                });
+                            }
+
                             return Ok($crate::select_input_type!($time_ty $(, $time_input)?));
                         }
                     )*
@@ -240,12 +256,24 @@ macro_rules! impl_type_checking {
                 if matches!(preferred_crates.numeric, NumericCrate::BigDecimal | NumericCrate::Inferred) {
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                            if cfg!(feature = "rust_decimal") {
+                                return Err($crate::type_checking::Error::AmbiguousNumericType {
+                                    fallback: $crate::select_input_type!($bigdecimal_ty $(, $bigdecimal_input)?),
+                                });
+                            }
+
                             return Ok($crate::select_input_type!($bigdecimal_ty $(, $bigdecimal_input)?));
                         }
                     )*
 
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                            if cfg!(feature = "rust_decimal") {
+                                return Err($crate::type_checking::Error::AmbiguousNumericType {
+                                    fallback: $crate::select_input_type!($bigdecimal_ty $(, $bigdecimal_input)?),
+                                });
+                            }
+
                             return Ok($crate::select_input_type!($bigdecimal_ty $(, $bigdecimal_input)?));
                         }
                     )*
@@ -311,12 +339,24 @@ macro_rules! impl_type_checking {
                 if matches!(preferred_crates.date_time, DateTimeCrate::Time | DateTimeCrate::Inferred) {
                     $(
                         if <$time_ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                            if cfg!(feature = "chrono") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: stringify!($time_ty),
+                                });
+                            }
+
                             return Ok(stringify!($time_ty));
                         }
                     )*
 
                     $(
                         if <$time_ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                            if cfg!(feature = "chrono") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: stringify!($time_ty),
+                                });
+                            }
+
                             return Ok(stringify!($time_ty));
                         }
                     )*
@@ -356,12 +396,24 @@ macro_rules! impl_type_checking {
                 if matches!(preferred_crates.numeric, NumericCrate::BigDecimal | NumericCrate::Inferred) {
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                            if cfg!(feature = "rust_decimal") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: stringify!($bigdecimal_ty),
+                                });
+                            }
+
                             return Ok(stringify!($bigdecimal_ty));
                         }
                     )*
 
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                            if cfg!(feature = "rust_decimal") {
+                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                    fallback: stringify!($bigdecimal_ty),
+                                });
+                            }
+
                             return Ok(stringify!($bigdecimal_ty));
                         }
                     )*
@@ -434,6 +486,24 @@ macro_rules! impl_type_checking {
                     $(
                         if <$chrono_ty as sqlx_core::types::Type<$database>>::compatible(&info) {
                             return $crate::type_checking::FmtValue::debug::<$chrono_ty>(value);
+                        }
+                    )*
+                }
+
+                #[cfg(feature = "bigdecimal")]
+                {
+                    $(
+                        if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::compatible(&info) {
+                            return $crate::type_checking::FmtValue::debug::<$bigdecimal_ty>(value);
+                        }
+                    )*
+                }
+
+                #[cfg(feature = "rust_decimal")]
+                {
+                    $(
+                        if <$rust_decimal_ty as sqlx_core::types::Type<$database>>::compatible(&info) {
+                            return $crate::type_checking::FmtValue::debug::<$rust_decimal_ty>(value);
                         }
                     )*
                 }
