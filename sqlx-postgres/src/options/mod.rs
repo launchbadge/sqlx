@@ -134,6 +134,19 @@ impl PgConnectOptions {
     /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new();
     /// ```
+    ///
+    /// Note: that unlike `libpq` the environment variables:
+    ///
+    /// * `PGSSLROOTCERT`
+    /// * `PGSSLCERT`
+    /// * `PGSSLKEY`
+    ///
+    /// Must not exclusively be path, ´sqlx-postgres` supports these variables
+    /// encode the certificates / keys directly. Content snooping is done via
+    /// `CertificateInput::from`.
+    ///
+    /// Note: Putting key material in environment variables can be subjected to risk as on
+    /// some platforms environment variables can be recovered by other (non root) users.
     pub fn new() -> Self {
         Self::new_without_pgpass().apply_pgpass()
     }
