@@ -6,8 +6,7 @@ use std::path::{Path, PathBuf};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use sqlx_core::config::Config;
-use sqlx_core::migrate::{Migration, MigrationType, ResolveConfig};
-use syn::spanned::Spanned;
+use sqlx_core::migrate::{Migration, MigrationType};
 use syn::LitStr;
 
 pub const DEFAULT_PATH: &str = "./migrations";
