@@ -190,6 +190,22 @@ macro_rules! impl_type_checking {
                 use $crate::config::macros::{DateTimeCrate, NumericCrate};
                 use $crate::type_checking::Error;
 
+                // Check non-special types
+                // ---------------------
+                $(
+                    $(#[$meta])?
+                    if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                        return Ok($crate::select_input_type!($ty $(, $input)?));
+                    }
+                )*
+
+                $(
+                    $(#[$meta])?
+                    if <$ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                        return Ok($crate::select_input_type!($ty $(, $input)?));
+                    }
+                )*
+
                 // Check `macros.preferred-crates.date-time`
                 //
                 // Due to legacy reasons, `time` takes precedent over `chrono` if both are enabled.
@@ -303,22 +319,6 @@ macro_rules! impl_type_checking {
                 if preferred_crates.numeric == NumericCrate::RustDecimal {
                     return Err(Error::NumericCrateFeatureNotEnabled);
                 }
-
-                // Check all other types
-                // ---------------------
-                $(
-                    $(#[$meta])?
-                    if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info {
-                        return Ok($crate::select_input_type!($ty $(, $input)?));
-                    }
-                )*
-
-                $(
-                    $(#[$meta])?
-                    if <$ty as sqlx_core::types::Type<$database>>::compatible(info) {
-                        return Ok($crate::select_input_type!($ty $(, $input)?));
-                    }
-                )*
 
                 Err(Error::NoMappingFound)
             }
@@ -330,6 +330,22 @@ macro_rules! impl_type_checking {
                 use $crate::config::macros::{DateTimeCrate, NumericCrate};
                 use $crate::type_checking::Error;
 
+                // Check non-special types
+                // ---------------------
+                $(
+                    $(#[$meta])?
+                    if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info {
+                        return Ok(stringify!($ty));
+                    }
+                )*
+
+                $(
+                    $(#[$meta])?
+                    if <$ty as sqlx_core::types::Type<$database>>::compatible(info) {
+                        return Ok(stringify!($ty));
+                    }
+                )*
+
                 // Check `macros.preferred-crates.date-time`
                 //
                 // Due to legacy reasons, `time` takes precedent over `chrono` if both are enabled.
@@ -443,22 +459,6 @@ macro_rules! impl_type_checking {
                 if preferred_crates.numeric == NumericCrate::RustDecimal {
                     return Err(Error::NumericCrateFeatureNotEnabled);
                 }
-
-                // Check all other types
-                // ---------------------
-                $(
-                    $(#[$meta])?
-                    if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info {
-                        return Ok(stringify!($ty));
-                    }
-                )*
-
-                $(
-                    $(#[$meta])?
-                    if <$ty as sqlx_core::types::Type<$database>>::compatible(info) {
-                        return Ok(stringify!($ty));
-                    }
-                )*
 
                 Err(Error::NoMappingFound)
             }
