@@ -21,6 +21,7 @@ members = [
     "examples/postgres/todos",
     "examples/postgres/transaction",
     "examples/sqlite/todos",
+    "examples/sqlite/extension",
 ]
 
 [workspace.package]
