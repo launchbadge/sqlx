@@ -413,7 +413,7 @@ macro_rules! impl_type_checking {
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::type_info() == *info {
                             if cfg!(feature = "rust_decimal") {
-                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                return Err($crate::type_checking::Error::AmbiguousNumericType {
                                     fallback: stringify!($bigdecimal_ty),
                                 });
                             }
@@ -425,7 +425,7 @@ macro_rules! impl_type_checking {
                     $(
                         if <$bigdecimal_ty as sqlx_core::types::Type<$database>>::compatible(info) {
                             if cfg!(feature = "rust_decimal") {
-                                return Err($crate::type_checking::Error::AmbiguousDateTimeType {
+                                return Err($crate::type_checking::Error::AmbiguousNumericType {
                                     fallback: stringify!($bigdecimal_ty),
                                 });
                             }
