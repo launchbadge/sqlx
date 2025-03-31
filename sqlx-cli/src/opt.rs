@@ -458,11 +458,32 @@ impl AddMigrationOpts {
 
         match (self.timestamp, self.sequential, default_versioning) {
             (true, false, _) | (false, false, DefaultVersioning::Timestamp) => next_timestamp(),
-            (false, true, _) | (false, false, DefaultVersioning::Sequential) => {
-                next_sequential(migrator).unwrap_or_else(|| fmt_sequential(1))
-            }
+            (false, true, _) | (false, false, DefaultVersioning::Sequential) => fmt_sequential(
+                migrator
+                    .migrations
+                    .last()
+                    .map_or(1, |migration| migration.version + 1),
+            ),
             (false, false, DefaultVersioning::Inferred) => {
-                next_sequential(migrator).unwrap_or_else(next_timestamp)
+                migrator
+                    .migrations
+                    .rchunks(2)
+                    .next()
+                    .and_then(|migrations| {
+                        match migrations {
+                            [previous, latest] => {
+                                // If the latest two versions differ by 1, infer sequential.
+                                (latest.version - previous.version == 1)
+                                    .then_some(latest.version + 1)
+                            }
+                            [latest] => {
+                                // If only one migration exists and its version is 0 or 1, infer sequential
+                                matches!(latest.version, 0 | 1).then_some(latest.version + 1)
+                            }
+                            _ => unreachable!(),
+                        }
+                    })
+                    .map_or_else(next_timestamp, fmt_sequential)
             }
             (true, true, _) => unreachable!("BUG: Clap should have rejected this case"),
         }
@@ -471,28 +492,6 @@ impl AddMigrationOpts {
 
 fn next_timestamp() -> String {
     Utc::now().format("%Y%m%d%H%M%S").to_string()
-}
-
-fn next_sequential(migrator: &Migrator) -> Option<String> {
-    let next_version = migrator
-        .migrations
-        .rchunks(2)
-        .next()
-        .and_then(|migrations| {
-            match migrations {
-                [previous, latest] => {
-                    // If the latest two versions differ by 1, infer sequential.
-                    (latest.version - previous.version == 1).then_some(latest.version + 1)
-                }
-                [latest] => {
-                    // If only one migration exists and its version is 0 or 1, infer sequential
-                    matches!(latest.version, 0 | 1).then_some(latest.version + 1)
-                }
-                _ => unreachable!(),
-            }
-        });
-
-    next_version.map(fmt_sequential)
 }
 
 fn fmt_sequential(version: i64) -> String {
