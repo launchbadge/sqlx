@@ -22,6 +22,23 @@ async fn test_query() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_query_tuple() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let account = sqlx::query_tuple!(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+        1i32
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(account.0, Some(1));
+    assert_eq!(account.1.as_deref(), Some("Herp Derpinson"));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_non_null() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
     let mut tx = conn.begin().await?;
