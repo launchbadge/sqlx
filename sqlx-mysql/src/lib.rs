@@ -39,6 +39,7 @@ mod testing;
 
 pub use arguments::MySqlArguments;
 pub use column::MySqlColumn;
+pub use connection::infile;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use error::MySqlDatabaseError;
