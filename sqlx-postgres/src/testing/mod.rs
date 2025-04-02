@@ -1,11 +1,11 @@
 use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use futures_core::future::BoxFuture;
 
-use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_scalar::query_scalar;
 
@@ -17,8 +17,8 @@ use crate::{PgConnectOptions, PgConnection, Postgres};
 
 pub(crate) use sqlx_core::testing::*;
 
-// Using a blocking `OnceCell` here because the critical sections are short.
-static MASTER_POOL: OnceCell<Pool<Postgres>> = OnceCell::new();
+// Using a blocking `OnceLock` here because the critical sections are short.
+static MASTER_POOL: OnceLock<Pool<Postgres>> = OnceLock::new();
 // Automatically delete any databases created before the start of the test binary.
 
 impl TestSupport for Postgres {
@@ -106,7 +106,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
         .connect_lazy_with(master_opts);
 
-    let master_pool = match MASTER_POOL.try_insert(pool) {
+    let master_pool = match once_lock_try_insert_polyfill(&MASTER_POOL, pool) {
         Ok(inserted) => inserted,
         Err((existing, pool)) => {
             // Sanity checks.
@@ -198,4 +198,13 @@ async fn do_cleanup(conn: &mut PgConnection, db_name: &str) -> Result<(), Error>
         .await?;
 
     Ok(())
+}
+
+fn once_lock_try_insert_polyfill<T>(this: &OnceLock<T>, value: T) -> Result<&T, (&T, T)> {
+    let mut value = Some(value);
+    let res = this.get_or_init(|| value.take().unwrap());
+    match value {
+        None => Ok(res),
+        Some(value) => Err((res, value)),
+    }
 }
