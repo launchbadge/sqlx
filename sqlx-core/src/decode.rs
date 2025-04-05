@@ -111,8 +111,10 @@ macro_rules! impl_decode_for_smartpointer {
             Vec<u8>: Decode<'r, DB>,
         {
             fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-                let ref_str = <Vec<u8> as Decode<DB>>::decode(value)?;
-                Ok(ref_str.into())
+                // The `Postgres` implementation requires this to be decoded as an owned value because
+                // bytes can be sent in text format.
+                let bytes = <Vec<u8> as Decode<DB>>::decode(value)?;
+                Ok(bytes.into())
             }
         }
     };
