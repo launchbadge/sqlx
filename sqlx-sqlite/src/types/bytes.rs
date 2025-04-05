@@ -85,3 +85,20 @@ impl<'r> Decode<'r, Sqlite> for Vec<u8> {
         Ok(value.blob().to_owned())
     }
 }
+
+impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Blob(self));
+
+        Ok(IsNull::No)
+    }
+
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Blob(self.clone()));
+
+        Ok(IsNull::No)
+    }
+}

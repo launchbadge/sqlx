@@ -3,8 +3,8 @@ extern crate time_ as time;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::Bound;
-use std::str::FromStr;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};

@@ -108,10 +108,10 @@ macro_rules! impl_decode_for_smartpointer {
         impl<'r, DB> Decode<'r, DB> for $smart_pointer<[u8]>
         where
             DB: Database,
-            &'r [u8]: Decode<'r, DB>,
+            Vec<u8>: Decode<'r, DB>,
         {
             fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-                let ref_str = <&[u8] as Decode<DB>>::decode(value)?;
+                let ref_str = <Vec<u8> as Decode<DB>>::decode(value)?;
                 Ok(ref_str.into())
             }
         }
@@ -123,36 +123,33 @@ impl_decode_for_smartpointer!(Box);
 impl_decode_for_smartpointer!(Rc);
 
 // implement `Decode` for Cow<T> for all SQL types
-impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
+impl<'r, 'a, DB, T> Decode<'r, DB> for Cow<'a, T>
 where
     DB: Database,
     T: ToOwned,
     <T as ToOwned>::Owned: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-        let owned = <<T as ToOwned>::Owned as Decode<DB>>::decode(value)?;
-        Ok(Cow::Owned(owned))
+        <<T as ToOwned>::Owned as Decode<DB>>::decode(value).map(Cow::Owned)
     }
 }
 
-impl<'r, DB> Decode<'r, DB> for Cow<'r, str>
+impl<'r, 'a, DB> Decode<'r, DB> for Cow<'a, str>
 where
     DB: Database,
-    &'r str: Decode<'r, DB>,
+    String: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-        let borrowed = <&str as Decode<DB>>::decode(value)?;
-        Ok(Cow::Borrowed(borrowed))
+        <String as Decode<DB>>::decode(value).map(Cow::Owned)
     }
 }
 
-impl<'r, DB> Decode<'r, DB> for Cow<'r, [u8]>
+impl<'r, 'a, DB> Decode<'r, DB> for Cow<'a, [u8]>
 where
     DB: Database,
-    &'r [u8]: Decode<'r, DB>,
+    Vec<u8>: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
-        let borrowed = <&[u8] as Decode<DB>>::decode(value)?;
-        Ok(Cow::Borrowed(borrowed))
+        <Vec<u8> as Decode<DB>>::decode(value).map(Cow::Owned)
     }
 }

@@ -1,7 +1,7 @@
 extern crate time_ as time;
 
 use sqlx::sqlite::{Sqlite, SqliteRow};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type};
 use sqlx_core::executor::Executor;
 use sqlx_core::row::Row;
 use sqlx_core::types::Text;
@@ -263,5 +263,25 @@ CREATE TEMPORARY TABLE user_login (
     assert_eq!(last_login.user_id, user_id);
     assert_eq!(*last_login.socket_addr, socket_addr);
 
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_binds_with_borrowed_data() -> anyhow::Result<()> {
+    #[derive(Debug, Type, Clone)]
+    #[sqlx(rename_all = "lowercase")]
+    enum Status {
+        New,
+        Open,
+        Closed,
+    }
+
+    let owned = Status::New;
+
+    let mut conn = new::<Sqlite>().await?;
+    sqlx::query("select ?")
+        .bind(Cow::Borrowed(&owned))
+        .fetch_one(&mut conn)
+        .await?;
     Ok(())
 }

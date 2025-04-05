@@ -255,8 +255,7 @@ macro_rules! impl_type_for_smartpointer {
     ($smart_pointer:ty) => {
         impl<T, DB: Database> Type<DB> for $smart_pointer
         where
-            T: Type<DB>,
-            T: ?Sized,
+            T: Type<DB> + ?Sized,
         {
             fn type_info() -> DB::TypeInfo {
                 <T as Type<DB>>::type_info()
@@ -275,9 +274,8 @@ impl_type_for_smartpointer!(Rc<T>);
 
 impl<T, DB: Database> Type<DB> for Cow<'_, T>
 where
-    T: Type<DB>,
-    T: ToOwned,
-    T: ?Sized,
+    // `ToOwned` is required here to satisfy `Cow`
+    T: Type<DB> + ToOwned + ?Sized,
 {
     fn type_info() -> DB::TypeInfo {
         <T as Type<DB>>::type_info()

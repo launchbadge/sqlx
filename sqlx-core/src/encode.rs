@@ -172,7 +172,7 @@ impl_encode_for_smartpointer!(Arc<T>);
 impl_encode_for_smartpointer!(Box<T>);
 impl_encode_for_smartpointer!(Rc<T>);
 
-impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'_, T>
+impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'q, T>
 where
     T: Encode<'q, DB>,
     T: ToOwned,

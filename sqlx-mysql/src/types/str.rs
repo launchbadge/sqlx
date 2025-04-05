@@ -83,9 +83,3 @@ impl Encode<'_, MySql> for Cow<'_, str> {
         }
     }
 }
-
-impl Encode<'_, MySql> for Cow<'_, [u8]> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        <&[u8] as Encode<MySql>>::encode(self.as_ref(), buf)
-    }
-}
