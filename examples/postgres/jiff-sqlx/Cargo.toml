@@ -1,0 +1,30 @@
+[package]
+name = "sqlx-example-postgres-jiff-sqlx"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+jiff = "0.2.6"
+jiff-sqlx = { version = "0.1.1", features = ["postgres"] }
+
+anyhow = "1.0.97"
+dotenvy = "0.15.7"
+
+[dependencies.sqlx]
+version = "0.8.3"
+# For testing within the SQLx project only.
+# Omit this key if copying from this example.
+path = "../../.."
+features = ["postgres", "runtime-tokio"]
+
+[dependencies.tokio]
+version = "1.44.2"
+features = ["rt", "net", "time", "macros"]
+
+[lints]
+workspace = true
