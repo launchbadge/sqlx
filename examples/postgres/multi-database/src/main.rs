@@ -1,7 +1,6 @@
 use accounts::AccountsManager;
 use color_eyre::eyre;
 use color_eyre::eyre::{Context, OptionExt};
-use payments::PaymentsManager;
 use rand::distributions::{Alphanumeric, DistString};
 use sqlx::Connection;
 
@@ -18,24 +17,14 @@ async fn main() -> eyre::Result<()> {
     .await
     .wrap_err("could not connect to database")?;
 
-    let accounts = AccountsManager::setup(
-        dotenvy::var("ACCOUNTS_DATABASE_URL")
-            .wrap_err("ACCOUNTS_DATABASE_URL must be set")?
-            .parse()
-            .wrap_err("error parsing ACCOUNTS_DATABASE_URL")?,
-        1,
-    )
-    .await
-    .wrap_err("error initializing AccountsManager")?;
+    // Runs migration for `accounts` internally.
+    let accounts = AccountsManager::setup(&mut conn, 1)
+        .await
+        .wrap_err("error initializing AccountsManager")?;
 
-    let payments = PaymentsManager::setup(
-        dotenvy::var("PAYMENTS_DATABASE_URL")
-            .wrap_err("PAYMENTS_DATABASE_URL must be set")?
-            .parse()
-            .wrap_err("error parsing PAYMENTS_DATABASE_URL")?,
-    )
-    .await
-    .wrap_err("error initializing PaymentsManager")?;
+    payments::migrate(&mut conn)
+        .await
+        .wrap_err("error running payments migrations")?;
 
     // For simplicity's sake, imagine each of these might be invoked by different request routes
     // in a web application.
@@ -50,7 +39,7 @@ async fn main() -> eyre::Result<()> {
 
     let account_id = accounts
         // Takes ownership of the password string because it's sent to another thread for hashing.
-        .create(&user_email, user_password.clone())
+        .create(&mut txn, &user_email, user_password.clone())
         .await
         .wrap_err("error creating account")?;
 
@@ -64,7 +53,7 @@ async fn main() -> eyre::Result<()> {
     // POST /session
     // Log the user in.
     let session = accounts
-        .create_session(&user_email, user_password.clone())
+        .create_session(&mut conn, &user_email, user_password.clone())
         .await
         .wrap_err("error creating session")?;
 
@@ -87,7 +76,7 @@ async fn main() -> eyre::Result<()> {
     // may be easier for the frontend. By setting the cookie with `HttpOnly: true`,
     // it's impossible for malicious Javascript on the client to access and steal the session token.
     let account_id = accounts
-        .auth_session(&session.session_token.0)
+        .auth_session(&mut conn, &session.session_token.0)
         .await
         .wrap_err("error authenticating session")?
         .ok_or_eyre("session does not exist")?;
@@ -95,8 +84,7 @@ async fn main() -> eyre::Result<()> {
     let purchase_amount: rust_decimal::Decimal = "12.34".parse().unwrap();
 
     // Then, because the user is making a purchase, we record a payment.
-    let payment = payments
-        .create(account_id, "USD", purchase_amount)
+    let payment = payments::create(&mut conn, account_id, "USD", purchase_amount)
         .await
         .wrap_err("error creating payment")?;
 

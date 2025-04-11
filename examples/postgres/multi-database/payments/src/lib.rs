@@ -1,8 +1,8 @@
 use accounts::{AccountId, AccountsManager};
-use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{Acquire, PgConnection, PgPool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 
 #[derive(sqlx::Type, Copy, Clone, Debug)]
 #[sqlx(transparent)]
@@ -41,13 +41,17 @@ pub struct PaymentsManager {
 }
 
 impl PaymentsManager {
-    pub async fn setup(opts: PgConnectOptions) -> sqlx::Result<Self> {
+    pub async fn setup(
+        opts: PgConnectOptions,
+    ) -> sqlx::Result<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(5)
             .connect_with(opts)
             .await?;
 
-        sqlx::migrate!().run(&pool).await?;
+        sqlx::migrate!()
+            .run(&pool)
+            .await?;
 
         Ok(Self { pool })
     }
@@ -57,8 +61,8 @@ impl PaymentsManager {
     pub async fn create(
         &self,
         account_id: AccountId,
-        currency: &str,
-        amount: rust_decimal::Decimal,
+                            currency: &str,
+                            amount: rust_decimal::Decimal,
     ) -> sqlx::Result<Payment> {
         // Check-out a connection to avoid paying the overhead of acquiring one for each call.
         let mut conn = self.pool.acquire().await?;
@@ -87,8 +91,8 @@ impl PaymentsManager {
             currency,
             amount,
         )
-        .fetch_one(&mut *conn)
-        .await?;
+            .fetch_one(&mut *conn)
+            .await?;
 
         // We then create the record with the payment vendor...
         let external_payment_id = "foobar1234";
@@ -99,17 +103,17 @@ impl PaymentsManager {
         // the order of columns gets baked into the binary, so if it changes between compile time and
         // run-time, you may run into errors.
         let payment = sqlx::query_as!(
-            Payment,
-            "update payment \
+        Payment,
+        "update payment \
          set status = $1, external_payment_id = $2 \
          where payment_id = $3 \
          returning *",
-            PaymentStatus::Created,
-            external_payment_id,
-            payment_id.0,
-        )
-        .fetch_one(&mut *conn)
-        .await?;
+        PaymentStatus::Created,
+        external_payment_id,
+        payment_id.0,
+    )
+            .fetch_one(&mut *conn)
+            .await?;
 
         Ok(payment)
     }
@@ -121,7 +125,9 @@ impl PaymentsManager {
             "select * from payment where payment_id = $1",
             payment_id.0
         )
-        .fetch_optional(&self.pool)
-        .await
+            .fetch_optional(&self.pool)
+            .await
     }
 }
+
+
