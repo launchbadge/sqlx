@@ -3820,6 +3820,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-postgres-multi-database"
+version = "0.8.3"
+dependencies = [
+ "axum 0.8.1",
+ "color-eyre",
+ "dotenvy",
+ "rand",
+ "rust_decimal",
+ "sqlx",
+ "sqlx-example-postgres-multi-database-accounts",
+ "sqlx-example-postgres-multi-database-payments",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "sqlx-example-postgres-multi-database-accounts"
+version = "0.1.0"
+dependencies = [
+ "argon2 0.5.3",
+ "password-hash 0.5.0",
+ "rand",
+ "serde",
+ "sqlx",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "sqlx-example-postgres-multi-database-payments"
+version = "0.1.0"
+dependencies = [
+ "rust_decimal",
+ "sqlx",
+ "sqlx-example-postgres-multi-database-accounts",
+ "time",
+ "uuid",
+]
+
+[[package]]
 name = "sqlx-example-postgres-multi-tenant"
 version = "0.8.3"
 dependencies = [

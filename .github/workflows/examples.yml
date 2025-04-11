@@ -175,6 +175,24 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
         run: cargo run -p sqlx-example-postgres-mockable-todos
 
+      - name: Multi-Database (Setup)
+        working-directory: examples/postgres/multi-database
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+        run: |
+          (cd accounts && sqlx db setup)
+          (cd payments && sqlx db setup)
+          sqlx db setup
+
+      - name: Multi-Database (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+        run: cargo run -p sqlx-example-postgres-multi-database
+
       - name: Multi-Tenant (Setup)
         working-directory: examples/postgres/multi-tenant
         env:
