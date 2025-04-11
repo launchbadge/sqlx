@@ -1,4 +1,4 @@
-use sqlx::{Connection, Error, SqliteConnection};
+use sqlx::{AssertSqlSafe, Connection, Error, SqliteConnection};
 
 // https://rustsec.org/advisories/RUSTSEC-2024-0363.html
 //
@@ -50,7 +50,7 @@ async fn rustsec_2024_0363() -> anyhow::Result<()> {
     .execute(&mut conn)
     .await?;
 
-    let res = sqlx::raw_sql(&query).execute(&mut conn).await;
+    let res = sqlx::raw_sql(AssertSqlSafe(query)).execute(&mut conn).await;
 
     if let Err(e) = res {
         // Connection rejected the query; we're happy.

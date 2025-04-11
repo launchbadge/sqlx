@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use crate::migrate;
 use crate::opt::ConnectOpts;
 use console::{style, Term};

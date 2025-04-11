@@ -9,6 +9,7 @@ use crate::query::query;
 use crate::query_as::query_as;
 use crate::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -142,7 +143,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
             // and update it once the actual transaction completed.
             let _ = tx
-                .execute(&*migration.sql)
+                .execute(AssertSqlSafe(migration.sql.to_string()))
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -195,7 +196,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let _ = tx.execute(&*migration.sql).await?;
+            let _ = tx.execute(AssertSqlSafe(migration.sql.to_string())).await?;
 
             // language=SQL
             let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?1"#)

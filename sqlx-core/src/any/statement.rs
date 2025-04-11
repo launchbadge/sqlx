@@ -3,15 +3,15 @@ use crate::column::ColumnIndex;
 use crate::database::Database;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+use crate::sql_str::SqlStr;
 use crate::statement::Statement;
 use crate::HashMap;
 use either::Either;
-use std::borrow::Cow;
 use std::sync::Arc;
 
-pub struct AnyStatement<'q> {
+pub struct AnyStatement {
     #[doc(hidden)]
-    pub sql: Cow<'q, str>,
+    pub sql: SqlStr,
     #[doc(hidden)]
     pub parameters: Option<Either<Vec<AnyTypeInfo>, usize>>,
     #[doc(hidden)]
@@ -20,20 +20,24 @@ pub struct AnyStatement<'q> {
     pub columns: Vec<AnyColumn>,
 }
 
-impl<'q> Statement<'q> for AnyStatement<'q> {
+impl Statement for AnyStatement {
     type Database = Any;
 
-    fn to_owned(&self) -> AnyStatement<'static> {
-        AnyStatement::<'static> {
-            sql: Cow::Owned(self.sql.clone().into_owned()),
+    fn to_owned(&self) -> AnyStatement {
+        AnyStatement {
+            sql: self.sql.clone(),
             column_names: self.column_names.clone(),
             parameters: self.parameters.clone(),
             columns: self.columns.clone(),
         }
     }
 
-    fn sql(&self) -> &str {
-        &self.sql
+    fn sql_cloned(&self) -> SqlStr {
+        self.sql.clone()
+    }
+
+    fn into_sql(self) -> SqlStr {
+        self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[AnyTypeInfo], usize>> {
@@ -51,8 +55,8 @@ impl<'q> Statement<'q> for AnyStatement<'q> {
     impl_statement_query!(AnyArguments<'_>);
 }
 
-impl<'i> ColumnIndex<AnyStatement<'_>> for &'i str {
-    fn index(&self, statement: &AnyStatement<'_>) -> Result<usize, Error> {
+impl ColumnIndex<AnyStatement> for &'_ str {
+    fn index(&self, statement: &AnyStatement) -> Result<usize, Error> {
         statement
             .column_names
             .get(*self)
@@ -61,15 +65,14 @@ impl<'i> ColumnIndex<AnyStatement<'_>> for &'i str {
     }
 }
 
-impl<'q> AnyStatement<'q> {
+impl AnyStatement {
     #[doc(hidden)]
     pub fn try_from_statement<S>(
-        query: &'q str,
-        statement: &S,
+        statement: S,
         column_names: Arc<HashMap<UStr, usize>>,
     ) -> crate::Result<Self>
     where
-        S: Statement<'q>,
+        S: Statement,
         AnyTypeInfo: for<'a> TryFrom<&'a <S::Database as Database>::TypeInfo, Error = Error>,
         AnyColumn: for<'a> TryFrom<&'a <S::Database as Database>::Column, Error = Error>,
     {
@@ -91,7 +94,7 @@ impl<'q> AnyStatement<'q> {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
-            sql: query.into(),
+            sql: statement.into_sql(),
             columns,
             column_names,
             parameters,

@@ -11,7 +11,7 @@ pub struct Execute<'q> {
     pub arguments: &'q MySqlArguments,
 }
 
-impl<'q> ProtocolEncode<'_, Capabilities> for Execute<'q> {
+impl ProtocolEncode<'_, Capabilities> for Execute<'_> {
     fn encode_with(&self, buf: &mut Vec<u8>, _: Capabilities) -> Result<(), crate::Error> {
         buf.push(0x17); // COM_STMT_EXECUTE
         buf.extend(&self.statement.to_le_bytes());

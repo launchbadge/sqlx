@@ -9,6 +9,7 @@ pub struct Migration {
     pub version: i64,
     pub description: Cow<'static, str>,
     pub migration_type: MigrationType,
+    // We can't use `SqlStr` here because it can't be used in a const context
     pub sql: Cow<'static, str>,
     pub checksum: Cow<'static, [u8]>,
     pub no_tx: bool,

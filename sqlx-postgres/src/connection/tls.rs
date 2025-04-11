@@ -7,7 +7,7 @@ use crate::{PgConnectOptions, PgSslMode};
 
 pub struct MaybeUpgradeTls<'a>(pub &'a PgConnectOptions);
 
-impl<'a> WithSocket for MaybeUpgradeTls<'a> {
+impl WithSocket for MaybeUpgradeTls<'_> {
     type Output = crate::Result<Box<dyn Socket>>;
 
     async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {

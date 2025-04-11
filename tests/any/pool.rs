@@ -1,5 +1,6 @@
 use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
 use sqlx::Executor;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::{
     atomic::{AtomicI32, AtomicUsize, Ordering},
     Arc, Mutex,
@@ -111,7 +112,7 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
                     id
                 );
 
-                conn.execute(&statement[..]).await?;
+                conn.execute(AssertSqlSafe(statement)).await?;
                 Ok(())
             })
         })
