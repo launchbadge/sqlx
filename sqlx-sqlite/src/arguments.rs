@@ -72,6 +72,10 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
     fn len(&self) -> usize {
         self.values.len()
     }
+
+    fn merge(&mut self, other: Self) {
+        self.values.extend(other.values);
+    }
 }
 
 impl SqliteArguments<'_> {
