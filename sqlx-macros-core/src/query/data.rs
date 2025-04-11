@@ -86,8 +86,8 @@ impl DynQueryData {
         let mut cache = OFFLINE_DATA_CACHE
             .lock()
             // Just reset the cache on error
-            .unwrap_or_else(|posion_err| {
-                let mut guard = posion_err.into_inner();
+            .unwrap_or_else(|poison_err| {
+                let mut guard = poison_err.into_inner();
                 *guard = Default::default();
                 guard
             });
