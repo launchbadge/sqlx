@@ -23,6 +23,8 @@ pub struct Migrator {
     pub locking: bool,
     #[doc(hidden)]
     pub no_tx: bool,
+    #[doc(hidden)]
+    pub template_args: Option<HashMap<String, String>>,
 }
 
 fn validate_applied_migrations(
@@ -51,7 +53,28 @@ impl Migrator {
         ignore_missing: false,
         no_tx: false,
         locking: true,
+        template_args: None,
     };
+
+    /// Set or update template arguments for migration placeholders.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use sqlx_core::migrate::Migrator;
+    /// let mut migrator = Migrator::DEFAULT;
+    /// migrator.set_template_args(vec![("key", "value"), ("name", "test")]);
+    /// ```
+    pub fn set_template_args<I, K, V>(&mut self, args: I) -> &Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        let map: HashMap<String, String> = args.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
+        self.template_args = Some(map);
+        self
+    }
 
     /// Creates a new instance with the given source.
     ///
