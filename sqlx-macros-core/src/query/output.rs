@@ -2,13 +2,16 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::Type;
 
-use sqlx_core::column::Column;
+use sqlx_core::column::{Column, ColumnOrigin};
 use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
 
-use crate::query::QueryMacroInput;
+use crate::query::{QueryMacroInput, Warnings};
+use sqlx_core::config::Config;
+use sqlx_core::type_checking;
 use sqlx_core::type_checking::TypeChecking;
+use sqlx_core::type_info::TypeInfo;
 use std::fmt::{self, Display, Formatter};
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
@@ -76,13 +79,22 @@ impl Display for DisplayColumn<'_> {
     }
 }
 
-pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
+pub fn columns_to_rust<DB: DatabaseExt>(
+    describe: &Describe<DB>,
+    config: &Config,
+    warnings: &mut Warnings,
+) -> crate::Result<Vec<RustColumn>> {
     (0..describe.columns().len())
-        .map(|i| column_to_rust(describe, i))
+        .map(|i| column_to_rust(describe, config, warnings, i))
         .collect::<crate::Result<Vec<_>>>()
 }
 
-fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::Result<RustColumn> {
+fn column_to_rust<DB: DatabaseExt>(
+    describe: &Describe<DB>,
+    config: &Config,
+    warnings: &mut Warnings,
+    i: usize,
+) -> crate::Result<RustColumn> {
     let column = &describe.columns()[i];
 
     // add raw prefix to all identifiers
@@ -106,7 +118,7 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
         (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,
 
         (ColumnTypeOverride::None, _) => {
-            let type_ = get_column_type::<DB>(i, column);
+            let type_ = get_column_type::<DB>(config, warnings, i, column);
             if !nullable {
                 ColumnType::Exact(type_)
             } else {
@@ -193,6 +205,8 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
 pub fn quote_query_scalar<DB: DatabaseExt>(
     input: &QueryMacroInput,
+    config: &Config,
+    warnings: &mut Warnings,
     bind_args: &Ident,
     describe: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
@@ -207,10 +221,10 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     }
 
     // attempt to parse a column override, otherwise fall back to the inferred type of the column
-    let ty = if let Ok(rust_col) = column_to_rust(describe, 0) {
+    let ty = if let Ok(rust_col) = column_to_rust(describe, config, warnings, 0) {
         rust_col.type_.to_token_stream()
     } else if input.checked {
-        let ty = get_column_type::<DB>(0, &columns[0]);
+        let ty = get_column_type::<DB>(config, warnings, 0, &columns[0]);
         if describe.nullable(0).unwrap_or(true) {
             quote! { ::std::option::Option<#ty> }
         } else {
@@ -228,36 +242,105 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     })
 }
 
-fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
+fn get_column_type<DB: DatabaseExt>(
+    config: &Config,
+    warnings: &mut Warnings,
+    i: usize,
+    column: &DB::Column,
+) -> TokenStream {
+    if let ColumnOrigin::Table(origin) = column.origin() {
+        if let Some(column_override) = config.macros.column_override(&origin.table, &origin.name) {
+            return column_override.parse().unwrap();
+        }
+    }
+
     let type_info = column.type_info();
 
-    <DB as TypeChecking>::return_type_for_id(type_info).map_or_else(
-        || {
-            let message =
-                if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
-                    format!(
-                        "optional sqlx feature `{feat}` required for type {ty} of {col}",
-                        ty = &type_info,
-                        feat = feature_gate,
-                        col = DisplayColumn {
-                            idx: i,
-                            name: column.name()
-                        }
-                    )
-                } else {
-                    format!(
-                        "unsupported type {ty} of {col}",
-                        ty = type_info,
-                        col = DisplayColumn {
-                            idx: i,
-                            name: column.name()
-                        }
-                    )
-                };
-            syn::Error::new(Span::call_site(), message).to_compile_error()
-        },
-        |t| t.parse().unwrap(),
-    )
+    if let Some(type_override) = config.macros.type_override(type_info.name()) {
+        return type_override.parse().unwrap();
+    }
+
+    let err = match <DB as TypeChecking>::return_type_for_id(
+        type_info,
+        &config.macros.preferred_crates,
+    ) {
+        Ok(t) => return t.parse().unwrap(),
+        Err(e) => e,
+    };
+
+    let message = match err {
+        type_checking::Error::NoMappingFound => {
+            if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
+                format!(
+                    "SQLx feature `{feat}` required for type {ty} of {col}",
+                    ty = &type_info,
+                    feat = feature_gate,
+                    col = DisplayColumn {
+                        idx: i,
+                        name: column.name()
+                    }
+                )
+            } else {
+                format!(
+                    "no built-in mapping found for type {ty} of {col}; \
+                     a type override may be required, see documentation for details",
+                    ty = type_info,
+                    col = DisplayColumn {
+                        idx: i,
+                        name: column.name()
+                    }
+                )
+            }
+        }
+        type_checking::Error::DateTimeCrateFeatureNotEnabled => {
+            let feature_gate = config
+                .macros
+                .preferred_crates
+                .date_time
+                .crate_name()
+                .expect("BUG: got feature-not-enabled error for DateTimeCrate::Inferred");
+
+            format!(
+                "SQLx feature `{feat}` required for type {ty} of {col} \
+                 (configured by `macros.preferred-crates.date-time` in sqlx.toml)",
+                ty = &type_info,
+                feat = feature_gate,
+                col = DisplayColumn {
+                    idx: i,
+                    name: column.name()
+                }
+            )
+        }
+        type_checking::Error::NumericCrateFeatureNotEnabled => {
+            let feature_gate = config
+                .macros
+                .preferred_crates
+                .numeric
+                .crate_name()
+                .expect("BUG: got feature-not-enabled error for NumericCrate::Inferred");
+
+            format!(
+                "SQLx feature `{feat}` required for type {ty} of {col} \
+                 (configured by `macros.preferred-crates.numeric` in sqlx.toml)",
+                ty = &type_info,
+                feat = feature_gate,
+                col = DisplayColumn {
+                    idx: i,
+                    name: column.name()
+                }
+            )
+        }
+        type_checking::Error::AmbiguousDateTimeType { fallback } => {
+            warnings.ambiguous_datetime = true;
+            return fallback.parse().unwrap();
+        }
+        type_checking::Error::AmbiguousNumericType { fallback } => {
+            warnings.ambiguous_numeric = true;
+            return fallback.parse().unwrap();
+        }
+    };
+
+    syn::Error::new(Span::call_site(), message).to_compile_error()
 }
 
 impl ColumnDecl {

@@ -39,4 +39,7 @@ pub enum MigrateError {
         "migration {0} is partially applied; fix and remove row from `_sqlx_migrations` table"
     )]
     Dirty(i64),
+
+    #[error("database driver does not support creation of schemas at migrate time: {0}")]
+    CreateSchemasNotSupported(String),
 }

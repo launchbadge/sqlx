@@ -1,0 +1,20 @@
+[package]
+name = "sqlx-example-postgres-multi-database-payments"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+sqlx = { workspace = true, features = ["postgres", "time", "uuid", "rust_decimal", "sqlx-toml"] }
+
+rust_decimal = "1.36.0"
+
+time = "0.3.37"
+uuid = "1.12.1"
+
+[dependencies.accounts]
+path = "../accounts"
+package = "sqlx-example-postgres-multi-database-accounts"
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio"] }
