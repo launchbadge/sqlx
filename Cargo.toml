@@ -17,6 +17,7 @@ members = [
     "examples/postgres/json",
     "examples/postgres/listen",
     "examples/postgres/mockable-todos",
+    "examples/postgres/multi-database",
     "examples/postgres/multi-tenant",
     "examples/postgres/todos",
     "examples/postgres/transaction",
