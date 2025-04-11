@@ -14,6 +14,7 @@ members = [
     "examples/postgres/axum-social-with-tests",
     "examples/postgres/chat",
     "examples/postgres/files",
+    "examples/postgres/jiff-sqlx",
     "examples/postgres/json",
     "examples/postgres/listen",
     "examples/postgres/mockable-todos",
