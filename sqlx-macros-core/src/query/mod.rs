@@ -128,7 +128,7 @@ fn init_metadata(manifest_dir: &String) -> Metadata {
 
         Some(env_path)
     } else {
-        dotenvy::dotenv().ok()
+        dotenvy::dotenv_override().ok()
     };
 
     // tell the compiler to watch the `.env` for changes, if applicable
