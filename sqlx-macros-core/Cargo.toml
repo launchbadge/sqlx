@@ -76,5 +76,4 @@ url = { version = "2.2.2" }
 
 [lints.rust.unexpected_cfgs]
 level = "warn"
-# 1.80 will warn without this
 check-cfg = ['cfg(sqlx_macros_unstable)', 'cfg(procmacro2_semver_exempt)']
