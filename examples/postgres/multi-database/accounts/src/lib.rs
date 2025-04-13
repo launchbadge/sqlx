@@ -5,8 +5,8 @@ use sqlx::{Acquire, Executor, PgPool, PgTransaction, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use tokio::sync::Semaphore;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use tokio::sync::Semaphore;
 
 #[derive(sqlx::Type, Copy, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[sqlx(transparent)]
@@ -118,7 +118,7 @@ impl AccountsManager {
             .max_connections(5)
             .connect_with(opts)
             .await?;
-        
+
         sqlx::migrate!()
             .run(&pool)
             .await
