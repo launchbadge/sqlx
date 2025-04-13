@@ -182,6 +182,7 @@ impl<'r> PgRecordDecoder<'r> {
             }
         }
     }
+
     fn find_type_info(
         &self,
         typ: &PgTypeInfo,
@@ -189,7 +190,6 @@ impl<'r> PgRecordDecoder<'r> {
     ) -> Result<Option<PgTypeInfo>, BoxDynError> {
         match typ.kind() {
             PgTypeKind::Simple if typ.0 == PgType::Record => Ok(PgTypeInfo::try_from_oid(oid)),
-
             PgTypeKind::Composite(fields) => {
                 let ty = fields[self.ind].1.clone();
                 if ty.0.oid() != oid {
@@ -198,9 +198,8 @@ impl<'r> PgRecordDecoder<'r> {
 
                 Ok(Some(ty))
             }
-            PgTypeKind::Domain(d) => self.find_type_info(d, oid),
-
-            _ => Err("unexpected non-composite type being decoded as a composite type".into()),
+            PgTypeKind::Domain(domain) => self.find_type_info(domain, oid),
+            _ => Err("unexpected custom type being decoded as a composite type".into()),
         }
     }
 }

@@ -65,7 +65,7 @@ CREATE TYPE foo."Foo" as ENUM ('Bar', 'Baz');
 CREATE TABLE mytable(f HSTORE);
 
 CREATE DOMAIN positive_int AS integer CHECK (VALUE >= 0);
-CREATE DOMAIN percentage AS positive_int CHECK (VALUE < 100);
+CREATE DOMAIN percentage AS positive_int CHECK (VALUE <= 100);
 
 CREATE TYPE person as (
     id int,

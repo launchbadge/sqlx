@@ -635,15 +635,24 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "positive_int")]
+struct PositiveInt(i32);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "percentage")]
+struct Percentage(PositiveInt);
+
 #[derive(sqlx::Type, Debug, PartialEq)]
 struct Person {
     id: i32,
-    age: i32,
-    percent: i32,
+    age: PositiveInt,
+    percent: Percentage,
 }
 
-test_type!(nested_domain_types<Person>(Postgres,
-    "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: 21, percent: 50 })
+test_type!(nested_domain_types_1<Person>(Postgres,
+    "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: PositiveInt(21), percent: Percentage(PositiveInt(50)) })
 );
 
 #[derive(sqlx::Type, Debug, PartialEq)]
