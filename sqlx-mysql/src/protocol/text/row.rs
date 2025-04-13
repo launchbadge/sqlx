@@ -16,13 +16,20 @@ impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for TextRow {
 
         let mut values = Vec::with_capacity(columns.len());
 
-        for _ in columns {
+        for c in columns {
             if buf[0] == 0xfb {
                 // NULL is sent as 0xfb
                 values.push(None);
                 buf.advance(1);
             } else {
                 let size = buf.get_uint_lenenc();
+                if (buf.remaining() as u64) < size {
+                    return Err(err_protocol!(
+                        "buffer exhausted when reading data for column {:?}; decoded length is {}, but only {} bytes remain in buffer. Malformed packet or protocol error?",
+                        c,
+                        size,
+                        buf.remaining()));
+                }
                 let size = usize::try_from(size)
                     .map_err(|_| err_protocol!("TextRow length out of range: {size}"))?;
 
