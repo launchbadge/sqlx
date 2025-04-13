@@ -1,15 +1,18 @@
-use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
+use std::{
+    future::Future,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs},
+};
 
 use bytes::BufMut;
 use cfg_if::cfg_if;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
 
-use crate::io::ReadBuf;
+use crate::{io::ReadBuf, rt::spawn_blocking};
 
 mod buffered;
 
@@ -193,112 +196,65 @@ pub async fn connect_tcp<Ws: WithSocket>(
     // IPv6 addresses in URLs will be wrapped in brackets and the `url` crate doesn't trim those.
     let host = host.trim_matches(&['[', ']'][..]);
 
+    let addresses = if let Ok(addr) = host.parse::<Ipv4Addr>() {
+        let addr = SocketAddrV4::new(addr, port);
+        vec![SocketAddr::V4(addr)].into_iter()
+    } else if let Ok(addr) = host.parse::<Ipv6Addr>() {
+        let addr = SocketAddrV6::new(addr, port, 0, 0);
+        vec![SocketAddr::V6(addr)].into_iter()
+    } else {
+        let host = host.to_string();
+        spawn_blocking(move || {
+            let addr = (host.as_str(), port);
+            ToSocketAddrs::to_socket_addrs(&addr)
+        })
+        .await?
+    };
+
+    let mut last_err = None;
+
+    // Loop through all the Socket Addresses that the hostname resolves to
+    for socket_addr in addresses {
+        match connect_tcp_address(socket_addr).await {
+            Ok(stream) => return Ok(with_socket.with_socket(stream).await),
+            Err(e) => last_err = Some(e),
+        }
+    }
+
+    // If we reach this point, it means we failed to connect to any of the addresses.
+    // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
+    Err(match last_err {
+        Some(err) => err,
+        None => io::Error::new(
+            io::ErrorKind::AddrNotAvailable,
+            "Hostname did not resolve to any addresses",
+        )
+        .into(),
+    })
+}
+
+async fn connect_tcp_address(socket_addr: SocketAddr) -> crate::Result<impl Socket> {
     #[cfg(feature = "_rt-tokio")]
     if crate::rt::rt_tokio::available() {
         use tokio::net::TcpStream;
 
-        let stream = TcpStream::connect((host, port)).await?;
+        let stream = TcpStream::connect(socket_addr).await?;
         stream.set_nodelay(true)?;
 
-        return Ok(with_socket.with_socket(stream).await);
+        return Ok(stream);
     }
 
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            use async_io_global_executor::Async;
-            use async_net::resolve;
+        if #[cfg(feature = "_rt-async-io")] {
+            use async_io::Async;
             use std::net::TcpStream;
 
-            let mut last_err = None;
+            let stream = Async::<TcpStream>::connect(socket_addr).await?;
+            stream.get_ref().set_nodelay(true)?;
 
-            // Loop through all the Socket Addresses that the hostname resolves to
-            for socket_addr in resolve((host, port)).await? {
-                let stream = Async::<TcpStream>::connect(socket_addr)
-                    .await
-                    .and_then(|s| {
-                        s.get_ref().set_nodelay(true)?;
-                        Ok(s)
-                    });
-                match stream {
-                    Ok(stream) => return Ok(with_socket.with_socket(stream).await),
-                    Err(e) => last_err = Some(e),
-                }
-            }
-
-            // If we reach this point, it means we failed to connect to any of the addresses.
-            // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
-            Err(match last_err {
-                Some(err) => err,
-                None => io::Error::new(
-                    io::ErrorKind::AddrNotAvailable,
-                    "Hostname did not resolve to any addresses",
-                ),
-            }
-            .into())
-        } else if #[cfg(feature = "_rt-async-std")] {
-            use async_io_std::Async;
-            use async_std::net::ToSocketAddrs;
-            use std::net::TcpStream;
-
-            let mut last_err = None;
-
-            // Loop through all the Socket Addresses that the hostname resolves to
-            for socket_addr in (host, port).to_socket_addrs().await? {
-                let stream = Async::<TcpStream>::connect(socket_addr)
-                    .await
-                    .and_then(|s| {
-                        s.get_ref().set_nodelay(true)?;
-                        Ok(s)
-                    });
-                match stream {
-                    Ok(stream) => return Ok(with_socket.with_socket(stream).await),
-                    Err(e) => last_err = Some(e),
-                }
-            }
-
-            // If we reach this point, it means we failed to connect to any of the addresses.
-            // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
-            Err(match last_err {
-                Some(err) => err,
-                None => io::Error::new(
-                    io::ErrorKind::AddrNotAvailable,
-                    "Hostname did not resolve to any addresses",
-                ),
-            }
-            .into())
-        } else if #[cfg(feature = "_rt-smol")] {
-            use smol::net::resolve;
-            use smol::Async;
-            use std::net::TcpStream;
-
-            let mut last_err = None;
-
-            // Loop through all the Socket Addresses that the hostname resolves to
-            for socket_addr in resolve((host, port)).await? {
-                let stream = Async::<TcpStream>::connect(socket_addr)
-                    .await
-                    .and_then(|s| {
-                        s.get_ref().set_nodelay(true)?;
-                        Ok(s)
-                    });
-                match stream {
-                    Ok(stream) => return Ok(with_socket.with_socket(stream).await),
-                    Err(e) => last_err = Some(e),
-                }
-            }
-
-            // If we reach this point, it means we failed to connect to any of the addresses.
-            // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
-            Err(match last_err {
-                Some(err) => err,
-                None => io::Error::new(
-                    io::ErrorKind::AddrNotAvailable,
-                    "Hostname did not resolve to any addresses",
-                ),
-            }
-            .into())
+            Ok(stream)
         } else {
-            crate::rt::missing_rt((host, port, with_socket))
+            crate::rt::missing_rt(socket_addr)
         }
     }
 }
@@ -322,22 +278,8 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
         }
 
         cfg_if! {
-            if #[cfg(feature = "_rt-async-global-executor")] {
-                use async_io_global_executor::Async;
-                use std::os::unix::net::UnixStream;
-
-                let stream = Async::<UnixStream>::connect(path).await?;
-
-                Ok(with_socket.with_socket(stream).await)
-            } else if #[cfg(feature = "_rt-async-std")] {
-                use async_io_std::Async;
-                use std::os::unix::net::UnixStream;
-
-                let stream = Async::<UnixStream>::connect(path).await?;
-
-                Ok(with_socket.with_socket(stream).await)
-            } else if #[cfg(feature = "_rt-smol")] {
-                use smol::Async;
+            if #[cfg(feature = "_rt-async-io")] {
+                use async_io::Async;
                 use std::os::unix::net::UnixStream;
 
                 let stream = Async::<UnixStream>::connect(path).await?;

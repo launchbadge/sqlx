@@ -6,11 +6,7 @@ use std::time::Duration;
 
 use cfg_if::cfg_if;
 
-#[cfg(any(
-    feature = "_rt-async-global-executor",
-    feature = "_rt-async-std",
-    feature = "_rt-smol"
-))]
+#[cfg(feature = "_rt-async-io")]
 pub mod rt_async_io;
 
 #[cfg(feature = "_rt-async-global-executor")]
@@ -48,14 +44,8 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     }
 
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            rt_async_global_executor::timeout(duration, f).await
-        } else if #[cfg(feature = "_rt-async-std")] {
-            async_std::future::timeout(duration, f)
-                .await
-                .map_err(|_| TimeoutError)
-        } else if #[cfg(feature = "_rt-smol")] {
-            rt_smol::timeout(duration, f).await
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::timeout(duration, f).await
         } else {
             missing_rt((duration, f))
         }
@@ -69,12 +59,8 @@ pub async fn sleep(duration: Duration) {
     }
 
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            rt_async_global_executor::sleep(duration).await
-        } else if #[cfg(feature = "_rt-async-std")] {
-            async_std::task::sleep(duration).await
-        } else if #[cfg(feature = "_rt-smol")] {
-            rt_smol::sleep(duration).await
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::sleep(duration).await
         } else {
             missing_rt(duration)
         }
@@ -159,12 +145,8 @@ pub async fn yield_now() {
 #[track_caller]
 pub fn test_block_on<F: Future>(f: F) -> F::Output {
     cfg_if! {
-        if #[cfg(feature = "_rt-async-global-executor")] {
-            async_io_global_executor::block_on(f)
-        } else if #[cfg(feature = "_rt-async-std")] {
-            async_std::task::block_on(f)
-        } else if #[cfg(feature = "_rt-smol")] {
-            smol::block_on(f)
+        if #[cfg(feature = "_rt-async-io")] {
+            async_io::block_on(f)
         } else if #[cfg(feature = "_rt-tokio")] {
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()

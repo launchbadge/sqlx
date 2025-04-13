@@ -16,5 +16,5 @@ pub async fn timeout<F: Future>(duration: Duration, future: F) -> Result<F::Outp
 }
 
 fn timeout_future(duration: Duration) -> impl Future {
-    smol::Timer::after(duration)
+    async_io::Timer::after(duration)
 }

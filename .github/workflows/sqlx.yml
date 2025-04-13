@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        runtime: [ async-global-executor, smol, tokio ]
+        runtime: [ async-std, async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls, none ]
     steps:
       - uses: actions/checkout@v4
