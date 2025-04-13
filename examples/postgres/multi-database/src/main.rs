@@ -1,8 +1,8 @@
 use accounts::AccountsManager;
 use color_eyre::eyre;
 use color_eyre::eyre::{Context, OptionExt};
-use rand::distributions::{Alphanumeric, DistString};
 use payments::PaymentsManager;
+use rand::distributions::{Alphanumeric, DistString};
 use sqlx::Connection;
 
 #[tokio::main]
@@ -18,23 +18,24 @@ async fn main() -> eyre::Result<()> {
     .await
     .wrap_err("could not connect to database")?;
 
-    let accounts = AccountsManager::setup( 
+    let accounts = AccountsManager::setup(
         dotenvy::var("ACCOUNTS_DATABASE_URL")
             .wrap_err("ACCOUNTS_DATABASE_URL must be set")?
             .parse()
             .wrap_err("error parsing ACCOUNTS_DATABASE_URL")?,
-        1)
-        .await
-        .wrap_err("error initializing AccountsManager")?;
-    
+        1,
+    )
+    .await
+    .wrap_err("error initializing AccountsManager")?;
+
     let payments = PaymentsManager::setup(
         dotenvy::var("PAYMENTS_DATABASE_URL")
             .wrap_err("PAYMENTS_DATABASE_URL must be set")?
             .parse()
             .wrap_err("error parsing PAYMENTS_DATABASE_URL")?,
     )
-        .await
-        .wrap_err("error initializing PaymentsManager")?;
+    .await
+    .wrap_err("error initializing PaymentsManager")?;
 
     // For simplicity's sake, imagine each of these might be invoked by different request routes
     // in a web application.
@@ -94,7 +95,8 @@ async fn main() -> eyre::Result<()> {
     let purchase_amount: rust_decimal::Decimal = "12.34".parse().unwrap();
 
     // Then, because the user is making a purchase, we record a payment.
-    let payment = payments.create(account_id, "USD", purchase_amount)
+    let payment = payments
+        .create(account_id, "USD", purchase_amount)
         .await
         .wrap_err("error creating payment")?;
 
