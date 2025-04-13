@@ -3457,8 +3457,6 @@ version = "0.8.3"
 dependencies = [
  "async-global-executor 3.1.0",
  "async-io",
- "async-lock",
- "async-net",
  "async-std",
  "base64 0.22.1",
  "bigdecimal",

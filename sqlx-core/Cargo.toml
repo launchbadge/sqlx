@@ -19,12 +19,7 @@ any = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
-_rt-async-global-executor = [
-    "async-global-executor",
-    "async-lock",
-    "async-net",
-    "_rt-async-io",
-]
+_rt-async-global-executor = ["async-global-executor", "_rt-async-io"]
 _rt-async-io = ["async-io"]
 _rt-async-std = ["async-std", "_rt-async-io"]
 _rt-smol = ["smol", "_rt-async-io"]
@@ -64,8 +59,6 @@ mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "2.2", optional = true }
-async-lock = { version = "3.4.0", optional = true }
-async-net = { package = "async-net", version = "2.0.0", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 cfg-if = { workspace = true }
