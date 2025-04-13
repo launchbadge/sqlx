@@ -94,14 +94,8 @@ tls-none = []
 
 # Legacy Runtime + TLS features
 
-runtime-async-global-executor-native-tls = ["runtime-async-global-executor", "tls-native-tls"]
-runtime-async-global-executor-rustls = ["runtime-async-global-executor", "tls-rustls-ring"]
-
 runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
 runtime-async-std-rustls = ["runtime-async-std", "tls-rustls-ring"]
-
-runtime-smol-native-tls = ["runtime-smol", "tls-native-tls"]
-runtime-smol-rustls = ["runtime-smol", "tls-rustls-ring"]
 
 runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
 runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
