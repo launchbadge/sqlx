@@ -154,7 +154,7 @@ time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
-dotenvy = { version = "0.15.0", default-features = false }
+dotenvy = { version = "0.15.7", default-features = false }
 
 # Runtimes
 [workspace.dependencies.async-std]

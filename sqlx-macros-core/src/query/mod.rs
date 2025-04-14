@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
@@ -106,12 +107,12 @@ impl Metadata {
     }
 }
 
+static METADATA: Lazy<Mutex<HashMap<String, Metadata>>> = Lazy::new(Default::default);
+
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static METADATA: Lazy<Metadata> = Lazy::new(|| {
-    let manifest_dir: PathBuf = env("CARGO_MANIFEST_DIR")
-        .expect("`CARGO_MANIFEST_DIR` must be set")
-        .into();
+fn init_metadata(manifest_dir: &String) -> Metadata {
+    let manifest_dir: PathBuf = manifest_dir.into();
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
@@ -119,14 +120,15 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
     let env_path = if env_path.exists() {
-        let res = dotenvy::from_path(&env_path);
+        // Load the new environment variables and override the old ones if necessary.
+        let res = dotenvy::from_path_override(&env_path);
         if let Err(e) = res {
             panic!("failed to load environment from {env_path:?}, {e}");
         }
 
         Some(env_path)
     } else {
-        dotenvy::dotenv().ok()
+        dotenvy::dotenv_override().ok()
     };
 
     // tell the compiler to watch the `.env` for changes, if applicable
@@ -147,32 +149,46 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         database_url,
         workspace_root: Arc::new(Mutex::new(None)),
     }
-});
+}
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let data_source = match &*METADATA {
+    let manifest_dir = env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+
+    let mut metadata_lock = METADATA
+        .lock()
+        // Just reset the metadata on error
+        .unwrap_or_else(|poison_err| {
+            let mut guard = poison_err.into_inner();
+            *guard = Default::default();
+            guard
+        });
+
+    let metadata = metadata_lock
+        .entry(manifest_dir)
+        .or_insert_with_key(init_metadata);
+
+    let data_source = match &metadata {
         Metadata {
             offline: false,
             database_url: Some(db_url),
             ..
         } => QueryDataSource::live(db_url)?,
-
         Metadata { offline, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
             let dirs = [
-                || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
-                || Some(METADATA.manifest_dir.join(".sqlx")),
-                || Some(METADATA.workspace_root().join(".sqlx")),
+                |_: &Metadata| env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
+                |meta: &Metadata| Some(meta.manifest_dir.join(".sqlx")),
+                |meta: &Metadata| Some(meta.workspace_root().join(".sqlx")),
             ];
             let Some(data_file_path) = dirs
                 .iter()
-                .filter_map(|path| path())
+                .filter_map(|path| path(metadata))
                 .map(|path| path.join(&filename))
                 .find(|path| path.exists())
             else {
@@ -184,7 +200,6 @@ pub fn expand_input<'a>(
                     }.into()
                 );
             };
-
             QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
         }
     };
