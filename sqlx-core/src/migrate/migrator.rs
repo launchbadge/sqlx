@@ -198,7 +198,6 @@ impl Migrator {
             .collect();
 
 
-        //Bind so we're not collecting for each migration
         let env_params = if self.template_parameters_from_env {
             Some(std::env::vars().collect())
         } else {

@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::ops::{Deref, Not};
 
 use clap::{Args, Parser};
@@ -181,6 +182,15 @@ pub enum MigrateCommand {
         /// pending migrations. If already at the target version, then no-op.
         #[clap(long)]
         target_version: Option<i64>,
+
+        #[clap(long)]
+        /// Template parameters for substitution in migrations from environment variables
+        params_from_env: bool,
+
+        #[clap(long, short, value_parser = parse_key_val::<String, String>, num_args = 1, value_delimiter=',')]
+        /// Provide template parameters for substitution in migrations, e.g. --parameters
+        /// key:value,key2:value2
+        parameters: Vec<(String, String)>,
     },
 
     /// Revert the latest migration with a down file.
@@ -324,4 +334,18 @@ impl Not for IgnoreMissing {
     fn not(self) -> Self::Output {
         !self.ignore_missing
     }
+}
+
+/// Parse a single key-value pair
+fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
+{
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }

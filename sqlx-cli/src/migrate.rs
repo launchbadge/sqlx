@@ -277,7 +277,11 @@ pub async fn run(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    params_from_env: bool,
+    parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
+
+    println!("{:#?}", parameters);
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
@@ -313,6 +317,14 @@ pub async fn run(
         .map(|m| (m.version, m))
         .collect();
 
+    let env_params: HashMap<_, _> = if params_from_env {
+        std::env::vars().collect()
+    } else {
+        HashMap::with_capacity(0)
+    };
+
+    let params: HashMap<_, _> = parameters.into_iter().collect();
+
     for migration in migrator.iter() {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
@@ -332,6 +344,11 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
+                    if params_from_env {
+                        migration.process_parameters(&env_params)?;
+                    } else if !params.is_empty() {
+                        migration.process_parameters(&params)?;
+                    }
                     conn.apply(migration).await?
                 };
                 let text = if skip {
