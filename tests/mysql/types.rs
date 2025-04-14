@@ -316,8 +316,8 @@ CREATE TEMPORARY TABLE with_bits (
     .await?;
 
     sqlx::query("INSERT INTO with_bits (value_1, value_n) VALUES (?, ?)")
-        .bind(&1_u8)
-        .bind(&510202_u32)
+        .bind(1_u8)
+        .bind(510202_u32)
         .execute(&mut conn)
         .await?;
 

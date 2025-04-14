@@ -55,7 +55,7 @@ fn test_build() {
     let query = qb.build();
 
     assert_eq!(query.sql(), "SELECT * FROM users WHERE id = $1");
-    assert_eq!(Execute::persistent(&query), true);
+    assert!(Execute::persistent(&query));
 }
 
 #[test]

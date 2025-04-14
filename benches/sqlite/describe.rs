@@ -3,7 +3,7 @@ use criterion::Criterion;
 use criterion::{criterion_group, criterion_main};
 
 use sqlx::sqlite::{Sqlite, SqliteConnection};
-use sqlx::{Connection, Executor};
+use sqlx::Executor;
 use sqlx_test::new;
 
 // Here we have an async function to benchmark
