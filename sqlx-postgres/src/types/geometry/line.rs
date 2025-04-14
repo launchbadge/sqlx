@@ -47,7 +47,7 @@ impl<'r> Decode<'r, Postgres> for PgLine {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgLine {
+impl Encode<'_, Postgres> for PgLine {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("line"))
     }
