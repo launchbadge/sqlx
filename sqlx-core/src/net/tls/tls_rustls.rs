@@ -138,7 +138,7 @@ where
         }
     } else {
         #[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
-        let cert_store = certs_from_webpki();
+        let mut cert_store = certs_from_webpki();
         #[cfg(feature = "_tls-rustls-ring-native-roots")]
         let mut cert_store = certs_from_native_store();
 
