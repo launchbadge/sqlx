@@ -34,11 +34,6 @@ impl PartialOrd<Self> for FileName {
 
 impl FileName {
     fn assert_is_timestamp(&self) {
-        //if the library is still used in 2050, this will need bumping ^^
-        assert!(
-            self.id < 20500101000000,
-            "{self:?} is too high for a timestamp"
-        );
         assert!(
             self.id > 20200101000000,
             "{self:?} is too low for a timestamp"
@@ -74,10 +69,12 @@ fn add_migration_sequential() -> anyhow::Result<()> {
             .run("hello world1", false, false, true, true)?
             .run("hello world2", true, false, true, true)?
             .fs_output()?;
-        assert_eq!(files.len(), 2);
-        files.assert_is_not_reversible();
+        assert_eq!(files.len(), 3);
         assert_eq!(files.0[0].id, 1);
         assert_eq!(files.0[1].id, 2);
+        assert_eq!(files.0[1].suffix, "down.sql");
+        assert_eq!(files.0[2].id, 2);
+        assert_eq!(files.0[2].suffix, "up.sql");
     }
     Ok(())
 }
@@ -126,11 +123,11 @@ fn add_migration_timestamp() -> anyhow::Result<()> {
             .run("hello world1", false, true, false, true)?
             .run("hello world2", true, false, true, true)?
             .fs_output()?;
-        assert_eq!(files.len(), 2);
-        files.assert_is_not_reversible();
+        assert_eq!(files.len(), 3);
         files.0[0].assert_is_timestamp();
         // sequential -> timestamp is one way
         files.0[1].assert_is_timestamp();
+        files.0[2].assert_is_timestamp();
     }
     Ok(())
 }

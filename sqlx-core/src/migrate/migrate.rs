@@ -25,18 +25,31 @@ pub trait MigrateDatabase {
 
 // 'e = Executor
 pub trait Migrate {
+    /// Create a database schema with the given name if it does not already exist.
+    fn create_schema_if_not_exists<'e>(
+        &'e mut self,
+        schema_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>>;
+
     // ensure migrations table exists
     // will create or migrate it if needed
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
+    fn ensure_migrations_table<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>>;
 
     // Return the version on which the database is dirty or None otherwise.
     // "dirty" means there is a partially applied migration that failed.
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>>;
+    fn dirty_version<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>>;
 
     // Return the ordered list of applied migrations
-    fn list_applied_migrations(
-        &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>>;
+    fn list_applied_migrations<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>>;
 
     // Should acquire a database lock so that only one migration process
     // can run at a time. [`Migrate`] will call this function before applying
@@ -50,16 +63,18 @@ pub trait Migrate {
     // run SQL from migration in a DDL transaction
     // insert new row to [_migrations] table on completion (success or failure)
     // returns the time taking to run the migration SQL
-    fn apply<'e: 'm, 'm>(
+    fn apply<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>>;
 
     // run a revert SQL from migration in a DDL transaction
     // deletes the row in [_migrations] table with specified migration version on completion (success or failure)
     // returns the time taking to run the migration SQL
-    fn revert<'e: 'm, 'm>(
+    fn revert<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>>;
 }

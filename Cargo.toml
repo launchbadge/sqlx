@@ -14,10 +14,13 @@ members = [
     "examples/postgres/axum-social-with-tests",
     "examples/postgres/chat",
     "examples/postgres/files",
+    "examples/postgres/jiff-sqlx",
     "examples/postgres/json",
     "examples/postgres/listen",
-    "examples/postgres/todos",
     "examples/postgres/mockable-todos",
+    "examples/postgres/multi-database",
+    "examples/postgres/multi-tenant",
+    "examples/postgres/todos",
     "examples/postgres/transaction",
     "examples/sqlite/todos",
 ]
@@ -50,15 +53,18 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types", "sqlite-preupdate-hook"]
+features = ["all-databases", "_unstable-all-types", "_unstable-doc"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["any", "macros", "migrate", "json"]
+default = ["any", "macros", "migrate", "json", "sqlx-toml"]
 
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
+
+# Enable parsing of `sqlx.toml` for configuring macros and migrations.
+sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml"]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
@@ -75,6 +81,8 @@ _unstable-all-types = [
     "bit-vec",
     "bstr"
 ]
+# Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
+_unstable-doc = ["sqlite-preupdate-hook"]
 
 # Base runtime features without TLS
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
