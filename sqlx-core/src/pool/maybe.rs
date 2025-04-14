@@ -8,7 +8,7 @@ pub enum MaybePoolConnection<'c, DB: Database> {
     PoolConnection(PoolConnection<DB>),
 }
 
-impl<'c, DB: Database> Deref for MaybePoolConnection<'c, DB> {
+impl<DB: Database> Deref for MaybePoolConnection<'_, DB> {
     type Target = DB::Connection;
 
     #[inline]
@@ -20,7 +20,7 @@ impl<'c, DB: Database> Deref for MaybePoolConnection<'c, DB> {
     }
 }
 
-impl<'c, DB: Database> DerefMut for MaybePoolConnection<'c, DB> {
+impl<DB: Database> DerefMut for MaybePoolConnection<'_, DB> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
@@ -30,7 +30,7 @@ impl<'c, DB: Database> DerefMut for MaybePoolConnection<'c, DB> {
     }
 }
 
-impl<'c, DB: Database> From<PoolConnection<DB>> for MaybePoolConnection<'c, DB> {
+impl<DB: Database> From<PoolConnection<DB>> for MaybePoolConnection<'_, DB> {
     fn from(v: PoolConnection<DB>) -> Self {
         MaybePoolConnection::PoolConnection(v)
     }

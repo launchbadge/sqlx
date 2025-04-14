@@ -138,7 +138,7 @@ where
         }
     } else {
         #[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
-        let mut cert_store = certs_from_webpki();
+        let cert_store = certs_from_webpki();
         #[cfg(feature = "_tls-rustls-ring-native-roots")]
         let mut cert_store = certs_from_native_store();
 
@@ -225,7 +225,7 @@ fn certs_from_native_store() -> RootCertStore {
         log::warn!("Error loading native certificates: {e:?}");
     }
     for cert in load_results.certs {
-        if let Err(e) = root_cert_store.add(cert.into()) {
+        if let Err(e) = root_cert_store.add(cert) {
             log::warn!("rustls failed to parse native certificate: {e:?}");
         }
     }

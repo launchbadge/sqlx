@@ -57,7 +57,7 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
+impl<DB, O, A> QueryAs<'_, DB, O, A>
 where
     DB: Database + HasStatementCache,
 {
