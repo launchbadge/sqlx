@@ -499,7 +499,7 @@ where
 /// Execute a single SQL query as a prepared statement (explicitly created).
 pub fn query_statement<'q, DB>(
     statement: &'q DB::Statement<'q>,
-) -> Query<'q, DB, <DB as Database>::Arguments<'_>>
+) -> Query<'q, DB, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
 {
