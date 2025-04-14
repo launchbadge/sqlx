@@ -92,14 +92,6 @@ tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots", "sqlx
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
 
-# Legacy Runtime + TLS features
-
-runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
-runtime-async-std-rustls = ["runtime-async-std", "tls-rustls-ring"]
-
-runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
-runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
-
 # for conditional compilation
 _rt-async-std = []
 _rt-tokio = []
