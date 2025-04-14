@@ -62,7 +62,7 @@ pub struct Read<'a, S: ?Sized, B> {
     buf: &'a mut B,
 }
 
-impl<'a, S: ?Sized, B> Future for Read<'a, S, B>
+impl<S: ?Sized, B> Future for Read<'_, S, B>
 where
     S: Socket,
     B: ReadBuf,
@@ -90,7 +90,7 @@ pub struct Write<'a, S: ?Sized> {
     buf: &'a [u8],
 }
 
-impl<'a, S: ?Sized> Future for Write<'a, S>
+impl<S: ?Sized> Future for Write<'_, S>
 where
     S: Socket,
 {
@@ -116,7 +116,7 @@ pub struct Flush<'a, S: ?Sized> {
     socket: &'a mut S,
 }
 
-impl<'a, S: Socket + ?Sized> Future for Flush<'a, S> {
+impl<S: Socket + ?Sized> Future for Flush<'_, S> {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -128,7 +128,7 @@ pub struct Shutdown<'a, S: ?Sized> {
     socket: &'a mut S,
 }
 
-impl<'a, S: ?Sized> Future for Shutdown<'a, S>
+impl<S: ?Sized> Future for Shutdown<'_, S>
 where
     S: Socket,
 {
