@@ -68,6 +68,10 @@ Barring urgent hotfixes, this is expected to be the last release of `0.8.x`.
 * [[#3811]]: Fix error message typo in PgPoint::from_str [[@TeCHiScy]]
 * [[#3812]]: mysql: Fix panic on invalid text row length field [[@0xdeafbeef]]
 * [[#3815]]: fix(macros): cache macro metadata based on `CARGO_MANIFEST_DIR` [[@joeydewaal]]
+* (On release branch): fix(postgres): send `limit: 0` for all `Execute` messages [[@abonander]]
+  * Addresses [[#3673]]: Parallel workers not used on Postgres 
+
+[#3673]: https://github.com/launchbadge/sqlx/issues/3673
 
 [#3289]: https://github.com/launchbadge/sqlx/pull/3289
 [#3334]: https://github.com/launchbadge/sqlx/pull/3334

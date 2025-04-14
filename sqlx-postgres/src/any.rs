@@ -97,7 +97,7 @@ impl AnyConnectionBackend for PgConnection {
         };
 
         Box::pin(
-            self.run(query, arguments, 0, persistent, None)
+            self.run(query, arguments, persistent, None)
                 .try_flatten_stream()
                 .map(
                     move |res: sqlx_core::Result<Either<PgQueryResult, PgRow>>| match res? {
@@ -123,7 +123,7 @@ impl AnyConnectionBackend for PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let mut stream = pin!(self.run(query, arguments, 1, persistent, None).await?);
+            let mut stream = pin!(self.run(query, arguments, persistent, None).await?);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
                 return Ok(Some(AnyRow::try_from(&row)?));
