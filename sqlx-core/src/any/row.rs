@@ -63,7 +63,7 @@ impl Row for AnyRow {
     }
 }
 
-impl<'i> ColumnIndex<AnyRow> for &'i str {
+impl ColumnIndex<AnyRow> for &'_ str {
     fn index(&self, row: &AnyRow) -> Result<usize, Error> {
         row.column_names
             .get(*self)

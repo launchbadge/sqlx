@@ -12,6 +12,7 @@ use crate::from_row::FromRow;
 use crate::logger::{BranchParent, BranchResult, DebugDiff};
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::{hash_map, HashMap};
 use std::fmt::Debug;
 use std::str::from_utf8;
@@ -567,7 +568,7 @@ pub(super) fn explain(
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
     let root_block_cols = root_block_columns(conn)?;
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
-        execute::iter(conn, &format!("EXPLAIN {query}"), None, false)?
+        execute::iter(conn, AssertSqlSafe(format!("EXPLAIN {query}")), None, false)?
             .filter_map(|res| res.map(|either| either.right()).transpose())
             .map(|row| FromRow::from_row(&row?))
             .collect::<Result<Vec<_>, Error>>()?;

@@ -108,8 +108,8 @@ pub(crate) struct ValueHandle<'a> {
 }
 
 // SAFE: only protected value objects are stored in SqliteValue
-unsafe impl<'a> Send for ValueHandle<'a> {}
-unsafe impl<'a> Sync for ValueHandle<'a> {}
+unsafe impl Send for ValueHandle<'_> {}
+unsafe impl Sync for ValueHandle<'_> {}
 
 impl ValueHandle<'static> {
     fn new_owned(value: NonNull<sqlite3_value>, type_info: SqliteTypeInfo) -> Self {
@@ -122,7 +122,7 @@ impl ValueHandle<'static> {
     }
 }
 
-impl<'a> ValueHandle<'a> {
+impl ValueHandle<'_> {
     fn new_borrowed(value: NonNull<sqlite3_value>, type_info: SqliteTypeInfo) -> Self {
         Self {
             value,
@@ -185,7 +185,7 @@ impl<'a> ValueHandle<'a> {
     }
 }
 
-impl<'a> Drop for ValueHandle<'a> {
+impl Drop for ValueHandle<'_> {
     fn drop(&mut self) {
         if self.free_on_drop {
             unsafe {

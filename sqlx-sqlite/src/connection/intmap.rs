@@ -103,7 +103,7 @@ impl<V: Default> IntMap<V> {
             *item = Some(V::default());
         }
 
-        return self.0[idx].as_mut().unwrap();
+        self.0[idx].as_mut().unwrap()
     }
 }
 

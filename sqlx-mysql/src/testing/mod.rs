@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_core::future::BoxFuture;
@@ -8,6 +9,7 @@ use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::fmt::Write;
 
 use crate::error::Error;
@@ -55,15 +57,16 @@ impl TestSupport for MySql {
 
             let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-            let mut command = String::new();
+            let mut command_arced = Arc::new(String::new());
 
             for db_name in &delete_db_names {
+                let command = Arc::get_mut(&mut command_arced).unwrap();
                 command.clear();
 
                 let db_name = format!("_sqlx_test_database_{db_name}");
 
                 writeln!(command, "drop database if exists {db_name:?};").ok();
-                match conn.execute(&*command).await {
+                match conn.execute(AssertSqlSafe(command_arced.clone())).await {
                     Ok(_deleted) => {
                         deleted_db_names.push(db_name);
                     }
@@ -162,7 +165,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(&format!("create database {db_name:?}")[..])
+    conn.execute(AssertSqlSafe(format!("create database {db_name:?}")))
         .await?;
 
     eprintln!("created database {db_name}");
@@ -187,7 +190,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 
 async fn do_cleanup(conn: &mut MySqlConnection, db_name: &str) -> Result<(), Error> {
     let delete_db_command = format!("drop database if exists {db_name:?};");
-    conn.execute(&*delete_db_command).await?;
+    conn.execute(AssertSqlSafe(delete_db_command)).await?;
     query("delete from _sqlx_test.databases where db_name = $1::text")
         .bind(db_name)
         .execute(&mut *conn)
