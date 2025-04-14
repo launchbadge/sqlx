@@ -63,7 +63,7 @@ impl<'r> Decode<'r, Postgres> for PgPolygon {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgPolygon {
+impl Encode<'_, Postgres> for PgPolygon {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("polygon"))
     }

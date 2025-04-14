@@ -54,7 +54,7 @@ impl<'r> Decode<'r, Postgres> for PgCircle {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgCircle {
+impl Encode<'_, Postgres> for PgCircle {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("circle"))
     }

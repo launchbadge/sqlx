@@ -580,7 +580,7 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     conn.shrink_buffers();
 
     let ret: i64 = sqlx::query_scalar("SELECT ?")
-        .bind(&12345678i64)
+        .bind(12345678i64)
         .fetch_one(&mut conn)
         .await?;
 
