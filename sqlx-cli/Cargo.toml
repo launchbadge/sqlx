@@ -50,8 +50,8 @@ backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]
-rustls = ["sqlx/runtime-tokio-rustls"]
-native-tls = ["sqlx/runtime-tokio-native-tls"]
+rustls = ["sqlx/tls-rustls"]
+native-tls = ["sqlx/tls-native-tls"]
 
 # databases
 mysql = ["sqlx/mysql"]
