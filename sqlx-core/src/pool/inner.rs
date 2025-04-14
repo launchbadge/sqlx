@@ -451,13 +451,15 @@ pub(super) fn is_beyond_max_lifetime<DB: Database>(
     options: &PoolOptions<DB>,
 ) -> bool {
     options
-        .max_lifetime.is_some_and(|max| live.created_at.elapsed() > max)
+        .max_lifetime
+        .is_some_and(|max| live.created_at.elapsed() > max)
 }
 
 /// Returns `true` if the connection has exceeded `options.idle_timeout` if set, `false` otherwise.
 fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> bool {
     options
-        .idle_timeout.is_some_and(|timeout| idle.idle_since.elapsed() > timeout)
+        .idle_timeout
+        .is_some_and(|timeout| idle.idle_since.elapsed() > timeout)
 }
 
 async fn check_idle_conn<DB: Database>(

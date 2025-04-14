@@ -231,7 +231,7 @@ fn test_encode_interval() {
         microseconds: 0,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -243,7 +243,7 @@ fn test_encode_interval() {
         microseconds: 1_000,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 0, 3, 232, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -255,7 +255,7 @@ fn test_encode_interval() {
         microseconds: 1_000_000,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 15, 66, 64, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -267,7 +267,7 @@ fn test_encode_interval() {
         microseconds: 3_600_000_000,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(
@@ -282,7 +282,7 @@ fn test_encode_interval() {
         microseconds: 0,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
@@ -294,7 +294,7 @@ fn test_encode_interval() {
         microseconds: 0,
     };
     assert!(matches!(
-        Encode::<Postgres>::encode(&interval, &mut buf),
+        Encode::<Postgres>::encode(interval, &mut buf),
         Ok(IsNull::No)
     ));
     assert_eq!(&**buf, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
