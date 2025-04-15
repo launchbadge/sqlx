@@ -7,17 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.5 - 2025-04-14
 
-Hotfix release to address [[#3823]]: `sqlx-cli@0.8.4` broke `.env` default resolution mechanism
+Hotfix release to address two new issues:
+* [[#3823]]: `sqlx-cli@0.8.4` broke `.env` default resolution mechanism
+* [[#3825]]: `sqlx@0.8.4` broke test fixture setup
 
-Despite this bug only affecting the `sqlx-cli` crate, the `0.8.4` release will be yanked wholesale to avoid confusion.
+The `0.8.4` release will be yanked as of publishing this one.
 
 # Added
 * In release PR: `sqlx-cli` now accepts `--no-dotenv` in subcommand arguments.
 * In release PR: added functionality tests for `sqlx-cli` to CI.
+* In release PR: test `#[sqlx::test]` twice in CI to cover cleanup.
 
 # Fixed
 * In release PR: `sqlx-cli` correctly reads `.env` files by default again.
-    * Addresses regression caused by [[#3724]].
+  * Addresses [[#3823]].
+* In release PR: fix bugs in MySQL implementation of `#[sqlx::test]`.
+  * Addresses [[#3825]].
+
+[#3823]: https://github.com/launchbadge/sqlx/issues/3823
+[#3825]: https://github.com/launchbadge/sqlx/issues/3825
 
 ## 0.8.4 - 2025-04-13
 
