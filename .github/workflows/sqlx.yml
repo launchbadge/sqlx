@@ -144,7 +144,23 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,macros,${{ matrix.linking }},${{ matrix.linking == 'sqlite' && 'sqlite-preupdate-hook,' || ''}}_unstable-all-types,runtime-${{ matrix.runtime }}
+          --features any,macros,migrate,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }},${{ matrix.linking == 'sqlite' && 'sqlite-preupdate-hook' || ''}}
+          --
+          --test-threads=1
+        env:
+          DATABASE_URL: sqlite:tests/sqlite/sqlite.db
+          SQLX_OFFLINE_DIR: .sqlx
+          RUSTFLAGS: --cfg sqlite_ipaddr --cfg sqlite_test_sqlcipher
+          LD_LIBRARY_PATH: /tmp/sqlite3-lib
+
+      # Run the `test-attr` test again to cover cleanup.
+      # The `sqlite-test-attr` test requires the `sqlite` feature.
+      - if: ${{ matrix.linking == 'sqlite' }}
+        run: >
+          cargo test
+          --test sqlite-test-attr
+          --no-default-features
+          --features any,macros,migrate,${{ matrix.linking }},_unstable-all-types,runtime-${{ matrix.runtime }},${{ matrix.linking == 'sqlite' && 'sqlite-preupdate-hook' || ''}}
           --
           --test-threads=1
         env:
@@ -202,7 +218,10 @@ jobs:
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
           RUSTFLAGS: -D warnings --cfg postgres_${{ matrix.postgres }}
-        run: cargo build --features postgres,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+        run: >
+          cargo build 
+          --no-default-features
+          --features postgres,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros,migrate
 
       - run: |
           docker compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
@@ -213,6 +232,19 @@ jobs:
 
       - run: >
           cargo test
+          --no-default-features
+          --features any,postgres,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
+          SQLX_OFFLINE_DIR: .sqlx
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+
+      # Run the `test-attr` test again to cover cleanup.
+      - run: >
+          cargo test
+          --test postgres-test-attr
           --no-default-features
           --features any,postgres,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
@@ -310,7 +342,18 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+        env:
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx?ssl-mode=disabled
+          SQLX_OFFLINE_DIR: .sqlx
+          RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
+
+      # Run the `test-attr` test again to cover cleanup.
+      - run: >
+          cargo test
+          --test mysql-test-attr
+          --no-default-features
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx?ssl-mode=disabled
           SQLX_OFFLINE_DIR: .sqlx
@@ -321,7 +364,7 @@ jobs:
         run: >
           cargo test
           --no-default-features
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE_DIR: .sqlx
@@ -335,7 +378,7 @@ jobs:
           cargo build
           --no-default-features
           --test mysql-macros
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
@@ -347,7 +390,7 @@ jobs:
           cargo test
           --no-default-features
           --test mysql-macros
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE: true
@@ -366,7 +409,7 @@ jobs:
         run: >
           cargo test
           --no-default-features
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
           RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
@@ -399,7 +442,18 @@ jobs:
       - run: >
           cargo test
           --no-default-features
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+        env:
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+          SQLX_OFFLINE_DIR: .sqlx
+          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+
+      # Run the `test-attr` test again to cover cleanup.
+      - run: >
+          cargo test
+          --test mysql-test-attr
+          --no-default-features
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE_DIR: .sqlx
@@ -413,7 +467,7 @@ jobs:
           cargo build
           --no-default-features
           --test mysql-macros
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
@@ -424,7 +478,7 @@ jobs:
           cargo test
           --no-default-features
           --test mysql-macros
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE: true
@@ -443,7 +497,7 @@ jobs:
         run: >
           cargo test
           --no-default-features
-          --features any,mysql,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
+          --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
           RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}

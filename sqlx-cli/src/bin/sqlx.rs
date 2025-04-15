@@ -4,11 +4,10 @@ use sqlx_cli::Opt;
 
 #[tokio::main]
 async fn main() {
-    let opt = Opt::parse();
+    // Checks for `--no-dotenv` before parsing.
+    sqlx_cli::maybe_apply_dotenv();
 
-    if !opt.no_dotenv {
-        dotenvy::dotenv().ok();
-    }
+    let opt = Opt::parse();
 
     // no special handling here
     if let Err(error) = sqlx_cli::run(opt).await {
