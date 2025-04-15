@@ -13,12 +13,12 @@ Hotfix release to address two new issues:
 
 The `0.8.4` release will be yanked as of publishing this one.
 
-# Added
+### Added
 * In release PR: `sqlx-cli` now accepts `--no-dotenv` in subcommand arguments.
 * In release PR: added functionality tests for `sqlx-cli` to CI.
 * In release PR: test `#[sqlx::test]` twice in CI to cover cleanup.
 
-# Fixed
+### Fixed
 * In release PR: `sqlx-cli` correctly reads `.env` files by default again.
   * Addresses [[#3823]].
 * In release PR: fix bugs in MySQL implementation of `#[sqlx::test]`.
