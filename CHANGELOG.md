@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.8.5 - 2025-04-14
+
+Hotfix release to address [[#3823]]: `sqlx-cli@0.8.4` broke `.env` default resolution mechanism
+
+Despite this bug only affecting the `sqlx-cli` crate, the `0.8.4` release will be yanked wholesale to avoid confusion.
+
+# Added
+* In release PR: `sqlx-cli` now accepts `--no-dotenv` in subcommand arguments.
+* In release PR: added functionality tests for `sqlx-cli` to CI.
+
+# Fixed
+* In release PR: `sqlx-cli` correctly reads `.env` files by default again.
+    * Addresses regression caused by [[#3724]].
+
 ## 0.8.4 - 2025-04-13
 
 50 pull requests were merged this release cycle.
