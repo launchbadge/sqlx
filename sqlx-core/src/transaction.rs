@@ -11,7 +11,6 @@ use crate::pool::MaybePoolConnection;
 /// Generic management of database transactions.
 ///
 /// This trait should not be used, except when implementing [`Connection`].
-#[doc(hidden)]
 pub trait TransactionManager {
     type Database: Database;
 
