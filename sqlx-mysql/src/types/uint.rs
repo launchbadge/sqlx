@@ -1,3 +1,4 @@
+use crate::collation::Collation;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -10,6 +11,7 @@ fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
     MySqlTypeInfo {
         r#type: ty,
         flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
+        collation: Collation::binary,
         max_size: None,
     }
 }
