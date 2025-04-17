@@ -41,6 +41,7 @@ impl<S: Socket> MySqlStream<S> {
         socket: S,
     ) -> Self {
         let mut capabilities = Capabilities::PROTOCOL_41
+            | Capabilities::LOCAL_FILES
             | Capabilities::IGNORE_SPACE
             | Capabilities::DEPRECATE_EOF
             | Capabilities::FOUND_ROWS
@@ -124,6 +125,15 @@ impl<S: Socket> MySqlStream<S> {
     {
         self.socket
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
+    }
+
+    /// Send an empty packet to the database server, keeping in mind the sequence ID
+    ///
+    /// This is used to indicate that we are done sending data for a LOCAL INFILE query
+    pub(crate) async fn send_empty_response(&mut self) -> Result<(), Error> {
+        self.write_packet(&[][..]);
+        self.flush().await?;
+        Ok(())
     }
 
     async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
