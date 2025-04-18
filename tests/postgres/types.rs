@@ -1,8 +1,11 @@
 extern crate time_ as time;
 
+use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -693,6 +696,17 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+
+test_type!(test_arc<Arc<i32>>(Postgres, "1::INT4" == Arc::new(1i32)));
+test_type!(test_cow<Cow<'_, i32>>(Postgres, "1::INT4" == Cow::<i32>::Owned(1i32)));
+test_type!(test_box<Box<i32>>(Postgres, "1::INT4" == Box::new(1i32)));
+test_type!(test_rc<Rc<i32>>(Postgres, "1::INT4" == Rc::new(1i32)));
+
+test_type!(test_box_str<Box<str>>(Postgres, "'John'::TEXT" == Box::<str>::from("John")));
+test_type!(test_cow_str<Cow<'_, str>>(Postgres, "'Phil'::TEXT" == Cow::<'static, str>::from("Phil")));
+
+test_prepared_type!(test_box_slice<Box<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Box::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_cow_slice<Cow<'_, [u8]>>(Postgres, "'\\x01020304'::BYTEA" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {
