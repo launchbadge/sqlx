@@ -37,17 +37,27 @@ pub trait IntoArguments<'q, DB: Database>: Sized + Send {
 #[macro_export]
 macro_rules! impl_into_arguments_for_arguments {
     ($Arguments:path) => {
-        impl<'q>
-            $crate::arguments::IntoArguments<
-                'q,
-                <$Arguments as $crate::arguments::Arguments<'q>>::Database,
-            > for $Arguments
-        {
-            fn into_arguments(self) -> $Arguments {
-                self
-            }
-        }
+        // impl<'q>
+        //     $crate::arguments::IntoArguments<
+        //         'q,
+        //         <$Arguments as $crate::arguments::Arguments<'q>>::Database,
+        //     > for $Arguments
+        // {
+        //     fn into_arguments(self) -> $Arguments {
+        //         self
+        //     }
+        // }
     };
+}
+
+impl<'q, DB, T> IntoArguments<'q, DB> for T
+where
+    DB: Database,
+    T: Arguments<'q, Database = DB> + Into<<DB as Database>::Arguments<'q>>,
+{
+    fn into_arguments(self) -> <DB as Database>::Arguments<'q> {
+        self.into()
+    }
 }
 
 /// used by the query macros to prevent supernumerary `.bind()` calls
