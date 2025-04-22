@@ -9,7 +9,7 @@ use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
 
 use crate::type_info::PgArrayOf;
-pub(crate) use sqlx_core::arguments::{Arguments, IntoArguments};
+pub(crate) use sqlx_core::arguments::Arguments;
 use sqlx_core::error::BoxDynError;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
