@@ -302,6 +302,11 @@ path = "benches/sqlite/describe.rs"
 harness = false
 required-features = ["sqlite"]
 
+[[test]]
+name = "generic-sqlite"
+path = "tests/generic/sqlite.rs"
+required-features = ["sqlite", "macros"]
+
 #
 # MySQL
 #
@@ -350,6 +355,11 @@ required-features = ["mysql", "macros", "migrate"]
 name = "mysql-rustsec"
 path = "tests/mysql/rustsec.rs"
 required-features = ["mysql"]
+
+[[test]]
+name = "generic-mysql"
+path = "tests/generic/mysql.rs"
+required-features = ["mysql", "macros"]
 
 #
 # PostgreSQL
@@ -405,3 +415,8 @@ required-features = ["postgres"]
 name = "postgres-rustsec"
 path = "tests/postgres/rustsec.rs"
 required-features = ["postgres", "macros", "migrate"]
+
+[[test]]
+name = "generic-postgres"
+path = "tests/generic/postgres.rs"
+required-features = ["postgres", "macros"]
