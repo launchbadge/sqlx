@@ -143,7 +143,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
     let migrations = match args.migrations {
         MigrationsOpt::ExplicitPath(path) => {
-            let migrator = crate::migrate::expand_migrator_from_lit_dir(path)?;
+            let migrator = crate::migrate::expand_migrator_from_lit_dir(path, None)?;
             quote! { args.migrator(&#migrator); }
         }
         MigrationsOpt::InferredPath if !inputs.is_empty() => {
@@ -151,7 +151,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
                 crate::common::resolve_path("./migrations", proc_macro2::Span::call_site())?;
 
             if migrations_path.is_dir() {
-                let migrator = crate::migrate::expand_migrator(&migrations_path)?;
+                let migrator = crate::migrate::expand_migrator(&migrations_path, None)?;
                 quote! { args.migrator(&#migrator); }
             } else {
                 quote! {}

@@ -1,0 +1,8 @@
+error: proc macro panicked
+ --> tests/ui/migrate/missing_parameter.rs:4:5
+  |
+4 |     sqlx::migrate!("../../../../tests/ui/migrate/migrations", parameters = [("my_user", "scooby"), ("fooby", _shaggy)]);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: Missing substitution parameter: NoSuchVariable(NoSuchVariable { position: 50, name: "my_password" })
+  = note: this error originates in the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)

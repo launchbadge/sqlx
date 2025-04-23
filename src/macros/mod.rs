@@ -809,11 +809,19 @@ macro_rules! query_file_scalar_unchecked (
 #[cfg(feature = "migrate")]
 #[macro_export]
 macro_rules! migrate {
-    ($dir:literal) => {{
-        $crate::sqlx_macros::migrate!($dir)
-    }};
-
-    () => {{
+    ($directory:literal, parameters = $parameters:expr) => {
+        $crate::sqlx_macros::migrate!(($directory, $parameters));
+    };
+    // Match when only parameters are provided
+    (parameters = $parameters:expr) => {
+        $crate::sqlx_macros::migrate!(("./migrations", $parameters));
+    };
+    // Match when only the directory is provided
+    ($dir:literal) => {
+        $crate::sqlx_macros::migrate!($dir);
+    };
+    // Match when no arguments are provided
+    () => {
         $crate::sqlx_macros::migrate!("./migrations")
-    }};
+    };
 }
