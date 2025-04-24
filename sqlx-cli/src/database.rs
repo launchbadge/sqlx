@@ -57,7 +57,16 @@ pub async fn reset(
 
 pub async fn setup(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     create(connect_opts).await?;
-    migrate::run(migration_source, connect_opts, false, false, None, false, Vec::with_capacity(0)).await
+    migrate::run(
+        migration_source,
+        connect_opts,
+        false,
+        false,
+        None,
+        false,
+        Vec::with_capacity(0),
+    )
+    .await
 }
 
 async fn ask_to_continue_drop(db_url: String) -> bool {

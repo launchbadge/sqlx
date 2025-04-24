@@ -102,8 +102,6 @@ pub(crate) fn expand_migrator(
     path: &Path,
     parameters: Option<HashMap<String, String>>,
 ) -> crate::Result<TokenStream> {
-    const ENABLE_SUBSTITUTION: &str = "-- enable-substitution";
-    const DISABLE_SUBSTITUTION: &str = "-- disable-substitution";
     let path = path.canonicalize().map_err(|e| {
         format!(
             "error canonicalizing migration directory {}: {e}",
@@ -112,23 +110,12 @@ pub(crate) fn expand_migrator(
     })?;
 
     // Use the same code path to resolve migrations at compile time and runtime.
-    let mut substitution_enabled = false;
     let migrations = sqlx_core::migrate::resolve_blocking(&path)?
         .into_iter()
         .map(|(migration, path)| {
             if let Some(ref params) = parameters {
-                for line in migration.sql.lines() {
-                    let trimmed_line = line.trim();
-                    if trimmed_line == ENABLE_SUBSTITUTION {
-                        substitution_enabled = true;
-                        continue;
-                    } else if trimmed_line == DISABLE_SUBSTITUTION {
-                        substitution_enabled = false;
-                        continue;
-                    }
-                    if substitution_enabled {
-                        subst::substitute(line, params).expect("Missing substitution parameter");
-                    } 
+                if let Err(e) = migration.process_parameters(params) {
+                    panic!("Error processing parameters: {e}");
                 }
             }
             QuoteMigration { migration, path }

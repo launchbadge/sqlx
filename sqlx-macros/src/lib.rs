@@ -71,20 +71,21 @@ pub fn migrate(input: TokenStream) -> TokenStream {
 
     // Extract directory path, handling both direct literals and grouped literals
     fn extract_dir(expr: Option<Expr>) -> LitStr {
-        if let Some(Expr::Lit(ExprLit {
-            lit: Lit::Str(lit_str),
-            ..
-        })) = expr
-        {
-            return lit_str;
-        } else if let Some(Expr::Group(group)) = expr {
-            if let Expr::Lit(ExprLit {
-                lit: Lit::Str(lit_str),
+        match expr {
+            Some(Expr::Lit(ExprLit {
+                lit: Lit::Str(literal),
                 ..
-            }) = *group.expr
-            {
-                return lit_str;
+            })) => return literal,
+            Some(Expr::Group(group)) => {
+                if let Expr::Lit(ExprLit {
+                    lit: Lit::Str(literal),
+                    ..
+                }) = *group.expr
+                {
+                    return literal;
+                }
             }
+            _ => {}
         }
         panic!("Expected a string literal for the directory path.");
     }

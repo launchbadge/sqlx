@@ -40,6 +40,9 @@ pub enum MigrateError {
     )]
     Dirty(i64),
 
-    #[error("migration {0} was missing a parameter")]
-    MissingParameter(String),
+    #[error("migration {0} was missing a parameter '{1}' at line {2}, column {3}")]
+    MissingParameter(String, String, usize, usize),
+
+    #[error("Invalid parameter syntax {0}")]
+    InvalidParameterSyntax(String),
 }

@@ -37,6 +37,21 @@ impl Migration {
         }
     }
 
+    fn name(&self) -> String {
+        let description = self.description.replace(' ', "_");
+        match self.migration_type {
+            MigrationType::Simple => {
+                format!("{}_{}", self.version, description)
+            }
+            MigrationType::ReversibleUp => {
+                format!("{}_{}.{}", self.version, description, "up")
+            }
+            MigrationType::ReversibleDown => {
+                format!("{}_{}.{}", self.version, description, "down")
+            }
+        }
+    }
+
     pub fn process_parameters(
         &self,
         params: &HashMap<String, String>,
@@ -69,8 +84,13 @@ impl Migration {
             }
 
             if substitution_enabled {
-                let substituted_line = subst::substitute(line, params)
-                    .map_err(|e| MigrateError::MissingParameter(e.to_string()))?;
+                let substituted_line = subst::substitute(line, params).map_err(|e| match e {
+                    subst::Error::NoSuchVariable(subst::error::NoSuchVariable {
+                        position,
+                        name,
+                    }) => MigrateError::MissingParameter(self.name(), name, i + 1, position),
+                    _ => MigrateError::InvalidParameterSyntax(e.to_string()),
+                })?;
                 new_sql.push_str(&substituted_line);
             } else {
                 new_sql.push_str(line);
@@ -191,7 +211,8 @@ mod test {
     }
 
     #[test]
-    fn test_migration_process_parameters_missing_key_with_default_value() -> Result<(), MigrateError> {
+    fn test_migration_process_parameters_missing_key_with_default_value() -> Result<(), MigrateError>
+    {
         const CREATE_TABLE: &str = r#"
             -- enable-substitution
             CREATE TABLE foo (

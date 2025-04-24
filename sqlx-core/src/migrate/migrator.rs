@@ -74,7 +74,10 @@ impl Migrator {
         K: Into<String>,
         V: Into<String>,
     {
-        let map: HashMap<String, String> = params.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
+        let map: HashMap<String, String> = params
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
         self.template_params = Some(map);
         self
     }
@@ -113,8 +116,11 @@ impl Migrator {
         self
     }
 
-    /// Specify whether template parameters for migrations should be read from the environment 
-    pub fn set_template_parameters_from_env(&mut self, template_paramaters_from_env: bool) -> &Self {
+    /// Specify whether template parameters for migrations should be read from the environment
+    pub fn set_template_parameters_from_env(
+        &mut self,
+        template_paramaters_from_env: bool,
+    ) -> &Self {
         self.template_parameters_from_env = template_paramaters_from_env;
         self
     }
@@ -196,7 +202,6 @@ impl Migrator {
             .into_iter()
             .map(|m| (m.version, m))
             .collect();
-
 
         let env_params = if self.template_parameters_from_env {
             Some(std::env::vars().collect())

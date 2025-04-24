@@ -4,5 +4,5 @@ error: proc macro panicked
 4 |     sqlx::migrate!("../../../../tests/ui/migrate/migrations", parameters = [("my_user", "scooby"), ("fooby", _shaggy)]);
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = help: message: Missing substitution parameter: NoSuchVariable(NoSuchVariable { position: 50, name: "my_password" })
+  = help: message: Error processing parameters: migration 20250423195520_create_users.up was missing a parameter 'my_password' at line 3, column 50
   = note: this error originates in the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)
