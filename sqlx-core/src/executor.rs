@@ -1,3 +1,4 @@
+use crate::arguments::IntoArguments;
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::{BoxDynError, Error};
@@ -210,6 +211,16 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     fn persistent(&self) -> bool;
 }
 
+pub trait ExecuteEx<'q, DB: Database, A: IntoArguments<'q, DB>>: Execute<'q, DB> {
+    /// Replaces the arguments to be bound against the query string.
+    ///
+    /// See [`Execute::take_arguments`] for the return value considerations
+    fn replace_arguments(
+        &mut self,
+        arguments: A,
+    ) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError>;
+}
+
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
 //       involved to write `conn.execute(format!("SELECT {val}"))`
 impl<'q, DB: Database> Execute<'q, DB> for &'q str {
@@ -253,5 +264,17 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as Database>::Ar
     #[inline]
     fn persistent(&self) -> bool {
         true
+    }
+}
+
+impl<'q, DB: Database, A: IntoArguments<'q, DB>> ExecuteEx<'q, DB, A>
+    for (&'q str, Option<<DB as Database>::Arguments<'q>>)
+{
+    #[inline]
+    fn replace_arguments(
+        &mut self,
+        arguments: A,
+    ) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(self.1.replace(arguments.into_arguments()))
     }
 }

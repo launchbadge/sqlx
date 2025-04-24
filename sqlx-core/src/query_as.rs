@@ -8,7 +8,7 @@ use crate::arguments::IntoArguments;
 use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::{BoxDynError, Error};
-use crate::executor::{Execute, Executor};
+use crate::executor::{Execute, ExecuteEx, Executor};
 use crate::from_row::FromRow;
 use crate::query::{query, query_statement, query_statement_with, query_with_result, Query};
 use crate::types::Type;
@@ -44,6 +44,20 @@ where
     #[inline]
     fn persistent(&self) -> bool {
         self.inner.persistent()
+    }
+}
+
+impl<'q, DB, O: Send, A: Send> ExecuteEx<'q, DB, A> for QueryAs<'q, DB, O, A>
+where
+    DB: Database,
+    A: 'q + IntoArguments<'q, DB>,
+{
+    #[inline]
+    fn replace_arguments(
+        &mut self,
+        arguments: A,
+    ) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        self.inner.replace_arguments(arguments)
     }
 }
 

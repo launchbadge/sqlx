@@ -8,7 +8,7 @@ use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::{BoxDynError, Error};
-use crate::executor::{Execute, Executor};
+use crate::executor::{Execute, ExecuteEx, Executor};
 use crate::statement::Statement;
 use crate::types::Type;
 
@@ -69,6 +69,23 @@ where
     #[inline]
     fn persistent(&self) -> bool {
         self.persistent
+    }
+}
+
+impl<'q, DB, A> ExecuteEx<'q, DB, A> for Query<'q, DB, A>
+where
+    DB: Database,
+    A: Send + IntoArguments<'q, DB>,
+{
+    #[inline]
+    fn replace_arguments(
+        &mut self,
+        arguments: A,
+    ) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        self.arguments
+            .replace(Ok(arguments))
+            .transpose()
+            .map(|option| option.map(IntoArguments::into_arguments))
     }
 }
 
@@ -320,6 +337,20 @@ where
     #[inline]
     fn persistent(&self) -> bool {
         self.inner.arguments.is_some()
+    }
+}
+
+impl<'q, DB, F: Send, A: Send> ExecuteEx<'q, DB, A> for Map<'q, DB, F, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
+    #[inline]
+    fn replace_arguments(
+        &mut self,
+        arguments: A,
+    ) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        self.inner.replace_arguments(arguments)
     }
 }
 
