@@ -53,10 +53,12 @@ rustls = ["sqlx/runtime-tokio-rustls"]
 native-tls = ["sqlx/runtime-tokio-native-tls"]
 
 # databases
+_sqlite = []
+
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
-sqlite = ["sqlx/sqlite"]
-sqlite-unbundled = ["sqlx/sqlite-unbundled"]
+sqlite = ["_sqlite", "sqlx/sqlite"]
+sqlite-unbundled = ["_sqlite", "sqlx/sqlite-unbundled"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
