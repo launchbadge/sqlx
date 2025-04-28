@@ -65,6 +65,18 @@ any scripts that are still pending.
 
 ---
 
+Users can also provide parameters through environment variables or pass them in manually.
+
+```bash
+sqlx migrate run --params-from-env
+```
+
+```bash
+sqlx migrate run --params key:value,key1,value1
+```
+
+---
+
 Users can provide the directory for the migration scripts to `sqlx migrate` subcommands with the `--source` flag.
 
 ```bash
@@ -103,6 +115,16 @@ Applied 20211001154420/revert <name>
 $ sqlx migrate add <name1>
 Creating migrations/20211001154420_<name>.up.sql
 Creating migrations/20211001154420_<name>.down.sql
+```
+
+Users can also provide parameters through environment variables or pass them in manually, just as they did with the run command.
+
+```bash
+sqlx migrate revert --params-from-env
+```
+
+```bash
+sqlx migrate revert --params key:value,key1,value1
 ```
 
 ### Enable building in "offline mode" with `query!()`

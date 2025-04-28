@@ -188,9 +188,9 @@ pub enum MigrateCommand {
         params_from_env: bool,
 
         #[clap(long, short, value_parser = parse_key_val::<String, String>, num_args = 1, value_delimiter=',')]
-        /// Provide template parameters for substitution in migrations, e.g. --parameters
+        /// Provide template parameters for substitution in migrations, e.g. --params
         /// key:value,key2:value2
-        parameters: Vec<(String, String)>,
+        params: Vec<(String, String)>,
     },
 
     /// Revert the latest migration with a down file.
@@ -213,6 +213,15 @@ pub enum MigrateCommand {
         /// at the target version, then no-op.
         #[clap(long)]
         target_version: Option<i64>,
+
+        #[clap(long)]
+        /// Template parameters for substitution in migrations from environment variables
+        params_from_env: bool,
+
+        #[clap(long, short, value_parser = parse_key_val::<String, String>, num_args = 1, value_delimiter=',')]
+        /// Provide template parameters for substitution in migrations, e.g. --params
+        /// key:value,key2:value2
+        params: Vec<(String, String)>,
     },
 
     /// List all available migrations.
