@@ -280,7 +280,6 @@ pub async fn run(
     params_from_env: bool,
     parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
-    println!("parameters {:#?}", parameters);
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
