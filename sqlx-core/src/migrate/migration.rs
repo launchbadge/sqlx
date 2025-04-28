@@ -202,7 +202,7 @@ mod test {
             Cow::Owned(CREATE_TABLE.to_string()),
             true,
         );
-        let Err(MigrateError::MissingParameter(_)) =
+        let Err(MigrateError::MissingParameter(..)) =
             migration.process_parameters(&HashMap::with_capacity(0))
         else {
             panic!("Missing env var not caught in process parameters missing env var")
