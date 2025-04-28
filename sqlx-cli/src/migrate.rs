@@ -280,6 +280,7 @@ pub async fn run(
     params_from_env: bool,
     parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
+    println!("parameters {:#?}", parameters);
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
@@ -341,12 +342,12 @@ pub async fn run(
 
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
+                } else if params_from_env {
+                    conn.apply(&migration.process_parameters(&env_params)?)
+                        .await?
+                } else if !params.is_empty() {
+                    conn.apply(&migration.process_parameters(&params)?).await?
                 } else {
-                    if params_from_env {
-                        migration.process_parameters(&env_params)?;
-                    } else if !params.is_empty() {
-                        migration.process_parameters(&params)?;
-                    }
                     conn.apply(migration).await?
                 };
                 let text = if skip {
@@ -446,12 +447,12 @@ pub async fn revert(
 
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
+            } else if params_from_env {
+                conn.revert(&migration.process_parameters(&env_params)?)
+                    .await?
+            } else if !params.is_empty() {
+                conn.revert(&migration.process_parameters(&params)?).await?
             } else {
-                if params_from_env {
-                    migration.process_parameters(&env_params)?;
-                } else if !params.is_empty() {
-                    migration.process_parameters(&params)?;
-                }
                 conn.revert(migration).await?
             };
             let text = if skip {

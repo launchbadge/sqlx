@@ -222,11 +222,13 @@ impl Migrator {
                 }
                 None => {
                     if self.template_parameters_from_env {
-                        migration.process_parameters(env_params.as_ref().unwrap())?;
+                        conn.apply(&migration.process_parameters(env_params.as_ref().unwrap())?)
+                            .await?;
                     } else if let Some(params) = self.template_params.as_ref() {
-                        migration.process_parameters(params)?;
+                        conn.apply(&migration.process_parameters(params)?).await?;
+                    } else {
+                        conn.apply(migration).await?;
                     }
-                    conn.apply(migration).await?;
                 }
             }
         }
@@ -300,11 +302,13 @@ impl Migrator {
             .filter(|m| m.version > target)
         {
             if self.template_parameters_from_env {
-                migration.process_parameters(env_params.as_ref().unwrap())?;
+                conn.revert(&migration.process_parameters(env_params.as_ref().unwrap())?)
+                    .await?;
             } else if let Some(params) = self.template_params.as_ref() {
-                migration.process_parameters(params)?;
+                conn.revert(&migration.process_parameters(params)?).await?;
+            } else {
+                conn.revert(migration).await?;
             }
-            conn.revert(migration).await?;
         }
 
         // unlock the migrator to allow other migrators to run
