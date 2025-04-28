@@ -286,6 +286,12 @@ impl Migrator {
             .map(|m| (m.version, m))
             .collect();
 
+        let env_params = if self.template_parameters_from_env {
+            Some(std::env::vars().collect())
+        } else {
+            None
+        };
+
         for migration in self
             .iter()
             .rev()
@@ -293,6 +299,11 @@ impl Migrator {
             .filter(|m| applied_migrations.contains_key(&m.version))
             .filter(|m| m.version > target)
         {
+            if self.template_parameters_from_env {
+                migration.process_parameters(env_params.as_ref().unwrap())?;
+            } else if let Some(params) = self.template_params.as_ref() {
+                migration.process_parameters(params)?;
+            }
             conn.revert(migration).await?;
         }
 
