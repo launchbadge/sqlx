@@ -139,6 +139,12 @@ pub fn migrate(input: TokenStream) -> TokenStream {
             let mut elems = elems.into_iter();
             (extract_dir(elems.next()), elems.next())
         }
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(lit_str),
+            ..
+        }) => {
+            (lit_str, None)
+        }
         Expr::Group(group) => {
             if let Expr::Lit(ExprLit {
                 lit: Lit::Str(lit_str),
