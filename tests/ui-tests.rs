@@ -47,7 +47,9 @@ fn ui_tests() {
 
 #[test]
 fn ui_migrate_tests() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/ui/migrate/invalid_key.rs");
-    t.compile_fail("tests/ui/migrate/missing_parameter.rs");
+    if cfg!(feature = "migrate") {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/ui/migrate/invalid_key.rs");
+        t.compile_fail("tests/ui/migrate/missing_parameter.rs");
+    }
 }
