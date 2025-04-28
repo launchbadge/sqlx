@@ -133,7 +133,9 @@ use sqlx::{PgPool, Row};
 #       migrations: Cow::Borrowed(&[]),
 #       ignore_missing: false,
 #       locking: true,
-#       no_tx: false
+#       no_tx: false,
+#       template_params: None,
+#       template_parameters_from_env: false,
 #   };
 # } 
 
