@@ -4,17 +4,16 @@ use std::time::Duration;
 
 use futures_core::future::BoxFuture;
 
+use crate::error::Error;
+use crate::executor::Executor;
+use crate::pool::{Pool, PoolOptions};
+use crate::query::query;
+use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
 use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
 use std::fmt::Write;
-
-use crate::error::Error;
-use crate::executor::Executor;
-use crate::pool::{Pool, PoolOptions};
-use crate::query::query;
-use crate::{MySql, MySqlConnectOptions, MySqlConnection};
 
 pub(crate) use sqlx_core::testing::*;
 
@@ -62,7 +61,7 @@ impl TestSupport for MySql {
 
                 let db_name = format!("_sqlx_test_database_{db_name}");
 
-                writeln!(command, "drop database if exists {db_name:?};").ok();
+                writeln!(command, "drop database if exists {db_name};").ok();
                 match conn.execute(&*command).await {
                     Ok(_deleted) => {
                         deleted_db_names.push(db_name);
@@ -141,14 +140,19 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 
     let mut conn = master_pool.acquire().await?;
 
+    cleanup_old_dbs(&mut conn).await?;
+
     // language=MySQL
     conn.execute(
         r#"
         create table if not exists _sqlx_test_databases (
-            db_name text primary key,
+            db_name text not null,
             test_path text not null,
-            created_at timestamp not null default current_timestamp
-        );
+            created_at timestamp not null default current_timestamp,
+            -- BLOB/TEXT columns can only be used as index keys with a prefix length:
+            -- https://dev.mysql.com/doc/refman/8.4/en/column-indexes.html#column-indexes-prefix
+            primary key(db_name(63))
+        );        
     "#,
     )
     .await?;
@@ -162,7 +166,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(&format!("create database {db_name:?}")[..])
+    conn.execute(&format!("create database {db_name}")[..])
         .await?;
 
     eprintln!("created database {db_name}");
@@ -186,11 +190,63 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 }
 
 async fn do_cleanup(conn: &mut MySqlConnection, db_name: &str) -> Result<(), Error> {
-    let delete_db_command = format!("drop database if exists {db_name:?};");
+    let delete_db_command = format!("drop database if exists {db_name};");
     conn.execute(&*delete_db_command).await?;
-    query("delete from _sqlx_test.databases where db_name = $1::text")
+    query("delete from _sqlx_test_databases where db_name = ?")
         .bind(db_name)
         .execute(&mut *conn)
+        .await?;
+
+    Ok(())
+}
+
+/// Pre <0.8.4, test databases were stored by integer ID.
+async fn cleanup_old_dbs(conn: &mut MySqlConnection) -> Result<(), Error> {
+    let res: Result<Vec<u64>, Error> = query_scalar("select db_id from _sqlx_test_databases")
+        .fetch_all(&mut *conn)
+        .await;
+
+    let db_ids = match res {
+        Ok(db_ids) => db_ids,
+        Err(e) => {
+            if let Some(dbe) = e.as_database_error() {
+                match dbe.downcast_ref::<MySqlDatabaseError>().number() {
+                    // Column `db_id` does not exist:
+                    // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html#error_er_bad_field_error
+                    //
+                    // The table has already been migrated.
+                    1054 => return Ok(()),
+                    // Table `_sqlx_test_databases` does not exist.
+                    // No cleanup needed.
+                    // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html#error_er_no_such_table
+                    1146 => return Ok(()),
+                    _ => (),
+                }
+            }
+
+            return Err(e);
+        }
+    };
+
+    // Drop old-style test databases.
+    for id in db_ids {
+        match conn
+            .execute(&*format!(
+                "drop database if exists _sqlx_test_database_{id}"
+            ))
+            .await
+        {
+            Ok(_deleted) => (),
+            // Assume a database error just means the DB is still in use.
+            Err(Error::Database(dbe)) => {
+                eprintln!("could not clean old test database _sqlx_test_database_{id}: {dbe}");
+            }
+            // Bubble up other errors
+            Err(e) => return Err(e),
+        }
+    }
+
+    conn.execute("drop table if exists _sqlx_test_databases")
         .await?;
 
     Ok(())

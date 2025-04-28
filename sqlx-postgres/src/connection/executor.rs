@@ -194,7 +194,6 @@ impl PgConnection {
         &'c mut self,
         query: &'q str,
         arguments: Option<PgArguments>,
-        limit: u8,
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
@@ -247,7 +246,9 @@ impl PgConnection {
             // the protocol-level limit acts nearly identically to the `LIMIT` in SQL
             self.inner.stream.write_msg(message::Execute {
                 portal: PortalId::UNNAMED,
-                limit: limit.into(),
+                // Non-zero limits cause query plan pessimization by disabling parallel workers:
+                // https://github.com/launchbadge/sqlx/issues/3673
+                limit: 0,
             })?;
             // From https://www.postgresql.org/docs/current/protocol-flow.html:
             //
@@ -393,7 +394,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
         Box::pin(try_stream! {
             let arguments = arguments?;
-            let mut s = pin!(self.run(sql, arguments, 0, persistent, metadata).await?);
+            let mut s = pin!(self.run(sql, arguments, persistent, metadata).await?);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);
@@ -419,7 +420,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let mut s = pin!(self.run(sql, arguments, 1, persistent, metadata).await?);
+            let mut s = pin!(self.run(sql, arguments, persistent, metadata).await?);
 
             // With deferred constraints we need to check all responses as we
             // could get a OK response (with uncommitted data), only to get an

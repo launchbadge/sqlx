@@ -21,6 +21,15 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
+/// Check arguments for `--no-dotenv` _before_ Clap parsing, and apply `.env` if not set.
+pub fn maybe_apply_dotenv() {
+    if std::env::args().any(|arg| arg == "--no-dotenv") {
+        return;
+    }
+
+    dotenvy::dotenv().ok();
+}
+
 pub async fn run(opt: Opt) -> Result<()> {
     // This `select!` is here so that when the process receives a `SIGINT` (CTRL + C),
     // the futures currently running on this task get dropped before the program exits.

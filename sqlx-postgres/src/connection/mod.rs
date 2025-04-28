@@ -31,6 +31,8 @@ mod stream;
 mod tls;
 
 /// A connection to a PostgreSQL database.
+///
+/// See [`PgConnectOptions`] for connection URL reference.
 pub struct PgConnection {
     pub(crate) inner: Box<PgConnectionInner>,
 }
