@@ -78,7 +78,7 @@ pub struct Drivers {
 pub struct SQLite {
     /// Specify extensions to load.
     ///
-    /// ### Example: Load the "uuid" and "vsv" extensions
+    /// # Example: Load the "uuid" and "vsv" extensions
     /// `sqlx.toml`:
     /// ```toml
     /// [common.drivers.sqlite]
