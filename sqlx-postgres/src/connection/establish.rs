@@ -76,9 +76,7 @@ impl PgConnection {
                         // password in clear-text form.
 
                         stream
-                            .send(Password::Cleartext(
-                                options.password.as_deref().unwrap_or_default(),
-                            ))
+                            .send(Password::Cleartext(options.password.get()?.as_ref()))
                             .await?;
                     }
 
@@ -91,7 +89,7 @@ impl PgConnection {
                         stream
                             .send(Password::Md5 {
                                 username: &options.username,
-                                password: options.password.as_deref().unwrap_or_default(),
+                                password: options.password.get()?.as_ref(),
                                 salt: body.salt,
                             })
                             .await?;

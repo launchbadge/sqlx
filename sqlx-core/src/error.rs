@@ -52,6 +52,10 @@ pub enum Error {
     #[error("error occurred while attempting to establish a TLS connection: {0}")]
     Tls(#[source] BoxDynError),
 
+    /// Password provider failed.
+    #[error("unable to provide a password: {0}")]
+    PasswordProvider(#[source] BoxDynError),
+
     /// Unexpected or invalid data encountered while communicating with the database.
     ///
     /// This should indicate there is a programming error in a SQLx driver or there

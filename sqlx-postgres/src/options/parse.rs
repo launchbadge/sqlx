@@ -127,7 +127,20 @@ impl PgConnectOptions {
         ))
         .expect("BUG: generated un-parseable URL");
 
-        if let Some(password) = &self.password {
+        let password = match self.password.get() {
+            Ok(password) => Some(password),
+            Err(err) => {
+                // XXX: This method is infallible. To avoid a backwards breaking
+                // change, we log a warning and then proceed with no password.
+                // The assumption is any use of this Url will result in a failed
+                // connection (which is an error _somewhere_) and this log line
+                // can be used as a breadcrumb.
+                tracing::warn!(%err, "unable to provide a password");
+                None
+            }
+        };
+
+        if let Some(password) = &password {
             let password = utf8_percent_encode(password, NON_ALPHANUMERIC).to_string();
             let _ = url.set_password(Some(&password));
         }
@@ -234,12 +247,13 @@ fn it_parses_user_correctly_from_parameter() {
 }
 
 #[test]
-fn it_parses_password_correctly_from_parameter() {
+fn it_parses_password_correctly_from_parameter() -> Result<(), Error> {
     let url = "postgres:///?password=some_pass";
     let opts = PgConnectOptions::from_str(url).unwrap();
 
     assert_eq!(None, opts.socket);
-    assert_eq!(Some("some_pass"), opts.password.as_deref());
+    assert_eq!("some_pass", opts.password.get()?.as_ref());
+    Ok(())
 }
 
 #[test]
@@ -259,11 +273,12 @@ fn it_parses_username_with_at_sign_correctly() {
 }
 
 #[test]
-fn it_parses_password_with_non_ascii_chars_correctly() {
+fn it_parses_password_with_non_ascii_chars_correctly() -> Result<(), Error> {
     let url = "postgres://username:p@ssw0rd@hostname:5432/database";
     let opts = PgConnectOptions::from_str(url).unwrap();
 
-    assert_eq!(Some("p@ssw0rd".into()), opts.password);
+    assert_eq!("p@ssw0rd", opts.password.get()?.as_ref());
+    Ok(())
 }
 
 #[test]

@@ -54,7 +54,7 @@ pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
 pub use message::PgSeverity;
-pub use options::{PgConnectOptions, PgSslMode};
+pub use options::{PasswordProvider, PgConnectOptions, PgSslMode};
 pub use query_result::PgQueryResult;
 pub use row::PgRow;
 pub use statement::PgStatement;

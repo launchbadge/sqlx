@@ -9,6 +9,7 @@ members = [
     #    "sqlx-bench",
     "sqlx-mysql",
     "sqlx-postgres",
+    "sqlx-aws",
     "sqlx-sqlite",
     "examples/mysql/todos",
     "examples/postgres/axum-social-with-tests",

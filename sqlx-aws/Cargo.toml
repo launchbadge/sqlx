@@ -1,0 +1,36 @@
+[package]
+name = "sqlx-aws"
+documentation = "https://docs.rs/sqlx"
+description = "AWS specific helpers for using sqlx."
+
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[features]
+default = ["dsql"]
+dsql = ["sqlx-postgres", "aws-sdk-dsql"]
+
+[dependencies]
+aws-config = { version = "1.6.2", default-features = false, features = ["behavior-version-latest"] }
+aws-sdk-dsql = { version = "1.16.0", default-features = false, optional = true }
+sqlx-core = { workspace = true }
+sqlx-postgres = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros"] }
+aws-config = { version = "1.6.2", features = ["behavior-version-latest"] }
+aws-sdk-dsql = { version = "1.16.0" }
+
+[lints]
+workspace = true
+
+[[example]]
+name = "dsql"
+features = ["dsql"]

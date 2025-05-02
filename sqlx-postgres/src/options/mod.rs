@@ -1,8 +1,11 @@
 use std::borrow::Cow;
 use std::env::var;
-use std::fmt::{Display, Write};
+use std::fmt::{self, Display, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use sqlx_core::error::BoxDynError;
+use sqlx_core::Error;
 pub use ssl_mode::PgSslMode;
 
 use crate::{connection::LogSettings, net::tls::CertificateInput};
@@ -12,6 +15,91 @@ mod parse;
 mod pgpass;
 mod ssl_mode;
 
+/// All the ways to provide a password.
+#[derive(Clone)]
+pub enum PasswordOption {
+    /// There is no password.
+    None,
+    /// The password is just a value.
+    // XXX: It is equally valid to provide a password via the next variant
+    // (`Provider`). This variant avoids allocations without using more memory
+    // (see the size test).
+    Value(String),
+    /// The password is dynamically loaded.
+    Provider(Arc<dyn PasswordProvider + Send + Sync + 'static>),
+}
+
+// XXX: Never log the password.
+impl fmt::Debug for PasswordOption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Value(_) => f.debug_tuple("Value").finish(),
+            Self::Provider(_) => f.debug_tuple("Provider").finish(),
+        }
+    }
+}
+
+impl PasswordOption {
+    /// True when [`PasswordOption::None`].
+    pub fn is_none(&self) -> bool {
+        matches!(self, PasswordOption::None)
+    }
+
+    /// Returns the password, or asks the provider.
+    pub fn get(&self) -> Result<Cow<'_, str>, Error> {
+        Ok(match self {
+            PasswordOption::None => Default::default(),
+            PasswordOption::Value(password) => Cow::Borrowed(&password[..]),
+            PasswordOption::Provider(provider) => provider
+                .password()
+                .map_err(Error::PasswordProvider)?,
+        })
+    }
+}
+
+impl From<&str> for PasswordOption {
+    fn from(value: &str) -> Self {
+        PasswordOption::Value(value.into())
+    }
+}
+
+impl From<&Cow<'_, str>> for PasswordOption {
+    fn from(value: &Cow<'_, str>) -> Self {
+        PasswordOption::Value(value.as_ref().to_string())
+    }
+}
+
+impl From<Option<String>> for PasswordOption {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(password) => PasswordOption::Value(password),
+            None => PasswordOption::None,
+        }
+    }
+}
+
+impl<P> From<P> for PasswordOption
+where
+    P: PasswordProvider + Send + Sync + 'static,
+{
+    fn from(value: P) -> Self {
+        PasswordOption::Provider(Arc::new(value))
+    }
+}
+
+/// Supports dynamic password retrieval.
+///
+/// Take note that providers are synchronous. This is an intentional design
+/// choice, because it discourages "lazy" (just in time) credential fetching
+/// which may be put on the connection path.
+///
+/// If you need to implement password retrieval asynchronously, consider
+/// spawning a task in your provider.
+pub trait PasswordProvider {
+    fn password(&self) -> Result<Cow<'_, str>, BoxDynError>;
+}
+
 #[doc = include_str!("doc.md")]
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
@@ -19,7 +107,7 @@ pub struct PgConnectOptions {
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
-    pub(crate) password: Option<String>,
+    pub(crate) password: PasswordOption,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
@@ -73,7 +161,7 @@ impl PgConnectOptions {
             host,
             socket: None,
             username,
-            password: var("PGPASSWORD").ok(),
+            password: var("PGPASSWORD").ok().into(),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
@@ -100,7 +188,8 @@ impl PgConnectOptions {
                 self.port,
                 &self.username,
                 self.database.as_deref(),
-            );
+            )
+            .into();
         }
 
         self
@@ -179,8 +268,8 @@ impl PgConnectOptions {
     ///     .username("root")
     ///     .password("safe-and-secure");
     /// ```
-    pub fn password(mut self, password: &str) -> Self {
-        self.password = Some(password.to_owned());
+    pub fn password(mut self, password: impl Into<PasswordOption>) -> Self {
+        self.password = password.into();
         self
     }
 
@@ -590,20 +679,72 @@ fn default_host(port: u16) -> String {
     "localhost".to_owned()
 }
 
-#[test]
-fn test_options_formatting() {
-    let options = PgConnectOptions::new().options([("geqo", "off")]);
-    assert_eq!(options.options, Some("-c geqo=off".to_string()));
-    let options = options.options([("search_path", "sqlx")]);
-    assert_eq!(
-        options.options,
-        Some("-c geqo=off -c search_path=sqlx".to_string())
-    );
-    let options = PgConnectOptions::new().options([("geqo", "off"), ("statement_timeout", "5min")]);
-    assert_eq!(
-        options.options,
-        Some("-c geqo=off -c statement_timeout=5min".to_string())
-    );
-    let options = PgConnectOptions::new();
-    assert_eq!(options.options, None);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_options_formatting() {
+        let options = PgConnectOptions::new().options([("geqo", "off")]);
+        assert_eq!(options.options, Some("-c geqo=off".to_string()));
+        let options = options.options([("search_path", "sqlx")]);
+        assert_eq!(
+            options.options,
+            Some("-c geqo=off -c search_path=sqlx".to_string())
+        );
+        let options =
+            PgConnectOptions::new().options([("geqo", "off"), ("statement_timeout", "5min")]);
+        assert_eq!(
+            options.options,
+            Some("-c geqo=off -c statement_timeout=5min".to_string())
+        );
+        let options = PgConnectOptions::new();
+        assert_eq!(options.options, None);
+    }
+
+    // [`PgConnectOptions::password`] used to be `Option<String>`. This test
+    // shows how supporting dynamic passwords doesn't consume more memory for
+    // users who just want to use static passwords.
+    #[test]
+    fn size_of_password_option() {
+        assert_eq!(
+            std::mem::size_of::<Option<String>>(),
+            std::mem::size_of::<PasswordOption>()
+        );
+    }
+
+    // XXX: Nested to provide a scoped impl of providers.
+    mod password_providers {
+        use super::*;
+
+        impl PasswordProvider for String {
+            fn password<'a>(&'a self) -> Result<Cow<'a, str>, BoxDynError> {
+                Ok(Cow::Borrowed(&self[..]))
+            }
+        }
+
+        // This test shows how the [`PasswordProvider`] trait can be used to return
+        // owned or borrowed values. It serves both as a usage example as well as a
+        // way to ensure the lifetimes are right.
+        #[test]
+        fn password_provider_examples() {
+            use password_providers::*;
+
+            struct Holder(String);
+
+            impl PasswordProvider for Holder {
+                fn password<'a>(&'a self) -> Result<Cow<'a, str>, BoxDynError> {
+                    Ok(Cow::Owned(self.0.clone()))
+                }
+            }
+
+            fn check(provider: impl PasswordProvider) {
+                let result = provider.password().unwrap();
+                assert_eq!("password", result);
+            }
+
+            check("password".to_string());
+            check(Holder("password".to_string()));
+        }
+    }
 }
