@@ -81,21 +81,21 @@ impl Index<usize> for AddMigrationsResult {
     }
 }
 
-struct AddMigrations<'a> {
+struct AddMigrations {
     tempdir: TempDir,
-    config: Option<&'a str>,
+    config_arg: Option<String>,
 }
 
-impl<'a> AddMigrations<'a> {
+impl AddMigrations {
     fn new() -> anyhow::Result<Self> {
         anyhow::Ok(Self {
             tempdir: TempDir::new()?,
-            config: None,
+            config_arg: None,
         })
     }
 
-    fn with_config(mut self, config: &'a str) -> Self {
-        self.config = Some(config);
+    fn with_config(mut self, path: &str) -> Self {
+        self.config_arg = Some(format!("--config={path}"));
         self
     }
 
@@ -112,9 +112,7 @@ impl<'a> AddMigrations<'a> {
             .args(
                 [
                     vec!["sqlx", "migrate", "add", description],
-                    self.config
-                        .map(|path| vec!["--config", path])
-                        .unwrap_or_default(),
+                    self.config_arg.as_deref().map_or(vec![], |arg| vec![arg]),
                     match revesible {
                         true => vec!["-r"],
                         false => vec![],

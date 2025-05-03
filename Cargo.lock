@@ -3833,7 +3833,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-multi-database"
-version = "0.8.3"
+version = "0.8.5"
 dependencies = [
  "axum 0.8.1",
  "color-eyre",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-multi-tenant"
-version = "0.8.3"
+version = "0.8.5"
 dependencies = [
  "axum 0.8.1",
  "color-eyre",
