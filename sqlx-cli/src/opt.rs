@@ -11,6 +11,7 @@ use clap_complete::Shell;
 use sqlx::migrate::Migrator;
 use std::env;
 use std::ops::{Deref, Not};
+use std::path::PathBuf;
 
 const HELP_STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().bold())
@@ -67,6 +68,9 @@ pub enum Command {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
     },
 
     #[clap(alias = "mig")]
@@ -90,12 +94,18 @@ pub enum DatabaseCommand {
     Create {
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
     },
 
     /// Drops the database specified in your DATABASE_URL.
     Drop {
         #[clap(flatten)]
         confirmation: Confirmation,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -114,6 +124,9 @@ pub enum DatabaseCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
 
         /// PostgreSQL only: force drops the database.
@@ -125,6 +138,9 @@ pub enum DatabaseCommand {
     Setup {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -212,6 +228,9 @@ pub enum MigrateCommand {
         #[clap(flatten)]
         source: MigrationSourceOpt,
 
+        #[clap(flatten)]
+        config: ConfigOpt,
+
         /// List all the migrations to be run without applying
         #[clap(long)]
         dry_run: bool,
@@ -232,6 +251,9 @@ pub enum MigrateCommand {
     Revert {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -256,6 +278,9 @@ pub enum MigrateCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
     },
 
@@ -265,6 +290,9 @@ pub enum MigrateCommand {
     BuildScript {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -278,6 +306,9 @@ pub struct AddMigrationOpts {
 
     #[clap(flatten)]
     pub source: MigrationSourceOpt,
+
+    #[clap(flatten)]
+    pub config: ConfigOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
     #[clap(long, conflicts_with = "reversible")]
@@ -358,6 +389,20 @@ pub struct NoDotenvOpt {
     pub no_dotenv: bool,
 }
 
+#[derive(Args, Debug)]
+pub struct ConfigOpt {
+    /// Override the path to the config file.
+    ///
+    /// Defaults to `sqlx.toml` in the current directory, if it exists.
+    ///
+    /// Configuration file loading may be bypassed with `--config=/dev/null` on Linux,
+    /// or `--config=NUL` on Windows.
+    ///
+    /// Config file loading is enabled by the `sqlx-toml` feature.
+    #[clap(long)]
+    pub config: Option<PathBuf>,
+}
+
 impl ConnectOpts {
     /// Require a database URL to be provided, otherwise
     /// return an error.
@@ -398,6 +443,30 @@ impl ConnectOpts {
         }
 
         Ok(())
+    }
+}
+
+impl ConfigOpt {
+    pub async fn load_config(&self) -> anyhow::Result<&'static Config> {
+        let path = self.config.clone();
+
+        // Tokio does file I/O on a background task anyway
+        tokio::task::spawn_blocking(|| {
+            if let Some(path) = path {
+                let err_str = format!("error reading config from {path:?}");
+                Config::try_read_with(|| Ok(path)).context(err_str)
+            } else {
+                let path = PathBuf::from("sqlx.toml");
+
+                if path.exists() {
+                    eprintln!("Found `sqlx.toml` in current directory; reading...");
+                }
+
+                Ok(Config::read_with_or_default(move || Ok(path)))
+            }
+        })
+        .await
+        .context("unexpected error loading config")?
     }
 }
 
