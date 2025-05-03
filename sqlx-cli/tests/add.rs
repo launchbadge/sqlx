@@ -1,3 +1,4 @@
+use anyhow::Context;
 use assert_cmd::Command;
 use std::cmp::Ordering;
 use std::fs::read_dir;
@@ -94,9 +95,18 @@ impl AddMigrations {
         })
     }
 
-    fn with_config(mut self, path: &str) -> Self {
+    fn with_config(mut self, filename: &str) -> anyhow::Result<Self> {
+        let path = format!("sqlx-cli/tests/assets/{filename}");
+
+        let path = std::fs::canonicalize(&path)
+            .with_context(|| format!("error canonicalizing path {path:?}"))?;
+
+        let path = path
+            .to_str()
+            .with_context(|| format!("canonicalized version of path {path:?} is not UTF-8"))?;
+
         self.config_arg = Some(format!("--config={path}"));
-        self
+        Ok(self)
     }
 
     fn run(
@@ -311,7 +321,7 @@ fn add_migration_timestamp_reversible() -> anyhow::Result<()> {
 #[test]
 fn add_migration_config_default_type_reversible() -> anyhow::Result<()> {
     let files = AddMigrations::new()?
-        .with_config("sqlx-cli/tests/assets/config_default_type_reversible.toml")
+        .with_config("config_default_type_reversible.toml")?
         // Type should default to reversible without any flags
         .run("hello world", false, false, false, true)?
         .run("hello world2", false, false, false, true)?
@@ -331,7 +341,7 @@ fn add_migration_config_default_type_reversible() -> anyhow::Result<()> {
 #[test]
 fn add_migration_config_default_versioning_sequential() -> anyhow::Result<()> {
     let files = AddMigrations::new()?
-        .with_config("sqlx-cli/tests/assets/config_default_versioning_sequential.toml")
+        .with_config("config_default_versioning_sequential.toml")?
         // Versioning should default to timestamp without any flags
         .run("hello world", false, false, false, true)?
         .run("hello world2", false, false, false, true)?
@@ -368,8 +378,7 @@ fn add_migration_config_default_versioning_timestamp() -> anyhow::Result<()> {
     assert_eq!(files[2].id, 3);
 
     // Now set a config that uses `default-versioning = "timestamp"`
-    let migrations =
-        migrations.with_config("sqlx-cli/tests/assets/config_default_versioning_timestamp.toml");
+    let migrations = migrations.with_config("config_default_versioning_timestamp.toml")?;
 
     // Now the default should be a timestamp
     migrations
