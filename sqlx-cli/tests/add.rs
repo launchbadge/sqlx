@@ -129,6 +129,7 @@ impl AddMigrations {
                 ]
                 .concat(),
             )
+            .env("RUST_BACKTRACE", "1")
             .assert();
         if expect_success {
             cmd_result.success();
