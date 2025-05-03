@@ -10,7 +10,6 @@ use std::{
 pub struct TestDatabase {
     file_path: PathBuf,
     migrations: String,
-    config: &'static Config,
 }
 
 impl TestDatabase {
@@ -33,7 +32,6 @@ impl TestDatabase {
         let this = Self {
             file_path,
             migrations: String::from(migrations_path.to_str().unwrap()),
-            config: Config::from_crate(),
         };
 
         Command::cargo_bin("cargo-sqlx")
@@ -92,7 +90,10 @@ impl TestDatabase {
         let mut conn = SqliteConnection::connect(&self.connection_string())
             .await
             .unwrap();
-        conn.list_applied_migrations(self.config.migrate.table_name())
+
+        let config = Config::default();
+
+        conn.list_applied_migrations(config.migrate.table_name())
             .await
             .unwrap()
             .iter()

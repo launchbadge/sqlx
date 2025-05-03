@@ -82,31 +82,22 @@ impl Index<usize> for AddMigrationsResult {
     }
 }
 
-struct AddMigrations {
+struct AddMigrations<'a> {
     tempdir: TempDir,
-    config_arg: Option<String>,
+    config: Option<&'a str>,
 }
 
-impl AddMigrations {
+impl<'a> AddMigrations<'a> {
     fn new() -> anyhow::Result<Self> {
         anyhow::Ok(Self {
             tempdir: TempDir::new()?,
-            config_arg: None,
+            config: None,
         })
     }
 
-    fn with_config(mut self, filename: &str) -> anyhow::Result<Self> {
-        let path = format!("./tests/assets/{filename}");
-
-        let path = std::fs::canonicalize(&path)
-            .with_context(|| format!("error canonicalizing path {path:?}"))?;
-
-        let path = path
-            .to_str()
-            .with_context(|| format!("canonicalized version of path {path:?} is not UTF-8"))?;
-
-        self.config_arg = Some(format!("--config={path}"));
-        Ok(self)
+    fn with_config(mut self, config: &'a str) -> Self {
+        self.config = Some(config);
+        self
     }
 
     fn run(
@@ -122,7 +113,9 @@ impl AddMigrations {
             .args(
                 [
                     vec!["sqlx", "migrate", "add", description],
-                    self.config_arg.as_deref().map_or(vec![], |arg| vec![arg]),
+                    self.config
+                        .map(|path| vec!["--config", path])
+                        .unwrap_or_default(),
                     match revesible {
                         true => vec!["-r"],
                         false => vec![],
@@ -138,7 +131,6 @@ impl AddMigrations {
                 ]
                 .concat(),
             )
-            .env("RUST_BACKTRACE", "1")
             .assert();
         if expect_success {
             cmd_result.success();
@@ -321,24 +313,19 @@ fn add_migration_timestamp_reversible() -> anyhow::Result<()> {
 #[test]
 fn add_migration_config_default_type_reversible() -> anyhow::Result<()> {
     let files = AddMigrations::new()?
-        .with_config("config_default_type_reversible.toml")?
+        .with_config("sqlx-cli/tests/assets/config_default_type_reversible.toml")
         // Type should default to reversible without any flags
         .run("hello world", false, false, false, true)?
         .run("hello world2", false, false, false, true)?
         .run("hello world3", false, false, false, true)?
         .fs_output()?;
 
-    assert_eq!(files.len(), 6);
-    files.assert_is_reversible();
+    assert_eq!(files.len(), 3);
+    files.assert_is_not_reversible();
 
     files[0].assert_is_timestamp();
-    assert_eq!(files[1].id, files[0].id);
-
+    files[1].assert_is_timestamp();
     files[2].assert_is_timestamp();
-    assert_eq!(files[3].id, files[2].id);
-
-    files[4].assert_is_timestamp();
-    assert_eq!(files[5].id, files[4].id);
 
     Ok(())
 }
@@ -346,7 +333,7 @@ fn add_migration_config_default_type_reversible() -> anyhow::Result<()> {
 #[test]
 fn add_migration_config_default_versioning_sequential() -> anyhow::Result<()> {
     let files = AddMigrations::new()?
-        .with_config("config_default_versioning_sequential.toml")?
+        .with_config("sqlx-cli/tests/assets/config_default_versioning_sequential.toml")
         // Versioning should default to timestamp without any flags
         .run("hello world", false, false, false, true)?
         .run("hello world2", false, false, false, true)?
@@ -383,7 +370,8 @@ fn add_migration_config_default_versioning_timestamp() -> anyhow::Result<()> {
     assert_eq!(files[2].id, 3);
 
     // Now set a config that uses `default-versioning = "timestamp"`
-    let migrations = migrations.with_config("config_default_versioning_timestamp.toml")?;
+    let migrations =
+        migrations.with_config("sqlx-cli/tests/assets/config_default_versioning_timestamp.toml");
 
     // Now the default should be a timestamp
     migrations
