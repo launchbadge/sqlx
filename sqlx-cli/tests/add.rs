@@ -96,7 +96,7 @@ impl AddMigrations {
     }
 
     fn with_config(mut self, filename: &str) -> anyhow::Result<Self> {
-        let path = format!("sqlx-cli/tests/assets/{filename}");
+        let path = format!("./tests/assets/{filename}");
 
         let path = std::fs::canonicalize(&path)
             .with_context(|| format!("error canonicalizing path {path:?}"))?;
@@ -328,12 +328,17 @@ fn add_migration_config_default_type_reversible() -> anyhow::Result<()> {
         .run("hello world3", false, false, false, true)?
         .fs_output()?;
 
-    assert_eq!(files.len(), 3);
-    files.assert_is_not_reversible();
+    assert_eq!(files.len(), 6);
+    files.assert_is_reversible();
 
     files[0].assert_is_timestamp();
-    files[1].assert_is_timestamp();
+    assert_eq!(files[1].id, files[0].id);
+
     files[2].assert_is_timestamp();
+    assert_eq!(files[3].id, files[2].id);
+
+    files[4].assert_is_timestamp();
+    assert_eq!(files[5].id, files[4].id);
 
     Ok(())
 }
