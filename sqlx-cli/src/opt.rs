@@ -11,6 +11,7 @@ use clap_complete::Shell;
 use sqlx::migrate::Migrator;
 use std::env;
 use std::ops::{Deref, Not};
+use std::path::PathBuf;
 
 const HELP_STYLES: Styles = Styles::styled()
     .header(AnsiColor::Blue.on_default().bold())
@@ -123,6 +124,9 @@ pub enum DatabaseCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
 
         /// PostgreSQL only: force drops the database.
@@ -134,6 +138,9 @@ pub enum DatabaseCommand {
     Setup {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -221,6 +228,9 @@ pub enum MigrateCommand {
         #[clap(flatten)]
         source: MigrationSourceOpt,
 
+        #[clap(flatten)]
+        config: ConfigOpt,
+
         /// List all the migrations to be run without applying
         #[clap(long)]
         dry_run: bool,
@@ -241,6 +251,9 @@ pub enum MigrateCommand {
     Revert {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -265,6 +278,9 @@ pub enum MigrateCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
     },
 
@@ -274,6 +290,9 @@ pub enum MigrateCommand {
     BuildScript {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -287,6 +306,9 @@ pub struct AddMigrationOpts {
 
     #[clap(flatten)]
     pub source: MigrationSourceOpt,
+
+    #[clap(flatten)]
+    pub config: ConfigOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
     #[clap(long, conflicts_with = "reversible")]
@@ -421,6 +443,30 @@ impl ConnectOpts {
         }
 
         Ok(())
+    }
+}
+
+impl ConfigOpt {
+    pub async fn load_config(&self) -> anyhow::Result<&'static Config> {
+        let path = self.config.clone();
+
+        // Tokio does file I/O on a background task anyway
+        tokio::task::spawn_blocking(|| {
+            if let Some(path) = path {
+                let err_str = format!("error reading config from {path:?}");
+                Config::try_read_with(|| Ok(path)).context(err_str)
+            } else {
+                let path = PathBuf::from("sqlx.toml");
+
+                if path.exists() {
+                    eprintln!("Found `sqlx.toml` in current directory; reading...");
+                }
+
+                Ok(Config::read_with_or_default(move || Ok(path)))
+            }
+        })
+        .await
+        .context("unexpected error loading config")?
     }
 }
 

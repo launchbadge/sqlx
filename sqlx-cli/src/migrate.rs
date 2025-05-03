@@ -13,7 +13,9 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
 
-pub async fn add(config: &Config, opts: AddMigrationOpts) -> anyhow::Result<()> {
+pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
+    let config = opts.config.load_config().await?;
+
     let source = opts.source.resolve(config);
 
     fs::create_dir_all(source).context("Unable to create migrations directory")?;
