@@ -192,6 +192,27 @@ pub enum MigrateCommand {
         target_version: Option<i64>,
     },
 
+    /// Skip all pending migrations.
+    Skip {
+        #[clap(flatten)]
+        source: Source,
+
+        /// List all the migrations to be skipped without marking them as applied.
+        #[clap(long)]
+        dry_run: bool,
+
+        #[clap(flatten)]
+        ignore_missing: IgnoreMissing,
+
+        #[clap(flatten)]
+        connect_opts: ConnectOpts,
+
+        /// Apply migrations up to the specified version. If unspecified, apply all
+        /// pending migrations. If already at the target version, then no-op.
+        #[clap(long)]
+        target_version: Option<i64>,
+    },
+
     /// Revert the latest migration with a down file.
     Revert {
         #[clap(flatten)]

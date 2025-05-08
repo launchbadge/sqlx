@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        skip: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             // Use a single transaction for the actual migration script and the essential bookeeping so we never
@@ -199,10 +200,12 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .execute(&mut *tx)
             .await?;
 
-            let _ = tx
-                .execute(&*migration.sql)
-                .await
-                .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+            if !skip {
+                let _ = tx
+                    .execute(&*migration.sql)
+                    .await
+                    .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+            }
 
             // language=MySQL
             let _ = query(

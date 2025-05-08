@@ -206,13 +206,14 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        skip: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let start = Instant::now();
 
             // execute migration queries
             if migration.no_tx {
-                execute_migration(self, migration).await?;
+                execute_migration(self, migration, skip).await?;
             } else {
                 // Use a single transaction for the actual migration script and the essential bookeeping so we never
                 // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -220,7 +221,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
                 // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
                 // and update it once the actual transaction completed.
                 let mut tx = self.begin().await?;
-                execute_migration(&mut tx, migration).await?;
+                execute_migration(&mut tx, migration, skip).await?;
                 tx.commit().await?;
             }
 
@@ -275,12 +276,14 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 async fn execute_migration(
     conn: &mut PgConnection,
     migration: &Migration,
+    skip: bool,
 ) -> Result<(), MigrateError> {
-    let _ = conn
-        .execute(&*migration.sql)
-        .await
-        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
-
+    if !skip {
+        let _ = conn
+            .execute(&*migration.sql)
+            .await
+            .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    }
     // language=SQL
     let _ = query(
         r#"
