@@ -1,5 +1,6 @@
 use assert_cmd::{assert::Assert, Command};
 
+use sqlx::_unstable::config::Config;
 use sqlx::{migrate::Migrate, Connection, SqliteConnection};
 use std::{
     env::temp_dir,
@@ -77,7 +78,10 @@ impl TestDatabase {
         let mut conn = SqliteConnection::connect(&self.connection_string())
             .await
             .unwrap();
-        conn.list_applied_migrations()
+
+        let config = Config::default();
+
+        conn.list_applied_migrations(config.migrate.table_name())
             .await
             .unwrap()
             .iter()
