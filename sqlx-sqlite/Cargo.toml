@@ -72,3 +72,6 @@ sqlx = { workspace = true, default-features = false, features = ["macros", "runt
 
 [lints]
 workspace = true
+
+[package.metadata.docs.rs]
+features = ["bundled", "any", "json", "chrono", "time", "uuid"]
