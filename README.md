@@ -458,6 +458,26 @@ opt-level = 3
 <sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
 so we now use the `dotenvy` crate instead. The file format is the same.
 
+## Parameter Substitution for Migrations 
+
+You can parameterize migrations using parameters, either from the environment or passed in from the cli or to the Migrator. 
+
+For example:
+
+```sql
+-- enable-substitution 
+CREATE USER ${USER_FROM_ENV} WITH PASSWORD ${PASSWORD_FROM_ENV}
+-- disable-substituion 
+```
+
+We use the [subst](https://crates.io/crates/subst) to support substitution. sqlx supports
+
+- Short format: `$NAME`
+- Long format: `${NAME}`
+- Default values: `${NAME:Bob}`
+- Recursive Substitution in Default Values: `${NAME: Bob ${OTHER_NAME: and Alice}}`
+
+
 ## Safety
 
 This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
