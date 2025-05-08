@@ -251,7 +251,7 @@ use crate::{error::Error, row::Row};
 /// represented as the _not_ NULL (in terms of DB) JSON value of `null`.
 ///
 /// If you wish to describe a database row which _is_ NULLable but _cannot_ contain the JSON value `null`,
-/// use the `#[sqlx(json(nullable))]` attrubute.
+/// use the `#[sqlx(json(nullable))]` attribute.
 ///
 /// For example
 /// ```rust,ignore
