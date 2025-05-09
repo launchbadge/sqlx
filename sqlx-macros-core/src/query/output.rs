@@ -246,7 +246,7 @@ fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStrea
                     )
                 } else {
                     format!(
-                        "unsupported type {ty} of {col}",
+                        "unsupported type {ty} of {col}. Did you forget a type override?",
                         ty = type_info,
                         col = DisplayColumn {
                             idx: i,
