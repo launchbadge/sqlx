@@ -66,7 +66,12 @@ pub fn quote_args<DB: DatabaseExt>(
                                         i + 1,
                                     )
                                 } else {
-                                    format!("unsupported type {} for param #{}", param_ty, i + 1)
+                                    format!(
+                                        "no built in mapping found for type {} for param #{}; \
+                                        a type override may be required, see documentation for details",
+                                        param_ty,
+                                        i + 1
+                                    )
                                 }
                             })?
                             .parse::<TokenStream>()
