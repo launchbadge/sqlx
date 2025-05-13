@@ -236,7 +236,7 @@ fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStrea
             let message =
                 if let Some(feature_gate) = <DB as TypeChecking>::get_feature_gate(type_info) {
                     format!(
-                        "optional sqlx feature `{feat}` required for type {ty} of {col}",
+                        "SQLx feature `{feat}` required for type {ty} of {col}",
                         ty = &type_info,
                         feat = feature_gate,
                         col = DisplayColumn {
@@ -246,7 +246,8 @@ fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStrea
                     )
                 } else {
                     format!(
-                        "unsupported type {ty} of {col}",
+                        "no built in mapping found for type {ty} of {col}; \
+                        a type override may be required, see documentation for details",
                         ty = type_info,
                         col = DisplayColumn {
                             idx: i,
