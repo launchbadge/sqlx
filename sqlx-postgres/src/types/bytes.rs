@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -80,15 +82,6 @@ fn text_hex_decode_input(value: PgValueRef<'_>) -> Result<&[u8], BoxDynError> {
         .map_err(Into::into)
 }
 
-impl Decode<'_, Postgres> for Box<[u8]> {
-    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => Box::from(value.as_bytes()?),
-            PgValueFormat::Text => Box::from(hex::decode(text_hex_decode_input(value)?)?),
-        })
-    }
-}
-
 impl Decode<'_, Postgres> for Vec<u8> {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
@@ -108,5 +101,11 @@ impl<const N: usize> Decode<'_, Postgres> for [u8; N] {
             PgValueFormat::Text => hex::decode_to_slice(text_hex_decode_input(value)?, &mut bytes)?,
         };
         Ok(bytes)
+    }
+}
+
+impl Encode<'_, Postgres> for Cow<'_, [u8]> {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
+        <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
     }
 }
