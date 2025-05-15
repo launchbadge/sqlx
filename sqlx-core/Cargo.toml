@@ -48,7 +48,7 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.23.15", default-features = false, features = ["std", "tls12"], optional = true }
+rustls = { version = "0.23.24", default-features = false, features = ["std", "tls12"], optional = true }
 webpki-roots = { version = "0.26", optional = true }
 rustls-native-certs = { version = "0.8.0", optional = true }
 
