@@ -196,9 +196,33 @@ where
     }
 }
 
+impl<DB> Type<DB> for Box<JsonRawValue>
+where
+    for<'a> Json<&'a Self>: Type<DB>,
+    DB: Database,
+{
+    fn type_info() -> DB::TypeInfo {
+        <Json<&Self> as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <Json<&Self> as Type<DB>>::compatible(ty)
+    }
+}
+
 // We don't have to implement Encode for JsonRawValue because that's covered by the default
 // implementation for Encode
 impl<'r, DB> Decode<'r, DB> for &'r JsonRawValue
+where
+    Json<Self>: Decode<'r, DB>,
+    DB: Database,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
+    }
+}
+
+impl<'r, DB> Decode<'r, DB> for Box<JsonRawValue>
 where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
