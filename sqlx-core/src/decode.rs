@@ -128,6 +128,7 @@ impl_decode_for_smartpointer!(Rc);
 impl<'r, 'a, DB, T> Decode<'r, DB> for Cow<'a, T>
 where
     DB: Database,
+    // `ToOwned` is required here to satisfy `Cow`
     T: ToOwned,
     <T as ToOwned>::Owned: Decode<'r, DB>,
 {
