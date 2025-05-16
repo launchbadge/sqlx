@@ -8,7 +8,7 @@ use clap::{
 };
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
-use sqlx::migrate::Migrator;
+use sqlx::migrate::{MigrateError, Migrator, ResolveWith};
 use std::env;
 use std::ops::{Deref, Not};
 use std::path::PathBuf;
@@ -342,12 +342,20 @@ pub struct MigrationSourceOpt {
 }
 
 impl MigrationSourceOpt {
-    pub fn resolve<'a>(&'a self, config: &'a Config) -> &'a str {
+    pub fn resolve_path<'a>(&'a self, config: &'a Config) -> &'a str {
         if let Some(source) = &self.source {
             return source;
         }
 
         config.migrate.migrations_dir()
+    }
+
+    pub async fn resolve(&self, config: &Config) -> Result<Migrator, MigrateError> {
+        Migrator::new(ResolveWith(
+            self.resolve_path(config),
+            config.migrate.to_resolve_config(),
+        ))
+        .await
     }
 }
 
