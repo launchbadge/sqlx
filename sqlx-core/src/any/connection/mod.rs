@@ -40,6 +40,20 @@ impl AnyConnection {
         })
     }
 
+    /// UNSTABLE: for use with `sqlx-cli`
+    ///
+    /// Connect to the database, and instruct the nested driver to
+    /// read options from the sqlx.toml file as appropriate.
+    #[doc(hidden)]
+    pub fn connect_with_config(url: &str) -> BoxFuture<'static, Result<Self, Error>>
+    where
+        Self: Sized,
+    {
+        let options: Result<AnyConnectOptions, Error> = url.parse();
+
+        Box::pin(async move { Self::connect_with(&options?.allow_config_file()).await })
+    }
+
     pub(crate) fn connect_with_db<DB: Database>(
         options: &AnyConnectOptions,
     ) -> BoxFuture<'_, crate::Result<Self>>
