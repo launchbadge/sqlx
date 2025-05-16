@@ -9,7 +9,8 @@ use std::{
 
 pub struct TestDatabase {
     file_path: PathBuf,
-    migrations: String,
+    migrations_path: PathBuf,
+    pub config_path: Option<PathBuf>,
 }
 
 impl TestDatabase {
@@ -31,7 +32,8 @@ impl TestDatabase {
 
         let this = Self {
             file_path,
-            migrations: String::from(migrations_path.to_str().unwrap()),
+            migrations_path: Path::new("tests").join(migrations),
+            config_path: None,
         };
 
         Command::cargo_bin("cargo-sqlx")
