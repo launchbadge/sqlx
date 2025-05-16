@@ -818,6 +818,27 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_closes_statements_when_not_persistent_issue_3850() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _row = sqlx::query("SELECT $1 AS val")
+        .bind(Oid(1))
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let row = sqlx::query("SELECT count(*) AS num_prepared_statements FROM pg_prepared_statements")
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let n: i64 = row.get("num_prepared_statements");
+    assert_eq!(0, n, "no prepared statements should be open");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_sets_application_name() -> anyhow::Result<()> {
     sqlx_test::setup_if_needed();
 
