@@ -65,6 +65,9 @@ use crate::{error::Error, row::Row};
 /// reason), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
 /// The styling of each option is intended to be an example of its behavior.
 ///
+/// Case conversion word boundaries are defined in the
+/// [`heck` docs](https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary).
+///
 /// #### `default`
 ///
 /// When your struct contains a field that is not present in your query,

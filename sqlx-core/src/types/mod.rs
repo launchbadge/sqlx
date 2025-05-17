@@ -99,8 +99,8 @@ pub use bstr::{BStr, BString};
 ///
 /// ## Compile-time verification
 ///
-/// With compile-time verification, the use of type overrides is currently required to make
-/// use of any user-defined types.
+/// The use of type overrides is currently required to make use of any user-defined types,
+/// so they cannot be compile-time verified.
 ///
 /// ```rust,ignore
 /// struct MyUser { id: UserId, name: String }
