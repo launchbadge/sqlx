@@ -83,7 +83,7 @@ workspace = true
 features = ["postgres", "derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-etcetera = "0.8.0"
+etcetera = "0.10.0"
 
 [lints]
 workspace = true
