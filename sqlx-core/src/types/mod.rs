@@ -102,7 +102,7 @@ pub use bstr::{BStr, BString};
 /// Type definitions are *not* verified against the database at compile-time.
 /// The [`query!()`][sqlx::query!] macros have no implicit knowledge of user-defined types.
 ///
-/// When using custom types in query parameters or output columns with `query!()`, 
+/// When using custom types in query parameters or output columns with `query!()`,
 /// the use of [type overrides][sqlx::query!#type-overrides-bind-parameters-postgres-only] is required.
 ///
 /// ```rust,ignore
