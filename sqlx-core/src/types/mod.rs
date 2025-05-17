@@ -99,8 +99,11 @@ pub use bstr::{BStr, BString};
 ///
 /// ## Compile-time verification
 ///
-/// The use of type overrides is currently required to make use of any user-defined types,
-/// so they cannot be compile-time verified.
+/// Type definitions are *not* verified against the database at compile-time.
+/// The [`query!()`][sqlx::query!] macros have no implicit knowledge of user-defined types.
+///
+/// When using custom types in query parameters or output columns with `query!()`, 
+/// the use of [type overrides][sqlx::query!#type-overrides-bind-parameters-postgres-only] is required.
 ///
 /// ```rust,ignore
 /// struct MyUser { id: UserId, name: String }

@@ -65,8 +65,13 @@ use crate::{error::Error, row::Row};
 /// reason), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
 /// The styling of each option is intended to be an example of its behavior.
 ///
-/// Case conversion word boundaries are defined in the
-/// [`heck` docs](https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary).
+/// Case conversion is handled by the `heck` crate. 
+/// See [its documentation][https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary]
+/// for details.
+///
+/// Note that numbers are *not* considered separate words. 
+/// For example, `Foo1` to snake case would be `foo1`, *not* `foo_1`.
+/// See [this issue](https://github.com/launchbadge/sqlx/issues/3864) for discussion.
 ///
 /// #### `default`
 ///
