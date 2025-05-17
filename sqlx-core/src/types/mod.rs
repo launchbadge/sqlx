@@ -100,10 +100,10 @@ pub use bstr::{BStr, BString};
 /// ## Compile-time verification
 ///
 /// Type definitions are *not* verified against the database at compile-time.
-/// The [`query!()`][sqlx::query!] macros have no implicit knowledge of user-defined types.
+/// The [`query!()`](macro.query.html) macros have no implicit knowledge of user-defined types.
 ///
 /// When using custom types in query parameters or output columns with `query!()`,
-/// the use of [type overrides][sqlx::query!#type-overrides-bind-parameters-postgres-only] is required.
+/// the use of [type overrides](macro.query.html#type-overrides-bind-parameters-postgres-only) is required.
 ///
 /// ```rust,ignore
 /// struct MyUser { id: UserId, name: String }

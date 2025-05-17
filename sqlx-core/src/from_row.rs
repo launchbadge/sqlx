@@ -66,7 +66,7 @@ use crate::{error::Error, row::Row};
 /// The styling of each option is intended to be an example of its behavior.
 ///
 /// Case conversion is handled by the `heck` crate.
-/// See [its documentation][https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary]
+/// See [its documentation](https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary)
 /// for details.
 ///
 /// Note that numbers are *not* considered separate words.
