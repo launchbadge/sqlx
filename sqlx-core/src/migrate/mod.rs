@@ -11,7 +11,7 @@ pub use migrate::{Migrate, MigrateDatabase};
 pub use migration::{AppliedMigration, Migration};
 pub use migration_type::MigrationType;
 pub use migrator::Migrator;
-pub use source::MigrationSource;
+pub use source::{MigrationSource, ResolveConfig, ResolveWith};
 
 #[doc(hidden)]
-pub use source::resolve_blocking;
+pub use source::{resolve_blocking, resolve_blocking_with_config};
