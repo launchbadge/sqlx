@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.8.5"
+version = "0.8.6"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
@@ -129,17 +129,17 @@ bstr = ["sqlx-core/bstr"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.8.5", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.8.5", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.8.5", path = "sqlx-macros" }
+sqlx-core = { version = "=0.8.6", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.8.6", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.8.6", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.8.5", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.8.5", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.8.5", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.8.6", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.8.6", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.8.6", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.8.5", path = ".", default-features = false }
+sqlx = { version = "=0.8.6", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
