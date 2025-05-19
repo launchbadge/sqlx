@@ -25,9 +25,15 @@ async fn prepare(
     sql: &str,
     parameters: &[PgTypeInfo],
     metadata: Option<Arc<PgStatementMetadata>>,
+    persistent: bool,
 ) -> Result<(StatementId, Arc<PgStatementMetadata>), Error> {
-    let id = conn.inner.next_statement_id;
-    conn.inner.next_statement_id = id.next();
+    let id = if persistent {
+        let id = conn.inner.next_statement_id;
+        conn.inner.next_statement_id = id.next();
+        id
+    } else {
+        StatementId::UNNAMED
+    };
 
     // build a list of type OIDs to send to the database in the PARSE command
     // we have not yet started the query sequence, so we are *safe* to cleanly make
@@ -163,8 +169,7 @@ impl PgConnection {
         &mut self,
         sql: &str,
         parameters: &[PgTypeInfo],
-        // should we store the result of this prepare to the cache
-        store_to_cache: bool,
+        persistent: bool,
         // optional metadata that was provided by the user, this means they are reusing
         // a statement object
         metadata: Option<Arc<PgStatementMetadata>>,
@@ -173,9 +178,9 @@ impl PgConnection {
             return Ok((*statement).clone());
         }
 
-        let statement = prepare(self, sql, parameters, metadata).await?;
+        let statement = prepare(self, sql, parameters, metadata, persistent).await?;
 
-        if store_to_cache && self.inner.cache_statement.is_enabled() {
+        if persistent && self.inner.cache_statement.is_enabled() {
             if let Some((id, _)) = self.inner.cache_statement.insert(sql, statement.clone()) {
                 self.inner.stream.write_msg(Close::Statement(id))?;
                 self.write_sync();
