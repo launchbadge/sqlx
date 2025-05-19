@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.8.6 - 2025-05-19
+
+9 pull requests were merged this release cycle.
+
+### Added
+* [[#3849]]: Add color and wrapping to cli help text [[@joshka]]
+
+### Changed
+* [[#3830]]: build: drop unused `tempfile` dependency [[@paolobarbolini]]
+* [[#3845]]: chore: clean up no longer used imports [[@tisonkun]]
+* [[#3863]]: Use unnamed statement in pg when not persistent [[@ThomWright]]
+* [[#3866]]: chore(doc): clarify compile-time verification and case conversion behavior [[@duhby]]
+
+### Fixed
+* [[#3840]]: Fix docs.rs build of sqlx-sqlite [[@gferon]]
+* [[#3848]]: fix(macros): don't mutate environment variables [[@joeydewaal]]
+* [[#3855]]: fix `attrubute` typo in doc [[@kujeger]]
+* [[#3856]]: fix(macros): slightly improve unsupported type error message [[@dyc3]]
+
+[#3830]: https://github.com/launchbadge/sqlx/pull/3830
+[#3840]: https://github.com/launchbadge/sqlx/pull/3840
+[#3845]: https://github.com/launchbadge/sqlx/pull/3845
+[#3848]: https://github.com/launchbadge/sqlx/pull/3848
+[#3849]: https://github.com/launchbadge/sqlx/pull/3849
+[#3855]: https://github.com/launchbadge/sqlx/pull/3855
+[#3856]: https://github.com/launchbadge/sqlx/pull/3856
+[#3863]: https://github.com/launchbadge/sqlx/pull/3863
+[#3866]: https://github.com/launchbadge/sqlx/pull/3866
+
 ## 0.8.5 - 2025-04-14
 
 Hotfix release to address two new issues:
@@ -30,9 +59,6 @@ The `0.8.4` release will be yanked as of publishing this one.
 ## 0.8.4 - 2025-04-13
 
 50 pull requests were merged this release cycle.
-
-As of this release, development of `0.9.0` has begun on `main`. 
-Barring urgent hotfixes, this is expected to be the last release of `0.8.x`.
 
 ### Added
 * [[#3603]]: Added missing special casing for encoding embedded arrays of custom types [[@nico-incubiq]]
@@ -2874,3 +2900,9 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@TeCHiScy]: https://github.com/TeCHiScy
 [@mpyw]: https://github.com/mpyw
 [@bonsairobo]: https://github.com/bonsairobo
+[@gferon]: https://github.com/gferon
+[@joshka]: https://github.com/joshka
+[@kujeger]: https://github.com/kujeger
+[@dyc3]: https://github.com/dyc3
+[@ThomWright]: https://github.com/ThomWright
+[@duhby]: https://github.com/duhby
