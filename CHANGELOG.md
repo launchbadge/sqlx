@@ -14,7 +14,7 @@ This section will be replaced in subsequent alpha releases. See the Git history 
 ### Breaking
 
 * [[#3821]] Groundwork for 0.9.0-alpha.1
-  * Increased MSRV to 1.85 and set rust-version [@abonander]
+  * Increased MSRV to 1.86 and set rust-version [@abonander]
   * Deleted deprecated combination runtime+TLS features (e.g. `runtime-tokio-native-tls`)
   * Deleted re-export of unstable `TransactionManager` trait in `sqlx`.
     * Not technically a breaking change because it's `#[doc(hidden)]`, 

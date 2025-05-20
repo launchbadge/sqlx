@@ -36,7 +36,7 @@ authors = [
     "Chloe Ross <orangesnowfox@gmail.com>",
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
-rust-version = "1.85.0"
+rust-version = "1.86.0"
 
 [package]
 name = "sqlx"
