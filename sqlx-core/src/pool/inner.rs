@@ -94,7 +94,7 @@ impl<DB: Database> PoolInner<DB> {
         self.on_closed.notify(usize::MAX);
     }
 
-    pub(super) fn close<'a>(self: &'a Arc<Self>) -> impl Future<Output = ()> + 'a {
+    pub(super) fn close(self: &Arc<Self>) -> impl Future<Output = ()> + '_ {
         self.mark_closed();
 
         async move {
@@ -124,7 +124,7 @@ impl<DB: Database> PoolInner<DB> {
     ///
     /// If we steal a permit from the parent but *don't* open a connection,
     /// it should be returned to the parent.
-    async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<AsyncSemaphoreReleaser<'a>, Error> {
+    async fn acquire_permit(self: &Arc<Self>) -> Result<AsyncSemaphoreReleaser<'_>, Error> {
         let parent = self
             .parent()
             // If we're already at the max size, we shouldn't try to steal from the parent.

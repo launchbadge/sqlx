@@ -128,7 +128,7 @@ impl<V: Eq> IntMap<V> {
             0
         };
         self.iter()
-            .chain(std::iter::repeat(None).take(self_pad))
+            .chain(std::iter::repeat_n(None, self_pad))
             .zip(prev.iter().chain(std::iter::repeat(None)))
             .enumerate()
             .filter(|(_i, (n, p))| n != p)
