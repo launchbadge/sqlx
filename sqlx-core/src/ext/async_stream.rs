@@ -95,7 +95,7 @@ impl<T> Yielder<T> {
     }
 }
 
-impl<'a, T> Stream for TryAsyncStream<'a, T> {
+impl<T> Stream for TryAsyncStream<'_, T> {
     type Item = Result<T, Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

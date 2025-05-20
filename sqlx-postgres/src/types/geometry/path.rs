@@ -64,7 +64,7 @@ impl<'r> Decode<'r, Postgres> for PgPath {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgPath {
+impl Encode<'_, Postgres> for PgPath {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("path"))
     }

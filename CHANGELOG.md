@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.0-alpha.1 - 2025-05-19
+
+Accumulated changes since the beginning of the alpha cycle. Effectively a draft CHANGELOG for the 0.9.0 release.
+
+This section will be replaced in subsequent alpha releases. See the Git history of this file for previous alphas.
+
+### Breaking
+
+* [[#3821]] Groundwork for 0.9.0-alpha.1
+  * Increased MSRV to 1.86 and set rust-version [@abonander]
+  * Deleted deprecated combination runtime+TLS features (e.g. `runtime-tokio-native-tls`)
+  * Deleted re-export of unstable `TransactionManager` trait in `sqlx`.
+    * Not technically a breaking change because it's `#[doc(hidden)]`, 
+      but [it _will_ break SeaORM][seaorm-2600] if not proactively fixed.
+
+[seaorm-2600]: https://github.com/SeaQL/sea-orm/issues/2600
+
+[#3821]: https://github.com/launchbadge/sqlx/pull/3830
+
 ## 0.8.6 - 2025-05-19
 
 9 pull requests were merged this release cycle.

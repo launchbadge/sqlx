@@ -18,6 +18,7 @@ As a rule, however, we only officially support the range of versions for each da
 For each database and where applicable, we test against the latest and oldest versions that we intend to support. You can see the current versions being tested against by looking at our CI config: https://github.com/launchbadge/sqlx/blob/main/.github/workflows/sqlx.yml#L168
 
 -------------------------------------------------------------------
+<a name="MSRV"></a>
 ### What versions of Rust does SQLx support? What is SQLx's MSRV\*?
 
 SQLx's MSRV is the second-to-latest stable release as of the beginning of the current release cycle (`0.x.0`).

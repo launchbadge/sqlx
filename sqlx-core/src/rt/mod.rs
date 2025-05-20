@@ -116,11 +116,11 @@ pub async fn yield_now() {
 pub fn test_block_on<F: Future>(f: F) -> F::Output {
     #[cfg(feature = "_rt-tokio")]
     {
-        return tokio::runtime::Builder::new_current_thread()
+        tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("failed to start Tokio runtime")
-            .block_on(f);
+            .block_on(f)
     }
 
     #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]

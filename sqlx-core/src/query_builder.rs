@@ -30,7 +30,7 @@ where
     arguments: Option<<DB as Database>::Arguments<'args>>,
 }
 
-impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
+impl<DB: Database> Default for QueryBuilder<'_, DB> {
     fn default() -> Self {
         QueryBuilder {
             init_len: 0,
@@ -191,7 +191,6 @@ where
     /// assert!(sql.ends_with("in (?, ?) "));
     /// # }
     /// ```
-
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
     where
         'args: 'qb,

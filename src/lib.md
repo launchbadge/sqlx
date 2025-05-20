@@ -12,8 +12,6 @@ You choose which runtime SQLx uses by default by enabling one of the following f
 * `runtime-async-std`
 * `runtime-tokio`
 
-The `runtime-actix` feature also exists but is an alias of `runtime-tokio`.
-
 If more than one runtime feature is enabled, the Tokio runtime is used if a Tokio context exists on the current
 thread, i.e. [`tokio::runtime::Handle::try_current()`] returns `Ok`; `async-std` is used otherwise.
 
@@ -52,9 +50,6 @@ Consult the user manual for your database to find the TLS versions it supports.
 
 If your connection configuration requires a TLS upgrade but TLS support was not enabled, the connection attempt
 will return an error.
-
-The legacy runtime+TLS combination feature flags are still supported, but for forward-compatibility, use of the separate
-runtime and TLS feature flags is recommended.
 
 [the LaunchBadge team]: https://www.launchbadge.com
 [README]: https://www.github.com/launchbadge/sqlx/tree/main/README.md

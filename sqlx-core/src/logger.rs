@@ -158,7 +158,7 @@ impl<'q> QueryLogger<'q> {
     }
 }
 
-impl<'q> Drop for QueryLogger<'q> {
+impl Drop for QueryLogger<'_> {
     fn drop(&mut self) {
         self.finish();
     }

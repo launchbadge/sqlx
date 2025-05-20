@@ -1,8 +1,9 @@
 [package]
 name = "sqlx-test"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
+rust-version.workspace = true
 
 [dependencies]
 sqlx = { default-features = false, path = ".." }

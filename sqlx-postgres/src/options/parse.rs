@@ -336,7 +336,7 @@ fn built_url_can_be_parsed() {
     let url = "postgres://username:p@ssw0rd@hostname:5432/database";
     let opts = PgConnectOptions::from_str(url).unwrap();
 
-    let parsed = PgConnectOptions::from_str(&opts.build_url().to_string());
+    let parsed = PgConnectOptions::from_str(opts.build_url().as_ref());
 
     assert!(parsed.is_ok());
 }

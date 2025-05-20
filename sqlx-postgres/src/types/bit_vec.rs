@@ -55,7 +55,7 @@ impl Decode<'_, Postgres> for BitVec {
                 let len = usize::try_from(len).map_err(|_| format!("invalid VARBIT len: {len}"))?;
 
                 // The smallest amount of data we can read is one byte
-                let bytes_len = (len + 7) / 8;
+                let bytes_len = len.div_ceil(8);
 
                 if bytes.remaining() != bytes_len {
                     Err(io::Error::new(

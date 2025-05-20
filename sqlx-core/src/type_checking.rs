@@ -112,7 +112,7 @@ where
     }
 }
 
-impl<'v, DB> Debug for FmtValue<'v, DB>
+impl<DB> Debug for FmtValue<'_, DB>
 where
     DB: Database,
 {
