@@ -134,12 +134,48 @@ impl Migrator {
         <A::Connection as Deref>::Target: Migrate,
     {
         let mut conn = migrator.acquire().await?;
-        self.run_direct(&mut *conn).await
+        self.run_direct(&mut *conn, false, None).await
+    }
+
+    /// Skip any pending migrations until a specific version against the database;
+    /// Additionally validate previously applied migrations against the current migration
+    /// source to detect accidental changes in previously-applied migrations.
+    ///
+    /// Skipping entails not executing the SQL of the migrations, but marking them as
+    /// applied in the [_migrations] table.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use sqlx::migrate::MigrateError;
+    /// # fn main() -> Result<(), MigrateError> {
+    /// #     sqlx::__rt::test_block_on(async move {
+    /// use sqlx::migrate::Migrator;
+    /// use sqlx::sqlite::SqlitePoolOptions;
+    ///
+    /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let pool = SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// m.skip(&pool, Some(17)).await
+    /// #     })
+    /// # }
+    /// ```
+    pub async fn skip<'a, A>(&self, migrator: A, target: Option<i64>) -> Result<(), MigrateError>
+    where
+        A: Acquire<'a>,
+        <A::Connection as Deref>::Target: Migrate,
+    {
+        let mut conn = migrator.acquire().await?;
+        self.run_direct(&mut *conn, true, target).await
     }
 
     // Getting around the annoying "implementation of `Acquire` is not general enough" error
     #[doc(hidden)]
-    pub async fn run_direct<C>(&self, conn: &mut C) -> Result<(), MigrateError>
+    pub async fn run_direct<C>(
+        &self,
+        conn: &mut C,
+        skip: bool,
+        target: Option<i64>,
+    ) -> Result<(), MigrateError>
     where
         C: Migrate,
     {
@@ -166,7 +202,9 @@ impl Migrator {
             .collect();
 
         for migration in self.iter() {
-            if migration.migration_type.is_down_migration() {
+            if migration.migration_type.is_down_migration()
+                || target.is_some_and(|target| migration.version > target)
+            {
                 continue;
             }
 
@@ -177,7 +215,7 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    conn.apply(migration, skip).await?;
                 }
             }
         }

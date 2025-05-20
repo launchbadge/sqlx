@@ -69,8 +69,9 @@ impl Migrate for AnyConnection {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        skip: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
-        Box::pin(async { self.get_migrate()?.apply(migration).await })
+        Box::pin(async move { self.get_migrate()?.apply(migration, skip).await })
     }
 
     fn revert<'e: 'm, 'm>(

@@ -12,6 +12,22 @@ pub struct TestDatabase {
     migrations: String,
 }
 
+pub enum MigrateCommand {
+    Run,
+    Revert,
+    Skip,
+}
+
+impl AsRef<str> for MigrateCommand {
+    fn as_ref(&self) -> &str {
+        match self {
+            MigrateCommand::Run => "run",
+            MigrateCommand::Revert => "revert",
+            MigrateCommand::Skip => "skip",
+        }
+    }
+}
+
 impl TestDatabase {
     pub fn new(name: &str, migrations: &str) -> Self {
         let migrations_path = Path::new("tests").join(migrations);
@@ -38,7 +54,12 @@ impl TestDatabase {
         format!("sqlite://{}", self.file_path.display())
     }
 
-    pub fn run_migration(&self, revert: bool, version: Option<i64>, dry_run: bool) -> Assert {
+    pub fn run_migration(
+        &self,
+        command: MigrateCommand,
+        version: Option<i64>,
+        dry_run: bool,
+    ) -> Assert {
         let ver = match version {
             Some(v) => v.to_string(),
             None => String::from(""),
@@ -50,10 +71,7 @@ impl TestDatabase {
                     vec![
                         "sqlx",
                         "migrate",
-                        match revert {
-                            true => "revert",
-                            false => "run",
-                        },
+                        command.as_ref(),
                         "--database-url",
                         &self.connection_string(),
                         "--source",
