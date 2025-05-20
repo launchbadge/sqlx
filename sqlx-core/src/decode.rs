@@ -133,6 +133,8 @@ where
     <T as ToOwned>::Owned: Decode<'r, DB>,
 {
     fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        // See https://github.com/launchbadge/sqlx/pull/3674#discussion_r2008611502 for more info
+        // about why decoding to a `Cow::Owned` was chosen.
         <<T as ToOwned>::Owned as Decode<DB>>::decode(value).map(Cow::Owned)
     }
 }
