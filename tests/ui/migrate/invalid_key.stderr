@@ -1,0 +1,8 @@
+error: proc macro panicked
+ --> tests/ui/migrate/invalid_key.rs:3:5
+  |
+3 |     sqlx::migrate!("foo", parameters = [(123, "foo")]);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: Expected a string literal or a variable in key
+  = note: this error originates in the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -23,6 +23,10 @@ pub struct Migrator {
     pub locking: bool,
     #[doc(hidden)]
     pub no_tx: bool,
+    #[doc(hidden)]
+    pub template_params: Option<HashMap<String, String>>,
+    #[doc(hidden)]
+    pub template_parameters_from_env: bool,
 }
 
 fn validate_applied_migrations(
@@ -51,7 +55,32 @@ impl Migrator {
         ignore_missing: false,
         no_tx: false,
         locking: true,
+        template_params: None,
+        template_parameters_from_env: false,
     };
+
+    /// Set or update template parameters for migration placeholders.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use sqlx_core::migrate::Migrator;
+    /// let mut migrator = Migrator::DEFAULT;
+    /// migrator.set_template_parameters(vec![("key", "value"), ("name", "test")]);
+    /// ```
+    pub fn set_template_parameters<I, K, V>(&mut self, params: I) -> &Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        let map: HashMap<String, String> = params
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        self.template_params = Some(map);
+        self
+    }
 
     /// Creates a new instance with the given source.
     ///
@@ -84,6 +113,15 @@ impl Migrator {
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
+    }
+
+    /// Specify whether template parameters for migrations should be read from the environment
+    pub fn set_template_parameters_from_env(
+        &mut self,
+        template_paramaters_from_env: bool,
+    ) -> &Self {
+        self.template_parameters_from_env = template_paramaters_from_env;
         self
     }
 
@@ -165,6 +203,12 @@ impl Migrator {
             .map(|m| (m.version, m))
             .collect();
 
+        let env_params = if self.template_parameters_from_env {
+            Some(std::env::vars().collect())
+        } else {
+            None
+        };
+
         for migration in self.iter() {
             if migration.migration_type.is_down_migration() {
                 continue;
@@ -177,7 +221,14 @@ impl Migrator {
                     }
                 }
                 None => {
-                    conn.apply(migration).await?;
+                    if self.template_parameters_from_env {
+                        conn.apply(&migration.process_parameters(env_params.as_ref().unwrap())?)
+                            .await?;
+                    } else if let Some(params) = self.template_params.as_ref() {
+                        conn.apply(&migration.process_parameters(params)?).await?;
+                    } else {
+                        conn.apply(migration).await?;
+                    }
                 }
             }
         }
@@ -237,6 +288,12 @@ impl Migrator {
             .map(|m| (m.version, m))
             .collect();
 
+        let env_params = if self.template_parameters_from_env {
+            Some(std::env::vars().collect())
+        } else {
+            None
+        };
+
         for migration in self
             .iter()
             .rev()
@@ -244,7 +301,14 @@ impl Migrator {
             .filter(|m| applied_migrations.contains_key(&m.version))
             .filter(|m| m.version > target)
         {
-            conn.revert(migration).await?;
+            if self.template_parameters_from_env {
+                conn.revert(&migration.process_parameters(env_params.as_ref().unwrap())?)
+                    .await?;
+            } else if let Some(params) = self.template_params.as_ref() {
+                conn.revert(&migration.process_parameters(params)?).await?;
+            } else {
+                conn.revert(migration).await?;
+            }
         }
 
         // unlock the migrator to allow other migrators to run
