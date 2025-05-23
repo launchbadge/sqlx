@@ -81,7 +81,7 @@ pub struct PgArguments {
 }
 
 impl PgArguments {
-    pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), BoxDynError>
+    pub(crate) fn add<'q, T>(&mut self, value: T) -> Result<(), Error>
     where
         T: Encode<'q, Postgres> + Type<Postgres>,
     {
@@ -94,7 +94,7 @@ impl PgArguments {
             // reset the value buffer to its previous value if encoding failed,
             // so we don't leave a half-encoded value behind
             self.buffer.reset_to_snapshot(buffer_snapshot);
-            return Err(error);
+            return Err(Error::Encode(error));
         };
 
         // remember the type information for this value
@@ -146,7 +146,7 @@ impl<'q> Arguments<'q> for PgArguments {
         self.buffer.reserve(size);
     }
 
-    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
+    fn add<T>(&mut self, value: T) -> Result<(), Error>
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
