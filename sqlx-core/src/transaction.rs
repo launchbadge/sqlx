@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
+use std::future;
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
@@ -247,7 +248,7 @@ impl<'t, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'_, D
 
     #[inline]
     fn acquire(self) -> BoxFuture<'t, Result<Self::Connection, Error>> {
-        Box::pin(futures_util::future::ok(&mut **self))
+        Box::pin(future::ready(Ok(&mut **self)))
     }
 
     #[inline]

@@ -2,7 +2,7 @@ use sqlx::{Connection, PgConnection, Postgres, Transaction};
 use sqlx_postgres::types::PgHstore;
 use sqlx_test::new;
 
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 
 #[sqlx_macros::test]
 async fn test_query() -> anyhow::Result<()> {

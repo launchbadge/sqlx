@@ -1,4 +1,4 @@
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures_util::{Stream, StreamExt, TryStreamExt};
 
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
@@ -604,7 +604,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    use futures::{future, task::Poll, Future};
+    use futures_util::{task::Poll, Future};
 
     eprintln!("starting pool");
 
@@ -645,7 +645,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 let mut acquire = pin!(pool.acquire());
 
                 // poll the acquire future once to put the waiter in the queue
-                future::poll_fn(move |cx| {
+                std::future::poll_fn(move |cx| {
                     let _ = acquire.as_mut().poll(cx);
                     Poll::Ready(())
                 })
@@ -943,7 +943,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         }));
     }
 
-    futures::future::try_join_all(handles).await?;
+    futures_util::future::try_join_all(handles).await?;
 
     Ok(())
 }

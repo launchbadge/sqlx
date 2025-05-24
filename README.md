@@ -326,7 +326,7 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 
 ```rust
 // provides `try_next`
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 // provides `try_get`
 use sqlx::Row;
 
