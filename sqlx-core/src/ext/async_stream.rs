@@ -3,7 +3,7 @@
 //! This was created initially to get around some weird compiler errors we were getting with
 //! `async-stream`, and now it'd just be more work to replace.
 
-use std::future::Future;
+use std::future::{self, Future};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -76,7 +76,7 @@ impl<T> Yielder<T> {
         //
         // Note that because this has no way to schedule a wakeup, this could deadlock the task
         // if called in the wrong place.
-        futures_util::future::poll_fn(|_cx| {
+        future::poll_fn(|_cx| {
             if !yielded {
                 yielded = true;
                 Poll::Pending
@@ -103,7 +103,7 @@ impl<'a, T> Stream for TryAsyncStream<'a, T> {
             return Poll::Ready(None);
         }
 
-        match self.future.poll_unpin(cx) {
+        match Pin::new(&mut self.future).poll(cx) {
             Poll::Ready(Ok(())) => {
                 // Future returned without yielding another value,
                 // or else it would have returned `Pending` instead.

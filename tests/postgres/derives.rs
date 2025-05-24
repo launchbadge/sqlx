@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::postgres::types::PgRange;
 use sqlx::{Connection, Executor, FromRow, Postgres};
 use sqlx_postgres::PgHasArrayType;

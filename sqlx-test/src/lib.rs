@@ -108,7 +108,7 @@ macro_rules! test_unprepared_type {
             #[sqlx_macros::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
                 use sqlx::prelude::*;
-                use futures::TryStreamExt;
+                use futures_util::TryStreamExt;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
 
