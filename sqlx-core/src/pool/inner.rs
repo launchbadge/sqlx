@@ -9,7 +9,7 @@ use crossbeam_queue::ArrayQueue;
 use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
 use std::cmp;
-use std::future::Future;
+use std::future::{self, Future};
 use std::pin::pin;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
@@ -18,7 +18,6 @@ use std::task::Poll;
 use crate::logger::private_level_filter_to_trace_level;
 use crate::pool::options::PoolConnectionMetadata;
 use crate::private_tracing_dynamic_event;
-use futures_util::future::{self};
 use futures_util::FutureExt;
 use std::time::{Duration, Instant};
 use tracing::Level;
