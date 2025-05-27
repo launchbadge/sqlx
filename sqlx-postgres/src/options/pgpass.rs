@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::env::var_os;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// try to load a password from the various pgpass file locations
 pub fn load_password(
@@ -14,7 +14,7 @@ pub fn load_password(
     let custom_file = var_os("PGPASSFILE");
     if let Some(file) = custom_file {
         if let Some(password) =
-            load_password_from_file(PathBuf::from(file), host, port, username, database)
+            load_password_from_file(&PathBuf::from(file), host, port, username, database)
         {
             return Some(password);
         }
@@ -30,18 +30,18 @@ pub fn load_password(
             .ok()
             .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
     };
-    load_password_from_file(default_file?, host, port, username, database)
+    load_password_from_file(&default_file?, host, port, username, database)
 }
 
 /// try to extract a password from a pgpass file
 fn load_password_from_file(
-    path: PathBuf,
+    path: &Path,
     host: &str,
     port: u16,
     username: &str,
     database: Option<&str>,
 ) -> Option<String> {
-    let file = File::open(&path)
+    let file = File::open(path)
         .map_err(|e| {
             match e.kind() {
                 std::io::ErrorKind::NotFound => {
