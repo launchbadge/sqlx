@@ -20,6 +20,7 @@ pub struct PgConnectOptions {
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
+    pub(crate) passfile_paths: Vec<PathBuf>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
@@ -74,6 +75,7 @@ impl PgConnectOptions {
             socket: None,
             username,
             password: var("PGPASSWORD").ok(),
+            passfile_paths: vec![],
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
@@ -100,7 +102,7 @@ impl PgConnectOptions {
                 self.port,
                 &self.username,
                 self.database.as_deref(),
-                &[] as &[&Path],
+                &self.passfile_paths,
             );
         }
 
