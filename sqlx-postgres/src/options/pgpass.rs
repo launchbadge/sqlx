@@ -20,17 +20,21 @@ pub fn load_password(
         }
     }
 
-    #[cfg(not(target_os = "windows"))]
-    let default_file = home::home_dir().map(|path| path.join(".pgpass"));
-    #[cfg(target_os = "windows")]
-    let default_file = {
-        use etcetera::BaseStrategy;
+    load_password_from_file(&default_path()?, host, port, username, database)
+}
 
-        etcetera::base_strategy::Windows::new()
-            .ok()
-            .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
-    };
-    load_password_from_file(&default_file?, host, port, username, database)
+#[cfg(not(target_os = "windows"))]
+fn default_path() -> Option<PathBuf> {
+    home::home_dir().map(|path| path.join(".pgpass"))
+}
+
+#[cfg(target_os = "windows")]
+fn default_path() -> Option<PathBuf> {
+    use etcetera::BaseStrategy;
+
+    etcetera::base_strategy::Windows::new()
+        .ok()
+        .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
 }
 
 /// try to extract a password from a pgpass file
