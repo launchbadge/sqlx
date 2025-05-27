@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::env::var;
+use std::ffi::OsStr;
 use std::fmt::{self, Display, Write};
 use std::path::{Path, PathBuf};
 
@@ -184,6 +185,23 @@ impl PgConnectOptions {
     /// ```
     pub fn password(mut self, password: &str) -> Self {
         self.password = Some(password.to_owned());
+        self
+    }
+
+    /// Sets the paths to try when looking for the pgpass file.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .passfile_paths(&["/non/default/pgpass"]);
+    /// ```
+    pub fn passfile_paths<P>(mut self, paths: impl IntoIterator<Item = P>) -> Self
+    where
+        P: Into<PathBuf> + AsRef<OsStr>,
+    {
+        self.passfile_paths = paths.into_iter().map(Into::into).collect();
         self
     }
 
