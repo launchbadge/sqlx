@@ -4,23 +4,32 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-/// try to load a password from the various pgpass file locations
+/// Try to load a password from the various pgpass file locations.
+///
+/// Loading is attempted in the following order:
+/// 1. Path given via the `PGPASSFILE` environment variable.
+/// 2. Paths given via custom_paths.
+/// 3. Default path (`~/.pgpass` on Linux and `%APPDATA%/postgres/pgpass.conf`
+///    on Windows)
 pub fn load_password(
     host: &str,
     port: u16,
     username: &str,
     database: Option<&str>,
+    custom_paths: &[impl AsRef<Path>],
 ) -> Option<String> {
-    let custom_file = var_os("PGPASSFILE");
-    if let Some(file) = custom_file {
-        if let Some(password) =
-            load_password_from_file(&PathBuf::from(file), host, port, username, database)
-        {
-            return Some(password);
-        }
-    }
+    let env_path = var_os("PGPASSFILE").map(PathBuf::from);
+    let default_path = default_path();
 
-    load_password_from_file(&default_path()?, host, port, username, database)
+    let path_iter = env_path
+        .as_deref()
+        .into_iter()
+        .chain(custom_paths.iter().map(AsRef::as_ref))
+        .chain(default_path.as_deref());
+
+    path_iter
+        .filter_map(|path| load_password_from_file(path, host, port, username, database))
+        .next()
 }
 
 #[cfg(not(target_os = "windows"))]

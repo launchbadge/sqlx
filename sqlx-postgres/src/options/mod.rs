@@ -100,6 +100,7 @@ impl PgConnectOptions {
                 self.port,
                 &self.username,
                 self.database.as_deref(),
+                &[] as &[&Path],
             );
         }
 
