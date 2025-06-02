@@ -24,7 +24,7 @@ rand = "0.8.5"
 [dependencies.sqlx]
 # version = "0.9.0"
 workspace = true
-features = ["runtime-tokio", "postgres"]
+features = ["runtime-tokio", "postgres", "migrate"]
 
 [dependencies.accounts]
 path = "accounts"
