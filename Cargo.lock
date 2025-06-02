@@ -3941,6 +3941,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-postgres-preferred-crates"
+version = "0.8.5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dotenvy",
+ "serde",
+ "sqlx",
+ "sqlx-example-postgres-preferred-crates-uses-rust-decimal",
+ "sqlx-example-postgres-preferred-crates-uses-time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "sqlx-example-postgres-preferred-crates-uses-rust-decimal"
+version = "0.8.5"
+dependencies = [
+ "chrono",
+ "rust_decimal",
+ "sqlx",
+ "uuid",
+]
+
+[[package]]
+name = "sqlx-example-postgres-preferred-crates-uses-time"
+version = "0.8.5"
+dependencies = [
+ "serde",
+ "sqlx",
+ "time",
+ "uuid",
+]
+
+[[package]]
 name = "sqlx-example-postgres-todos"
 version = "0.1.0"
 dependencies = [

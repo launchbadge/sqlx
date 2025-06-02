@@ -37,12 +37,7 @@ pub async fn create_session<D: Serialize>(
     data: D,
     valid_duration: Duration,
 ) -> sqlx::Result<Session<D>> {
-    // Round down to the nearest second because
-    // Postgres doesn't support precision higher than 1 microsecond anyway.
-    let created_at = OffsetDateTime::now_utc()
-        .replace_nanosecond(0)
-        .expect("0 nanoseconds should be in range");
-
+    let created_at = OffsetDateTime::now_utc();
     let expires_at = created_at + valid_duration;
 
     let id: Uuid = sqlx::query_scalar(

@@ -21,9 +21,9 @@ workspace = true
 features = ["rt-multi-thread", "macros"]
 
 [dependencies.sqlx]
-# version = "0.9.0"
-workspace = true
-features = ["runtime-tokio", "postgres", "bigdecimal", "chrono", "derive", "migrate", "sqlx-toml"]
+path = "../../.."
+version = "0.8"
+features = ["runtime-tokio", "postgres", "bigdecimal", "chrono", "derive"]
 
 [dependencies.uses-rust-decimal]
 path = "uses-rust-decimal"
