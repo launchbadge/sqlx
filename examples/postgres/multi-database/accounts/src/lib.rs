@@ -1,7 +1,7 @@
 use argon2::{password_hash, Argon2, PasswordHasher, PasswordVerifier};
 use password_hash::PasswordHashString;
 use rand::distributions::{Alphanumeric, DistString};
-use sqlx::{Acquire, Executor, PgPool, PgTransaction, Postgres};
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 

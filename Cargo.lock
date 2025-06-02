@@ -3835,7 +3835,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-multi-database"
-version = "0.8.5"
+version = "0.9.0-alpha.1"
 dependencies = [
  "axum 0.8.1",
  "color-eyre",
@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-multi-tenant"
-version = "0.8.5"
+version = "0.9.0-alpha.1"
 dependencies = [
  "axum 0.8.1",
  "color-eyre",
@@ -3919,7 +3919,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-preferred-crates"
-version = "0.8.5"
+version = "0.9.0-alpha.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-preferred-crates-uses-rust-decimal"
-version = "0.8.5"
+version = "0.9.0-alpha.1"
 dependencies = [
  "chrono",
  "rust_decimal",
@@ -3944,7 +3944,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-example-postgres-preferred-crates-uses-time"
-version = "0.8.5"
+version = "0.9.0-alpha.1"
 dependencies = [
  "serde",
  "sqlx",
