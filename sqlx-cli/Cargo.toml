@@ -28,11 +28,6 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenvy = "0.15.0"
 tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread", "signal"] }
-sqlx = { workspace = true, default-features = false, features = [
-    "runtime-tokio",
-    "migrate",
-    "any",
-] }
 futures-util = { version = "0.3.19", features = ["alloc"] }
 clap = { version = "4.3.10", features = ["derive", "env", "wrap_help"] }
 clap_complete = { version = "4.3.1", optional = true }
@@ -47,6 +42,15 @@ cargo_metadata = "0.18.1"
 filetime = "0.2"
 
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
+
+[dependencies.sqlx]
+workspace = true
+default-features = false
+features = [
+    "runtime-tokio",
+    "migrate",
+    "any",
+]
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls", "completions", "sqlx-toml"]
