@@ -182,7 +182,15 @@ impl PgConnection {
             return Ok((*statement).clone());
         }
 
-        let statement = prepare(self, sql, parameters, metadata, persistent, fetch_column_origin).await?;
+        let statement = prepare(
+            self,
+            sql,
+            parameters,
+            metadata,
+            persistent,
+            fetch_column_origin,
+        )
+        .await?;
 
         if persistent && self.inner.cache_statement.is_enabled() {
             if let Some((id, _)) = self.inner.cache_statement.insert(sql, statement.clone()) {
