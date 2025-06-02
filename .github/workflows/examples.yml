@@ -211,7 +211,7 @@ jobs:
         working-directory: examples/postgres/preferred-crates
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/preferred-crates
-        run: sqlx migrate run
+        run: sqlx db setup
 
       - name: Multi-Tenant (Run)
         env:
