@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::mssql::{Mssql, MssqlPoolOptions};
 use sqlx::{Column, Connection, Executor, MssqlConnection, Row, Statement, TypeInfo};
 use sqlx_core::mssql::MssqlRow;

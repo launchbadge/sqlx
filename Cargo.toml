@@ -169,7 +169,7 @@ sqlx-sqlite = { workspace = true, optional = true }
 [dev-dependencies]
 anyhow = "1.0.52"
 time_ = { version = "0.3.2", package = "time" }
-futures = "0.3.19"
+futures-util = { version = "0.3.19", default-features = false, features = ["alloc"] }
 env_logger = "0.11"
 async-std = { workspace = true, features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }

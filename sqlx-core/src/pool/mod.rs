@@ -59,12 +59,11 @@ use std::fmt;
 use std::future::Future;
 use std::pin::{pin, Pin};
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 use std::time::{Duration, Instant};
 
 use event_listener::EventListener;
 use futures_core::FusedFuture;
-use futures_util::FutureExt;
 
 use crate::connection::Connection;
 use crate::database::Database;
@@ -616,7 +615,9 @@ impl CloseEvent {
             //
             // Ideally we'd map to something like `Result<!, Error>` but using `!` as a type
             // is not allowed on stable Rust yet.
-            self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
+            Pin::new(&mut *self)
+                .poll(cx)
+                .map(|_| Err(Error::PoolClosed))
         })
         .await
     }
@@ -627,7 +628,7 @@ impl Future for CloseEvent {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if let Some(listener) = &mut self.listener {
-            futures_core::ready!(listener.poll_unpin(cx));
+            ready!(Pin::new(listener).poll(cx));
         }
 
         // `EventListener` doesn't like being polled after it yields, and even if it did it
