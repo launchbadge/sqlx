@@ -2,6 +2,7 @@ extern crate time_ as time;
 
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::str::FromStr;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -9,7 +10,6 @@ use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
 use sqlx_core::executor::Executor;
 use sqlx_core::types::Text;
-use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
     "NULL::int2" == None::<i16>
@@ -171,6 +171,38 @@ test_type!(uuid_vec<Vec<sqlx::types::Uuid>>(Postgres,
         ]
 ));
 
+#[cfg(feature = "ipnet")]
+test_type!(ipnet<sqlx::types::ipnet::IpNet>(Postgres,
+    "'127.0.0.1'::inet"
+        == "127.0.0.1/32"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'8.8.8.8/24'::inet"
+        == "8.8.8.8/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'10.1.1/24'::inet"
+        == "10.1.1.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0'::inet"
+        == "::ffff:1.2.3.0/128"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'2001:4f8:3:ba::/64'::inet"
+        == "2001:4f8:3:ba::/64"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'192.168'::cidr"
+        == "192.168.0.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0/120'::cidr"
+        == "::ffff:1.2.3.0/120"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+));
+
 #[cfg(feature = "ipnetwork")]
 test_type!(ipnetwork<sqlx::types::ipnetwork::IpNetwork>(Postgres,
     "'127.0.0.1'::inet"
@@ -230,6 +262,15 @@ test_type!(bitvec<sqlx::types::BitVec>(
         bit_vec.push(true);
         bit_vec
     },
+));
+
+#[cfg(feature = "ipnet")]
+test_type!(ipnet_vec<Vec<sqlx::types::ipnet::IpNet>>(Postgres,
+    "'{127.0.0.1,8.8.8.8/24}'::inet[]"
+        == vec![
+           "127.0.0.1/32".parse::<sqlx::types::ipnet::IpNet>().unwrap(),
+           "8.8.8.8/24".parse::<sqlx::types::ipnet::IpNet>().unwrap()
+        ]
 ));
 
 #[cfg(feature = "ipnetwork")]
@@ -507,6 +548,44 @@ test_type!(_point<Vec<sqlx::postgres::types::PgPoint>>(Postgres,
 test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
     "line('{1.1, -2.2, 3.3}')" == sqlx::postgres::types::PgLine { a: 1.1, b:-2.2, c: 3.3 },
     "line('((0.0, 0.0), (1.0,1.0))')" == sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
+    "lseg('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgLSeg { start_x: 1., start_y: 2., end_x: 3. , end_y: 4.},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
+    "box('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1. , lower_left_y: 2.},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
+    "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1., lower_left_y: 2. }, sqlx::postgres::types::PgBox { upper_right_x: 3.3, upper_right_y: 4.4, lower_left_x: 1.1, lower_left_y: 2.2 }],
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(path<sqlx::postgres::types::PgPath>(Postgres,
+    "path('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
+    "path('[(1.0, 2.0), (3.0,4.0)]')" == sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(polygon<sqlx::postgres::types::PgPolygon>(Postgres,
+    "polygon('((-2,-3),(-1,-3),(-1,-1),(1,1),(1,3),(2,3),(2,-3),(1,-3),(1,0),(-1,0),(-1,-2),(-2,-2))')" ~= sqlx::postgres::types::PgPolygon {  points: vec![
+            sqlx::postgres::types::PgPoint { x: -2., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -1. }, sqlx::postgres::types::PgPoint { x: 1., y: 1. },
+            sqlx::postgres::types::PgPoint { x: 1., y: 3. },   sqlx::postgres::types::PgPoint { x: 2., y: 3. },   sqlx::postgres::types::PgPoint { x: 2., y: -3. },  sqlx::postgres::types::PgPoint { x: 1., y: -3. },
+            sqlx::postgres::types::PgPoint { x: 1., y: 0. },   sqlx::postgres::types::PgPoint { x: -1., y: 0. },  sqlx::postgres::types::PgPoint { x: -1., y: -2. }, sqlx::postgres::types::PgPoint { x: -2., y: -2. },
+    ]},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
+    "circle('<(1.1, -2.2), 3.3>')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('((1.1, -2.2), 3.3)')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('(1.1, -2.2), 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('1.1, -2.2, 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
 ));
 
 #[cfg(feature = "rust_decimal")]

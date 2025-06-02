@@ -67,6 +67,13 @@ pub use bigdecimal::BigDecimal;
 #[doc(no_inline)]
 pub use rust_decimal::Decimal;
 
+#[cfg(feature = "ipnet")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ipnet")))]
+pub mod ipnet {
+    #[doc(no_inline)]
+    pub use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+}
+
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {
@@ -85,12 +92,18 @@ pub mod mac_address {
 pub use json::{Json, JsonRawValue, JsonValue};
 pub use text::Text;
 
+#[cfg(feature = "bstr")]
+pub use bstr::{BStr, BString};
+
 /// Indicates that a SQL type is supported for a database.
 ///
 /// ## Compile-time verification
 ///
-/// With compile-time verification, the use of type overrides is currently required to make
-/// use of any user-defined types.
+/// Type definitions are *not* verified against the database at compile-time.
+/// The [`query!()`](macro.query.html) macros have no implicit knowledge of user-defined types.
+///
+/// When using custom types in query parameters or output columns with `query!()`,
+/// the use of [type overrides](macro.query.html#type-overrides-bind-parameters-postgres-only) is required.
 ///
 /// ```rust,ignore
 /// struct MyUser { id: UserId, name: String }

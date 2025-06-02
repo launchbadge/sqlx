@@ -54,7 +54,7 @@ impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>
     }
 }
 
-impl<'q, DB, O, A> QueryScalar<'q, DB, O, A>
+impl<DB, O, A> QueryScalar<'_, DB, O, A>
 where
     DB: Database + HasStatementCache,
 {
@@ -365,7 +365,7 @@ where
 // Make a SQL query from a statement, that is mapped to a concrete value.
 pub fn query_statement_scalar<'q, DB, O>(
     statement: &'q DB::Statement<'q>,
-) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'_>>
+) -> QueryScalar<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,

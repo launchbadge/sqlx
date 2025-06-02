@@ -27,6 +27,7 @@ impl MySqlConnection {
             inner: Box::new(MySqlConnectionInner {
                 stream,
                 transaction_depth: 0,
+                status_flags: Default::default(),
                 cache_statement: StatementCache::new(options.statement_cache_capacity),
                 log_settings: options.log_settings.clone(),
             }),
@@ -185,7 +186,7 @@ impl<'a> DoHandshake<'a> {
     }
 }
 
-impl<'a> WithSocket for DoHandshake<'a> {
+impl WithSocket for DoHandshake<'_> {
     type Output = Result<MySqlStream, Error>;
 
     async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {

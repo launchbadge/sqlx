@@ -1,6 +1,14 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("lib.md")]
 
+#[cfg(all(
+    feature = "sqlite-preupdate-hook",
+    not(any(feature = "sqlite", feature = "sqlite-unbundled"))
+))]
+compile_error!(
+    "sqlite-preupdate-hook requires either 'sqlite' or 'sqlite-unbundled' to be enabled"
+);
+
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
@@ -23,7 +31,7 @@ pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::raw_sql::{raw_sql, RawSql};
 pub use sqlx_core::row::Row;
 pub use sqlx_core::statement::Statement;
-pub use sqlx_core::transaction::{Transaction, TransactionManager};
+pub use sqlx_core::transaction::Transaction;
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};

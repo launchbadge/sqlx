@@ -34,6 +34,9 @@ mod value;
 #[doc(hidden)]
 pub mod any;
 
+#[doc(hidden)]
+pub use copy::PG_COPY_MAX_DATA_LEN;
+
 #[cfg(feature = "migrate")]
 mod migrate;
 

@@ -12,80 +12,7 @@ mod parse;
 mod pgpass;
 mod ssl_mode;
 
-/// Options and flags which can be used to configure a PostgreSQL connection.
-///
-/// A value of `PgConnectOptions` can be parsed from a connection URL,
-/// as described by [libpq](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING).
-///
-/// The general form for a connection URL is:
-///
-/// ```text
-/// postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]
-/// ```
-///
-/// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
-/// containing a connection URL and then further adjust options if necessary (see example below).
-///
-/// ## Parameters
-///
-/// |Parameter|Default|Description|
-/// |---------|-------|-----------|
-/// | `sslmode` | `prefer` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`PgSslMode`]. |
-/// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
-/// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
-/// | `host` | `None` | Path to the directory containing a PostgreSQL unix domain socket, which will be used instead of TCP if set. |
-/// | `hostaddr` | `None` | Same as `host`, but only accepts IP addresses. |
-/// | `application-name` | `None` | The name will be displayed in the pg_stat_activity view and included in CSV log entries. |
-/// | `user` | result of `whoami` | PostgreSQL user name to connect as. |
-/// | `password` | `None` | Password to be used if the server demands password authentication. |
-/// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
-/// | `dbname` | `None` | The database name. |
-/// | `options` | `None` | The runtime parameters to send to the server at connection start. |
-///
-/// The URL scheme designator can be either `postgresql://` or `postgres://`.
-/// Each of the URL parts is optional.
-///
-/// ```text
-/// postgresql://
-/// postgresql://localhost
-/// postgresql://localhost:5433
-/// postgresql://localhost/mydb
-/// postgresql://user@localhost
-/// postgresql://user:secret@localhost
-/// postgresql://localhost?dbname=mydb&user=postgres&password=postgres
-/// ```
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use sqlx::{Connection, ConnectOptions};
-/// use sqlx::postgres::{PgConnectOptions, PgConnection, PgPool, PgSslMode};
-///
-/// # async fn example() -> sqlx::Result<()> {
-/// // URL connection string
-/// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
-///
-/// // Manually-constructed options
-/// let conn = PgConnectOptions::new()
-///     .host("secret-host")
-///     .port(2525)
-///     .username("secret-user")
-///     .password("secret-password")
-///     .ssl_mode(PgSslMode::Require)
-///     .connect()
-///     .await?;
-///
-/// // Modifying options parsed from a string
-/// let mut opts: PgConnectOptions = "postgres://localhost/mydb".parse()?;
-///
-/// // Change the log verbosity level for queries.
-/// // Information about SQL queries is logged at `DEBUG` level by default.
-/// opts = opts.log_statements(log::LevelFilter::Trace);
-///
-/// let pool = PgPool::connect_with(opts).await?;
-/// # Ok(())
-/// # }
-/// ```
+#[doc = include_str!("doc.md")]
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
     pub(crate) host: String,
@@ -112,39 +39,30 @@ impl Default for PgConnectOptions {
 }
 
 impl PgConnectOptions {
-    /// Creates a new, default set of options ready for configuration.
+    /// Create a default set of connection options populated from the current environment.
     ///
-    /// By default, this reads the following environment variables and sets their
-    /// equivalent options.
+    /// This behaves as if parsed from the connection string `postgres://`
     ///
-    ///  * `PGHOST`
-    ///  * `PGPORT`
-    ///  * `PGUSER`
-    ///  * `PGPASSWORD`
-    ///  * `PGDATABASE`
-    ///  * `PGSSLROOTCERT`
-    ///  * `PGSSLCERT`
-    ///  * `PGSSLKEY`
-    ///  * `PGSSLMODE`
-    ///  * `PGAPPNAME`
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new();
-    /// ```
+    /// See the type-level documentation for details.
     pub fn new() -> Self {
         Self::new_without_pgpass().apply_pgpass()
     }
 
+    /// Create a default set of connection options _without_ reading from `passfile`.
+    ///
+    /// Equivalent to [`PgConnectOptions::new()`] but `passfile` is ignored.
+    ///
+    /// See the type-level documentation for details.
     pub fn new_without_pgpass() -> Self {
         let port = var("PGPORT")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(5432);
 
-        let host = var("PGHOST").ok().unwrap_or_else(|| default_host(port));
+        let host = var("PGHOSTADDR")
+            .ok()
+            .or_else(|| var("PGHOST").ok())
+            .unwrap_or_else(|| default_host(port));
 
         let username = var("PGUSER").ok().unwrap_or_else(whoami::username);
 
@@ -159,6 +77,9 @@ impl PgConnectOptions {
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
+            // As of writing, the implementation of `From<String>` only looks for
+            // `-----BEGIN CERTIFICATE-----` and so will not attempt to parse
+            // a PEM-encoded private key.
             ssl_client_key: var("PGSSLKEY").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
                 .ok()

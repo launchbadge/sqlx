@@ -495,6 +495,31 @@ async fn test_from_row_json_attr() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_from_row_json_attr_nullable() -> anyhow::Result<()> {
+    #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
+    struct J {
+        a: u32,
+        b: u32,
+    }
+
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(json(nullable))]
+        j: Option<J>,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query_as::<_, Record>("select NULL as j")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(record.j.is_none());
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_from_row_json_try_from_attr() -> anyhow::Result<()> {
     #[derive(serde::Deserialize)]
     struct J {

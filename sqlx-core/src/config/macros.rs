@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
-    serde(default, rename_all = "kebab-case")
+    serde(default, rename_all = "kebab-case", deny_unknown_fields)
 )]
 pub struct Config {
     /// Specify which crates' types to use when types from multiple crates apply.

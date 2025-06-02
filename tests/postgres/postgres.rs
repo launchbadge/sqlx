@@ -3,13 +3,13 @@ use futures::{Stream, StreamExt, TryStreamExt};
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
-    PgPoolOptions, PgRow, PgSeverity, Postgres,
+    PgPoolOptions, PgRow, PgSeverity, Postgres, PG_COPY_MAX_DATA_LEN,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -515,6 +515,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    assert!(!conn.is_in_transaction());
 
     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
         .await?;
@@ -523,6 +524,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin
     let mut tx = conn.begin().await?; // transaction
+    assert!(tx.is_in_transaction());
 
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -532,6 +534,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin once more
     let mut tx2 = tx.begin().await?; // savepoint
+    assert!(tx2.is_in_transaction());
 
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -541,6 +544,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // never mind, rollback
     tx2.rollback().await?; // roll that one back
+    assert!(tx.is_in_transaction());
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
@@ -551,6 +555,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // actually, commit
     tx.commit().await?;
+    assert!(!conn.is_in_transaction());
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
@@ -637,8 +642,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         sqlx_core::rt::spawn(async move {
             while !pool.is_closed() {
-                let acquire = pool.acquire();
-                futures::pin_mut!(acquire);
+                let mut acquire = pin!(pool.acquire());
 
                 // poll the acquire future once to put the waiter in the queue
                 future::poll_fn(move |cx| {
@@ -809,6 +813,27 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
     }
 
     assert_eq!(1, conn.cached_statements_size());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_closes_statements_when_not_persistent_issue_3850() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _row = sqlx::query("SELECT $1 AS val")
+        .bind(Oid(1))
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let row = sqlx::query("SELECT count(*) AS num_prepared_statements FROM pg_prepared_statements")
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let n: i64 = row.get("num_prepared_statements");
+    assert_eq!(0, n, "no prepared statements should be open");
 
     Ok(())
 }
@@ -2041,4 +2066,79 @@ async fn test_issue_3052() {
         matches!(&too_large_error, sqlx::Error::Encode(_)),
         "expected encode error, got {too_large_error:?}",
     );
+}
+
+#[sqlx_macros::test]
+async fn test_pg_copy_chunked() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let mut row = "1".repeat(PG_COPY_MAX_DATA_LEN / 10 - 1);
+    row.push_str("\n");
+
+    // creates a payload with COPY_MAX_DATA_LEN + 1 as size
+    let mut payload = row.repeat(10);
+    payload.push_str("12345678\n");
+
+    assert_eq!(payload.len(), PG_COPY_MAX_DATA_LEN + 1);
+
+    let mut copy = conn.copy_in_raw("COPY products(name) FROM STDIN").await?;
+
+    assert!(copy.send(payload.as_bytes()).await.is_ok());
+    assert!(copy.finish().await.is_ok());
+    Ok(())
+}
+
+async fn test_copy_in_error_case(query: &str, expected_error: &str) -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute("CREATE TEMPORARY TABLE IF NOT EXISTS invalid_copy_target (id int4)")
+        .await?;
+    // Try the COPY operation
+    match conn.copy_in_raw(query).await {
+        Ok(_) => anyhow::bail!("expected error"),
+        Err(e) => assert!(
+            e.to_string().contains(expected_error),
+            "expected error to contain: {expected_error}, got: {e:?}"
+        ),
+    }
+    // Verify connection is still usable
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(2i32, value);
+    Ok(())
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_to_missing_table() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY nonexistent_table (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+        "#,
+        "does not exist",
+    )
+    .await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_empty_query() -> anyhow::Result<()> {
+    test_copy_in_error_case("", "EmptyQuery").await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_syntax_error() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY FROM STDIN WITH (FORMAT CSV);
+        "#,
+        "syntax error",
+    )
+    .await
+}
+#[sqlx_macros::test]
+async fn it_can_recover_from_copy_in_invalid_params() -> anyhow::Result<()> {
+    test_copy_in_error_case(
+        r#"
+        COPY invalid_copy_target FROM STDIN WITH (FORMAT CSV, INVALID_PARAM true);
+        "#,
+        "invalid_param",
+    )
+    .await
 }

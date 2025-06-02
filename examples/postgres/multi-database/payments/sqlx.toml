@@ -1,0 +1,9 @@
+[common]
+database-url-var = "PAYMENTS_DATABASE_URL"
+
+[macros.table-overrides.'payment']
+'payment_id' = "crate::PaymentId"
+'account_id' = "accounts::AccountId"
+
+[macros.type-overrides]
+'payment_status' = "crate::PaymentStatus"

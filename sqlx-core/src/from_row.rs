@@ -65,6 +65,14 @@ use crate::{error::Error, row::Row};
 /// reason), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
 /// The styling of each option is intended to be an example of its behavior.
 ///
+/// Case conversion is handled by the `heck` crate.
+/// See [its documentation](https://docs.rs/heck/0.5.0/heck/#definition-of-a-word-boundary)
+/// for details.
+///
+/// Note that numbers are *not* considered separate words.
+/// For example, `Foo1` to snake case would be `foo1`, *not* `foo_1`.
+/// See [this issue](https://github.com/launchbadge/sqlx/issues/3864) for discussion.
+///
 /// #### `default`
 ///
 /// When your struct contains a field that is not present in your query,
@@ -111,7 +119,8 @@ use crate::{error::Error, row::Row};
 /// different placeholder values, if applicable.
 ///
 /// This is similar to how `#[serde(default)]` behaves.
-/// ### `flatten`
+///
+/// #### `flatten`
 ///
 /// If you want to handle a field that implements [`FromRow`],
 /// you can use the `flatten` attribute to specify that you want
@@ -175,33 +184,6 @@ use crate::{error::Error, row::Row};
 ///
 /// // `Default` for `Vec<Address>` is an empty vector.
 /// assert!(user.addresses.is_empty());
-/// ```
-///
-/// ## Manual implementation
-///
-/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
-/// have a struct with a field that needs manual decoding:
-///
-///
-/// ```rust,ignore
-/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
-/// struct MyCustomType {
-///     custom: String,
-/// }
-///
-/// struct Foo {
-///     bar: MyCustomType,
-/// }
-///
-/// impl FromRow<'_, SqliteRow> for Foo {
-///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
-///         Ok(Self {
-///             bar: MyCustomType {
-///                 custom: row.try_get("custom")?
-///             }
-///         })
-///     }
-/// }
 /// ```
 ///
 /// #### `try_from`
@@ -271,6 +253,59 @@ use crate::{error::Error, row::Row};
 ///     }
 /// }
 /// ```
+///
+/// By default the `#[sqlx(json)]` attribute will assume that the underlying database row is
+/// _not_ NULL. This can cause issues when your field type is an `Option<T>` because this would be
+/// represented as the _not_ NULL (in terms of DB) JSON value of `null`.
+///
+/// If you wish to describe a database row which _is_ NULLable but _cannot_ contain the JSON value `null`,
+/// use the `#[sqlx(json(nullable))]` attribute.
+///
+/// For example
+/// ```rust,ignore
+/// #[derive(serde::Deserialize)]
+/// struct Data {
+///     field1: String,
+///     field2: u64
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(json(nullable))]
+///     metadata: Option<Data>
+/// }
+/// ```
+/// Would describe a database field which _is_ NULLable but if it exists it must be the JSON representation of `Data`
+/// and cannot be the JSON value `null`
+///
+/// ## Manual implementation
+///
+/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
+/// have a struct with a field that needs manual decoding:
+///
+///
+/// ```rust,ignore
+/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
+/// struct MyCustomType {
+///     custom: String,
+/// }
+///
+/// struct Foo {
+///     bar: MyCustomType,
+/// }
+///
+/// impl FromRow<'_, SqliteRow> for Foo {
+///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+///         Ok(Self {
+///             bar: MyCustomType {
+///                 custom: row.try_get("custom")?
+///             }
+///         })
+///     }
+/// }
+/// ```
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
@@ -286,7 +321,7 @@ where
 }
 
 // implement FromRow for tuples of types that implement Decode
-// up to tuples of 9 values
+// up to tuples of 16 values
 
 macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {

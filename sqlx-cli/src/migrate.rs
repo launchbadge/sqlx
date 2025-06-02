@@ -13,12 +13,14 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
 
-pub async fn add(config: &Config, opts: AddMigrationOpts) -> anyhow::Result<()> {
-    let source = opts.source.resolve(config);
+pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
+    let config = opts.config.load_config().await?;
+
+    let source = opts.source.resolve_path(config);
 
     fs::create_dir_all(source).context("Unable to create migrations directory")?;
 
-    let migrator = Migrator::new(Path::new(source)).await?;
+    let migrator = opts.source.resolve(config).await?;
 
     let version_prefix = opts.version_prefix(config, &migrator);
 
@@ -128,13 +130,8 @@ pub async fn info(
     migration_source: &MigrationSourceOpt,
     connect_opts: &ConnectOpts,
 ) -> anyhow::Result<()> {
-    let source = migration_source.resolve(config);
+    let migrator = migration_source.resolve(config).await?;
 
-    let migrator = Migrator::new(ResolveWith(
-        Path::new(source),
-        config.migrate.to_resolve_config(),
-    ))
-    .await?;
     let mut conn = crate::connect(connect_opts).await?;
 
     // FIXME: we shouldn't actually be creating anything here
@@ -226,9 +223,8 @@ pub async fn run(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let source = migration_source.resolve(config);
+    let migrator = migration_source.resolve(config).await?;
 
-    let migrator = Migrator::new(Path::new(source)).await?;
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -329,8 +325,8 @@ pub async fn revert(
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let source = migration_source.resolve(config);
-    let migrator = Migrator::new(Path::new(source)).await?;
+    let migrator = migration_source.resolve(config).await?;
+
     if let Some(target_version) = target_version {
         if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -430,7 +426,7 @@ pub fn build_script(
     migration_source: &MigrationSourceOpt,
     force: bool,
 ) -> anyhow::Result<()> {
-    let source = migration_source.resolve(config);
+    let source = migration_source.resolve_path(config);
 
     anyhow::ensure!(
         Path::new("Cargo.toml").exists(),

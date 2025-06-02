@@ -2,16 +2,31 @@ use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
 use crate::config::Config;
 use anyhow::Context;
 use chrono::Utc;
-use clap::{Args, Parser};
+use clap::{
+    builder::{styling::AnsiColor, Styles},
+    Args, Parser,
+};
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
-use sqlx::migrate::Migrator;
+use sqlx::migrate::{MigrateError, Migrator, ResolveWith};
 use std::env;
 use std::ops::{Deref, Not};
+use std::path::PathBuf;
+
+const HELP_STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Blue.on_default().bold())
+    .usage(AnsiColor::Blue.on_default().bold())
+    .literal(AnsiColor::White.on_default())
+    .placeholder(AnsiColor::Green.on_default());
 
 #[derive(Parser, Debug)]
-#[clap(version, about, author)]
+#[clap(version, about, author, styles = HELP_STYLES)]
 pub struct Opt {
+    // https://github.com/launchbadge/sqlx/pull/3724 placed this here,
+    // but the intuitive place would be in the arguments for each subcommand.
+    #[clap(flatten)]
+    pub no_dotenv: NoDotenvOpt,
+
     #[clap(subcommand)]
     pub command: Command,
 }
@@ -53,6 +68,9 @@ pub enum Command {
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
     },
 
     #[clap(alias = "mig")]
@@ -76,12 +94,18 @@ pub enum DatabaseCommand {
     Create {
         #[clap(flatten)]
         connect_opts: ConnectOpts,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
     },
 
     /// Drops the database specified in your DATABASE_URL.
     Drop {
         #[clap(flatten)]
         confirmation: Confirmation,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -100,6 +124,9 @@ pub enum DatabaseCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
 
         /// PostgreSQL only: force drops the database.
@@ -111,6 +138,9 @@ pub enum DatabaseCommand {
     Setup {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         #[clap(flatten)]
         connect_opts: ConnectOpts,
@@ -198,6 +228,9 @@ pub enum MigrateCommand {
         #[clap(flatten)]
         source: MigrationSourceOpt,
 
+        #[clap(flatten)]
+        config: ConfigOpt,
+
         /// List all the migrations to be run without applying
         #[clap(long)]
         dry_run: bool,
@@ -218,6 +251,9 @@ pub enum MigrateCommand {
     Revert {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// List the migration to be reverted without applying
         #[clap(long)]
@@ -242,6 +278,9 @@ pub enum MigrateCommand {
         source: MigrationSourceOpt,
 
         #[clap(flatten)]
+        config: ConfigOpt,
+
+        #[clap(flatten)]
         connect_opts: ConnectOpts,
     },
 
@@ -251,6 +290,9 @@ pub enum MigrateCommand {
     BuildScript {
         #[clap(flatten)]
         source: MigrationSourceOpt,
+
+        #[clap(flatten)]
+        config: ConfigOpt,
 
         /// Overwrite the build script if it already exists.
         #[clap(long)]
@@ -264,6 +306,9 @@ pub struct AddMigrationOpts {
 
     #[clap(flatten)]
     pub source: MigrationSourceOpt,
+
+    #[clap(flatten)]
+    pub config: ConfigOpt,
 
     /// If set, create an up-migration only. Conflicts with `--reversible`.
     #[clap(long, conflicts_with = "reversible")]
@@ -297,18 +342,29 @@ pub struct MigrationSourceOpt {
 }
 
 impl MigrationSourceOpt {
-    pub fn resolve<'a>(&'a self, config: &'a Config) -> &'a str {
+    pub fn resolve_path<'a>(&'a self, config: &'a Config) -> &'a str {
         if let Some(source) = &self.source {
             return source;
         }
 
         config.migrate.migrations_dir()
     }
+
+    pub async fn resolve(&self, config: &Config) -> Result<Migrator, MigrateError> {
+        Migrator::new(ResolveWith(
+            self.resolve_path(config),
+            config.migrate.to_resolve_config(),
+        ))
+        .await
+    }
 }
 
 /// Argument for the database URL.
 #[derive(Args, Debug)]
 pub struct ConnectOpts {
+    #[clap(flatten)]
+    pub no_dotenv: NoDotenvOpt,
+
     /// Location of the DB, by default will be read from the DATABASE_URL env var or `.env` files.
     #[clap(long, short = 'D')]
     pub database_url: Option<String>,
@@ -329,6 +385,30 @@ pub struct ConnectOpts {
     #[cfg(feature = "_sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct NoDotenvOpt {
+    /// Do not automatically load `.env` files.
+    #[clap(long)]
+    // Parsing of this flag is actually handled _before_ calling Clap,
+    // by `crate::maybe_apply_dotenv()`.
+    #[allow(unused)] // TODO: switch to `#[expect]`
+    pub no_dotenv: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ConfigOpt {
+    /// Override the path to the config file.
+    ///
+    /// Defaults to `sqlx.toml` in the current directory, if it exists.
+    ///
+    /// Configuration file loading may be bypassed with `--config=/dev/null` on Linux,
+    /// or `--config=NUL` on Windows.
+    ///
+    /// Config file loading is enabled by the `sqlx-toml` feature.
+    #[clap(long)]
+    pub config: Option<PathBuf>,
 }
 
 impl ConnectOpts {
@@ -371,6 +451,30 @@ impl ConnectOpts {
         }
 
         Ok(())
+    }
+}
+
+impl ConfigOpt {
+    pub async fn load_config(&self) -> anyhow::Result<&'static Config> {
+        let path = self.config.clone();
+
+        // Tokio does file I/O on a background task anyway
+        tokio::task::spawn_blocking(|| {
+            if let Some(path) = path {
+                let err_str = format!("error reading config from {path:?}");
+                Config::try_read_with(|| Ok(path)).context(err_str)
+            } else {
+                let path = PathBuf::from("sqlx.toml");
+
+                if path.exists() {
+                    eprintln!("Found `sqlx.toml` in current directory; reading...");
+                }
+
+                Ok(Config::read_with_or_default(move || Ok(path)))
+            }
+        })
+        .await
+        .context("unexpected error loading config")?
     }
 }
 
@@ -429,42 +533,42 @@ impl AddMigrationOpts {
     pub fn version_prefix(&self, config: &Config, migrator: &Migrator) -> String {
         let default_versioning = &config.migrate.defaults.migration_versioning;
 
-        if self.timestamp || matches!(default_versioning, DefaultVersioning::Timestamp) {
-            return next_timestamp();
+        match (self.timestamp, self.sequential, default_versioning) {
+            (true, false, _) | (false, false, DefaultVersioning::Timestamp) => next_timestamp(),
+            (false, true, _) | (false, false, DefaultVersioning::Sequential) => fmt_sequential(
+                migrator
+                    .migrations
+                    .last()
+                    .map_or(1, |migration| migration.version + 1),
+            ),
+            (false, false, DefaultVersioning::Inferred) => {
+                migrator
+                    .migrations
+                    .rchunks(2)
+                    .next()
+                    .and_then(|migrations| {
+                        match migrations {
+                            [previous, latest] => {
+                                // If the latest two versions differ by 1, infer sequential.
+                                (latest.version - previous.version == 1)
+                                    .then_some(latest.version + 1)
+                            }
+                            [latest] => {
+                                // If only one migration exists and its version is 0 or 1, infer sequential
+                                matches!(latest.version, 0 | 1).then_some(latest.version + 1)
+                            }
+                            _ => unreachable!(),
+                        }
+                    })
+                    .map_or_else(next_timestamp, fmt_sequential)
+            }
+            (true, true, _) => unreachable!("BUG: Clap should have rejected this case"),
         }
-
-        if self.sequential || matches!(default_versioning, DefaultVersioning::Sequential) {
-            return next_sequential(migrator).unwrap_or_else(|| fmt_sequential(1));
-        }
-
-        next_sequential(migrator).unwrap_or_else(next_timestamp)
     }
 }
 
 fn next_timestamp() -> String {
     Utc::now().format("%Y%m%d%H%M%S").to_string()
-}
-
-fn next_sequential(migrator: &Migrator) -> Option<String> {
-    let next_version = migrator
-        .migrations
-        .windows(2)
-        .last()
-        .and_then(|migrations| {
-            match migrations {
-                [previous, latest] => {
-                    // If the latest two versions differ by 1, infer sequential.
-                    (latest.version - previous.version == 1).then_some(latest.version + 1)
-                }
-                [latest] => {
-                    // If only one migration exists and its version is 0 or 1, infer sequential
-                    matches!(latest.version, 0 | 1).then_some(latest.version + 1)
-                }
-                _ => unreachable!(),
-            }
-        });
-
-    next_version.map(fmt_sequential)
 }
 
 fn fmt_sequential(version: i64) -> String {

@@ -6,8 +6,7 @@ use std::path::{Path, PathBuf};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use sqlx_core::config::Config;
-use sqlx_core::migrate::{Migration, MigrationType, ResolveConfig};
-use syn::spanned::Spanned;
+use sqlx_core::migrate::{Migration, MigrationType};
 use syn::LitStr;
 
 pub const DEFAULT_PATH: &str = "./migrations";
@@ -118,6 +117,12 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
         .into_iter()
         .map(|(migration, path)| QuoteMigration { migration, path });
 
+    let table_name = config.migrate.table_name();
+
+    let create_schemas = config.migrate.create_schemas.iter().map(|schema_name| {
+        quote! { ::std::borrow::Cow::Borrowed(#schema_name) }
+    });
+
     #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
     {
         let path = path.to_str().ok_or_else(|| {
@@ -145,7 +150,7 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
                     #(#migrations),*
             ]),
             create_schemas: ::std::borrow::Cow::Borrowed(&[#(#create_schemas),*]),
-            #table_name
+            table_name: ::std::borrow::Cow::Borrowed(#table_name),
             ..::sqlx::migrate::Migrator::DEFAULT
         }
     })

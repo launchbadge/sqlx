@@ -249,13 +249,9 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
 
                 fn recurse_lit_lookup(expr: Expr) -> Option<Lit> {
                     match expr {
-                        Expr::Lit(syn::ExprLit { lit, .. }) => {
-                            return Some(lit);
-                        }
-                        Expr::Group(syn::ExprGroup { expr, .. }) => {
-                            return recurse_lit_lookup(*expr);
-                        }
-                        _ => return None,
+                        Expr::Lit(syn::ExprLit { lit, .. }) => Some(lit),
+                        Expr::Group(syn::ExprGroup { expr, .. }) => recurse_lit_lookup(*expr),
+                        _ => None,
                     }
                 }
 

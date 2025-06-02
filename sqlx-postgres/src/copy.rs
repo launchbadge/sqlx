@@ -129,6 +129,9 @@ impl PgPoolCopyExt for Pool<Postgres> {
     }
 }
 
+// (1 GiB - 1) - 1 - length prefix (4 bytes)
+pub const PG_COPY_MAX_DATA_LEN: usize = 0x3fffffff - 1 - 4;
+
 /// A connection in streaming `COPY FROM STDIN` mode.
 ///
 /// Created by [PgConnection::copy_in_raw] or [Pool::copy_out_raw].
@@ -186,15 +189,20 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
 
     /// Send a chunk of `COPY` data.
     ///
+    /// The data is sent in chunks if it exceeds the maximum length of a `CopyData` message (1 GiB - 6
+    /// bytes) and may be partially sent if this call is cancelled.
+    ///
     /// If you're copying data from an `AsyncRead`, maybe consider [Self::read_from] instead.
     pub async fn send(&mut self, data: impl Deref<Target = [u8]>) -> Result<&mut Self> {
-        self.conn
-            .as_deref_mut()
-            .expect("send_data: conn taken")
-            .inner
-            .stream
-            .send(CopyData(data))
-            .await?;
+        for chunk in data.deref().chunks(PG_COPY_MAX_DATA_LEN) {
+            self.conn
+                .as_deref_mut()
+                .expect("send_data: conn taken")
+                .inner
+                .stream
+                .send(CopyData(chunk))
+                .await?;
+        }
 
         Ok(self)
     }
@@ -230,10 +238,10 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             }
 
             // Write the length
-            let read32 = u32::try_from(read)
-                .map_err(|_| err_protocol!("number of bytes read exceeds 2^32: {}", read))?;
+            let read32 = i32::try_from(read)
+                .map_err(|_| err_protocol!("number of bytes read exceeds 2^31 - 1: {}", read))?;
 
-            (&mut buf.get_mut()[1..]).put_u32(read32 + 4);
+            (&mut buf.get_mut()[1..]).put_i32(read32 + 4);
 
             conn.inner.stream.flush().await?;
         }

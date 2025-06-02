@@ -46,6 +46,17 @@ impl ConnectionHandle {
         unsafe { sqlite3_last_insert_rowid(self.as_ptr()) }
     }
 
+    pub(crate) fn last_error(&mut self) -> Option<SqliteError> {
+        // SAFETY: we have exclusive access to the database handle
+        unsafe { SqliteError::try_new(self.as_ptr()) }
+    }
+
+    #[track_caller]
+    pub(crate) fn expect_error(&mut self) -> SqliteError {
+        self.last_error()
+            .expect("expected error code to be set in current context")
+    }
+
     pub(crate) fn exec(&mut self, query: impl Into<String>) -> Result<(), Error> {
         let query = query.into();
         let query = CString::new(query).map_err(|_| err_protocol!("query contains nul bytes"))?;
