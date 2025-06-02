@@ -6,6 +6,7 @@ use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
 use tokio::{select, signal};
+use anyhow::Context;
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
