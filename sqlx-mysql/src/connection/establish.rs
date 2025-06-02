@@ -186,7 +186,7 @@ impl<'a> DoHandshake<'a> {
     }
 }
 
-impl<'a> WithSocket for DoHandshake<'a> {
+impl WithSocket for DoHandshake<'_> {
     type Output = Result<MySqlStream, Error>;
 
     async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {

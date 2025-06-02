@@ -506,12 +506,12 @@ fn build_listen_all_query(channels: impl IntoIterator<Item = impl AsRef<str>>) -
 
 #[test]
 fn test_build_listen_all_query_with_single_channel() {
-    let output = build_listen_all_query(&["test"]);
+    let output = build_listen_all_query(["test"]);
     assert_eq!(output.as_str(), r#"LISTEN "test";"#);
 }
 
 #[test]
 fn test_build_listen_all_query_with_multiple_channels() {
-    let output = build_listen_all_query(&["channel.0", "channel.1"]);
+    let output = build_listen_all_query(["channel.0", "channel.1"]);
     assert_eq!(output.as_str(), r#"LISTEN "channel.0";LISTEN "channel.1";"#);
 }

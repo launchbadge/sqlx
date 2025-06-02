@@ -639,7 +639,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // Random seed:
     let seed: [u8; 32] = rand::random();
-    println!("RNG seed: {}", hex::encode(&seed));
+    println!("RNG seed: {}", hex::encode(seed));
 
     // Pre-determined seed:
     // let mut seed: [u8; 32] = [0u8; 32];
@@ -734,7 +734,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_progress_handler(1, move || {
         assert_eq!(state, "test");
         false
@@ -802,7 +802,7 @@ async fn test_query_with_update_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_update_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Insert);
@@ -858,7 +858,7 @@ async fn test_query_with_commit_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_commit_hook(move || {
         CALLED.store(true, Ordering::Relaxed);
         assert_eq!(state, "test");
@@ -920,7 +920,7 @@ async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     static CALLED: AtomicBool = AtomicBool::new(false);
     conn.lock_handle().await?.set_rollback_hook(move || {
         assert_eq!(state, "test");
@@ -977,7 +977,7 @@ async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         move |result| {
             assert_eq!(state, "test");
@@ -1030,7 +1030,7 @@ async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
         .await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Delete);
@@ -1077,7 +1077,7 @@ async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
     static CALLED: AtomicBool = AtomicBool::new(false);
     let sqlite_value_stored: Arc<std::sync::Mutex<Option<_>>> = Default::default();
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         let sqlite_value_stored = sqlite_value_stored.clone();
         move |result| {

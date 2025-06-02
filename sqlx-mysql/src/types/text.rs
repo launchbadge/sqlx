@@ -16,7 +16,7 @@ impl<T> Type<MySql> for Text<T> {
     }
 }
 
-impl<'q, T> Encode<'q, MySql> for Text<T>
+impl<T> Encode<'_, MySql> for Text<T>
 where
     T: Display,
 {
