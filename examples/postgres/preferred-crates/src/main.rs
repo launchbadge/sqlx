@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     uses_rust_decimal::create_table(&mut conn).await?;
     uses_time::create_table(&mut conn).await?;
 
-    let user_id = sqlx::query!(
+    let user_id = sqlx::query_scalar!(
         "insert into users(username, password_hash) values($1, $2) returning id",
         "user_foo",
         "<pretend this is a password hash>",
@@ -45,6 +45,8 @@ async fn main() -> anyhow::Result<()> {
     let user = sqlx::query_as!(User, "select * from users where id = $1", user_id)
         .fetch_one(&mut conn)
         .await?;
+
+    println!("Created user: {user:?}");
 
     let session =
         uses_time::create_session(&mut conn, SessionData { user_id }, SESSION_DURATION).await?;
@@ -61,6 +63,8 @@ async fn main() -> anyhow::Result<()> {
     let purchase = uses_rust_decimal::get_purchase(&mut conn, purchase_id)
         .await?
         .expect("expected purchase");
+
+    println!("Created purchase: {purchase:?}");
 
     Ok(())
 }
