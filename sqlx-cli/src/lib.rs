@@ -9,15 +9,15 @@ use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
-mod database;
-mod metadata;
+pub mod database;
+pub mod metadata;
 // mod migration;
 // mod migrator;
 #[cfg(feature = "completions")]
-mod completions;
-mod migrate;
-mod opt;
-mod prepare;
+pub mod completions;
+pub mod migrate;
+pub mod opt;
+pub mod prepare;
 
 pub use crate::opt::Opt;
 
