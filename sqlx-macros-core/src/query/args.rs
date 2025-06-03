@@ -6,7 +6,6 @@ use quote::{format_ident, quote, quote_spanned};
 use sqlx_core::config::Config;
 use sqlx_core::describe::Describe;
 use sqlx_core::type_checking;
-use sqlx_core::type_checking::Error;
 use sqlx_core::type_info::TypeInfo;
 use syn::spanned::Spanned;
 use syn::{Expr, ExprCast, ExprGroup, Type};
@@ -130,7 +129,10 @@ fn get_param_type<DB: DatabaseExt>(
                     "optional sqlx feature `{feature_gate}` required for type {param_ty} of param #{param_num}",
                 )
             } else {
-                format!("unsupported type {param_ty} for param #{param_num}")
+                format!(
+                    "no built-in mapping for type {param_ty} of param #{param_num}; \
+                         a type override may be required, see documentation for details"
+                )
             }
         }
         type_checking::Error::DateTimeCrateFeatureNotEnabled => {
@@ -160,11 +162,12 @@ fn get_param_type<DB: DatabaseExt>(
             )
         }
 
-        Error::AmbiguousDateTimeType { fallback } => {
+        type_checking::Error::AmbiguousDateTimeType { fallback } => {
             warnings.ambiguous_datetime = true;
             return Ok(fallback.parse()?);
         }
-        Error::AmbiguousNumericType { fallback } => {
+
+        type_checking::Error::AmbiguousNumericType { fallback } => {
             warnings.ambiguous_numeric = true;
             return Ok(fallback.parse()?);
         }
