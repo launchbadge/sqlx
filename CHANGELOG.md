@@ -13,16 +13,36 @@ This section will be replaced in subsequent alpha releases. See the Git history 
 
 ### Breaking
 
-* [[#3821]] Groundwork for 0.9.0-alpha.1
-  * Increased MSRV to 1.86 and set rust-version [@abonander]
+* [[#3821]]: Groundwork for 0.9.0-alpha.1 [[@abonander]]
+  * Increased MSRV to 1.86 and set rust-version 
   * Deleted deprecated combination runtime+TLS features (e.g. `runtime-tokio-native-tls`)
   * Deleted re-export of unstable `TransactionManager` trait in `sqlx`.
     * Not technically a breaking change because it's `#[doc(hidden)]`, 
       but [it _will_ break SeaORM][seaorm-2600] if not proactively fixed.
+* [[#3383]]: feat: create `sqlx.toml` format [[@abonander]]
+  * SQLx and `sqlx-cli` now support per-crate configuration files (`sqlx.toml`)
+  * New functionality includes, but is not limited to:
+    * Rename `DATABASE_URL` for a crate (for multi-database workspaces) 
+    * Set global type overrides for the macros (supporting custom types)
+    * Rename or relocate the `_sqlx_migrations` table (for multiple crates using the same database)
+    * Set characters to ignore when hashing migrations (e.g. ignore whitespace)
+  * More to be implemented in future releases.
+  * Enable feature `sqlx-toml` to use (on by default).
+  * Guide: see `sqlx::_config` module in documentation.
+  * Reference: [[Link](sqlx-core/src/config/reference.toml)] (Github-Flavored Markdown doesn't autolink relative URLs)
+  * Examples (written for Postgres but can be adapted to other databases; PRs welcome!):
+    * Multiple databases using `DATABASE_URL` renaming and global type overrides: [[Link](examples/postgres/multi-database)]
+    * Multi-tenant database using `_sqlx_migrations` renaming and multiple schemas: [[Link](examples/postgres/multi-tenant)]
+    * Force use of `chrono` when `time` is enabled (e.g. when using `tower-sessions-sqlx-store`): [[Link](examples/postgres/preferred-crates)]
+      * Forcing `bigdecimal` when `rust_decimal` is enabled is also shown, but problems with `chrono`/`time` are more common.
+  * Breaking change: significant changes to the `Migrate` trait
+  * Breaking change: `sqlx::migrate::resolve_blocking()` is now `#[doc(hidden)]` and thus SemVer-exempt.
 
 [seaorm-2600]: https://github.com/SeaQL/sea-orm/issues/2600
 
-[#3821]: https://github.com/launchbadge/sqlx/pull/3830
+[#3821]: https://github.com/launchbadge/sqlx/pull/3821
+[#3383]: https://github.com/launchbadge/sqlx/pull/3383
+
 
 ## 0.8.6 - 2025-05-19
 
