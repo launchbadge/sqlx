@@ -13,6 +13,7 @@ pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
 pub use sqlx_core::column::ColumnIndex;
+pub use sqlx_core::column::ColumnOrigin;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
@@ -172,3 +173,37 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
+
+#[cfg(feature = "_unstable-doc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "_unstable-doc")))]
+pub use sqlx_core::config as _config;
+
+// NOTE: APIs exported in this module are SemVer-exempt.
+#[doc(hidden)]
+pub mod _unstable {
+    pub use sqlx_core::config;
+}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "chrono", feature = "time"),
+    deprecated = "SQLx has both `chrono` and `time` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping date/time types. \
+        The `query!()` macros prefer types from `time` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.date_time"
+)]
+pub fn warn_on_ambiguous_inferred_date_time_crate() {}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "bigdecimal", feature = "rust_decimal"),
+    deprecated = "SQLx has both `bigdecimal` and `rust_decimal` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping `NUMERIC`. \
+        The `query!()` macros prefer `bigdecimal::BigDecimal` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.numeric"
+)]
+pub fn warn_on_ambiguous_inferred_numeric_crate() {}

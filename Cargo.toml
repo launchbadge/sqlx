@@ -16,8 +16,11 @@ members = [
     "examples/postgres/files",
     "examples/postgres/json",
     "examples/postgres/listen",
-    "examples/postgres/todos",
     "examples/postgres/mockable-todos",
+    "examples/postgres/multi-database",
+    "examples/postgres/multi-tenant",
+    "examples/postgres/preferred-crates",
+    "examples/postgres/todos",
     "examples/postgres/transaction",
     "examples/sqlite/todos",
 ]
@@ -51,7 +54,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types", "sqlite-preupdate-hook"]
+features = ["all-databases", "_unstable-all-types", "_unstable-doc", "sqlite-preupdate-hook"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -60,6 +63,9 @@ default = ["any", "macros", "migrate", "json"]
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
+
+# Enable parsing of `sqlx.toml` for configuring macros and migrations.
+sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml"]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
@@ -76,6 +82,8 @@ _unstable-all-types = [
     "bit-vec",
     "bstr"
 ]
+# Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
+_unstable-doc = []
 
 # Base runtime features without TLS
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
@@ -132,7 +140,7 @@ sqlx-postgres = { version = "=0.9.0-alpha.1", path = "sqlx-postgres" }
 sqlx-sqlite = { version = "=0.9.0-alpha.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.9.0-alpha.1", path = ".", default-features = false }
+sqlx = { version = "=0.9.0-alpha.1", path = "." }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.

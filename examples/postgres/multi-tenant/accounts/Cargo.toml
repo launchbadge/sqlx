@@ -1,0 +1,26 @@
+[package]
+name = "sqlx-example-postgres-multi-tenant-accounts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["rt", "sync"] }
+
+argon2 = { version = "0.5.3", features = ["password-hash"] }
+password-hash = { version = "0.5", features = ["std"] }
+
+uuid = { version = "1", features = ["serde"] }
+thiserror = "1"
+rand = "0.8"
+
+time = { version = "0.3.37", features = ["serde"] }
+
+serde = { version = "1.0.218", features = ["derive"] }
+
+[dependencies.sqlx]
+# version = "0.9.0"
+workspace = true
+features = ["postgres", "time", "uuid", "macros", "sqlx-toml", "migrate"]
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio"] }

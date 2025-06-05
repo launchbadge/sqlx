@@ -27,6 +27,10 @@ preupdate-hook = ["libsqlite3-sys/preupdate_hook"]
 bundled = ["libsqlite3-sys/bundled"]
 unbundled = ["libsqlite3-sys/buildtime_bindgen"]
 
+# Note: currently unused, only to satisfy "unexpected `cfg` condition" lint
+bigdecimal = []
+rust_decimal = []
+
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }

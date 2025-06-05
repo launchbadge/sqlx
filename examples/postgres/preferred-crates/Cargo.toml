@@ -1,0 +1,37 @@
+[package]
+name = "sqlx-example-postgres-preferred-crates"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+dotenvy.workspace = true
+
+anyhow = "1"
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["serde"] }
+
+[dependencies.tokio]
+workspace = true
+features = ["rt-multi-thread", "macros"]
+
+[dependencies.sqlx]
+# version = "0.9.0"
+workspace = true
+features = ["runtime-tokio", "postgres", "bigdecimal", "chrono", "derive", "migrate", "sqlx-toml"]
+
+[dependencies.uses-rust-decimal]
+path = "uses-rust-decimal"
+package = "sqlx-example-postgres-preferred-crates-uses-rust-decimal"
+
+[dependencies.uses-time]
+path = "uses-time"
+package = "sqlx-example-postgres-preferred-crates-uses-time"
+
+[lints]
+workspace = true

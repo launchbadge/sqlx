@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
@@ -16,6 +16,7 @@ use crate::database::DatabaseExt;
 use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
+use sqlx_core::config::Config;
 use url::Url;
 
 mod args;
@@ -112,7 +113,7 @@ static METADATA: Lazy<Mutex<HashMap<String, Metadata>>> = Lazy::new(Default::def
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-fn init_metadata(manifest_dir: &String) -> Metadata {
+fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
     let manifest_dir: PathBuf = manifest_dir.into();
 
     let (database_url, offline, offline_dir) = load_dot_env(&manifest_dir);
@@ -123,15 +124,17 @@ fn init_metadata(manifest_dir: &String) -> Metadata {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env("DATABASE_URL").ok().or(database_url);
+    let var_name = Config::try_from_crate()?.common.database_url_var();
 
-    Metadata {
+    let database_url = env(var_name).ok().or(database_url);
+
+    Ok(Metadata {
         manifest_dir,
         offline,
         database_url,
         offline_dir,
         workspace_root: Arc::new(Mutex::new(None)),
-    }
+    })
 }
 
 pub fn expand_input<'a>(
@@ -149,9 +152,13 @@ pub fn expand_input<'a>(
             guard
         });
 
-    let metadata = metadata_lock
-        .entry(manifest_dir)
-        .or_insert_with_key(init_metadata);
+    let metadata = match metadata_lock.entry(manifest_dir) {
+        hash_map::Entry::Occupied(occupied) => occupied.into_mut(),
+        hash_map::Entry::Vacant(vacant) => {
+            let metadata = init_metadata(vacant.key())?;
+            vacant.insert(metadata)
+        }
+    };
 
     let data_source = match &metadata {
         Metadata {
@@ -236,6 +243,12 @@ impl<DB: Database> DescribeExt for Describe<DB> where
 {
 }
 
+#[derive(Default)]
+struct Warnings {
+    ambiguous_datetime: bool,
+    ambiguous_numeric: bool,
+}
+
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
@@ -244,6 +257,8 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
+    let config = Config::try_from_crate()?;
+
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {
         Some(Either::Left(params)) => Some(params.len()),
@@ -260,7 +275,9 @@ where
         }
     }
 
-    let args_tokens = args::quote_args(&input, &data.describe)?;
+    let mut warnings = Warnings::default();
+
+    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
@@ -279,7 +296,7 @@ where
     } else {
         match input.record_type {
             RecordType::Generated => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
@@ -315,21 +332,43 @@ where
                 record_tokens
             }
             RecordType::Given(ref out_ty) => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
-            RecordType::Scalar => {
-                output::quote_query_scalar::<DB>(&input, &query_args, &data.describe)?
-            }
+            RecordType::Scalar => output::quote_query_scalar::<DB>(
+                &input,
+                config,
+                &mut warnings,
+                &query_args,
+                &data.describe,
+            )?,
         }
     };
+
+    let mut warnings_out = TokenStream::new();
+
+    if warnings.ambiguous_datetime {
+        // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
+        warnings_out.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
+        });
+    }
+
+    if warnings.ambiguous_numeric {
+        // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
+        warnings_out.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
+        });
+    }
 
     let ret_tokens = quote! {
         {
             #[allow(clippy::all)]
             {
                 use ::sqlx::Arguments as _;
+
+                #warnings_out
 
                 #args_tokens
 

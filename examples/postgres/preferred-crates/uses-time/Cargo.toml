@@ -1,0 +1,21 @@
+[package]
+name = "sqlx-example-postgres-preferred-crates-uses-time"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = "1"
+time = "0.3"
+uuid = "1"
+
+[dependencies.sqlx]
+workspace = true
+features = ["runtime-tokio", "postgres", "time", "json", "uuid"]
+
+[lints]
+workspace = true

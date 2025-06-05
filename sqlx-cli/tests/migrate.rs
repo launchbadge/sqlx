@@ -13,16 +13,13 @@ async fn run_reversible_migrations() {
     ];
     // Without --target-version specified.k
     {
-        let db = TestDatabase::new("migrate_run_reversible_latest", "migrations_reversible");
+        let db = TestDatabase::new("run_reversible_latest", "migrations_reversible");
         db.run_migration(false, None, false).success();
         assert_eq!(db.applied_migrations().await, all_migrations);
     }
     // With --target-version specified.
     {
-        let db = TestDatabase::new(
-            "migrate_run_reversible_latest_explicit",
-            "migrations_reversible",
-        );
+        let db = TestDatabase::new("run_reversible_latest_explicit", "migrations_reversible");
 
         // Move to latest, explicitly specified.
         db.run_migration(false, Some(20230501000000), false)
@@ -41,10 +38,7 @@ async fn run_reversible_migrations() {
     }
     // With --target-version, incrementally upgrade.
     {
-        let db = TestDatabase::new(
-            "migrate_run_reversible_incremental",
-            "migrations_reversible",
-        );
+        let db = TestDatabase::new("run_reversible_incremental", "migrations_reversible");
 
         // First version
         db.run_migration(false, Some(20230101000000), false)
@@ -92,7 +86,7 @@ async fn revert_migrations() {
 
     // Without --target-version
     {
-        let db = TestDatabase::new("migrate_revert_incremental", "migrations_reversible");
+        let db = TestDatabase::new("revert_incremental", "migrations_reversible");
         db.run_migration(false, None, false).success();
 
         // Dry-run
@@ -109,7 +103,7 @@ async fn revert_migrations() {
     }
     // With --target-version
     {
-        let db = TestDatabase::new("migrate_revert_incremental", "migrations_reversible");
+        let db = TestDatabase::new("revert_incremental", "migrations_reversible");
         db.run_migration(false, None, false).success();
 
         // Dry-run downgrade to version 3.
@@ -142,6 +136,32 @@ async fn revert_migrations() {
 
         // Downgrade to zero.
         db.run_migration(true, Some(0), false).success();
-        assert_eq!(db.applied_migrations().await, vec![] as Vec<i64>);
+        assert_eq!(db.applied_migrations().await, Vec::<i64>::new());
     }
+}
+
+#[tokio::test]
+async fn ignored_chars() {
+    let mut db = TestDatabase::new("ignored-chars", "ignored-chars/LF");
+    db.config_path = Some("tests/ignored-chars/sqlx.toml".into());
+
+    db.run_migration(false, None, false).success();
+
+    db.set_migrations("ignored-chars/CRLF");
+
+    let expected_info = "1/installed user\n2/installed post\n3/installed comment\n";
+
+    // `ignored-chars` should produce the same migration checksum here
+    db.migrate_info().success().stdout(expected_info);
+
+    // Running migration should be a no-op
+    db.run_migration(false, None, false).success().stdout("");
+
+    db.set_migrations("ignored-chars/BOM");
+    db.migrate_info().success().stdout(expected_info);
+    db.run_migration(false, None, false).success().stdout("");
+
+    db.set_migrations("ignored-chars/oops-all-tabs");
+    db.migrate_info().success().stdout(expected_info);
+    db.run_migration(false, None, false).success().stdout("");
 }

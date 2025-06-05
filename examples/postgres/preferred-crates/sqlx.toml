@@ -1,0 +1,9 @@
+[migrate]
+# Move `migrations/` to under `src/` to separate it from subcrates.
+migrations-dir = "src/migrations"
+
+[macros.preferred-crates]
+# Keeps `time` from taking precedent even though it's enabled by a dependency.
+date-time = "chrono"
+# Same thing with `rust_decimal`
+numeric = "bigdecimal"
