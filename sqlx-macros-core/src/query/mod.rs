@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
@@ -112,7 +112,7 @@ static METADATA: LazyLock<Mutex<HashMap<String, Metadata>>> = LazyLock::new(Defa
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-fn init_metadata(manifest_dir: &String) -> Metadata {
+fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
     let manifest_dir: PathBuf = manifest_dir.into();
 
     let (database_url, offline, offline_dir) = load_dot_env(&manifest_dir);
@@ -123,17 +123,17 @@ fn init_metadata(manifest_dir: &String) -> Metadata {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let var_name = Config::from_crate().common.database_url_var();
+    let var_name = Config::try_from_crate()?.common.database_url_var();
 
     let database_url = env(var_name).ok().or(database_url);
 
-    Metadata {
+    Ok(Metadata {
         manifest_dir,
         offline,
         database_url,
         offline_dir,
         workspace_root: Arc::new(Mutex::new(None)),
-    }
+    })
 }
 
 pub fn expand_input<'a>(
@@ -151,9 +151,13 @@ pub fn expand_input<'a>(
             guard
         });
 
-    let metadata = metadata_lock
-        .entry(manifest_dir)
-        .or_insert_with_key(init_metadata);
+    let metadata = match metadata_lock.entry(manifest_dir) {
+        hash_map::Entry::Occupied(occupied) => occupied.into_mut(),
+        hash_map::Entry::Vacant(vacant) => {
+            let metadata = init_metadata(vacant.key())?;
+            vacant.insert(metadata)
+        }
+    };
 
     let data_source = match &metadata {
         Metadata {
@@ -252,7 +256,7 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
-    let config = Config::from_crate();
+    let config = Config::try_from_crate()?;
 
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {

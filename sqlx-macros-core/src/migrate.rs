@@ -92,7 +92,7 @@ pub fn default_path(config: &Config) -> &str {
 }
 
 pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
-    let config = Config::from_crate();
+    let config = Config::try_from_crate()?;
 
     let path = match path_arg {
         Some(path_arg) => crate::common::resolve_path(path_arg.value(), path_arg.span())?,

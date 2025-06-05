@@ -27,22 +27,28 @@ This section will be replaced in subsequent alpha releases. See the Git history 
     * Rename or relocate the `_sqlx_migrations` table (for multiple crates using the same database)
     * Set characters to ignore when hashing migrations (e.g. ignore whitespace)
   * More to be implemented in future releases.
-  * Enable feature `sqlx-toml` to use (on by default).
+  * Enable feature `sqlx-toml` to use.
+    * `sqlx-cli` has it enabled by default, but `sqlx` does **not**.
+    * Default features of library crates can be hard to completely turn off because of [feature unification], 
+      so it's better to keep the default feature set as limited as possible. 
+      [This is something we learned the hard way.][preferred-crates]
   * Guide: see `sqlx::_config` module in documentation.
-  * Reference: [[Link](sqlx-core/src/config/reference.toml)] (Github-Flavored Markdown doesn't autolink relative URLs)
+  * Reference: [[Link](sqlx-core/src/config/reference.toml)]
   * Examples (written for Postgres but can be adapted to other databases; PRs welcome!):
     * Multiple databases using `DATABASE_URL` renaming and global type overrides: [[Link](examples/postgres/multi-database)]
     * Multi-tenant database using `_sqlx_migrations` renaming and multiple schemas: [[Link](examples/postgres/multi-tenant)]
-    * Force use of `chrono` when `time` is enabled (e.g. when using `tower-sessions-sqlx-store`): [[Link](examples/postgres/preferred-crates)]
+    * Force use of `chrono` when `time` is enabled (e.g. when using `tower-sessions-sqlx-store`): [[Link][preferred-crates]]
       * Forcing `bigdecimal` when `rust_decimal` is enabled is also shown, but problems with `chrono`/`time` are more common.
-  * Breaking change: significant changes to the `Migrate` trait
-  * Breaking change: `sqlx::migrate::resolve_blocking()` is now `#[doc(hidden)]` and thus SemVer-exempt.
+  * **Breaking changes**:
+    * Significant changes to the `Migrate` trait
+    * `sqlx::migrate::resolve_blocking()` is now `#[doc(hidden)]` and thus SemVer-exempt.
 
 [seaorm-2600]: https://github.com/SeaQL/sea-orm/issues/2600
+[feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
+[preferred-crates]: examples/postgres/preferred-crates
 
 [#3821]: https://github.com/launchbadge/sqlx/pull/3821
 [#3383]: https://github.com/launchbadge/sqlx/pull/3383
-
 
 ## 0.8.6 - 2025-05-19
 

@@ -77,7 +77,7 @@ fn expand_simple(input: syn::ItemFn) -> TokenStream {
 
 #[cfg(feature = "migrate")]
 fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<TokenStream> {
-    let config = sqlx_core::config::Config::from_crate();
+    let config = sqlx_core::config::Config::try_from_crate()?;
 
     let ret = &input.sig.output;
     let name = &input.sig.ident;

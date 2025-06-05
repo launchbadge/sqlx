@@ -3,6 +3,10 @@
 //! To use, create a `sqlx.toml` file in your crate root (the same directory as your `Cargo.toml`).
 //! The configuration in a `sqlx.toml` configures SQLx *only* for the current crate.
 //!
+//! Requires the `sqlx-toml` feature (not enabled by default).
+//!
+//! `sqlx-cli` will also read `sqlx.toml` when running migrations.
+//!
 //! See the [`Config`] type and its fields for individual configuration options.
 //!
 //! See the [reference][`_reference`] for the full `sqlx.toml` file.
@@ -143,18 +147,6 @@ static CACHE: OnceCell<Config> = OnceCell::new();
 /// Internal methods for loading a `Config`.
 #[allow(clippy::result_large_err)]
 impl Config {
-    /// Get the cached config, or attempt to read `$CARGO_MANIFEST_DIR/sqlx.toml`.
-    ///
-    /// On success, the config is cached in a `static` and returned by future calls.
-    ///
-    /// Returns `Config::default()` if the file does not exist.
-    ///
-    /// ### Panics
-    /// If the file exists but an unrecoverable error was encountered while parsing it.
-    pub fn from_crate() -> &'static Self {
-        Self::read_with_or_default(get_crate_path)
-    }
-
     /// Get the cached config, or to read `$CARGO_MANIFEST_DIR/sqlx.toml`.
     ///
     /// On success, the config is cached in a `static` and returned by future calls.

@@ -58,7 +58,7 @@ features = ["all-databases", "_unstable-all-types", "_unstable-doc", "sqlite-pre
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["any", "macros", "migrate", "json", "sqlx-toml"]
+default = ["any", "macros", "migrate", "json"]
 
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
