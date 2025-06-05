@@ -196,9 +196,70 @@ where
     }
 }
 
-// We don't have to implement Encode for JsonRawValue because that's covered by the default
-// implementation for Encode
+impl<DB> Type<DB> for Box<JsonRawValue>
+where
+    for<'a> Json<&'a Self>: Type<DB>,
+    DB: Database,
+{
+    fn type_info() -> DB::TypeInfo {
+        <Json<&Self> as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <Json<&Self> as Type<DB>>::compatible(ty)
+    }
+}
+
+impl<'q, DB> Encode<'q, DB> for JsonRawValue
+where
+    for<'a> Json<&'a Self>: Encode<'q, DB>,
+    DB: Database,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
+    }
+}
+
+impl<'q, DB> Encode<'q, DB> for &'q JsonRawValue
+where
+    for<'a> Json<&'a Self>: Encode<'q, DB>,
+    DB: Database,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
+    }
+}
+
+impl<'q, DB> Encode<'q, DB> for Box<JsonRawValue>
+where
+    for<'a> Json<&'a Self>: Encode<'q, DB>,
+    DB: Database,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
+    }
+}
+
 impl<'r, DB> Decode<'r, DB> for &'r JsonRawValue
+where
+    Json<Self>: Decode<'r, DB>,
+    DB: Database,
+{
+    fn decode(value: <DB as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
+    }
+}
+
+impl<'r, DB> Decode<'r, DB> for Box<JsonRawValue>
 where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
