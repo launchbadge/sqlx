@@ -11,8 +11,6 @@ authors.workspace = true
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
-axum = { version = "0.8.1", features = ["macros"] }
-
 color-eyre = "0.6.3"
 dotenvy = "0.15.7"
 tracing-subscriber = "0.3.19"
