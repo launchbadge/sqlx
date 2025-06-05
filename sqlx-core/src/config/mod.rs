@@ -165,50 +165,31 @@ impl Config {
         Self::try_read_with(|| Ok("sqlx.toml".into()))
     }
 
-    /// Get the cached config, or attempt to read it from the path returned by the closure.
+    /// Get the cached config, or attempt to read it from the path given.
     ///
     /// On success, the config is cached in a `static` and returned by future calls.
     ///
     /// Errors if the config file does not exist, or could not be read.
-    pub fn try_read_with(
-        make_path: impl FnOnce() -> Result<PathBuf, ConfigError>,
-    ) -> Result<&'static Self, ConfigError> {
-        CACHE.get_or_try_init(|| {
-            let path = make_path()?;
-            Self::read_from(path)
-        })
+    pub fn try_from_path(path: impl Into<PathBuf>) -> Result<&'static Self, ConfigError> {
+        Self::try_read_with(|| Ok(path.into()))
+    }
+
+    /// Get the cached config, or return the default.
+    pub fn get_or_default() -> &'static Self {
+        CACHE.get_or_init(Config::default)
     }
 
     /// Get the cached config, or attempt to read it from the path returned by the closure.
     ///
     /// On success, the config is cached in a `static` and returned by future calls.
     ///
-    /// Returns `Config::default()` if the file does not exist.
-    pub fn read_with_or_default(
+    /// Errors if the config file does not exist, or could not be read.
+    fn try_read_with(
         make_path: impl FnOnce() -> Result<PathBuf, ConfigError>,
-    ) -> &'static Self {
-        CACHE.get_or_init(|| {
-            match make_path().and_then(Self::read_from) {
-                Ok(config) => config,
-                Err(ConfigError::NotFound { path }) => {
-                    // Non-fatal
-                    tracing::debug!("Not reading config, file {path:?} not found");
-                    Config::default()
-                }
-                // FATAL ERRORS BELOW:
-                // In the case of migrations,
-                // we can't proceed with defaults as they may be completely wrong.
-                Err(e @ ConfigError::ParseDisabled { .. }) => {
-                    // Only returned if the file exists but the feature is not enabled.
-                    panic!("{e}")
-                }
-                Err(ConfigError::Parse { error, path }) => {
-                    panic!("error parsing sqlx config {path:?}: {error}")
-                }
-                Err(e) => {
-                    panic!("failed to read sqlx config: {e}")
-                }
-            }
+    ) -> Result<&'static Self, ConfigError> {
+        CACHE.get_or_try_init(|| {
+            let path = make_path()?;
+            Self::read_from(path)
         })
     }
 

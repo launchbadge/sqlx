@@ -462,15 +462,16 @@ impl ConfigOpt {
         tokio::task::spawn_blocking(|| {
             if let Some(path) = path {
                 let err_str = format!("error reading config from {path:?}");
-                Config::try_read_with(|| Ok(path)).context(err_str)
+                Config::try_from_path(path).context(err_str)
             } else {
                 let path = PathBuf::from("sqlx.toml");
 
                 if path.exists() {
                     eprintln!("Found `sqlx.toml` in current directory; reading...");
+                    Ok(Config::try_from_path(path)?)
+                } else {
+                    Ok(Config::get_or_default())
                 }
-
-                Ok(Config::read_with_or_default(move || Ok(path)))
             }
         })
         .await
