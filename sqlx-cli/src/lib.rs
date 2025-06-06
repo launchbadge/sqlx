@@ -1,10 +1,12 @@
 use std::io;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use futures::{Future, TryFutureExt};
 
 use sqlx::{AnyConnection, Connection};
 use tokio::{select, signal};
+use anyhow::Context;
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
@@ -188,7 +190,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
 async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect).await
+    retry_connect_errors(opts, AnyConnection::connect_with_config).await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,
@@ -229,4 +231,19 @@ where
         },
     )
     .await
+}
+
+async fn config_from_current_dir() -> anyhow::Result<&'static Config> {
+    // Tokio does file I/O on a background task anyway
+    tokio::task::spawn_blocking(|| {
+        let path = PathBuf::from("sqlx.toml");
+
+        if path.exists() {
+            eprintln!("Found `sqlx.toml` in current directory; reading...");
+        }
+
+        Config::read_with_or_default(move || Ok(path))
+    })
+    .await
+    .context("unexpected error loading config")
 }

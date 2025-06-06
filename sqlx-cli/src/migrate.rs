@@ -2,7 +2,9 @@ use crate::config::Config;
 use crate::opt::{AddMigrationOpts, ConnectOpts, MigrationSourceOpt};
 use anyhow::{bail, Context};
 use console::style;
-use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
+use sqlx::migrate::{
+    AppliedMigration, Migrate, MigrateError, MigrationType, Migrator, ResolveWith,
+};
 use sqlx::Connection;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};

@@ -1,0 +1,13 @@
+[package]
+name = "accounts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { workspace = true, features = ["postgres", "time"] }
+argon2 = { version = "0.5.3", features = ["password-hash"] }
+tokio = { version = "1", features = ["rt", "sync"] }
+
+uuid = "1"
+thiserror = "1"
+rand = "0.8"

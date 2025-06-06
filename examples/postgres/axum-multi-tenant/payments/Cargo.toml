@@ -1,0 +1,7 @@
+[package]
+name = "payments"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { workspace = true, features = ["postgres", "time"] }

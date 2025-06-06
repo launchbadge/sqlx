@@ -1,0 +1,18 @@
+[package]
+name = "multi-tenant"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+accounts = { path = "accounts" }
+payments = { path = "payments" }
+
+sqlx = { path = "../../..", features = ["runtime-tokio", "postgres"] }
+
+[lints]
+workspace = true
