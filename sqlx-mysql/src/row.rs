@@ -9,7 +9,6 @@ use crate::HashMap;
 use crate::{protocol, MySql, MySqlColumn, MySqlValueFormat, MySqlValueRef};
 
 /// Implementation of [`Row`] for MySQL.
-#[derive(Debug)]
 pub struct MySqlRow {
     pub(crate) row: protocol::Row,
     pub(crate) format: MySqlValueFormat,
@@ -47,5 +46,11 @@ impl ColumnIndex<MySqlRow> for &'_ str {
             .get(*self)
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .copied()
+    }
+}
+
+impl std::fmt::Debug for MySqlRow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_row(self, f)
     }
 }
