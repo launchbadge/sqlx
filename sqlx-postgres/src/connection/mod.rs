@@ -30,6 +30,7 @@ mod request;
 mod sasl;
 mod stream;
 mod tls;
+mod worker;
 
 /// A connection to a PostgreSQL database.
 ///
