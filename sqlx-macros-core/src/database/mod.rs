@@ -35,6 +35,7 @@ pub struct CachingDescribeBlocking<DB: DatabaseExt> {
 
 #[allow(dead_code)]
 impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
+    #[allow(clippy::new_without_default, reason = "internal API")]
     pub const fn new() -> Self {
         CachingDescribeBlocking {
             connections: Lazy::new(|| Mutex::new(HashMap::new())),
