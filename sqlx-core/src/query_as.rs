@@ -94,11 +94,9 @@ where
         O: 'e,
         A: 'e,
     {
-        // FIXME: this should have used `executor.fetch()` but that's a breaking change
-        // because this technically allows multiple statements in one query string.
-        #[allow(deprecated)]
-        self.fetch_many(executor)
-            .try_filter_map(|step| async move { Ok(step.right()) })
+        executor
+            .fetch(self.inner)
+            .map(|row| O::from_row(&row?))
             .boxed()
     }
 
