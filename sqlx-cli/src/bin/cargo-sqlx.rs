@@ -15,6 +15,8 @@ enum Cli {
 async fn main() {
     sqlx_cli::maybe_apply_dotenv();
 
+    sqlx::any::install_default_drivers();
+
     let Cli::Sqlx(opt) = Cli::parse();
 
     if let Err(error) = sqlx_cli::run(opt).await {
