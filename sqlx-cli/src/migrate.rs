@@ -277,6 +277,8 @@ pub async fn run(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    params_from_env: bool,
+    parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
@@ -313,6 +315,14 @@ pub async fn run(
         .map(|m| (m.version, m))
         .collect();
 
+    let env_params: HashMap<_, _> = if params_from_env {
+        std::env::vars().collect()
+    } else {
+        HashMap::with_capacity(0)
+    };
+
+    let params: HashMap<_, _> = parameters.into_iter().collect();
+
     for migration in migrator.iter() {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
@@ -331,6 +341,11 @@ pub async fn run(
 
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
+                } else if params_from_env {
+                    conn.apply(&migration.process_parameters(&env_params)?)
+                        .await?
+                } else if !params.is_empty() {
+                    conn.apply(&migration.process_parameters(&params)?).await?
                 } else {
                     conn.apply(migration).await?
                 };
@@ -370,6 +385,8 @@ pub async fn revert(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    params_from_env: bool,
+    parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     if let Some(target_version) = target_version {
@@ -407,6 +424,15 @@ pub async fn revert(
         .collect();
 
     let mut is_applied = false;
+
+    let env_params: HashMap<_, _> = if params_from_env {
+        std::env::vars().collect()
+    } else {
+        HashMap::with_capacity(0)
+    };
+
+    let params: HashMap<_, _> = parameters.into_iter().collect();
+
     for migration in migrator.iter().rev() {
         if !migration.migration_type.is_down_migration() {
             // Skipping non down migration
@@ -420,6 +446,11 @@ pub async fn revert(
 
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
+            } else if params_from_env {
+                conn.revert(&migration.process_parameters(&env_params)?)
+                    .await?
+            } else if !params.is_empty() {
+                conn.revert(&migration.process_parameters(&params)?).await?
             } else {
                 conn.revert(migration).await?
             };

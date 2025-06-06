@@ -66,6 +66,8 @@ async fn do_run(opt: Opt) -> Result<()> {
                 ignore_missing,
                 connect_opts,
                 target_version,
+                params_from_env,
+                params,
             } => {
                 migrate::run(
                     &source,
@@ -73,6 +75,8 @@ async fn do_run(opt: Opt) -> Result<()> {
                     dry_run,
                     *ignore_missing,
                     target_version,
+                    params_from_env,
+                    params,
                 )
                 .await?
             }
@@ -82,6 +86,8 @@ async fn do_run(opt: Opt) -> Result<()> {
                 ignore_missing,
                 connect_opts,
                 target_version,
+                params_from_env,
+                params,
             } => {
                 migrate::revert(
                     &source,
@@ -89,6 +95,8 @@ async fn do_run(opt: Opt) -> Result<()> {
                     dry_run,
                     *ignore_missing,
                     target_version,
+                    params_from_env,
+                    params,
                 )
                 .await?
             }
