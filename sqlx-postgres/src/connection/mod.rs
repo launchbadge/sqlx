@@ -4,14 +4,17 @@ use std::future::Future;
 use std::sync::Arc;
 
 use crate::HashMap;
+use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use pipe::Pipe;
+use request::{IoRequest, MessageBuf};
 
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
 use crate::message::{
-    BackendMessageFormat, Close, Query, ReadyForQuery, ReceivedMessage, Terminate,
-    TransactionStatus,
+    BackendMessageFormat, Close, FrontendMessage, Notification, Query, ReadyForQuery,
+    ReceivedMessage, Terminate, TransactionStatus,
 };
 use crate::statement::PgStatementMetadata;
 use crate::transaction::Transaction;
@@ -45,6 +48,10 @@ pub struct PgConnectionInner {
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
     pub(crate) stream: PgStream,
+
+    chan: UnboundedSender<IoRequest>,
+
+    notifications: UnboundedReceiver<Notification>,
 
     // process id of this backend
     // used to send cancel requests
@@ -146,6 +153,84 @@ impl PgConnection {
             TransactionStatus::Transaction => true,
             TransactionStatus::Error | TransactionStatus::Idle => false,
         }
+    }
+
+    fn new(
+        stream: PgStream,
+        options: &PgConnectOptions,
+        chan: UnboundedSender<IoRequest>,
+        notifications: UnboundedReceiver<Notification>,
+    ) -> Self {
+        Self {
+            inner: Box::new(PgConnectionInner {
+                chan,
+                notifications,
+                log_settings: options.log_settings.clone(),
+                process_id: 0,
+                secret_key: 0,
+                next_statement_id: StatementId::NAMED_START,
+                cache_statement: StatementCache::new(options.statement_cache_capacity),
+                cache_type_info: HashMap::new(),
+                cache_type_oid: HashMap::new(),
+                cache_elem_type_to_array: HashMap::new(),
+                cache_table_to_column_names: HashMap::new(),
+                transaction_depth: 0,
+                stream,
+                pending_ready_for_query_count: 0,
+                transaction_status: TransactionStatus::Idle,
+            }),
+        }
+    }
+
+    fn create_request<F>(&self, callback: F) -> sqlx_core::Result<IoRequest>
+    where
+        F: FnOnce(&mut MessageBuf) -> sqlx_core::Result<()>,
+    {
+        let mut buffer = MessageBuf::new();
+        (callback)(&mut buffer)?;
+        Ok(buffer.finish())
+    }
+
+    fn send_request(&self, request: IoRequest) -> sqlx_core::Result<()> {
+        self.inner
+            .chan
+            .unbounded_send(request)
+            .map_err(|_| sqlx_core::Error::WorkerCrashed)
+    }
+
+    pub(crate) fn pipe<F>(&self, callback: F) -> sqlx_core::Result<Pipe>
+    where
+        F: FnOnce(&mut MessageBuf) -> sqlx_core::Result<()>,
+    {
+        let mut req = self.create_request(callback)?;
+        let (tx, rx) = unbounded();
+        req.chan = Some(tx);
+
+        self.send_request(req)?;
+        Ok(Pipe::new(rx))
+    }
+
+    pub(crate) fn pipe_and_forget<T>(&self, value: T) -> sqlx_core::Result<()>
+    where
+        T: FrontendMessage,
+    {
+        let req = self.create_request(|buf| buf.write_msg(value))?;
+        self.send_request(req)
+    }
+
+    pub(crate) async fn start_pipe_async<F, R>(&self, callback: F) -> sqlx_core::Result<(R, Pipe)>
+    where
+        F: AsyncFnOnce(&mut MessageBuf) -> sqlx_core::Result<R>,
+    {
+        let mut buffer = MessageBuf::new();
+        let result = (callback)(&mut buffer).await?;
+        let mut req = buffer.finish();
+        let (tx, rx) = unbounded();
+        req.chan = Some(tx);
+
+        self.send_request(req)?;
+
+        Ok((result, Pipe::new(rx)))
     }
 }
 

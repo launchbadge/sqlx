@@ -41,6 +41,10 @@ pub struct PgStream {
 }
 
 impl PgStream {
+    pub fn into_inner(self) -> BufferedSocket<Box<dyn Socket>> {
+        self.inner
+    }
+
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
         let socket_result = match options.fetch_socket() {
             Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,

@@ -1,15 +1,12 @@
-use crate::HashMap;
-
-use crate::common::StatementCache;
 use crate::connection::{sasl, stream::PgStream};
 use crate::error::Error;
-use crate::io::StatementId;
 use crate::message::{
     Authentication, BackendKeyData, BackendMessageFormat, Password, ReadyForQuery, Startup,
 };
 use crate::{PgConnectOptions, PgConnection};
+use futures_channel::mpsc::unbounded;
 
-use super::PgConnectionInner;
+use super::worker::Worker;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
@@ -17,7 +14,15 @@ use super::PgConnectionInner;
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
         // Upgrade to TLS if we were asked to and the server supports it
-        let mut stream = PgStream::connect(options).await?;
+        let pg_stream = PgStream::connect(options).await?;
+
+        let stream = PgStream::connect(options).await?;
+
+        let (notif_tx, notif_rx) = unbounded();
+
+        let x = Worker::spawn(stream.into_inner(), notif_tx);
+
+        let mut conn = PgConnection::new(pg_stream, options, x, notif_rx);
 
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
@@ -45,13 +50,13 @@ impl PgConnection {
             params.push(("options", options));
         }
 
-        stream.write(Startup {
-            username: Some(&options.username),
-            database: options.database.as_deref(),
-            params: &params,
+        let mut pipe = conn.pipe(|buf| {
+            buf.write(Startup {
+                username: Some(&options.username),
+                database: options.database.as_deref(),
+                params: &params,
+            })
         })?;
-
-        stream.flush().await?;
 
         // The server then uses this information and the contents of
         // its configuration files (such as pg_hba.conf) to determine whether the connection is
@@ -63,7 +68,7 @@ impl PgConnection {
         let transaction_status;
 
         loop {
-            let message = stream.recv().await?;
+            let message = pipe.recv().await?;
             match message.format {
                 BackendMessageFormat::Authentication => match message.decode()? {
                     Authentication::Ok => {
@@ -75,11 +80,9 @@ impl PgConnection {
                         // The frontend must now send a [PasswordMessage] containing the
                         // password in clear-text form.
 
-                        stream
-                            .send(Password::Cleartext(
-                                options.password.as_deref().unwrap_or_default(),
-                            ))
-                            .await?;
+                        conn.pipe_and_forget(Password::Cleartext(
+                            options.password.as_deref().unwrap_or_default(),
+                        ))?;
                     }
 
                     Authentication::Md5Password(body) => {
@@ -88,17 +91,15 @@ impl PgConnection {
                         // using the 4-byte random salt specified in the
                         // [AuthenticationMD5Password] message.
 
-                        stream
-                            .send(Password::Md5 {
-                                username: &options.username,
-                                password: options.password.as_deref().unwrap_or_default(),
-                                salt: body.salt,
-                            })
-                            .await?;
+                        conn.pipe_and_forget(Password::Md5 {
+                            username: &options.username,
+                            password: options.password.as_deref().unwrap_or_default(),
+                            salt: body.salt,
+                        })?;
                     }
 
                     Authentication::Sasl(body) => {
-                        sasl::authenticate(&mut stream, options, body).await?;
+                        sasl::authenticate(&conn, &mut pipe, options, body).await?;
                     }
 
                     method => {
@@ -135,22 +136,10 @@ impl PgConnection {
             }
         }
 
-        Ok(PgConnection {
-            inner: Box::new(PgConnectionInner {
-                stream,
-                process_id,
-                secret_key,
-                transaction_status,
-                transaction_depth: 0,
-                pending_ready_for_query_count: 0,
-                next_statement_id: StatementId::NAMED_START,
-                cache_statement: StatementCache::new(options.statement_cache_capacity),
-                cache_type_oid: HashMap::new(),
-                cache_type_info: HashMap::new(),
-                cache_elem_type_to_array: HashMap::new(),
-                cache_table_to_column_names: HashMap::new(),
-                log_settings: options.log_settings.clone(),
-            }),
-        })
+        conn.inner.transaction_status = transaction_status;
+        conn.inner.secret_key = secret_key;
+        conn.inner.process_id = process_id;
+
+        Ok(conn)
     }
 }
