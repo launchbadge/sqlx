@@ -26,6 +26,7 @@ pub use self::stream::PgStream;
 pub(crate) mod describe;
 mod establish;
 mod executor;
+mod request;
 mod sasl;
 mod stream;
 mod tls;
