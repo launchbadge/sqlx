@@ -150,8 +150,6 @@ where
     F: FnMut(&'a str) -> Fut,
     Fut: Future<Output = sqlx::Result<T>> + 'a,
 {
-    sqlx::any::install_default_drivers();
-
     let db_url = opts.required_db_url()?;
 
     backoff::future::retry(

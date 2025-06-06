@@ -27,7 +27,7 @@ pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 mod common;
-mod database;
+pub mod database;
 
 #[cfg(feature = "derive")]
 pub mod derives;
