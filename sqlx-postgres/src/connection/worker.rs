@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::message::{
-    BackendMessageFormat, FrontendMessage, Notification, ReadyForQuery, ReceivedMessage, Terminate,
+    BackendMessageFormat, FrontendMessage, Notification, ReceivedMessage, Terminate,
 };
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{SinkExt, StreamExt};
@@ -129,7 +129,6 @@ impl Worker {
         while let Poll::Ready(response) = self.poll_next_message(cx)? {
             match response.format {
                 BackendMessageFormat::ReadyForQuery => {
-                    let rfq: ReadyForQuery = response.clone().decode()?;
                     self.send_back(response)?;
                     // Remove from the backlog so we dont send more responses back.
                     let _ = self.back_log.pop_front();
