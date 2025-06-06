@@ -309,9 +309,9 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             ocsp_response,
             now,
         ) {
-            Err(TlsError::InvalidCertificate(CertificateError::NotValidForName)) => {
-                Ok(ServerCertVerified::assertion())
-            }
+            Err(TlsError::InvalidCertificate(
+                CertificateError::NotValidForName | CertificateError::NotValidForNameContext { .. },
+            )) => Ok(ServerCertVerified::assertion()),
             res => res,
         }
     }
