@@ -185,6 +185,7 @@ impl<S: Socket> BufferedSocket<S> {
     fn poll_handle_read(&mut self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         // Because of how `BytesMut` works, we should only be shifting capacity back and forth
         // between `read` and `available` unless we have to read an oversize message.
+
         while self.read_buf.len() < self.wants_bytes {
             self.read_buf
                 .reserve(self.wants_bytes - self.read_buf.len());

@@ -101,7 +101,6 @@ impl Worker {
             if let Some(chan) = request.chan {
                 // We should send the responses back
                 self.back_log.push_back(chan);
-            } else {
             }
         }
     }

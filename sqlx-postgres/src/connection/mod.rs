@@ -13,8 +13,7 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
 use crate::message::{
-    BackendMessageFormat, Close, FrontendMessage, Notification, Query, ReadyForQuery,
-    ReceivedMessage, Terminate, TransactionStatus,
+    Close, FrontendMessage, Notification, Query, ReadyForQuery, ReceivedMessage, TransactionStatus,
 };
 use crate::statement::PgStatementMetadata;
 use crate::transaction::Transaction;
@@ -98,40 +97,8 @@ impl PgConnection {
         self.inner.stream.server_version_num
     }
 
-    // will return when the connection is ready for another query
-    pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.inner.stream.write_buffer_mut().is_empty() {
-            self.inner.stream.flush().await?;
-        }
-
-        while self.inner.pending_ready_for_query_count > 0 {
-            let message = self.inner.stream.recv().await?;
-
-            if let BackendMessageFormat::ReadyForQuery = message.format {
-                self.handle_ready_for_query(message)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn recv_ready_for_query(&mut self) -> Result<(), Error> {
-        let r: ReadyForQuery = self.inner.stream.recv_expect().await?;
-
-        self.inner.pending_ready_for_query_count -= 1;
-        self.inner.transaction_status = r.transaction_status;
-
-        Ok(())
-    }
-
     #[inline(always)]
     fn handle_ready_for_query(&mut self, message: ReceivedMessage) -> Result<(), Error> {
-        self.inner.pending_ready_for_query_count = self
-            .inner
-            .pending_ready_for_query_count
-            .checked_sub(1)
-            .ok_or_else(|| err_protocol!("received more ReadyForQuery messages than expected"))?;
-
         self.inner.transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
 
         Ok(())
@@ -141,11 +108,8 @@ impl PgConnection {
     ///
     /// Used for rolling back transactions and releasing advisory locks.
     #[inline(always)]
-    pub(crate) fn queue_simple_query(&mut self, query: &str) -> Result<(), Error> {
-        self.inner.stream.write_msg(Query(query))?;
-        self.inner.pending_ready_for_query_count += 1;
-
-        Ok(())
+    pub(crate) fn queue_simple_query(&mut self, query: &str) -> Result<Pipe, Error> {
+        self.pipe(|buf| buf.write_msg(Query(query)))
     }
 
     pub(crate) fn in_transaction(&self) -> bool {
@@ -198,6 +162,15 @@ impl PgConnection {
             .map_err(|_| sqlx_core::Error::WorkerCrashed)
     }
 
+    fn send_buf(&self, buf: MessageBuf) -> sqlx_core::Result<Pipe> {
+        let mut req = buf.finish();
+        let (tx, rx) = unbounded();
+        req.chan = Some(tx);
+
+        self.send_request(req)?;
+        Ok(Pipe::new(rx))
+    }
+
     pub(crate) fn pipe<F>(&self, callback: F) -> sqlx_core::Result<Pipe>
     where
         F: FnOnce(&mut MessageBuf) -> sqlx_core::Result<()>,
@@ -245,22 +218,14 @@ impl Connection for PgConnection {
 
     type Options = PgConnectOptions;
 
-    async fn close(mut self) -> Result<(), Error> {
-        // The normal, graceful termination procedure is that the frontend sends a Terminate
-        // message and immediately closes the connection.
-
-        // On receipt of this message, the backend closes the
-        // connection and terminates.
-        self.inner.stream.send(Terminate).await?;
-        self.inner.stream.shutdown().await?;
-
+    async fn close(self) -> Result<(), Error> {
+        // Closing the channel notifies the bg worker to start a graceful shutdown.
+        self.inner.chan.close_channel();
         Ok(())
     }
 
-    async fn close_hard(mut self) -> Result<(), Error> {
-        self.inner.stream.shutdown().await?;
-
-        Ok(())
+    async fn close_hard(self) -> Result<(), Error> {
+        self.close().await
     }
 
     async fn ping(&mut self) -> Result<(), Error> {
@@ -269,8 +234,11 @@ impl Connection for PgConnection {
         // self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
 
         // The simplest call-and-response that's possible.
-        self.write_sync();
-        self.wait_until_ready().await
+        let mut pipe = self.pipe(|buf| {
+            buf.write_sync();
+            Ok(())
+        })?;
+        pipe.recv_ready_for_query().await
     }
 
     fn begin(
@@ -298,19 +266,19 @@ impl Connection for PgConnection {
 
         let mut cleared = 0_usize;
 
-        self.wait_until_ready().await?;
+        let mut buf = MessageBuf::new();
 
         while let Some((id, _)) = self.inner.cache_statement.remove_lru() {
-            self.inner.stream.write_msg(Close::Statement(id))?;
+            buf.write_msg(Close::Statement(id))?;
             cleared += 1;
         }
 
         if cleared > 0 {
-            self.write_sync();
-            self.inner.stream.flush().await?;
+            buf.write_sync();
+            let mut pipe = self.send_buf(buf)?;
 
-            self.wait_for_close_complete(cleared).await?;
-            self.recv_ready_for_query().await?;
+            pipe.wait_for_close_complete(cleared).await?;
+            pipe.recv_ready_for_query().await?;
         }
 
         Ok(())
@@ -321,8 +289,8 @@ impl Connection for PgConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
-        self.wait_until_ready()
+    async fn flush(&mut self) -> Result<(), Error> {
+        Ok(())
     }
 
     #[doc(hidden)]
