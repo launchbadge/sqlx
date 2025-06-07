@@ -10,6 +10,7 @@ pub struct IoRequest {
     pub data: Vec<u8>,
 }
 
+/// A buffer that contains encoded postgres messages, ready to be sent over the wire.
 pub struct MessageBuf {
     data: Vec<u8>,
 }

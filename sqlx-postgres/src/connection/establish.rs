@@ -12,7 +12,10 @@ use super::worker::{Shared, Worker};
 
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
+        // A channel to communicate postgres notifications between the bg worker and a `PgListener`.
         let (notif_tx, notif_rx) = unbounded();
+
+        // Shared state between the bg worker and the `PgConnection`
         let shared = Shared::new();
 
         // Upgrade to TLS if we were asked to and the server supports it
@@ -116,7 +119,7 @@ impl PgConnection {
                 }
 
                 BackendMessageFormat::ReadyForQuery => {
-                    // Transaction status is updated in the bg worker.
+                    // The transaction status is updated in the bg worker.
                     break;
                 }
 
