@@ -1,13 +1,15 @@
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     future::Future,
     ops::ControlFlow,
     pin::Pin,
+    sync::{Arc, Mutex, MutexGuard},
     task::{ready, Context, Poll},
 };
 
 use crate::message::{
-    BackendMessageFormat, FrontendMessage, Notification, ReceivedMessage, Terminate,
+    BackendMessageFormat, FrontendMessage, Notification, ParameterStatus, ReadyForQuery,
+    ReceivedMessage, Terminate, TransactionStatus,
 };
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{SinkExt, StreamExt};
@@ -38,14 +40,16 @@ pub struct Worker {
     back_log: VecDeque<UnboundedSender<ReceivedMessage>>,
     socket: BufferedSocket<Box<dyn Socket>>,
     notif_chan: UnboundedSender<Notification>,
+    shared: Shared,
 }
 
 impl Worker {
     pub fn spawn(
         socket: BufferedSocket<Box<dyn Socket>>,
         notif_chan: UnboundedSender<Notification>,
-    ) -> UnboundedSender<IoRequest> {
+    ) -> (UnboundedSender<IoRequest>, Shared) {
         let (tx, rx) = unbounded();
+        let shared = Shared::new();
 
         let worker = Worker {
             state: WorkerState::Open,
@@ -54,10 +58,11 @@ impl Worker {
             back_log: VecDeque::new(),
             socket,
             notif_chan,
+            shared: shared.clone(),
         };
 
         spawn(worker);
-        tx
+        (tx, shared)
     }
 
     // Tries to receive the next message from the channel. Also handles termination if needed.
@@ -128,6 +133,9 @@ impl Worker {
         while let Poll::Ready(response) = self.poll_next_message(cx)? {
             match response.format {
                 BackendMessageFormat::ReadyForQuery => {
+                    let rfq: ReadyForQuery = response.clone().decode()?;
+                    self.shared.set_transaction_status(rfq.transaction_status);
+
                     self.send_back(response)?;
                     // Remove from the backlog so we dont send more responses back.
                     let _ = self.back_log.pop_front();
@@ -145,6 +153,9 @@ impl Worker {
                 }
                 BackendMessageFormat::ParameterStatus => {
                     // Asynchronous response - todo
+                    //
+                    let ParameterStatus { name, value } = response.decode()?;
+                    self.shared.insert_parameter_status(name, value);
                 }
                 BackendMessageFormat::NoticeResponse => {
                     // Asynchronous response - todo
@@ -224,5 +235,49 @@ impl Future for Worker {
 
         // Close this socket if we're done.
         self.poll_shutdown(cx)
+    }
+}
+
+#[derive(Clone)]
+pub struct Shared(Arc<Mutex<SharedInner>>);
+
+pub struct SharedInner {
+    pub parameter_statuses: BTreeMap<String, String>,
+    pub transaction_status: TransactionStatus,
+}
+
+impl Shared {
+    pub fn new() -> Shared {
+        Shared(Arc::new(Mutex::new(SharedInner {
+            parameter_statuses: BTreeMap::new(),
+            transaction_status: TransactionStatus::Idle,
+        })))
+    }
+
+    fn lock(&self) -> MutexGuard<'_, SharedInner> {
+        self.0
+            .lock()
+            .expect("BUG: failed to get lock on shared state in worker")
+    }
+
+    pub fn get_transaction_status(&self) -> TransactionStatus {
+        self.lock().transaction_status
+    }
+
+    fn set_transaction_status(&self, status: TransactionStatus) {
+        self.lock().transaction_status = status
+    }
+
+    fn insert_parameter_status(&self, name: String, value: String) {
+        self.lock().parameter_statuses.insert(name, value);
+    }
+
+    pub fn remove_parameter_status(&self, name: &str) -> Option<String> {
+        self.lock().parameter_statuses.remove(name)
+    }
+
+    pub fn with_lock<T>(&self, f: impl Fn(&mut SharedInner) -> T) -> T {
+        let mut lock = self.lock();
+        f(&mut lock)
     }
 }

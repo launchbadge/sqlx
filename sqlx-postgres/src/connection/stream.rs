@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::ops::{ControlFlow, Deref, DerefMut};
 use std::str::FromStr;
 
@@ -8,8 +7,7 @@ use sqlx_core::bytes::Buf;
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
 use crate::message::{
-    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, ParameterStatus,
-    ReceivedMessage,
+    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, ReceivedMessage,
 };
 use crate::net::{self, BufferedSocket, Socket};
 use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
@@ -27,10 +25,6 @@ pub struct PgStream {
     // A trait object is okay here as the buffering amortizes the overhead of both the dynamic
     // function call as well as the syscall.
     inner: BufferedSocket<Box<dyn Socket>>,
-
-    pub(crate) parameter_statuses: BTreeMap<String, String>,
-
-    pub(crate) server_version_num: Option<u32>,
 }
 
 impl PgStream {
@@ -48,8 +42,6 @@ impl PgStream {
 
         Ok(Self {
             inner: BufferedSocket::new(socket),
-            parameter_statuses: BTreeMap::default(),
-            server_version_num: None,
         })
     }
 
@@ -126,25 +118,24 @@ impl PgStream {
                     return Err(message.decode::<PgDatabaseError>()?.into());
                 }
 
-                BackendMessageFormat::ParameterStatus => {
-                    // informs the frontend about the current (initial)
-                    // setting of backend parameters
+                // BackendMessageFormat::ParameterStatus => {
+                //     // informs the frontend about the current (initial)
+                //     // setting of backend parameters
 
-                    let ParameterStatus { name, value } = message.decode()?;
-                    // TODO: handle `client_encoding`, `DateStyle` change
+                //     let ParameterStatus { name, value } = message.decode()?;
+                //     // TODO: handle `client_encoding`, `DateStyle` change
 
-                    match name.as_str() {
-                        "server_version" => {
-                            self.server_version_num = parse_server_version(&value);
-                        }
-                        _ => {
-                            self.parameter_statuses.insert(name, value);
-                        }
-                    }
+                //     match name.as_str() {
+                //         "server_version" => {
+                //             self.server_version_num = parse_server_version(&value);
+                //         }
+                //         _ => {
+                //             self.parameter_statuses.insert(name, value);
+                //         }
+                //     }
 
-                    continue;
-                }
-
+                //     continue;
+                // }
                 BackendMessageFormat::NoticeResponse => {
                     // do we need this to be more configurable?
                     // if you are reading this comment and think so, open an issue
@@ -205,7 +196,7 @@ impl DerefMut for PgStream {
 
 // reference:
 // https://github.com/postgres/postgres/blob/6feebcb6b44631c3dc435e971bd80c2dd218a5ab/src/interfaces/libpq/fe-exec.c#L1030-L1065
-fn parse_server_version(s: &str) -> Option<u32> {
+pub fn parse_server_version(s: String) -> Option<u32> {
     let mut parts = Vec::<u32>::with_capacity(3);
 
     let mut from = 0;
