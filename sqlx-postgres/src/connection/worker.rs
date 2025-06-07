@@ -95,7 +95,7 @@ impl Worker {
             Poll::Ready(Some(request)) => Poll::Ready(request),
             Poll::Ready(None) => {
                 // Channel was closed, explicitly or because the sender was dropped. Either way
-                // we should start a gracefull shutdown.
+                // we should start a graceful shutdown.
                 self.socket
                     .write_buffer_mut()
                     .put_slice(&[Terminate::FORMAT as u8, 0, 0, 0, 4]);
@@ -151,6 +151,8 @@ impl Worker {
         while let Poll::Ready(response) = self.poll_next_message(cx)? {
             match response.format {
                 BackendMessageFormat::ReadyForQuery => {
+                    // Cloning a `ReceivedMessage` here is cheap because it only clones the
+                    // underlying `Bytes`
                     let rfq: ReadyForQuery = response.clone().decode()?;
                     self.shared.set_transaction_status(rfq.transaction_status);
 
@@ -187,6 +189,7 @@ impl Worker {
         }
 
         if self.state != WorkerState::Open && self.back_log.is_empty() {
+            // After the connection is closed and the backlog is empty we can close the socket.
             self.state = WorkerState::Closed;
         }
         Ok(())
@@ -232,18 +235,15 @@ impl Worker {
     #[inline(always)]
     fn poll_shutdown(&mut self, cx: &mut Context<'_>) -> Poll<Result<()>> {
         if self.state == WorkerState::Closed {
-            // The buffer is closed, a [Terminate] message has been sent, now try and close the socket.
+            // The channel is closed, all requests are flushed and a [Terminate] message has been
+            // sent, now try and close the socket
             self.socket.poll_close_unpin(cx)
         } else {
             Poll::Pending
         }
     }
-}
 
-impl Future for Worker {
-    type Output = Result<()>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll_worker(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
         // Try to receive responses from the database and handle them.
         self.poll_backlog(cx)?;
 
@@ -257,6 +257,17 @@ impl Future for Worker {
 
         // Close this socket if we're done.
         self.poll_shutdown(cx)
+    }
+}
+
+impl Future for Worker {
+    type Output = Result<()>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.poll_worker(cx).map_err(|e| {
+            tracing::error!("Background worker stopped with error: {e:?}");
+            e
+        })
     }
 }
 

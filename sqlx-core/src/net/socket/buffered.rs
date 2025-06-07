@@ -70,7 +70,7 @@ impl<S: Socket> BufferedSocket<S> {
         F: FnMut(&mut BytesMut) -> Result<ControlFlow<R, usize>, Error>,
     {
         loop {
-            // Read if we want bytes
+            // Ensure we have enough bytes, only read if we want bytes.
             ready!(self.poll_handle_read(cx)?);
 
             match try_read(&mut self.read_buf.read)? {
@@ -149,7 +149,7 @@ impl<S: Socket> BufferedSocket<S> {
     pub async fn flush(&mut self) -> io::Result<()> {
         while !self.write_buf.is_empty() {
             let written = self.socket.write(self.write_buf.get()).await?;
-            // Consume does the sanity check
+            // Consume does the sanity check.
             self.write_buf.consume(written);
         }
 
@@ -401,7 +401,7 @@ impl<S: Socket> Sink<&[u8]> for BufferedSocket<S> {
 
         while !this.write_buf.is_empty() {
             let written = ready!(this.socket.poll_write(cx, this.write_buf.get())?);
-            // Consume does the sanity check
+            // Consume does the sanity check.
             this.write_buf.consume(written);
         }
         this.socket.poll_flush(cx).map_err(Into::into)
