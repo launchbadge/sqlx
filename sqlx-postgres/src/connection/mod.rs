@@ -50,7 +50,7 @@ pub struct PgConnectionInner {
 
     chan: UnboundedSender<IoRequest>,
 
-    notifications: UnboundedReceiver<Notification>,
+    pub(crate) notifications: UnboundedReceiver<Notification>,
 
     // process id of this backend
     // used to send cancel requests
@@ -74,9 +74,6 @@ pub struct PgConnectionInner {
     cache_type_oid: HashMap<UStr, Oid>,
     cache_elem_type_to_array: HashMap<Oid, Oid>,
     cache_table_to_column_names: HashMap<Oid, TableColumns>,
-
-    // number of ReadyForQuery messages that we are currently expecting
-    pub(crate) pending_ready_for_query_count: usize,
 
     // current transaction status
     transaction_status: TransactionStatus,
@@ -108,7 +105,7 @@ impl PgConnection {
     ///
     /// Used for rolling back transactions and releasing advisory locks.
     #[inline(always)]
-    pub(crate) fn queue_simple_query(&mut self, query: &str) -> Result<Pipe, Error> {
+    pub(crate) fn queue_simple_query(&self, query: &str) -> Result<Pipe, Error> {
         self.pipe(|buf| buf.write_msg(Query(query)))
     }
 
@@ -140,7 +137,6 @@ impl PgConnection {
                 cache_table_to_column_names: HashMap::new(),
                 transaction_depth: 0,
                 stream,
-                pending_ready_for_query_count: 0,
                 transaction_status: TransactionStatus::Idle,
             }),
         }
