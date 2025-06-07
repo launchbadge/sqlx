@@ -2,16 +2,14 @@ use std::collections::BTreeMap;
 use std::ops::{ControlFlow, Deref, DerefMut};
 use std::str::FromStr;
 
-use futures_channel::mpsc::UnboundedSender;
-use futures_util::SinkExt;
 use log::Level;
 use sqlx_core::bytes::Buf;
 
 use crate::connection::tls::MaybeUpgradeTls;
 use crate::error::Error;
 use crate::message::{
-    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, Notification,
-    ParameterStatus, ReceivedMessage,
+    BackendMessage, BackendMessageFormat, EncodeMessage, FrontendMessage, Notice, ParameterStatus,
+    ReceivedMessage,
 };
 use crate::net::{self, BufferedSocket, Socket};
 use crate::{PgConnectOptions, PgDatabaseError, PgSeverity};
@@ -29,11 +27,6 @@ pub struct PgStream {
     // A trait object is okay here as the buffering amortizes the overhead of both the dynamic
     // function call as well as the syscall.
     inner: BufferedSocket<Box<dyn Socket>>,
-
-    // buffer of unreceived notification messages from `PUBLISH`
-    // this is set when creating a PgListener and only written to if that listener is
-    // re-used for query execution in-between receiving messages
-    pub(crate) notifications: Option<UnboundedSender<Notification>>,
 
     pub(crate) parameter_statuses: BTreeMap<String, String>,
 
@@ -55,7 +48,6 @@ impl PgStream {
 
         Ok(Self {
             inner: BufferedSocket::new(socket),
-            notifications: None,
             parameter_statuses: BTreeMap::default(),
             server_version_num: None,
         })
@@ -132,15 +124,6 @@ impl PgStream {
                 BackendMessageFormat::ErrorResponse => {
                     // An error returned from the database server.
                     return Err(message.decode::<PgDatabaseError>()?.into());
-                }
-
-                BackendMessageFormat::NotificationResponse => {
-                    if let Some(buffer) = &mut self.notifications {
-                        let notification: Notification = message.decode()?;
-                        let _ = buffer.send(notification).await;
-
-                        continue;
-                    }
                 }
 
                 BackendMessageFormat::ParameterStatus => {
