@@ -323,8 +323,8 @@ impl PgConnection {
                     }
 
                     BackendMessageFormat::ReadyForQuery => {
-                        // processing of the query string is complete
-                        self.handle_ready_for_query(message)?;
+                        // Processing of the query string is complete, the transaction status is
+                        // updated in the bg worker.
                         break;
                     }
 
