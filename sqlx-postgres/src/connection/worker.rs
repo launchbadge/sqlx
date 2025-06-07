@@ -7,20 +7,23 @@ use std::{
     task::{ready, Context, Poll},
 };
 
-use crate::message::{
-    BackendMessageFormat, FrontendMessage, Notice, Notification, ParameterStatus, ReadyForQuery,
-    ReceivedMessage, Terminate, TransactionStatus,
+use crate::{
+    message::{
+        BackendMessageFormat, FrontendMessage, Notice, Notification, ParameterStatus,
+        ReadyForQuery, ReceivedMessage, Terminate, TransactionStatus,
+    },
+    PgConnectOptions,
 };
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures_util::{SinkExt, StreamExt};
 use sqlx_core::{
     bytes::Buf,
-    net::{BufferedSocket, Socket},
+    net::{self, BufferedSocket, Socket},
     rt::spawn,
     Result,
 };
 
-use super::request::IoRequest;
+use super::{request::IoRequest, tls::MaybeUpgradeTls};
 
 #[derive(PartialEq, Debug)]
 enum WorkerState {
@@ -44,12 +47,27 @@ pub struct Worker {
 }
 
 impl Worker {
+    pub(super) async fn connect(
+        options: &PgConnectOptions,
+        notif_chan: UnboundedSender<Notification>,
+        shared: Shared,
+    ) -> crate::Result<UnboundedSender<IoRequest>> {
+        let socket_result = match options.fetch_socket() {
+            Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,
+            None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
+        };
+
+        let socket = BufferedSocket::new(socket_result?);
+
+        Ok(Worker::spawn(socket, notif_chan, shared))
+    }
+
     pub fn spawn(
         socket: BufferedSocket<Box<dyn Socket>>,
         notif_chan: UnboundedSender<Notification>,
-    ) -> (UnboundedSender<IoRequest>, Shared) {
+        shared: Shared,
+    ) -> UnboundedSender<IoRequest> {
         let (tx, rx) = unbounded();
-        let shared = Shared::new();
 
         let worker = Worker {
             state: WorkerState::Open,
@@ -62,7 +80,7 @@ impl Worker {
         };
 
         spawn(worker);
-        (tx, shared)
+        tx
     }
 
     // Tries to receive the next message from the channel. Also handles termination if needed.

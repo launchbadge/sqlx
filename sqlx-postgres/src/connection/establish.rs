@@ -1,23 +1,22 @@
-use crate::connection::{sasl, stream::PgStream};
+use crate::connection::sasl;
 use crate::error::Error;
 use crate::message::{Authentication, BackendKeyData, BackendMessageFormat, Password, Startup};
 use crate::{PgConnectOptions, PgConnection};
 use futures_channel::mpsc::unbounded;
+use std::str::FromStr;
 
-use super::stream::parse_server_version;
-use super::worker::Worker;
+use super::worker::{Shared, Worker};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
 
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
-        // Upgrade to TLS if we were asked to and the server supports it
-        let stream = PgStream::connect(options).await?;
-
         let (notif_tx, notif_rx) = unbounded();
+        let shared = Shared::new();
 
-        let (channel, shared) = Worker::spawn(stream.into_inner(), notif_tx);
+        // Upgrade to TLS if we were asked to and the server supports it
+        let channel = Worker::connect(options, notif_tx, shared.clone()).await?;
 
         let mut conn = PgConnection::new(options, channel, notif_rx, shared);
 
@@ -141,5 +140,71 @@ impl PgConnection {
         conn.inner.process_id = process_id;
 
         Ok(conn)
+    }
+}
+
+// reference:
+// https://github.com/postgres/postgres/blob/6feebcb6b44631c3dc435e971bd80c2dd218a5ab/src/interfaces/libpq/fe-exec.c#L1030-L1065
+fn parse_server_version(s: impl Into<String>) -> Option<u32> {
+    let s = s.into();
+    let mut parts = Vec::<u32>::with_capacity(3);
+
+    let mut from = 0;
+    let mut chs = s.char_indices().peekable();
+    while let Some((i, ch)) = chs.next() {
+        match ch {
+            '.' => {
+                if let Ok(num) = u32::from_str(&s[from..i]) {
+                    parts.push(num);
+                    from = i + 1;
+                } else {
+                    break;
+                }
+            }
+            _ if ch.is_ascii_digit() => {
+                if chs.peek().is_none() {
+                    if let Ok(num) = u32::from_str(&s[from..]) {
+                        parts.push(num);
+                    }
+                    break;
+                }
+            }
+            _ => {
+                if let Ok(num) = u32::from_str(&s[from..i]) {
+                    parts.push(num);
+                }
+                break;
+            }
+        };
+    }
+
+    let version_num = match parts.as_slice() {
+        [major, minor, rev] => (100 * major + minor) * 100 + rev,
+        [major, minor] if *major >= 10 => 100 * 100 * major + minor,
+        [major, minor] => (100 * major + minor) * 100,
+        [major] => 100 * 100 * major,
+        _ => return None,
+    };
+
+    Some(version_num)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_server_version;
+
+    #[test]
+    fn test_parse_server_version_num() {
+        // old style
+        assert_eq!(parse_server_version("9.6.1"), Some(90601));
+        // new style
+        assert_eq!(parse_server_version("10.1"), Some(100001));
+        // old style without minor version
+        assert_eq!(parse_server_version("9.6devel"), Some(90600));
+        // new style without minor version, e.g.  */
+        assert_eq!(parse_server_version("10devel"), Some(100000));
+        assert_eq!(parse_server_version("13devel87"), Some(130000));
+        // unknown
+        assert_eq!(parse_server_version("unknown"), None);
     }
 }
