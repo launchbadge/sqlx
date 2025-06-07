@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::message::{
-    BackendMessageFormat, FrontendMessage, Notification, ParameterStatus, ReadyForQuery,
+    BackendMessageFormat, FrontendMessage, Notice, Notification, ParameterStatus, ReadyForQuery,
     ReceivedMessage, Terminate, TransactionStatus,
 };
 use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
@@ -153,12 +153,16 @@ impl Worker {
                 }
                 BackendMessageFormat::ParameterStatus => {
                     // Asynchronous response
-                    //
                     let ParameterStatus { name, value } = response.decode()?;
                     self.shared.insert_parameter_status(name, value);
                 }
                 BackendMessageFormat::NoticeResponse => {
-                    // Asynchronous response - todo
+                    // do we need this to be more configurable?
+                    // if you are reading this comment and think so, open an issue
+
+                    let notice: Notice = response.decode()?;
+
+                    notice.emit_notice();
                 }
                 _ => self.send_back(response)?,
             }
