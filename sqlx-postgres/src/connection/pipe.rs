@@ -7,6 +7,8 @@ use crate::{
     PgDatabaseError,
 };
 
+/// A temporary stream of responses sent from the background worker. The steam is stopped when
+/// either a [ReadyForQuery] of [CopyInResponse] is received.
 pub struct Pipe {
     receiver: UnboundedReceiver<ReceivedMessage>,
 }
@@ -21,6 +23,7 @@ impl Pipe {
     }
 
     pub async fn recv_ready_for_query(&mut self) -> Result<(), Error> {
+        // The transaction status is updated in the bg worker.
         let _: ReadyForQuery = self.recv_expect().await?;
         Ok(())
     }
@@ -30,7 +33,7 @@ impl Pipe {
             let message = self.recv().await?;
 
             if let BackendMessageFormat::ReadyForQuery = message.format {
-                let _: ReadyForQuery = message.decode()?;
+                // The transaction status is updated in the bg worker.
                 break;
             }
         }
