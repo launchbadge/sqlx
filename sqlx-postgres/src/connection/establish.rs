@@ -1,11 +1,10 @@
 use crate::connection::{sasl, stream::PgStream};
 use crate::error::Error;
-use crate::message::{
-    Authentication, BackendKeyData, BackendMessageFormat, Password, ReadyForQuery, Startup,
-};
+use crate::message::{Authentication, BackendKeyData, BackendMessageFormat, Password, Startup};
 use crate::{PgConnectOptions, PgConnection};
 use futures_channel::mpsc::unbounded;
 
+use super::stream::parse_server_version;
 use super::worker::Worker;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
@@ -20,9 +19,9 @@ impl PgConnection {
 
         let (notif_tx, notif_rx) = unbounded();
 
-        let x = Worker::spawn(stream.into_inner(), notif_tx);
+        let (x, shared) = Worker::spawn(stream.into_inner(), notif_tx);
 
-        let mut conn = PgConnection::new(pg_stream, options, x, notif_rx);
+        let mut conn = PgConnection::new(pg_stream, options, x, notif_rx, shared);
 
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
@@ -65,7 +64,6 @@ impl PgConnection {
 
         let mut process_id = 0;
         let mut secret_key = 0;
-        let transaction_status;
 
         loop {
             let message = pipe.recv().await?;
@@ -121,9 +119,7 @@ impl PgConnection {
                 }
 
                 BackendMessageFormat::ReadyForQuery => {
-                    // start-up is completed. The frontend can now issue commands
-                    transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
-
+                    // Transaction status is updated in the bg worker.
                     break;
                 }
 
@@ -136,7 +132,13 @@ impl PgConnection {
             }
         }
 
-        conn.inner.transaction_status = transaction_status;
+        let server_version = conn
+            .inner
+            .shared
+            .remove_parameter_status("server_version")
+            .map(parse_server_version);
+
+        conn.inner.server_version_num = server_version.flatten();
         conn.inner.secret_key = secret_key;
         conn.inner.process_id = process_id;
 

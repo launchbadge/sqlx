@@ -8,14 +8,13 @@ use futures_core::future::BoxFuture;
 use futures_util::FutureExt;
 use pipe::Pipe;
 use request::{IoRequest, MessageBuf};
+use worker::Shared;
 
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
-use crate::message::{
-    Close, FrontendMessage, Notification, Query, ReadyForQuery, ReceivedMessage, TransactionStatus,
-};
+use crate::message::{Close, FrontendMessage, Notification, Query, TransactionStatus};
 use crate::statement::PgStatementMetadata;
 use crate::transaction::Transaction;
 use crate::types::Oid;
@@ -62,6 +61,8 @@ pub struct PgConnectionInner {
     #[allow(dead_code)]
     secret_key: u32,
 
+    pub(crate) server_version_num: Option<u32>,
+
     // sequence of statement IDs for use in preparing statements
     // in PostgreSQL, the statement is prepared to a user-supplied identifier
     next_statement_id: StatementId,
@@ -74,24 +75,17 @@ pub struct PgConnectionInner {
     cache_type_oid: HashMap<UStr, Oid>,
     cache_elem_type_to_array: HashMap<Oid, Oid>,
 
-    // current transaction status
-    transaction_status: TransactionStatus,
     pub(crate) transaction_depth: usize,
 
     log_settings: LogSettings,
+
+    shared: Shared,
 }
 
 impl PgConnection {
     /// the version number of the server in `libpq` format
     pub fn server_version_num(&self) -> Option<u32> {
-        self.inner.stream.server_version_num
-    }
-
-    #[inline(always)]
-    fn handle_ready_for_query(&mut self, message: ReceivedMessage) -> Result<(), Error> {
-        self.inner.transaction_status = message.decode::<ReadyForQuery>()?.transaction_status;
-
-        Ok(())
+        self.inner.server_version_num
     }
 
     /// Queue a simple query (not prepared) to execute the next time this connection is used.
@@ -103,7 +97,7 @@ impl PgConnection {
     }
 
     pub(crate) fn in_transaction(&self) -> bool {
-        match self.inner.transaction_status {
+        match self.inner.shared.get_transaction_status() {
             TransactionStatus::Transaction => true,
             TransactionStatus::Error | TransactionStatus::Idle => false,
         }
@@ -114,6 +108,7 @@ impl PgConnection {
         options: &PgConnectOptions,
         chan: UnboundedSender<IoRequest>,
         notifications: UnboundedReceiver<Notification>,
+        shared: Shared,
     ) -> Self {
         Self {
             inner: Box::new(PgConnectionInner {
@@ -129,7 +124,8 @@ impl PgConnection {
                 cache_elem_type_to_array: HashMap::new(),
                 transaction_depth: 0,
                 stream,
-                transaction_status: TransactionStatus::Idle,
+                server_version_num: None,
+                shared,
             }),
         }
     }
