@@ -49,6 +49,8 @@ impl PgConnection {
             params.push(("options", options));
         }
 
+        // Only after establishing a connection, Postgres sends a [ReadyForQuery] response. While
+        // establishing a connection this pipe is used to read responses from.
         let mut pipe = conn.pipe(|buf| {
             buf.write(Startup {
                 username: Some(&options.username),
