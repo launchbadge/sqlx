@@ -22,8 +22,6 @@ use crate::{PgConnectOptions, PgTypeInfo, Postgres};
 pub(crate) use sqlx_core::connection::*;
 use sqlx_core::sql_str::SqlSafeStr;
 
-pub use self::stream::PgStream;
-
 pub(crate) mod describe;
 mod establish;
 mod executor;
@@ -42,11 +40,6 @@ pub struct PgConnection {
 }
 
 pub struct PgConnectionInner {
-    // underlying TCP or UDS stream,
-    // wrapped in a potentially TLS stream,
-    // wrapped in a buffered stream
-    pub(crate) stream: PgStream,
-
     chan: UnboundedSender<IoRequest>,
 
     pub(crate) notifications: UnboundedReceiver<Notification>,
@@ -111,7 +104,6 @@ impl PgConnection {
     }
 
     fn new(
-        stream: PgStream,
         options: &PgConnectOptions,
         chan: UnboundedSender<IoRequest>,
         notifications: UnboundedReceiver<Notification>,
@@ -131,7 +123,6 @@ impl PgConnection {
                 cache_elem_type_to_array: HashMap::new(),
                 cache_table_to_column_names: HashMap::new(),
                 transaction_depth: 0,
-                stream,
                 server_version_num: None,
                 shared,
             }),
@@ -274,7 +265,7 @@ impl Connection for PgConnection {
     }
 
     fn shrink_buffers(&mut self) {
-        self.inner.stream.shrink_buffers();
+        // No-op
     }
 
     #[doc(hidden)]
@@ -284,7 +275,7 @@ impl Connection for PgConnection {
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
-        !self.inner.stream.write_buffer().is_empty()
+        false
     }
 }
 

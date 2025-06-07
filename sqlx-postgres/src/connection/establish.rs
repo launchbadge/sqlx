@@ -13,15 +13,13 @@ use super::worker::Worker;
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
         // Upgrade to TLS if we were asked to and the server supports it
-        let pg_stream = PgStream::connect(options).await?;
-
         let stream = PgStream::connect(options).await?;
 
         let (notif_tx, notif_rx) = unbounded();
 
-        let (x, shared) = Worker::spawn(stream.into_inner(), notif_tx);
+        let (channel, shared) = Worker::spawn(stream.into_inner(), notif_tx);
 
-        let mut conn = PgConnection::new(pg_stream, options, x, notif_rx, shared);
+        let mut conn = PgConnection::new(options, channel, notif_rx, shared);
 
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
