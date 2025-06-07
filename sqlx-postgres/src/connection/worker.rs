@@ -152,7 +152,7 @@ impl Worker {
                     let _ = self.notif_chan.unbounded_send(notif);
                 }
                 BackendMessageFormat::ParameterStatus => {
-                    // Asynchronous response - todo
+                    // Asynchronous response
                     //
                     let ParameterStatus { name, value } = response.decode()?;
                     self.shared.insert_parameter_status(name, value);

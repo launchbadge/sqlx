@@ -183,19 +183,16 @@ impl PgConnection {
         self.send_request(req)
     }
 
-    pub(crate) async fn start_pipe_async<F, R>(&self, callback: F) -> sqlx_core::Result<(R, Pipe)>
+    pub(crate) async fn pipe_and_forget_async<F, R>(&self, callback: F) -> sqlx_core::Result<R>
     where
         F: AsyncFnOnce(&mut MessageBuf) -> sqlx_core::Result<R>,
     {
         let mut buffer = MessageBuf::new();
         let result = (callback)(&mut buffer).await?;
-        let mut req = buffer.finish();
-        let (tx, rx) = unbounded();
-        req.chan = Some(tx);
-
+        let req = buffer.finish();
         self.send_request(req)?;
 
-        Ok((result, Pipe::new(rx)))
+        Ok(result)
     }
 }
 
