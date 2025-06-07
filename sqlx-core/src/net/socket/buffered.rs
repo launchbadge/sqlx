@@ -7,7 +7,7 @@ use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 use std::{cmp, io};
 
-use crate::io::{AsyncRead, AsyncReadExt, ProtocolDecode, ProtocolEncode};
+use crate::io::{read_from, AsyncRead, ProtocolDecode, ProtocolEncode};
 
 // Tokio, async-std, and std all use this as the default capacity for their buffered I/O.
 const DEFAULT_BUF_SIZE: usize = 8192;
@@ -260,14 +260,8 @@ impl WriteBuffer {
     /// Read into the buffer from `source`, returning the number of bytes read.
     ///
     /// The buffer is automatically advanced by the number of bytes read.
-    pub async fn read_from(&mut self, mut source: impl AsyncRead + Unpin) -> io::Result<usize> {
-        let read = match () {
-            // Tokio lets us read into the buffer without zeroing first
-            #[cfg(feature = "_rt-tokio")]
-            _ => source.read_buf(self.buf_mut()).await?,
-            #[cfg(not(feature = "_rt-tokio"))]
-            _ => source.read(self.init_remaining_mut()).await?,
-        };
+    pub async fn read_from(&mut self, source: impl AsyncRead + Unpin) -> io::Result<usize> {
+        let read = read_from(source, self.buf_mut()).await?;
 
         if read > 0 {
             self.advance(read);
