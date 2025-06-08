@@ -27,12 +27,13 @@ use super::{request::IoRequest, tls::MaybeUpgradeTls};
 
 #[derive(PartialEq, Debug)]
 enum WorkerState {
-    // The connection is open and ready for business.
+    // The connection is open and ready for requests.
     Open,
-    // Sent/sending a [Terminate] message but did not close the socket. Responding to the last
-    // messages but not receiving new ones.
+    // Responding to the last messages but not receiving new ones. After handling the last message
+    // a [Terminate] message is issued.
     Closing,
-    // The connection is terminated, this step closes the socket and stops the background task.
+    // Last messages are handled, [Terminate] message is sent and the session is closed. Nog try
+    // and close the socket.
     Closed,
 }
 
@@ -86,22 +87,13 @@ impl Worker {
     // Tries to receive the next message from the channel. Also handles termination if needed.
     #[inline(always)]
     fn poll_next_request(&mut self, cx: &mut Context<'_>) -> Poll<IoRequest> {
-        if self.state != WorkerState::Open {
-            return Poll::Pending;
-        }
-
         match self.chan.poll_next_unpin(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(request)) => Poll::Ready(request),
             Poll::Ready(None) => {
                 // Channel was closed, explicitly or because the sender was dropped. Either way
                 // we should start a graceful shutdown.
-                self.socket
-                    .write_buffer_mut()
-                    .put_slice(&[Terminate::FORMAT as u8, 0, 0, 0, 4]);
-
                 self.state = WorkerState::Closing;
-                self.should_flush = true;
                 Poll::Pending
             }
         }
@@ -109,6 +101,7 @@ impl Worker {
 
     #[inline(always)]
     fn poll_receiver(&mut self, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        // Only try and receive io requests if we're open.
         if self.state != WorkerState::Open {
             return Poll::Ready(Ok(()));
         }
@@ -187,16 +180,17 @@ impl Worker {
                 _ => self.send_back(response)?,
             }
         }
-
-        if self.state != WorkerState::Open && self.back_log.is_empty() {
-            // After the connection is closed and the backlog is empty we can close the socket.
-            self.state = WorkerState::Closed;
-        }
         Ok(())
     }
 
     #[inline(always)]
     fn poll_next_message(&mut self, cx: &mut Context<'_>) -> Poll<Result<ReceivedMessage>> {
+        if self.state == WorkerState::Closed {
+            // We're still responsing to the last messages, only after clearing the backlog we
+            // should stop reading.
+            return Poll::Pending;
+        }
+
         self.socket.poll_try_read(cx, |buf| {
             // all packets in postgres start with a 5-byte header
             // this header contains the message type and the total length of the message
@@ -234,12 +228,21 @@ impl Worker {
 
     #[inline(always)]
     fn poll_shutdown(&mut self, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        if self.state == WorkerState::Closed {
+        match self.state {
+            // After responding to the last messages we can issue a [Terminate] request and
+            // close the connection.
+            WorkerState::Closing if self.back_log.is_empty() => {
+                let terminate = [Terminate::FORMAT as u8, 0, 0, 0, 4];
+                self.socket.write_buffer_mut().put_slice(&terminate);
+                self.state = WorkerState::Closed;
+
+                // Closing the socket also flushes the buffer.
+                self.socket.poll_close_unpin(cx)
+            }
             // The channel is closed, all requests are flushed and a [Terminate] message has been
             // sent, now try and close the socket
-            self.socket.poll_close_unpin(cx)
-        } else {
-            Poll::Pending
+            WorkerState::Closed => self.socket.poll_close_unpin(cx),
+            WorkerState::Open | WorkerState::Closing => Poll::Pending,
         }
     }
 
