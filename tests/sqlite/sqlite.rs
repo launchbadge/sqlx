@@ -1,7 +1,9 @@
 use futures::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteDatabaseStatus, SqliteOperation, SqlitePoolOptions,
+};
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
@@ -1366,4 +1368,310 @@ enum SqliteTransactionState {
     None,
     Read,
     Write,
+}
+
+#[sqlx_macros::test]
+async fn test_soft_heap_limit() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test setting and getting heap limit
+    let old_limit = handle.soft_heap_limit(1024 * 1024); // 1MB
+    let current_limit = handle.soft_heap_limit(2 * 1024 * 1024); // 2MB
+    assert_eq!(current_limit, 1024 * 1024);
+
+    // Disable heap limit
+    let disabled_limit = handle.soft_heap_limit(0);
+    assert_eq!(disabled_limit, 2 * 1024 * 1024);
+
+    // Restore old limit if it existed
+    if old_limit > 0 {
+        handle.soft_heap_limit(old_limit);
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_status() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test various status options
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+    assert!(current >= 0);
+    assert!(highest >= current);
+
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::SchemaUsed, false)?;
+    assert!(current >= 0);
+    assert!(highest >= current);
+
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::StmtUsed, false)?;
+    assert!(current >= 0);
+    assert!(highest >= current);
+
+    // Test reset functionality
+    let (current1, highest1) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+    let (current2, highest2) = handle.db_status(SqliteDatabaseStatus::CacheUsed, true)?;
+
+    // After reset, the highest value should be equal to current
+    assert_eq!(current1, current2);
+    assert_eq!(highest1, highest2);
+
+    // Verify that all status types can be queried without error
+    let status_types = [
+        SqliteDatabaseStatus::LookasideUsed,
+        SqliteDatabaseStatus::CacheUsed,
+        SqliteDatabaseStatus::SchemaUsed,
+        SqliteDatabaseStatus::StmtUsed,
+        SqliteDatabaseStatus::LookasideHit,
+        SqliteDatabaseStatus::LookasideMissSize,
+        SqliteDatabaseStatus::LookasideMissFull,
+        SqliteDatabaseStatus::CacheHit,
+        SqliteDatabaseStatus::CacheMiss,
+        SqliteDatabaseStatus::CacheWrite,
+        SqliteDatabaseStatus::DeferredFks,
+        SqliteDatabaseStatus::CacheUsedShared,
+    ];
+
+    for status in status_types {
+        let result = handle.db_status(status, false);
+        assert!(result.is_ok(), "Failed to query status: {:?}", status);
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_status_with_usage() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    // Create some schema to generate usage
+    conn.execute("CREATE TEMPORARY TABLE test_table (id INTEGER, data TEXT)")
+        .await?;
+
+    // Insert some data to trigger cache usage
+    for i in 0..10 {
+        sqlx::query("INSERT INTO test_table (id, data) VALUES (?, ?)")
+            .bind(i)
+            .bind(format!("test_data_{}", i))
+            .execute(&mut conn)
+            .await?;
+    }
+
+    let mut handle = conn.lock_handle().await?;
+
+    // Check that schema usage is non-zero
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::SchemaUsed, false)?;
+    assert!(current > 0, "Schema should be using some memory");
+    assert!(highest >= current);
+
+    // Check cache usage after some operations
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+    assert!(highest >= current);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_release_memory() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    // Create some prepared statements to use memory
+    conn.execute("CREATE TEMPORARY TABLE test_table (id INTEGER, data TEXT)")
+        .await?;
+
+    for i in 0..5 {
+        sqlx::query("INSERT INTO test_table (id, data) VALUES (?, ?)")
+            .bind(i)
+            .bind(format!("test_data_{}", i))
+            .execute(&mut conn)
+            .await?;
+    }
+
+    let mut handle = conn.lock_handle().await?;
+
+    // Get initial memory usage
+    let (_initial_cache, _) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+
+    // Release memory
+    let released = handle.db_release_memory();
+
+    // released should be non-negative
+    assert!(released >= 0);
+
+    // Memory usage should potentially be lower (though this isn't guaranteed)
+    let (after_release_cache, _) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+    assert!(after_release_cache >= 0);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_memory_functions_edge_cases() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test soft_heap_limit with edge values
+    let original_limit = handle.soft_heap_limit(-1); // Should be ignored/treated as 0
+    assert!(original_limit >= 0);
+
+    // Test very large limit
+    let large_limit = handle.soft_heap_limit(i64::MAX);
+    assert!(large_limit >= 0);
+
+    // Test zero (disable limit)
+    let zero_result = handle.soft_heap_limit(0);
+    assert_eq!(zero_result, i64::MAX);
+
+    // Test negative values (should be ignored)
+    let negative_result = handle.soft_heap_limit(-1000);
+    assert!(negative_result >= 0);
+
+    // Restore original limit
+    handle.soft_heap_limit(original_limit);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_status_reset_functionality() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test reset functionality for various status types
+    let status_types_to_test = [
+        SqliteDatabaseStatus::CacheUsed,
+        SqliteDatabaseStatus::SchemaUsed,
+        SqliteDatabaseStatus::StmtUsed,
+        SqliteDatabaseStatus::LookasideUsed,
+    ];
+
+    for status in status_types_to_test {
+        // Get status without reset
+        let (current1, highest1) = handle.db_status(status, false)?;
+
+        // Get status with reset - highest should now equal current
+        let (current2, highest2) = handle.db_status(status, true)?;
+
+        // Current values should be the same
+        assert_eq!(current1, current2);
+
+        // After reset, highest should equal current
+        assert_eq!(current2, highest2);
+
+        // Both values should be non-negative
+        assert!(current1 >= 0);
+        assert!(current2 >= 0);
+        assert!(highest1 >= 0);
+        assert!(highest2 >= 0);
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_release_memory_multiple_calls() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test multiple consecutive calls to db_release_memory
+    for _ in 0..5 {
+        let released = handle.db_release_memory();
+        // Should always return a non-negative value, even if no memory was released
+        assert!(released >= 0);
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_memory_functions_on_fresh_connection() -> anyhow::Result<()> {
+    // Test functions on a completely fresh connection with no activity
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Test db_status on fresh connection
+    let (current, highest) = handle.db_status(SqliteDatabaseStatus::CacheUsed, false)?;
+    assert!(current >= 0);
+    assert!(highest >= current);
+
+    // Test db_release_memory on fresh connection
+    let released = handle.db_release_memory();
+    assert!(released >= 0);
+
+    // Test soft_heap_limit on fresh connection
+    let old_limit = handle.soft_heap_limit(1024);
+    let restored = handle.soft_heap_limit(old_limit);
+    assert_eq!(restored, 1024);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_db_status_all_types_no_error() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut handle = conn.lock_handle().await?;
+
+    // Ensure every single status type can be queried without error
+    // This is the most important test - ensuring none of the status types cause panics or errors
+
+    // Test with reset = false
+    let result1 = handle.db_status(SqliteDatabaseStatus::LookasideUsed, false);
+    assert!(result1.is_ok(), "LookasideUsed failed: {:?}", result1.err());
+
+    let result2 = handle.db_status(SqliteDatabaseStatus::CacheUsed, false);
+    assert!(result2.is_ok(), "CacheUsed failed: {:?}", result2.err());
+
+    let result3 = handle.db_status(SqliteDatabaseStatus::SchemaUsed, false);
+    assert!(result3.is_ok(), "SchemaUsed failed: {:?}", result3.err());
+
+    let result4 = handle.db_status(SqliteDatabaseStatus::StmtUsed, false);
+    assert!(result4.is_ok(), "StmtUsed failed: {:?}", result4.err());
+
+    let result5 = handle.db_status(SqliteDatabaseStatus::LookasideHit, false);
+    assert!(result5.is_ok(), "LookasideHit failed: {:?}", result5.err());
+
+    let result6 = handle.db_status(SqliteDatabaseStatus::LookasideMissSize, false);
+    assert!(
+        result6.is_ok(),
+        "LookasideMissSize failed: {:?}",
+        result6.err()
+    );
+
+    let result7 = handle.db_status(SqliteDatabaseStatus::LookasideMissFull, false);
+    assert!(
+        result7.is_ok(),
+        "LookasideMissFull failed: {:?}",
+        result7.err()
+    );
+
+    let result8 = handle.db_status(SqliteDatabaseStatus::CacheHit, false);
+    assert!(result8.is_ok(), "CacheHit failed: {:?}", result8.err());
+
+    let result9 = handle.db_status(SqliteDatabaseStatus::CacheMiss, false);
+    assert!(result9.is_ok(), "CacheMiss failed: {:?}", result9.err());
+
+    let result10 = handle.db_status(SqliteDatabaseStatus::CacheWrite, false);
+    assert!(result10.is_ok(), "CacheWrite failed: {:?}", result10.err());
+
+    let result11 = handle.db_status(SqliteDatabaseStatus::DeferredFks, false);
+    assert!(result11.is_ok(), "DeferredFks failed: {:?}", result11.err());
+
+    let result12 = handle.db_status(SqliteDatabaseStatus::CacheUsedShared, false);
+    assert!(
+        result12.is_ok(),
+        "CacheUsedShared failed: {:?}",
+        result12.err()
+    );
+
+    // Test with reset = true
+    let result13 = handle.db_status(SqliteDatabaseStatus::CacheUsed, true);
+    assert!(
+        result13.is_ok(),
+        "CacheUsed with reset failed: {:?}",
+        result13.err()
+    );
+
+    Ok(())
 }
