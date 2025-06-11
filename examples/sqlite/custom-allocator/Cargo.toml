@@ -2,7 +2,8 @@
 name = "sqlite-custom-allocator-example"
 version = "0.1.0"
 edition = "2021"
-workspace = "../../../"
+
+[workspace]
 
 [[bin]]
 name = "basic"
