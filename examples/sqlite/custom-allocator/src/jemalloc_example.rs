@@ -299,8 +299,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Configuring jemalloc as SQLite's memory allocator...");
 
     // Extract allocator to pass to configure_memory_allocator
-    // We need to clone the Arc and unwrap it
-    let allocator_clone = allocator.clone();
 
     // Configure SQLite to use our jemalloc allocator
     configure_memory_allocator(JemallocSqliteAllocator {

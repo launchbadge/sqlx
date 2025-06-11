@@ -29,27 +29,6 @@ impl TrackingAllocator {
             total_allocated: Arc::new(AtomicI64::new(0)),
         }
     }
-
-    fn print_stats(&self) {
-        let malloc_count = self.malloc_count.load(Ordering::Relaxed);
-        let free_count = self.free_count.load(Ordering::Relaxed);
-        let realloc_count = self.realloc_count.load(Ordering::Relaxed);
-        let total_allocated = self.total_allocated.load(Ordering::Relaxed);
-        let active_allocations = self.allocations.lock().unwrap().len();
-
-        println!("📊 SQLite Memory Allocator Statistics:");
-        println!("   malloc() calls:     {}", malloc_count);
-        println!("   free() calls:       {}", free_count);
-        println!("   realloc() calls:    {}", realloc_count);
-        println!("   Total allocated:    {} bytes", total_allocated);
-        println!("   Active allocations: {}", active_allocations);
-
-        if malloc_count > 0 || free_count > 0 || realloc_count > 0 {
-            println!("✅ SUCCESS: SQLite is using our custom allocator!");
-        } else {
-            println!("❌ WARNING: No allocations detected - SQLite may not be using our allocator");
-        }
-    }
 }
 
 unsafe impl SqliteMemoryAllocator for TrackingAllocator {

@@ -214,16 +214,32 @@ use std::sync::{Mutex, OnceLock};
 ///
 /// See SQLite documentation for detailed requirements:
 /// <https://www.sqlite.org/c3ref/mem_methods.html>
+///
+/// # Safety
+///
+/// This trait is unsafe because it requires implementing raw memory management
+/// functions that SQLite will call directly. Incorrect implementations can lead
+/// to memory corruption, crashes, or undefined behavior.
 pub unsafe trait SqliteMemoryAllocator: Send + 'static {
     /// Allocate `size` bytes of memory and return a pointer to it.
     ///
     /// Should return null if allocation fails or if `size` is <= 0.
     /// The returned memory should be suitably aligned for any use.
+    ///
+    /// # Safety
+    ///
+    /// The returned pointer must be valid for reads and writes of `size` bytes.
+    /// The memory must remain valid until freed with `free` or `realloc`.
     unsafe fn malloc(&mut self, size: c_int) -> *mut c_void;
 
     /// Free a block of memory that was allocated by `malloc` or `realloc`.
     ///
     /// This method should handle null pointers gracefully (no-op).
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be null or a valid pointer returned by this allocator's
+    /// `malloc` or `realloc` methods that has not been freed already.
     unsafe fn free(&mut self, ptr: *mut c_void);
 
     /// Change the size of a memory allocation.
@@ -233,30 +249,55 @@ pub unsafe trait SqliteMemoryAllocator: Send + 'static {
     /// Otherwise, return a pointer to a memory block of at least `size` bytes,
     /// preserving the contents of the original allocation up to the minimum
     /// of the old and new sizes.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be null or a valid pointer returned by this allocator.
+    /// The returned pointer must be valid for reads and writes of `size` bytes.
     unsafe fn realloc(&mut self, ptr: *mut c_void, size: c_int) -> *mut c_void;
 
     /// Return the size of a memory allocation.
     ///
     /// This should return the usable size of the memory block pointed to by `ptr`,
     /// which must have been allocated by this allocator.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be a valid pointer returned by this allocator's `malloc`
+    /// or `realloc` methods that has not been freed.
     unsafe fn size(&mut self, ptr: *mut c_void) -> c_int;
 
     /// Round up an allocation request to the next valid allocation size.
     ///
     /// This is used by SQLite to determine good allocation sizes and to
     /// avoid frequent reallocations for small size increases.
+    ///
+    /// # Safety
+    ///
+    /// This function should be safe to call with any `size` value.
+    /// It must return a value >= `size`.
     unsafe fn roundup(&mut self, size: c_int) -> c_int;
 
     /// Initialize the memory allocator.
     ///
     /// This is called once when the allocator is installed.
     /// Return 0 (SQLITE_OK) on success, or an SQLite error code on failure.
+    ///
+    /// # Safety
+    ///
+    /// `app_data` may be null or point to application-specific data.
+    /// This method must be safe to call exactly once per allocator instance.
     unsafe fn init(&mut self, app_data: *mut c_void) -> c_int;
 
     /// Shutdown the memory allocator.
     ///
     /// This is called once when SQLite shuts down.
     /// All allocated memory should be freed before this is called.
+    ///
+    /// # Safety
+    ///
+    /// `app_data` may be null or point to application-specific data.
+    /// This method must be safe to call exactly once per allocator instance.
     unsafe fn shutdown(&mut self, app_data: *mut c_void);
 }
 
