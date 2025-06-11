@@ -49,7 +49,9 @@ pub use column::SqliteColumn;
 pub use connection::serialize::SqliteOwnedBuf;
 #[cfg(feature = "preupdate-hook")]
 pub use connection::PreupdateHookResult;
-pub use connection::{LockedSqliteHandle, SqliteConnection, SqliteOperation, UpdateHookResult};
+pub use connection::{
+    LockedSqliteHandle, SqliteConnection, SqliteDatabaseStatus, SqliteOperation, UpdateHookResult,
+};
 pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::{

@@ -12,8 +12,14 @@ use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_commit_hook, sqlite3_get_autocommit, sqlite3_progress_handler,
-    sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3, sqlite3_commit_hook, sqlite3_db_release_memory, sqlite3_db_status,
+    sqlite3_get_autocommit, sqlite3_progress_handler, sqlite3_rollback_hook,
+    sqlite3_soft_heap_limit64, sqlite3_update_hook, SQLITE_DBSTATUS_CACHE_HIT,
+    SQLITE_DBSTATUS_CACHE_MISS, SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED,
+    SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT,
+    SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE,
+    SQLITE_DBSTATUS_LOOKASIDE_USED, SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED,
+    SQLITE_DELETE, SQLITE_INSERT, SQLITE_OK, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -75,6 +81,54 @@ pub enum SqliteOperation {
     Update,
     Delete,
     Unknown(i32),
+}
+
+/// Database status parameters for the sqlite3_db_status function.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SqliteDatabaseStatus {
+    /// Current number of bytes used by lookaside allocations
+    LookasideUsed,
+    /// Current number of bytes of pager cache used
+    CacheUsed,
+    /// Current number of bytes used by the schema
+    SchemaUsed,
+    /// Current number of bytes used by prepared statements
+    StmtUsed,
+    /// Number of lookaside malloc hits
+    LookasideHit,
+    /// Number of lookaside malloc misses due to size
+    LookasideMissSize,
+    /// Number of lookaside malloc misses due to full buffer
+    LookasideMissFull,
+    /// Number of pager cache hits
+    CacheHit,
+    /// Number of pager cache misses
+    CacheMiss,
+    /// Number of dirty cache pages written
+    CacheWrite,
+    /// Number of foreign key constraint violations detected
+    DeferredFks,
+    /// Maximum cache used in shared cache mode
+    CacheUsedShared,
+}
+
+impl From<SqliteDatabaseStatus> for i32 {
+    fn from(status: SqliteDatabaseStatus) -> Self {
+        match status {
+            SqliteDatabaseStatus::LookasideUsed => SQLITE_DBSTATUS_LOOKASIDE_USED,
+            SqliteDatabaseStatus::CacheUsed => SQLITE_DBSTATUS_CACHE_USED,
+            SqliteDatabaseStatus::SchemaUsed => SQLITE_DBSTATUS_SCHEMA_USED,
+            SqliteDatabaseStatus::StmtUsed => SQLITE_DBSTATUS_STMT_USED,
+            SqliteDatabaseStatus::LookasideHit => SQLITE_DBSTATUS_LOOKASIDE_HIT,
+            SqliteDatabaseStatus::LookasideMissSize => SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE,
+            SqliteDatabaseStatus::LookasideMissFull => SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL,
+            SqliteDatabaseStatus::CacheHit => SQLITE_DBSTATUS_CACHE_HIT,
+            SqliteDatabaseStatus::CacheMiss => SQLITE_DBSTATUS_CACHE_MISS,
+            SqliteDatabaseStatus::CacheWrite => SQLITE_DBSTATUS_CACHE_WRITE,
+            SqliteDatabaseStatus::DeferredFks => SQLITE_DBSTATUS_DEFERRED_FKS,
+            SqliteDatabaseStatus::CacheUsedShared => SQLITE_DBSTATUS_CACHE_USED_SHARED,
+        }
+    }
 }
 
 impl From<i32> for SqliteOperation {
@@ -556,6 +610,64 @@ impl LockedSqliteHandle<'_> {
     pub(crate) fn in_transaction(&mut self) -> bool {
         let ret = unsafe { sqlite3_get_autocommit(self.as_raw_handle().as_ptr()) };
         ret == 0
+    }
+
+    /// Sets the soft heap limit for the current thread.
+    ///
+    /// This function sets a soft limit on the amount of heap memory that can be allocated by SQLite.
+    /// The limit is in bytes. If `limit` is zero, the heap limit is disabled.
+    ///
+    /// Returns the previous heap limit. If the heap limit was never set, returns 0.
+    ///
+    /// See: https://www.sqlite.org/c3ref/hard_heap_limit64.html
+    pub fn soft_heap_limit(&mut self, limit: i64) -> i64 {
+        unsafe { sqlite3_soft_heap_limit64(limit) }
+    }
+
+    /// Retrieves statistics about a database connection.
+    ///
+    /// This function is used to retrieve runtime status information about a single database connection.
+    /// The `status` parameter determines which statistic to retrieve.
+    ///
+    /// Returns a tuple containing `(current_value, highest_value_since_reset)`.
+    /// If `reset` is true, the highest value is reset to the current value after retrieval.
+    ///
+    /// See: https://www.sqlite.org/c3ref/db_status.html
+    pub fn db_status(
+        &mut self,
+        status: SqliteDatabaseStatus,
+        reset: bool,
+    ) -> Result<(i32, i32), Error> {
+        let mut current = 0i32;
+        let mut highest = 0i32;
+
+        let result = unsafe {
+            sqlite3_db_status(
+                self.as_raw_handle().as_ptr(),
+                status.into(),
+                &mut current,
+                &mut highest,
+                if reset { 1 } else { 0 },
+            )
+        };
+
+        if result == SQLITE_OK {
+            Ok((current, highest))
+        } else {
+            Err(self.guard.handle.expect_error().into())
+        }
+    }
+
+    /// Attempts to free as much heap memory as possible from the database connection.
+    ///
+    /// This function causes SQLite to release some memory used by the database connection,
+    /// such as memory used to cache prepared statements.
+    ///
+    /// Returns the number of bytes of memory released.
+    ///
+    /// See: https://www.sqlite.org/c3ref/release_memory.html
+    pub fn db_release_memory(&mut self) -> i32 {
+        unsafe { sqlite3_db_release_memory(self.as_raw_handle().as_ptr()) }
     }
 }
 
