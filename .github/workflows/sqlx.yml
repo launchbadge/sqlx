@@ -501,3 +501,22 @@ jobs:
         env:
           DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
           RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+
+  custom-allocator:
+    name: Custom Allocator Examples
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test basic custom allocator example
+        run: cargo run --bin basic
+        working-directory: examples/sqlite/custom-allocator
+
+      - name: Test jemalloc custom allocator example
+        run: cargo run --bin jemalloc
+        working-directory: examples/sqlite/custom-allocator
