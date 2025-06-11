@@ -91,7 +91,7 @@
 //! jemallocator = "0.5"
 //! ```
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use sqlx_sqlite::memory::{SqliteMemoryAllocator, configure_memory_allocator};
 //! use jemallocator::Jemalloc;
 //! use std::alloc::{GlobalAlloc, Layout};
