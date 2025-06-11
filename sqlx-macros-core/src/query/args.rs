@@ -66,7 +66,12 @@ pub fn quote_args<DB: DatabaseExt>(
                                         i + 1,
                                     )
                                 } else {
-                                    format!("unsupported type {} for param #{}", param_ty, i + 1)
+                                    format!(
+                                        "no built in mapping found for type {} for param #{}; \
+                                        a type override may be required, see documentation for details",
+                                        param_ty,
+                                        i + 1
+                                    )
                                 }
                             })?
                             .parse::<TokenStream>()
@@ -74,6 +79,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
+                        #[allow(clippy::missing_panics_doc, clippy::unreachable)]
                         if false {
                             use ::sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
@@ -89,7 +95,7 @@ pub fn quote_args<DB: DatabaseExt>(
                             _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
-                            ::std::panic!();
+                            ::std::unreachable!();
                         }
                     ))
                 })

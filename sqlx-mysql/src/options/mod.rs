@@ -448,7 +448,7 @@ impl MySqlConnectOptions {
         self.socket.as_ref()
     }
 
-    /// Get the server's port.
+    /// Get the current username.
     ///
     /// # Example
     ///

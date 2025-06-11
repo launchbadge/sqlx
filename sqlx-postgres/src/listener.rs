@@ -9,6 +9,7 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
+use tracing::Instrument;
 
 use crate::describe::Describe;
 use crate::error::Error;
@@ -279,8 +280,14 @@ impl PgListener {
                 // The connection is dead, ensure that it is dropped,
                 // update self state, and loop to try again.
                 Err(Error::Io(err))
-                    if (err.kind() == io::ErrorKind::ConnectionAborted
-                        || err.kind() == io::ErrorKind::UnexpectedEof) =>
+                    if matches!(
+                        err.kind(),
+                        io::ErrorKind::ConnectionAborted |
+                        io::ErrorKind::UnexpectedEof |
+                        // see ERRORS section in tcp(7) man page (https://man7.org/linux/man-pages/man7/tcp.7.html)
+                        io::ErrorKind::TimedOut |
+                        io::ErrorKind::BrokenPipe
+                    ) =>
                 {
                     if let Some(mut conn) = self.connection.take() {
                         self.buffer_tx = conn.inner.stream.notifications.take();
@@ -360,7 +367,7 @@ impl Drop for PgListener {
             };
 
             // Unregister any listeners before returning the connection to the pool.
-            crate::rt::spawn(fut);
+            crate::rt::spawn(fut.in_current_span());
         }
     }
 }
@@ -499,12 +506,12 @@ fn build_listen_all_query(channels: impl IntoIterator<Item = impl AsRef<str>>) -
 
 #[test]
 fn test_build_listen_all_query_with_single_channel() {
-    let output = build_listen_all_query(&["test"]);
+    let output = build_listen_all_query(["test"]);
     assert_eq!(output.as_str(), r#"LISTEN "test";"#);
 }
 
 #[test]
 fn test_build_listen_all_query_with_multiple_channels() {
-    let output = build_listen_all_query(&["channel.0", "channel.1"]);
+    let output = build_listen_all_query(["channel.0", "channel.1"]);
     assert_eq!(output.as_str(), r#"LISTEN "channel.0";LISTEN "channel.1";"#);
 }

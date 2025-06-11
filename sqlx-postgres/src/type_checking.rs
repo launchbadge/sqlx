@@ -36,6 +36,16 @@ impl_type_checking!(
 
         sqlx::postgres::types::PgLine,
 
+        sqlx::postgres::types::PgLSeg,
+
+        sqlx::postgres::types::PgBox,
+
+        sqlx::postgres::types::PgPath,
+
+        sqlx::postgres::types::PgPolygon,
+
+        sqlx::postgres::types::PgCircle,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
@@ -77,6 +87,9 @@ impl_type_checking!(
 
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
+
+        #[cfg(feature = "ipnet")]
+        sqlx::types::ipnet::IpNet,
 
         #[cfg(feature = "mac_address")]
         sqlx::types::mac_address::MacAddress,
@@ -138,6 +151,9 @@ impl_type_checking!(
 
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
+
+        #[cfg(feature = "ipnet")]
+        Vec<sqlx::types::ipnet::IpNet> | &[sqlx::types::ipnet::IpNet],
 
         #[cfg(feature = "mac_address")]
         Vec<sqlx::types::mac_address::MacAddress> | &[sqlx::types::mac_address::MacAddress],

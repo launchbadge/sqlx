@@ -810,3 +810,69 @@ async fn test_custom_pg_array() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_record_array_type() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS responses;
+
+DROP TYPE IF EXISTS http_response CASCADE;
+DROP TYPE IF EXISTS header_pair CASCADE;
+
+CREATE TYPE header_pair AS (
+    name TEXT,
+    value TEXT
+);
+
+CREATE TYPE http_response AS (
+    headers header_pair[]
+);
+
+CREATE TABLE responses (
+    response http_response NOT NULL
+);
+    "#,
+    )
+    .await?;
+
+    #[derive(Debug, sqlx::Type)]
+    #[sqlx(type_name = "http_response")]
+    struct HttpResponseRecord {
+        headers: Vec<HeaderPairRecord>,
+    }
+
+    #[derive(Debug, sqlx::Type)]
+    #[sqlx(type_name = "header_pair")]
+    struct HeaderPairRecord {
+        name: String,
+        value: String,
+    }
+
+    let value = HttpResponseRecord {
+        headers: vec![
+            HeaderPairRecord {
+                name: "Content-Type".to_owned(),
+                value: "text/html; charset=utf-8".to_owned(),
+            },
+            HeaderPairRecord {
+                name: "Cache-Control".to_owned(),
+                value: "max-age=0".to_owned(),
+            },
+        ],
+    };
+
+    sqlx::query(
+        "
+INSERT INTO responses (response)
+VALUES ($1)
+        ",
+    )
+    .bind(&value)
+    .execute(&mut conn)
+    .await?;
+
+    Ok(())
+}

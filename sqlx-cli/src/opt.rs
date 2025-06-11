@@ -1,12 +1,26 @@
 use std::ops::{Deref, Not};
 
-use clap::{Args, Parser};
+use clap::{
+    builder::{styling::AnsiColor, Styles},
+    Args, Parser,
+};
 #[cfg(feature = "completions")]
 use clap_complete::Shell;
 
+const HELP_STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Blue.on_default().bold())
+    .usage(AnsiColor::Blue.on_default().bold())
+    .literal(AnsiColor::White.on_default())
+    .placeholder(AnsiColor::Green.on_default());
+
 #[derive(Parser, Debug)]
-#[clap(version, about, author)]
+#[clap(version, about, author, styles = HELP_STYLES)]
 pub struct Opt {
+    // https://github.com/launchbadge/sqlx/pull/3724 placed this here,
+    // but the intuitive place would be in the arguments for each subcommand.
+    #[clap(flatten)]
+    pub no_dotenv: NoDotenvOpt,
+
     #[clap(subcommand)]
     pub command: Command,
 }
@@ -241,6 +255,9 @@ impl Deref for Source {
 /// Argument for the database URL.
 #[derive(Args, Debug)]
 pub struct ConnectOpts {
+    #[clap(flatten)]
+    pub no_dotenv: NoDotenvOpt,
+
     /// Location of the DB, by default will be read from the DATABASE_URL env var or `.env` files.
     #[clap(long, short = 'D', env)]
     pub database_url: Option<String>,
@@ -261,6 +278,16 @@ pub struct ConnectOpts {
     #[cfg(feature = "_sqlite")]
     #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
     pub sqlite_create_db_wal: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct NoDotenvOpt {
+    /// Do not automatically load `.env` files.
+    #[clap(long)]
+    // Parsing of this flag is actually handled _before_ calling Clap,
+    // by `crate::maybe_apply_dotenv()`.
+    #[allow(unused)] // TODO: switch to `#[expect]`
+    pub no_dotenv: bool,
 }
 
 impl ConnectOpts {

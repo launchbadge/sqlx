@@ -6,6 +6,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 features = ["offline"]
@@ -25,7 +26,7 @@ _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
 _tls-rustls-ring-webpki = ["_tls-rustls", "rustls/ring", "webpki-roots"]
 _tls-rustls-ring-native-roots = ["_tls-rustls", "rustls/ring", "rustls-native-certs"]
-_tls-rustls = ["rustls", "rustls-pemfile"]
+_tls-rustls = ["rustls"]
 _tls-none = []
 
 # support offline/decoupled building (enables serialization of `Describe`)
@@ -39,8 +40,7 @@ tokio = { workspace = true, optional = true }
 # TLS
 native-tls = { version = "0.2.10", optional = true }
 
-rustls = { version = "0.23.11", default-features = false, features = ["std", "tls12"], optional = true }
-rustls-pemfile = { version = "2", optional = true }
+rustls = { version = "0.23.15", default-features = false, features = ["std", "tls12"], optional = true }
 webpki-roots = { version = "0.26", optional = true }
 rustls-native-certs = { version = "0.8.0", optional = true }
 
@@ -49,11 +49,13 @@ bit-vec = { workspace = true, optional = true }
 bigdecimal = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
+ipnet = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "1.9.0", optional = true }
+base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }
 crc = { version = "3", optional = true }
@@ -81,7 +83,7 @@ bstr = { version = "1.0", default-features = false, features = ["std"], optional
 hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
-hashbrown = "0.14.5"
+hashbrown = "0.15.0"
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }

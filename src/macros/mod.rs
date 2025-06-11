@@ -249,7 +249,7 @@
 ///
 /// ##### Force a Different/Custom Type
 /// Selecting a column `foo as "foo: T"` (Postgres / SQLite) or `` foo as `foo: T` `` (MySQL)
-/// overrides the inferred type which is useful when selecting user-defined custom types
+/// overrides the inferred type which is useful when selecting user-defined [custom types][crate::Type#compile-time-verification]
 /// (dynamic type checking is still done so if the types are incompatible this will be an error
 /// at runtime instead of compile-time). Note that this syntax alone doesn't override inferred nullability,
 /// but it is compatible with the forced not-null and forced nullable annotations:

@@ -21,8 +21,13 @@
 //! | [`PgLQuery`]                          | LQUERY                                               |
 //! | [`PgCiText`]                          | CITEXT<sup>1</sup>                                   |
 //! | [`PgCube`]                            | CUBE                                                 |
-//! | [`PgPoint]                            | POINT                                                |
-//! | [`PgLine]                             | LINE                                                 |
+//! | [`PgPoint`]                           | POINT                                                |
+//! | [`PgLine`]                            | LINE                                                 |
+//! | [`PgLSeg`]                            | LSEG                                                 |
+//! | [`PgBox`]                             | BOX                                                  |
+//! | [`PgPath`]                            | PATH                                                 |
+//! | [`PgPolygon`]                         | POLYGON                                              |
+//! | [`PgCircle`]                          | CIRCLE                                               |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -82,7 +87,7 @@
 //!
 //! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
 //!
-//! Requires the `ipnetwork` Cargo feature flag.
+//! Requires the `ipnetwork` Cargo feature flag (takes precedence over `ipnet` if both are used).
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
@@ -94,6 +99,17 @@
 //! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
 //!
 //! `IpNetwork` does not have this limitation.
+//!
+//! ### [`ipnet`](https://crates.io/crates/ipnet)
+//!
+//! Requires the `ipnet` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ipnet::IpNet`                        | INET, CIDR                                           |
+//! | `std::net::IpAddr`                    | INET, CIDR                                           |
+//!
+//! The same `IpAddr` limitation for smaller network prefixes applies as with `ipnet`.
 //!
 //! ### [`mac_address`](https://crates.io/crates/mac_address)
 //!
@@ -179,6 +195,18 @@
 //! enum Mood { Sad = 0, Ok = 1, Happy = 2 }
 //! ```
 //!
+//! Rust enumerations may also be defined to be represented as a string using `type_name = "text"`.
+//! The following type expects a SQL type of `TEXT` and will convert to/from the Rust enumeration.
+//!
+//! ```rust,ignore
+//! #[derive(sqlx::Type)]
+//! #[sqlx(type_name = "text")]
+//! enum Mood { Sad, Ok, Happy }
+//! ```
+//!
+//! Note that an error can occur if you attempt to decode a value not contained within the enum
+//! definition.
+//!
 
 use crate::type_info::PgTypeKind;
 use crate::{PgTypeInfo, Postgres};
@@ -231,11 +259,11 @@ mod time;
 #[cfg(feature = "uuid")]
 mod uuid;
 
-#[cfg(feature = "ipnetwork")]
-mod ipnetwork;
+#[cfg(feature = "ipnet")]
+mod ipnet;
 
 #[cfg(feature = "ipnetwork")]
-mod ipaddr;
+mod ipnetwork;
 
 #[cfg(feature = "mac_address")]
 mod mac_address;
@@ -246,8 +274,13 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use geometry::circle::PgCircle;
 pub use geometry::line::PgLine;
+pub use geometry::line_segment::PgLSeg;
+pub use geometry::path::PgPath;
 pub use geometry::point::PgPoint;
+pub use geometry::polygon::PgPolygon;
+pub use geometry::r#box::PgBox;
 pub use hstore::PgHstore;
 pub use interval::PgInterval;
 pub use lquery::PgLQuery;

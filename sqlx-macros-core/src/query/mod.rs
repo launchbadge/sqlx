@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
 
@@ -73,6 +74,7 @@ struct Metadata {
     manifest_dir: PathBuf,
     offline: bool,
     database_url: Option<String>,
+    offline_dir: Option<String>,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -106,73 +108,70 @@ impl Metadata {
     }
 }
 
+static METADATA: Lazy<Mutex<HashMap<String, Metadata>>> = Lazy::new(Default::default);
+
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static METADATA: Lazy<Metadata> = Lazy::new(|| {
-    let manifest_dir: PathBuf = env("CARGO_MANIFEST_DIR")
-        .expect("`CARGO_MANIFEST_DIR` must be set")
-        .into();
+fn init_metadata(manifest_dir: &String) -> Metadata {
+    let manifest_dir: PathBuf = manifest_dir.into();
 
-    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
-    // otherwise fallback to default dotenv behaviour.
-    let env_path = manifest_dir.join(".env");
-
-    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
-    let env_path = if env_path.exists() {
-        let res = dotenvy::from_path(&env_path);
-        if let Err(e) = res {
-            panic!("failed to load environment from {env_path:?}, {e}");
-        }
-
-        Some(env_path)
-    } else {
-        dotenvy::dotenv().ok()
-    };
-
-    // tell the compiler to watch the `.env` for changes, if applicable
-    #[cfg(procmacro2_semver_exempt)]
-    if let Some(env_path) = env_path.as_ref().and_then(|path| path.to_str()) {
-        proc_macro::tracked_path::path(env_path);
-    }
+    let (database_url, offline, offline_dir) = load_dot_env(&manifest_dir);
 
     let offline = env("SQLX_OFFLINE")
+        .ok()
+        .or(offline)
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env("DATABASE_URL").ok();
+    let database_url = env("DATABASE_URL").ok().or(database_url);
 
     Metadata {
         manifest_dir,
         offline,
         database_url,
+        offline_dir,
         workspace_root: Arc::new(Mutex::new(None)),
     }
-});
+}
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let data_source = match &*METADATA {
+    let manifest_dir = env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+
+    let mut metadata_lock = METADATA
+        .lock()
+        // Just reset the metadata on error
+        .unwrap_or_else(|poison_err| {
+            let mut guard = poison_err.into_inner();
+            *guard = Default::default();
+            guard
+        });
+
+    let metadata = metadata_lock
+        .entry(manifest_dir)
+        .or_insert_with_key(init_metadata);
+
+    let data_source = match &metadata {
         Metadata {
             offline: false,
             database_url: Some(db_url),
             ..
         } => QueryDataSource::live(db_url)?,
-
         Metadata { offline, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
             let dirs = [
-                || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
-                || Some(METADATA.manifest_dir.join(".sqlx")),
-                || Some(METADATA.workspace_root().join(".sqlx")),
+                |meta: &Metadata| meta.offline_dir.as_deref().map(PathBuf::from),
+                |meta: &Metadata| Some(meta.manifest_dir.join(".sqlx")),
+                |meta: &Metadata| Some(meta.workspace_root().join(".sqlx")),
             ];
             let Some(data_file_path) = dirs
                 .iter()
-                .filter_map(|path| path())
+                .filter_map(|path| path(metadata))
                 .map(|path| path.join(&filename))
                 .find(|path| path.exists())
             else {
@@ -184,7 +183,6 @@ pub fn expand_input<'a>(
                     }.into()
                 );
             };
-
             QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
         }
     };
@@ -386,4 +384,53 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+/// Get `DATABASE_URL`, `SQLX_OFFLINE` and `SQLX_OFFLINE_DIR` from the `.env`.
+fn load_dot_env(manifest_dir: &Path) -> (Option<String>, Option<String>, Option<String>) {
+    let mut env_path = manifest_dir.join(".env");
+
+    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
+    // otherwise fallback to default dotenv file.
+    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
+    let env_file = if env_path.exists() {
+        let res = dotenvy::from_path_iter(&env_path);
+        match res {
+            Ok(iter) => Some(iter),
+            Err(e) => panic!("failed to load environment from {env_path:?}, {e}"),
+        }
+    } else {
+        #[allow(unused_assignments)]
+        {
+            env_path = PathBuf::from(".env");
+        }
+        dotenvy::dotenv_iter().ok()
+    };
+
+    let mut offline = None;
+    let mut database_url = None;
+    let mut offline_dir = None;
+
+    if let Some(env_file) = env_file {
+        // tell the compiler to watch the `.env` for changes.
+        #[cfg(procmacro2_semver_exempt)]
+        if let Some(env_path) = env_path.to_str() {
+            proc_macro::tracked_path::path(env_path);
+        }
+
+        for item in env_file {
+            let Ok((key, value)) = item else {
+                continue;
+            };
+
+            match key.as_str() {
+                "DATABASE_URL" => database_url = Some(value),
+                "SQLX_OFFLINE" => offline = Some(value),
+                "SQLX_OFFLINE_DIR" => offline_dir = Some(value),
+                _ => {}
+            };
+        }
+    }
+
+    (database_url, offline, offline_dir)
 }

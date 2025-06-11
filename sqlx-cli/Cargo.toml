@@ -14,6 +14,7 @@ authors = [
     "Jesper Axelsson <jesperaxe@gmail.com>",
     "Austin Bonander <austin.bonander@gmail.com>",
 ]
+rust-version.workspace = true
 
 [[bin]]
 name = "sqlx"
@@ -26,20 +27,19 @@ path = "src/bin/cargo-sqlx.rs"
 
 [dependencies]
 dotenvy = "0.15.0"
-tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread", "signal"] }
 sqlx = { workspace = true, default-features = false, features = [
     "runtime-tokio",
     "migrate",
     "any",
 ] }
 futures = "0.3.19"
-clap = { version = "4.3.10", features = ["derive", "env"] }
+clap = { version = "4.3.10", features = ["derive", "env", "wrap_help"] }
 clap_complete = { version = "4.3.1", optional = true }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 anyhow = "1.0.52"
-async-trait = "0.1.52"
 console = "0.15.0"
-promptly = "0.3.0"
+dialoguer = { version = "0.11", default-features = false }
 serde_json = "1.0.73"
 glob = "0.3.0"
 openssl = { version = "0.10.38", optional = true }
@@ -50,19 +50,22 @@ backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls", "completions"]
-rustls = ["sqlx/runtime-tokio-rustls"]
-native-tls = ["sqlx/runtime-tokio-native-tls"]
+rustls = ["sqlx/tls-rustls"]
+native-tls = ["sqlx/tls-native-tls"]
 
 # databases
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
-sqlite = ["sqlx/sqlite"]
-sqlite-unbundled = ["sqlx/sqlite-unbundled"]
+sqlite = ["sqlx/sqlite", "_sqlite"]
+sqlite-unbundled = ["sqlx/sqlite-unbundled", "_sqlite"]
 
 # workaround for musl + openssl issues
 openssl-vendored = ["openssl/vendored"]
 
 completions = ["dep:clap_complete"]
+
+# Conditional compilation only
+_sqlite = []
 
 [dev-dependencies]
 assert_cmd = "2.0.11"

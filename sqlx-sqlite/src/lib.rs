@@ -46,6 +46,9 @@ use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use column::SqliteColumn;
+pub use connection::serialize::SqliteOwnedBuf;
+#[cfg(feature = "preupdate-hook")]
+pub use connection::PreupdateHookResult;
 pub use connection::{LockedSqliteHandle, SqliteConnection, SqliteOperation, UpdateHookResult};
 pub use database::Sqlite;
 pub use error::SqliteError;
@@ -104,6 +107,9 @@ pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
 /// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
 pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
 impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
+
+/// An alias for [`Transaction`][sqlx_core::transaction::Transaction], specialized for SQLite.
+pub type SqliteTransaction<'c> = sqlx_core::transaction::Transaction<'c, Sqlite>;
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);

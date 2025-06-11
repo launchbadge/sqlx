@@ -32,7 +32,7 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
 
 pub struct AnyArgumentBuffer<'q>(#[doc(hidden)] pub Vec<AnyValueKind<'q>>);
 
-impl<'q> Default for AnyArguments<'q> {
+impl Default for AnyArguments<'_> {
     fn default() -> Self {
         AnyArguments {
             values: AnyArgumentBuffer(vec![]),

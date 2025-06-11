@@ -1,20 +1,18 @@
 use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use futures_core::future::BoxFuture;
 
 use once_cell::sync::OnceCell;
-
-use crate::connection::Connection;
+use sqlx_core::connection::Connection;
+use sqlx_core::query_scalar::query_scalar;
 
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
 use crate::query::query;
-use crate::query_scalar::query_scalar;
 use crate::{PgConnectOptions, PgConnection, Postgres};
 
 pub(crate) use sqlx_core::testing::*;
@@ -22,7 +20,6 @@ pub(crate) use sqlx_core::testing::*;
 // Using a blocking `OnceCell` here because the critical sections are short.
 static MASTER_POOL: OnceCell<Pool<Postgres>> = OnceCell::new();
 // Automatically delete any databases created before the start of the test binary.
-static DO_CLEANUP: AtomicBool = AtomicBool::new(true);
 
 impl TestSupport for Postgres {
     fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
@@ -33,19 +30,11 @@ impl TestSupport for Postgres {
         Box::pin(async move {
             let mut conn = MASTER_POOL
                 .get()
-                .expect("cleanup_test() invoked outside `#[sqlx::test]")
+                .expect("cleanup_test() invoked outside `#[sqlx::test]`")
                 .acquire()
                 .await?;
 
-            conn.execute(&format!("drop database if exists {db_name:?};")[..])
-                .await?;
-
-            query("delete from _sqlx_test.databases where db_name = $1")
-                .bind(db_name)
-                .execute(&mut *conn)
-                .await?;
-
-            Ok(())
+            do_cleanup(&mut conn, db_name).await
         })
     }
 
@@ -55,13 +44,42 @@ impl TestSupport for Postgres {
 
             let mut conn = PgConnection::connect(&url).await?;
 
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap();
+            let delete_db_names: Vec<String> =
+                query_scalar("select db_name from _sqlx_test.databases")
+                    .fetch_all(&mut conn)
+                    .await?;
 
-            let num_deleted = do_cleanup(&mut conn, now).await?;
+            if delete_db_names.is_empty() {
+                return Ok(None);
+            }
+
+            let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
+
+            let mut command = String::new();
+
+            for db_name in &delete_db_names {
+                command.clear();
+                writeln!(command, "drop database if exists {db_name:?};").ok();
+                match conn.execute(&*command).await {
+                    Ok(_deleted) => {
+                        deleted_db_names.push(db_name);
+                    }
+                    // Assume a database error just means the DB is still in use.
+                    Err(Error::Database(dbe)) => {
+                        eprintln!("could not clean test database {db_name:?}: {dbe}")
+                    }
+                    // Bubble up other errors
+                    Err(e) => return Err(e),
+                }
+            }
+
+            query("delete from _sqlx_test.databases where db_name = any($1::text[])")
+                .bind(&deleted_db_names)
+                .execute(&mut conn)
+                .await?;
+
             let _ = conn.close().await;
-            Ok(Some(num_deleted))
+            Ok(Some(delete_db_names.len()))
         })
     }
 
@@ -116,8 +134,9 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         // I couldn't find a bug on the mailing list for `CREATE SCHEMA` specifically,
         // but a clearly related bug with `CREATE TABLE` has been known since 2007:
         // https://www.postgresql.org/message-id/200710222037.l9MKbCJZ098744%40wwwmaster.postgresql.org
+        // magic constant 8318549251334697844 is just 8 ascii bytes 'sqlxtest'.
         r#"
-        lock table pg_catalog.pg_namespace in share row exclusive mode;
+        select pg_advisory_xact_lock(8318549251334697844);
 
         create schema if not exists _sqlx_test;
 
@@ -135,31 +154,22 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     )
     .await?;
 
-    // Record the current time _before_ we acquire the `DO_CLEANUP` permit. This
-    // prevents the first test thread from accidentally deleting new test dbs
-    // created by other test threads if we're a bit slow.
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap();
+    let db_name = Postgres::db_name(args);
+    do_cleanup(&mut conn, &db_name).await?;
 
-    // Only run cleanup if the test binary just started.
-    if DO_CLEANUP.swap(false, Ordering::SeqCst) {
-        do_cleanup(&mut conn, now).await?;
-    }
-
-    let new_db_name: String = query_scalar(
+    query(
         r#"
-            insert into _sqlx_test.databases(db_name, test_path)
-            select '_sqlx_test_' || nextval('_sqlx_test.database_ids'), $1
-            returning db_name
+            insert into _sqlx_test.databases(db_name, test_path) values ($1, $2)
         "#,
     )
+    .bind(&db_name)
     .bind(args.test_path)
-    .fetch_one(&mut *conn)
+    .execute(&mut *conn)
     .await?;
 
-    conn.execute(&format!("create database {new_db_name:?}")[..])
-        .await?;
+    let create_command = format!("create database {db_name:?}");
+    debug_assert!(create_command.starts_with("create database \""));
+    conn.execute(&(create_command)[..]).await?;
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
@@ -174,52 +184,18 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             .connect_options()
             .deref()
             .clone()
-            .database(&new_db_name),
-        db_name: new_db_name,
+            .database(&db_name),
+        db_name,
     })
 }
 
-async fn do_cleanup(conn: &mut PgConnection, created_before: Duration) -> Result<usize, Error> {
-    // since SystemTime is not monotonic we added a little margin here to avoid race conditions with other threads
-    let created_before = i64::try_from(created_before.as_secs()).unwrap() - 2;
-
-    let delete_db_names: Vec<String> = query_scalar(
-        "select db_name from _sqlx_test.databases \
-            where created_at < (to_timestamp($1) at time zone 'UTC')",
-    )
-    .bind(created_before)
-    .fetch_all(&mut *conn)
-    .await?;
-
-    if delete_db_names.is_empty() {
-        return Ok(0);
-    }
-
-    let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
-    let delete_db_names = delete_db_names.into_iter();
-
-    let mut command = String::new();
-
-    for db_name in delete_db_names {
-        command.clear();
-        writeln!(command, "drop database if exists {db_name:?};").ok();
-        match conn.execute(&*command).await {
-            Ok(_deleted) => {
-                deleted_db_names.push(db_name);
-            }
-            // Assume a database error just means the DB is still in use.
-            Err(Error::Database(dbe)) => {
-                eprintln!("could not clean test database {db_name:?}: {dbe}")
-            }
-            // Bubble up other errors
-            Err(e) => return Err(e),
-        }
-    }
-
-    query("delete from _sqlx_test.databases where db_name = any($1::text[])")
-        .bind(&deleted_db_names)
+async fn do_cleanup(conn: &mut PgConnection, db_name: &str) -> Result<(), Error> {
+    let delete_db_command = format!("drop database if exists {db_name:?};");
+    conn.execute(&*delete_db_command).await?;
+    query("delete from _sqlx_test.databases where db_name = $1::text")
+        .bind(db_name)
         .execute(&mut *conn)
         .await?;
 
-    Ok(deleted_db_names.len())
+    Ok(())
 }

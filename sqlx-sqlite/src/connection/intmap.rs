@@ -24,9 +24,11 @@ impl<V> IntMap<V> {
     }
 
     pub(crate) fn expand(&mut self, size: i64) -> usize {
-        let idx = size.try_into().expect("negative column index unsupported");
-        while self.0.len() <= idx {
-            self.0.push(None);
+        let idx = usize::try_from(size).expect("negative column index unsupported");
+        if idx >= self.0.len() {
+            let new_len = idx.checked_add(1).expect("idx + 1 overflowed");
+
+            self.0.resize_with(new_len, || None);
         }
         idx
     }
@@ -95,15 +97,9 @@ impl<V> IntMap<V> {
 }
 
 impl<V: Default> IntMap<V> {
-    pub(crate) fn get_mut_or_default<'a>(&'a mut self, idx: &i64) -> &'a mut V {
+    pub(crate) fn get_mut_or_default(&mut self, idx: &i64) -> &mut V {
         let idx: usize = self.expand(*idx);
-
-        let item: &mut Option<V> = &mut self.0[idx];
-        if item.is_none() {
-            *item = Some(V::default());
-        }
-
-        return self.0[idx].as_mut().unwrap();
+        self.0[idx].get_or_insert_default()
     }
 }
 
@@ -132,7 +128,7 @@ impl<V: Eq> IntMap<V> {
             0
         };
         self.iter()
-            .chain(std::iter::repeat(None).take(self_pad))
+            .chain(std::iter::repeat_n(None, self_pad))
             .zip(prev.iter().chain(std::iter::repeat(None)))
             .enumerate()
             .filter(|(_i, (n, p))| n != p)

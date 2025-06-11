@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
@@ -30,6 +31,8 @@ mod stream;
 mod tls;
 
 /// A connection to a PostgreSQL database.
+///
+/// See [`PgConnectOptions`] for connection URL reference.
 pub struct PgConnection {
     pub(crate) inner: Box<PgConnectionInner>,
 }
@@ -127,6 +130,13 @@ impl PgConnection {
 
         Ok(())
     }
+
+    pub(crate) fn in_transaction(&self) -> bool {
+        match self.inner.transaction_status {
+            TransactionStatus::Transaction => true,
+            TransactionStatus::Error | TransactionStatus::Idle => false,
+        }
+    }
 }
 
 impl Debug for PgConnection {
@@ -179,7 +189,17 @@ impl Connection for PgConnection {
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin(self, None)
+    }
+
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
     }
 
     fn cached_statements_size(&self) -> usize {

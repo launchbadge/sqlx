@@ -16,7 +16,8 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
-use std::future;
+use std::borrow::Cow;
+use std::{future, pin::pin};
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
 
@@ -37,8 +38,11 @@ impl AnyConnectionBackend for MySqlConnection {
         Connection::ping(self)
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        MySqlTransactionManager::begin(self)
+    fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        MySqlTransactionManager::begin(self, statement)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
@@ -51,6 +55,10 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn start_rollback(&mut self) {
         MySqlTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&self) -> usize {
+        MySqlTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {
@@ -113,8 +121,7 @@ impl AnyConnectionBackend for MySqlConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let stream = self.run(query, arguments, persistent).await?;
-            futures_util::pin_mut!(stream);
+            let mut stream = pin!(self.run(query, arguments, persistent).await?);
 
             while let Some(result) = stream.try_next().await? {
                 if let Either::Right(row) = result {

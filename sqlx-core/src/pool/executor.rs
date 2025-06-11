@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
 
-impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
+impl<DB: Database> Executor<'_> for &'_ Pool<DB>
 where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
 {
