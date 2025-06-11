@@ -86,6 +86,8 @@ mod type_info;
 pub mod types;
 mod value;
 
+pub mod memory;
+
 #[cfg(feature = "any")]
 pub mod any;
 

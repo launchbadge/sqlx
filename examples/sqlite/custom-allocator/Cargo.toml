@@ -1,0 +1,19 @@
+[package]
+name = "sqlite-custom-allocator-example"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "basic"
+path = "src/main.rs"
+
+[[bin]]
+name = "jemalloc"
+path = "src/jemalloc_example.rs"
+
+[dependencies]
+sqlx = { path = "../../../", features = ["sqlite", "runtime-tokio"] }
+sqlx-sqlite = { path = "../../../sqlx-sqlite" }
+tokio = { version = "1", features = ["full"] }
+jemallocator = "0.5"
+libc = "0.2"
