@@ -3434,8 +3434,6 @@ dependencies = [
  "env_logger",
  "futures",
  "hex",
- "jemallocator",
- "libc",
  "libsqlite3-sys",
  "paste",
  "rand",

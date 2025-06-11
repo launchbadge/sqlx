@@ -187,8 +187,6 @@ hex = "0.4.3"
 tempfile = "3.10.1"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
 libsqlite3-sys = { version = "0.30.1" }
-jemallocator = "0.5"
-libc = "0.2"
 
 # If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,
 # even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
