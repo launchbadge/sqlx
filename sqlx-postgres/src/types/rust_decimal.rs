@@ -188,6 +188,7 @@ impl Decode<'_, Postgres> for Decimal {
 }
 
 #[cfg(test)]
+#[allow(clippy::zero_prefixed_literal)] // Used for clarity
 mod tests {
     use super::{Decimal, PgNumeric, PgNumericSign};
     use std::convert::TryFrom;
@@ -205,7 +206,7 @@ mod tests {
     fn one() {
         let one: Decimal = "1".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&one).unwrap(),
+            PgNumeric::from(&one),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -219,7 +220,7 @@ mod tests {
     fn ten() {
         let ten: Decimal = "10".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&ten).unwrap(),
+            PgNumeric::from(&ten),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -233,7 +234,7 @@ mod tests {
     fn one_hundred() {
         let one_hundred: Decimal = "100".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&one_hundred).unwrap(),
+            PgNumeric::from(&one_hundred),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -248,7 +249,7 @@ mod tests {
         // Decimal doesn't normalize here
         let ten_thousand: Decimal = "10000".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&ten_thousand).unwrap(),
+            PgNumeric::from(&ten_thousand),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -262,7 +263,7 @@ mod tests {
     fn two_digits() {
         let two_digits: Decimal = "12345".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&two_digits).unwrap(),
+            PgNumeric::from(&two_digits),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -276,7 +277,7 @@ mod tests {
     fn one_tenth() {
         let one_tenth: Decimal = "0.1".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&one_tenth).unwrap(),
+            PgNumeric::from(&one_tenth),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 1,
@@ -290,7 +291,7 @@ mod tests {
     fn decimal_1() {
         let decimal: Decimal = "1.2345".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::from(&decimal),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 4,
@@ -304,7 +305,7 @@ mod tests {
     fn decimal_2() {
         let decimal: Decimal = "0.12345".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::from(&decimal),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 5,
@@ -318,7 +319,7 @@ mod tests {
     fn decimal_3() {
         let decimal: Decimal = "0.01234".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::from(&decimal),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 5,
@@ -337,7 +338,7 @@ mod tests {
             weight: 1,
             digits: vec![1, 2345, 6789],
         };
-        assert_eq!(PgNumeric::try_from(&decimal).unwrap(), expected_numeric);
+        assert_eq!(PgNumeric::from(&decimal), expected_numeric);
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, decimal);
@@ -354,10 +355,7 @@ mod tests {
             weight: -2,
             digits: vec![1234],
         };
-        assert_eq!(
-            PgNumeric::try_from(&one_digit_decimal).unwrap(),
-            expected_numeric
-        );
+        assert_eq!(PgNumeric::from(&one_digit_decimal), expected_numeric);
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, one_digit_decimal);
@@ -373,10 +371,7 @@ mod tests {
             weight: 7,
             digits: vec![7, 9228, 1625, 1426, 4337, 5935, 4395, 0335],
         };
-        assert_eq!(
-            PgNumeric::try_from(&Decimal::MAX).unwrap(),
-            expected_numeric
-        );
+        assert_eq!(PgNumeric::from(&Decimal::MAX), expected_numeric);
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, Decimal::MAX);
@@ -399,10 +394,7 @@ mod tests {
             weight: 0,
             digits: vec![7, 9228, 1625, 1426, 4337, 5935, 4395, 0335],
         };
-        assert_eq!(
-            PgNumeric::try_from(&max_value_max_scale).unwrap(),
-            expected_numeric
-        );
+        assert_eq!(PgNumeric::from(&max_value_max_scale), expected_numeric);
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, max_value_max_scale);
@@ -418,7 +410,7 @@ mod tests {
         // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
         let four_digit: Decimal = "1234".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&four_digit).unwrap(),
+            PgNumeric::from(&four_digit),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -433,7 +425,7 @@ mod tests {
         // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
         let negative_four_digit: Decimal = "-1234".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&negative_four_digit).unwrap(),
+            PgNumeric::from(&negative_four_digit),
             PgNumeric::Number {
                 sign: PgNumericSign::Negative,
                 scale: 0,
@@ -448,7 +440,7 @@ mod tests {
         // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
         let eight_digit: Decimal = "12345678".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&eight_digit).unwrap(),
+            PgNumeric::from(&eight_digit),
             PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
@@ -463,7 +455,7 @@ mod tests {
         // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
         let negative_eight_digit: Decimal = "-12345678".parse().unwrap();
         assert_eq!(
-            PgNumeric::try_from(&negative_eight_digit).unwrap(),
+            PgNumeric::from(&negative_eight_digit),
             PgNumeric::Number {
                 sign: PgNumericSign::Negative,
                 scale: 0,
@@ -483,7 +475,7 @@ mod tests {
             weight: 0,
             digits: vec![100],
         };
-        assert_eq!(PgNumeric::try_from(&one_hundred).unwrap(), expected_numeric);
+        assert_eq!(PgNumeric::from(&one_hundred), expected_numeric);
 
         let actual_decimal = Decimal::try_from(expected_numeric).unwrap();
         assert_eq!(actual_decimal, one_hundred);

@@ -18,7 +18,7 @@ impl<T> Type<Postgres> for Text<T> {
     }
 }
 
-impl<'q, T> Encode<'q, Postgres> for Text<T>
+impl<T> Encode<'_, Postgres> for Text<T>
 where
     T: Display,
 {
