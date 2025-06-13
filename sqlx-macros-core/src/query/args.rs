@@ -29,7 +29,7 @@ pub fn quote_args<DB: DatabaseExt>(
     let arg_expr = input.arg_exprs.iter().cloned().map(strip_wildcard);
 
     let arg_bindings = quote! {
-        #(let #arg_name = &(#arg_expr);)*
+        #(let #arg_name = (#arg_expr);)*
     };
 
     let args_check = match info.parameters() {
@@ -113,7 +113,7 @@ pub fn quote_args<DB: DatabaseExt>(
         let mut query_args = <#db_path as ::sqlx::database::Database>::Arguments::<'_>::default();
         query_args.reserve(
             #args_count,
-            0 #(+ ::sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
+            0 #(+ ::sqlx::encode::Encode::<#db_path>::size_hint(&#arg_name))*
         );
         let query_args = ::core::result::Result::<_, ::sqlx::error::BoxDynError>::Ok(query_args)
         #(.and_then(move |mut query_args| query_args.add(#arg_name).map(move |()| query_args) ))*;
