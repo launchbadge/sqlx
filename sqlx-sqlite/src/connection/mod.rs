@@ -13,13 +13,13 @@ use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{
     sqlite3, sqlite3_commit_hook, sqlite3_db_release_memory, sqlite3_db_status,
-    sqlite3_get_autocommit, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_soft_heap_limit64, sqlite3_update_hook, SQLITE_DBSTATUS_CACHE_HIT,
-    SQLITE_DBSTATUS_CACHE_MISS, SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED,
-    SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT,
-    SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE,
-    SQLITE_DBSTATUS_LOOKASIDE_USED, SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED,
-    SQLITE_DELETE, SQLITE_INSERT, SQLITE_OK, SQLITE_UPDATE,
+    sqlite3_get_autocommit, sqlite3_progress_handler, sqlite3_rollback_hook, sqlite3_update_hook,
+    SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS, SQLITE_DBSTATUS_CACHE_USED,
+    SQLITE_DBSTATUS_CACHE_USED_SHARED, SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS,
+    SQLITE_DBSTATUS_LOOKASIDE_HIT, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL,
+    SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, SQLITE_DBSTATUS_LOOKASIDE_USED,
+    SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED, SQLITE_DELETE, SQLITE_INSERT,
+    SQLITE_OK, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -612,18 +612,6 @@ impl LockedSqliteHandle<'_> {
         ret == 0
     }
 
-    /// Sets the soft heap limit for the current thread.
-    ///
-    /// This function sets a soft limit on the amount of heap memory that can be allocated by SQLite.
-    /// The limit is in bytes. If `limit` is zero, the heap limit is disabled.
-    ///
-    /// Returns the previous heap limit. If the heap limit was never set, returns 0.
-    ///
-    /// See: https://www.sqlite.org/c3ref/hard_heap_limit64.html
-    pub fn soft_heap_limit(&mut self, limit: i64) -> i64 {
-        unsafe { sqlite3_soft_heap_limit64(limit) }
-    }
-
     /// Retrieves statistics about a database connection.
     ///
     /// This function is used to retrieve runtime status information about a single database connection.
@@ -665,7 +653,7 @@ impl LockedSqliteHandle<'_> {
     ///
     /// Returns the number of bytes of memory released.
     ///
-    /// See: https://www.sqlite.org/c3ref/release_memory.html
+    /// See: https://www.sqlite.org/c3ref/db_release_memory.html
     pub fn db_release_memory(&mut self) -> i32 {
         unsafe { sqlite3_db_release_memory(self.as_raw_handle().as_ptr()) }
     }

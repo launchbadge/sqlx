@@ -126,6 +126,63 @@ impl_encode_for_option!(Sqlite);
 #[doc(hidden)]
 pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 
+/// Sets the soft heap limit for SQLite.
+///
+/// This function sets a soft limit on the amount of heap memory that can be allocated by SQLite
+/// across all database connections within a single process.
+///
+/// - `Some(limit)` sets the heap limit to the specified number of bytes
+/// - `None` disables the heap limit
+///
+/// Returns the previous heap limit in bytes, or `None` if no limit was previously set.
+///
+/// # Errors
+///
+/// Returns an error if the limit exceeds `i64::MAX`.
+///
+/// See: https://www.sqlite.org/c3ref/hard_heap_limit64.html
+pub fn set_soft_heap_limit(
+    limit: Option<std::num::NonZeroU64>,
+) -> Result<Option<std::num::NonZeroU64>, Error> {
+    use libsqlite3_sys::sqlite3_soft_heap_limit64;
+
+    let limit_value = match limit {
+        Some(n) => {
+            let value = n.get();
+            if value > i64::MAX as u64 {
+                return Err(Error::Configuration("heap limit exceeds i64::MAX".into()));
+            }
+            value as i64
+        }
+        None => 0,
+    };
+
+    let previous = unsafe { sqlite3_soft_heap_limit64(limit_value) };
+
+    Ok(if previous > 0 {
+        Some(std::num::NonZeroU64::new(previous as u64).unwrap())
+    } else {
+        None
+    })
+}
+
+/// Gets the current soft heap limit for SQLite.
+///
+/// Returns the current heap limit in bytes, or `None` if no limit is set.
+///
+/// See: https://www.sqlite.org/c3ref/hard_heap_limit64.html
+pub fn soft_heap_limit() -> Option<std::num::NonZeroU64> {
+    use libsqlite3_sys::sqlite3_soft_heap_limit64;
+
+    let current = unsafe { sqlite3_soft_heap_limit64(-1) };
+
+    if current > 0 {
+        Some(std::num::NonZeroU64::new(current as u64).unwrap())
+    } else {
+        None
+    }
+}
+
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
 pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
