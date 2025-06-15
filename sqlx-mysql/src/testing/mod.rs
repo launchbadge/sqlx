@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use futures_core::future::BoxFuture;
@@ -9,7 +10,6 @@ use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
 use crate::query::query;
 use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
-use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
@@ -17,8 +17,8 @@ use std::fmt::Write;
 
 pub(crate) use sqlx_core::testing::*;
 
-// Using a blocking `OnceCell` here because the critical sections are short.
-static MASTER_POOL: OnceCell<Pool<MySql>> = OnceCell::new();
+// Using a blocking `OnceLock` here because the critical sections are short.
+static MASTER_POOL: OnceLock<Pool<MySql>> = OnceLock::new();
 
 impl TestSupport for MySql {
     fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
@@ -118,7 +118,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
         .connect_lazy_with(master_opts);
 
-    let master_pool = match MASTER_POOL.try_insert(pool) {
+    let master_pool = match once_lock_try_insert_polyfill(&MASTER_POOL, pool) {
         Ok(inserted) => inserted,
         Err((existing, pool)) => {
             // Sanity checks.
@@ -200,7 +200,6 @@ async fn do_cleanup(conn: &mut MySqlConnection, db_name: &str) -> Result<(), Err
     Ok(())
 }
 
-/// Pre <0.8.4, test databases were stored by integer ID.
 async fn cleanup_old_dbs(conn: &mut MySqlConnection) -> Result<(), Error> {
     let res: Result<Vec<u64>, Error> = query_scalar("select db_id from _sqlx_test_databases")
         .fetch_all(&mut *conn)
@@ -250,4 +249,13 @@ async fn cleanup_old_dbs(conn: &mut MySqlConnection) -> Result<(), Error> {
         .await?;
 
     Ok(())
+}
+
+fn once_lock_try_insert_polyfill<T>(this: &OnceLock<T>, value: T) -> Result<&T, (&T, T)> {
+    let mut value = Some(value);
+    let res = this.get_or_init(|| value.take().unwrap());
+    match value {
+        None => Ok(res),
+        Some(value) => Err((res, value)),
+    }
 }

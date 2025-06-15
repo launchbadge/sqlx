@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
 
-use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
 
@@ -108,7 +107,7 @@ impl Metadata {
     }
 }
 
-static METADATA: Lazy<Mutex<HashMap<String, Metadata>>> = Lazy::new(Default::default);
+static METADATA: LazyLock<Mutex<HashMap<String, Metadata>>> = LazyLock::new(Default::default);
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946

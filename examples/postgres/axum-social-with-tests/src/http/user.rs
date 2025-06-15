@@ -1,9 +1,8 @@
 use axum::http::StatusCode;
 use axum::{routing::post, Extension, Json, Router};
-use once_cell::sync::Lazy;
 use rand::Rng;
 use regex::Regex;
-use std::time::Duration;
+use std::{sync::LazyLock, time::Duration};
 
 use serde::Deserialize;
 use sqlx::{PgExecutor, PgPool};
@@ -18,7 +17,7 @@ pub fn router() -> Router {
     Router::new().route("/v1/user", post(create_user))
 }
 
-static USERNAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9A-Za-z_]+$").unwrap());
+static USERNAME_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9A-Za-z_]+$").unwrap());
 
 // CREATE USER
 
