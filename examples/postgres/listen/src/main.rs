@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::postgres::PgListener;
 use sqlx::{Executor, PgPool};
 use std::pin::pin;

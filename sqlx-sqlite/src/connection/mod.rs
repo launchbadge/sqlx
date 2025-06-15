@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::ffi::CStr;
 use std::fmt::Write;
 use std::fmt::{self, Debug, Formatter};
+use std::future;
 use std::os::raw::{c_char, c_int, c_void};
 use std::panic::catch_unwind;
 use std::ptr;
@@ -10,7 +11,6 @@ use std::ptr::NonNull;
 
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
-use futures_util::future;
 use libsqlite3_sys::{
     sqlite3, sqlite3_commit_hook, sqlite3_get_autocommit, sqlite3_progress_handler,
     sqlite3_rollback_hook, sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
@@ -286,7 +286,7 @@ impl Connection for SqliteConnection {
         // Well, we could use this to ensure that the command channel has been cleared,
         // but it would only develop a backlog if a lot of queries are executed and then cancelled
         // partway through, and then this would only make that situation worse.
-        Box::pin(future::ok(()))
+        Box::pin(future::ready(Ok(())))
     }
 
     #[doc(hidden)]

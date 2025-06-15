@@ -46,7 +46,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_does_not_stop_stream_after_decoding_error() -> anyhow::Result<()> {
-    use futures::stream::StreamExt;
+    use futures_util::stream::StreamExt;
 
     sqlx::any::install_default_drivers();
 
