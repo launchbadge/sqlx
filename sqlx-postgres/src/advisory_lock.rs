@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::Either;
 use crate::PgConnection;
 use hkdf::Hkdf;
-use once_cell::sync::OnceCell;
 use sha2::Sha256;
 use std::ops::{Deref, DerefMut};
+use std::cell::OnceCell;
 
 /// A mutex-like type utilizing [Postgres advisory locks].
 ///

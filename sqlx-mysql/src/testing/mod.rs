@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::str::FromStr;
 use std::time::Duration;
+use std::cell::OnceCell;
 
 use futures_core::future::BoxFuture;
 
@@ -9,7 +10,6 @@ use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
 use crate::query::query;
 use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
-use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
@@ -152,7 +152,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
             -- BLOB/TEXT columns can only be used as index keys with a prefix length:
             -- https://dev.mysql.com/doc/refman/8.4/en/column-indexes.html#column-indexes-prefix
             primary key(db_name(63))
-        );        
+        );
     "#,
     )
     .await?;

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fs, io};
+use std::cell::LazyCell;
 
-use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
 
@@ -108,7 +108,7 @@ impl Metadata {
     }
 }
 
-static METADATA: Lazy<Mutex<HashMap<String, Metadata>>> = Lazy::new(Default::default);
+static METADATA: LazyCell<Mutex<HashMap<String, Metadata>>> = LazyCell::new(Default::default);
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
@@ -198,7 +198,7 @@ pub fn expand_input<'a>(
             database_url_parsed,
             ..
         } => Err(format!(
-            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled", 
+            "no database driver found matching URL scheme {:?}; the corresponding Cargo feature may need to be enabled",
             database_url_parsed.scheme()
         ).into()),
         QueryDataSource::Cached(data) => {

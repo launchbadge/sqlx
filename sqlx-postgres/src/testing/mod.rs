@@ -2,10 +2,10 @@ use std::fmt::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::time::Duration;
+use std::cell::OnceCell;
 
 use futures_core::future::BoxFuture;
 
-use once_cell::sync::OnceCell;
 use sqlx_core::connection::Connection;
 use sqlx_core::query_scalar::query_scalar;
 
@@ -146,7 +146,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             created_at timestamptz not null default now()
         );
 
-        create index if not exists databases_created_at 
+        create index if not exists databases_created_at
             on _sqlx_test.databases(created_at);
 
         create sequence if not exists _sqlx_test.database_ids;

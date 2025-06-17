@@ -5,8 +5,8 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::Error;
 use futures_core::future::BoxFuture;
-use once_cell::sync::OnceCell;
 use std::fmt::{Debug, Formatter};
+use std::cell::OnceCell;
 use url::Url;
 
 static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();

@@ -1,8 +1,7 @@
 use std::collections::hash_map;
 use std::collections::HashMap;
 use std::sync::Mutex;
-
-use once_cell::sync::Lazy;
+use std::cell::LazyCell;
 
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
@@ -30,14 +29,14 @@ pub trait DatabaseExt: Database + TypeChecking {
 
 #[allow(dead_code)]
 pub struct CachingDescribeBlocking<DB: DatabaseExt> {
-    connections: Lazy<Mutex<HashMap<String, DB::Connection>>>,
+    connections: LazyCell<Mutex<HashMap<String, DB::Connection>>>,
 }
 
 #[allow(dead_code)]
 impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
     pub const fn new() -> Self {
         CachingDescribeBlocking {
-            connections: Lazy::new(|| Mutex::new(HashMap::new())),
+            connections: LazyCell::new(|| Mutex::new(HashMap::new())),
         }
     }
 
