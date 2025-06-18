@@ -276,10 +276,19 @@ async fn execute_migration(
     conn: &mut PgConnection,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
-    let _ = conn
-        .execute(&*migration.sql)
-        .await
-        .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    let sql = migration.sql.trim();
+    // note: this would _not_ match the split if the file starts with `-- split-migration`
+    // because it requires a new line prefix, but that doesn't really make sense anyway so it's fine
+    let split_migrations = sql.split("\n-- split-migration\n");
+    for part in split_migrations {
+        if part.trim().is_empty() {
+            continue;
+        }
+        let _ = conn
+            .execute(&*part.trim())
+            .await
+            .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
+    }
 
     // language=SQL
     let _ = query(

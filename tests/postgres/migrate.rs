@@ -85,6 +85,26 @@ async fn no_tx(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
     Ok(())
 }
 
+
+#[sqlx::test(migrations = false)]
+async fn split(mut conn: PoolConnection<Postgres>) -> anyhow::Result<()> {
+    clean_up(&mut conn).await?;
+    let migrator = Migrator::new(Path::new("tests/postgres/migrations_split")).await?;
+
+    // run migration
+    migrator.run(&mut conn).await?;
+
+    // check outcome
+    let res: i32 = conn
+        .fetch_one("SELECT * FROM test_table")
+        .await?
+        .get(0);
+
+    assert_eq!(res, 1);
+
+    Ok(())
+}
+
 /// Ensure that we have a clean initial state.
 async fn clean_up(conn: &mut PgConnection) -> anyhow::Result<()> {
     conn.execute("DROP DATABASE IF EXISTS test_db").await.ok();
