@@ -1,6 +1,7 @@
 #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
 extern crate proc_macro;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use proc_macro2::TokenStream;
@@ -81,20 +82,26 @@ impl ToTokens for QuoteMigration {
     }
 }
 
-pub fn expand_migrator_from_lit_dir(dir: LitStr) -> crate::Result<TokenStream> {
-    expand_migrator_from_dir(&dir.value(), dir.span())
+pub fn expand_migrator_from_lit_dir(
+    dir: LitStr,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
+    expand_migrator_from_dir(&dir.value(), dir.span(), parameters)
 }
 
 pub(crate) fn expand_migrator_from_dir(
     dir: &str,
     err_span: proc_macro2::Span,
+    parameters: Option<HashMap<String, String>>,
 ) -> crate::Result<TokenStream> {
     let path = crate::common::resolve_path(dir, err_span)?;
-
-    expand_migrator(&path)
+    expand_migrator(&path, parameters)
 }
 
-pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
+pub(crate) fn expand_migrator(
+    path: &Path,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
     let path = path.canonicalize().map_err(|e| {
         format!(
             "error canonicalizing migration directory {}: {e}",
@@ -105,7 +112,14 @@ pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     // Use the same code path to resolve migrations at compile time and runtime.
     let migrations = sqlx_core::migrate::resolve_blocking(&path)?
         .into_iter()
-        .map(|(migration, path)| QuoteMigration { migration, path });
+        .map(|(migration, path)| {
+            if let Some(ref params) = parameters {
+                if let Err(e) = migration.process_parameters(params) {
+                    panic!("Error processing parameters: {e}");
+                }
+            }
+            QuoteMigration { migration, path }
+        });
 
     #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
     {
