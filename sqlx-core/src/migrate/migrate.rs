@@ -47,12 +47,13 @@ pub trait Migrate {
     // migrations have been run.
     fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
 
-    // run SQL from migration in a DDL transaction
+    // run SQL from migration in a DDL transaction if skip is True
     // insert new row to [_migrations] table on completion (success or failure)
     // returns the time taking to run the migration SQL
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        skip: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 
     // run a revert SQL from migration in a DDL transaction

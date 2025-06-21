@@ -74,6 +74,24 @@ async fn do_run(opt: Opt) -> Result<()> {
                     dry_run,
                     *ignore_missing,
                     target_version,
+                    false,
+                )
+                .await?
+            }
+            MigrateCommand::Skip {
+                source,
+                dry_run,
+                ignore_missing,
+                connect_opts,
+                target_version,
+            } => {
+                migrate::run(
+                    &source,
+                    &connect_opts,
+                    dry_run,
+                    *ignore_missing,
+                    target_version,
+                    true,
                 )
                 .await?
             }
