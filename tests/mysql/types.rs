@@ -384,3 +384,75 @@ CREATE TEMPORARY TABLE user_login (
 
     Ok(())
 }
+
+mod string_collation_tests {
+    use super::*;
+
+    #[sqlx_macros::test]
+    async fn test_binary_string_collation() -> anyhow::Result<()> {
+        let mut conn = new::<MySql>().await?;
+
+        conn.execute(
+            r#"
+    CREATE TEMPORARY TABLE strings (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        char_bin CHAR(50) COLLATE utf8mb4_bin,
+        varchar_bin VARCHAR(255) COLLATE utf8mb4_bin,
+        text_bin TEXT COLLATE utf8mb4_bin
+    );
+                "#,
+        )
+        .await?;
+
+        // Insert sample data
+        conn.execute(
+            r#"
+    INSERT INTO strings (char_bin, varchar_bin, text_bin) VALUES
+        ('char_binary', 'varchar_binary', 'text_binary');
+                "#,
+        )
+        .await?;
+
+        // Query the data back
+        let row: (String, String, String) = sqlx::query_as(
+            r#"
+    SELECT char_bin, varchar_bin, text_bin FROM strings
+                "#,
+        )
+        .fetch_one(&mut conn)
+        .await?;
+
+        // Assert the values
+        assert_eq!(row.0, "char_binary");
+        assert_eq!(row.1, "varchar_binary");
+        assert_eq!(row.2, "text_binary");
+
+        Ok(())
+    }
+
+    #[sqlx_macros::test]
+    async fn test_blob_to_string_err() -> anyhow::Result<()> {
+        let mut conn = new::<MySql>().await?;
+        conn.execute(
+            r#"
+    CREATE TEMPORARY TABLE blobs (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        myblob BLOB
+    );
+                "#,
+        )
+        .await?;
+
+        // Insert sample data
+        conn.execute("INSERT INTO blobs (myblob) VALUES ('0x243524598');")
+            .await?;
+
+        let res: Result<(i32, String), sqlx::Error> =
+            sqlx::query_as("SELECT id, myblob FROM blobs")
+                .fetch_one(&mut conn)
+                .await;
+
+        assert!(res.is_err());
+        Ok(())
+    }
+}
