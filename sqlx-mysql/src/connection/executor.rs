@@ -207,22 +207,27 @@ impl MySqlConnection {
                 loop {
                     let packet = self.inner.stream.recv_packet().await?;
 
-                    if packet[0] == 0xfe && packet.len() < 9 {
-                        let eof = packet.eof(self.inner.stream.capabilities)?;
+                    if packet[0] == 0xfe {
+                        let (rows_affected, last_insert_id, status) = if packet.len() < 9 {
+                            // EOF packet
+                            let eof = packet.eof(self.inner.stream.capabilities)?;
+                            (0, 0, eof.status)
+                        } else {
+                            // OK packet
+                            let ok = packet.ok()?;
+                            (ok.affected_rows, ok.last_insert_id, ok.status)
+                        };
 
-                        self.inner.status_flags = eof.status;
-
+                        self.inner.status_flags = status;
                         r#yield!(Either::Left(MySqlQueryResult {
-                            rows_affected: 0,
-                            last_insert_id: 0,
+                            rows_affected,
+                            last_insert_id,
                         }));
 
-                        if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
-                            // more result sets exist, continue to the next one
+                        if status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             *self.inner.stream.waiting.front_mut().unwrap() = Waiting::Result;
                             break;
                         }
-
                         self.inner.stream.waiting.pop_front();
                         return Ok(());
                     }
