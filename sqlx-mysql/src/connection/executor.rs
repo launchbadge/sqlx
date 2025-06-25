@@ -124,11 +124,13 @@ impl MySqlConnection {
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
-                        return Err(Error::Protocol(format!(
-                                    "Prepared statement expected {} parameters but {} parameters were provided",
-                                    metadata.parameters,
-                                    arguments.types.len()
-                        )));
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
                     }
 
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
@@ -146,11 +148,13 @@ impl MySqlConnection {
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
-                        return Err(Error::Protocol(format!(
-                                    "Prepared statement expected {} parameters but {} parameters were provided",
-                                    metadata.parameters,
-                                    arguments.types.len()
-                        )));
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
                     }
 
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
