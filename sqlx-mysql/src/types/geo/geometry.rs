@@ -4,12 +4,11 @@ use sqlx_core::error::BoxDynError;
 use sqlx_core::types::Type;
 
 use crate::io::MySqlBufMutExt;
-use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::protocol::text::{ColumnFlags, ColumnType};
+use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 
-
-use geo_types::Geometry;
 use geo_traits::to_geo::ToGeoGeometry;
+use geo_types::Geometry;
 use wkb::reader;
 use wkb::writer;
 
@@ -56,21 +55,21 @@ impl<'r> Decode<'r, MySql> for Geometry {
         let wkb_reader_geom = reader::Wkb::try_new(wkb_data)
             .map_err(|e| BoxDynError::from(format!("WKB parsing error for Geometry: {}", e)))?;
 
-        Ok(wkb_reader_geom
-            .to_geometry())
+        Ok(wkb_reader_geom.to_geometry())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use geo_types::{coord, Geometry as TestableGeoType, LineString, Point, Polygon};
     use sqlx::mysql::{MySqlPool, MySqlRow};
     use sqlx::{Executor, Row};
-    use geo_types::{Geometry as TestableGeoType, Point, LineString, Polygon, coord};
 
     #[sqlx::test]
     async fn test_encode_decode_geometry_enum(pool: MySqlPool) -> anyhow::Result<()> {
         let table_name = format!("test_geo_geometry_enum_table");
-        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str()).await?;
+        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str())
+            .await?;
         pool.execute(
             format!(
                 "CREATE TABLE {} (id INT, geom_val GEOMETRY, geom_null GEOMETRY NULL)",
@@ -83,71 +82,101 @@ mod tests {
         let p1_geom = Point::new(1.0, 2.0);
         let geom_enum1 = TestableGeoType::Point(p1_geom);
 
-        let ls1_geom = LineString::new(vec![coord!{x: 3., y: 4.}, coord!{x: 5., y: 6.}]);
+        let ls1_geom = LineString::new(vec![coord! {x: 3., y: 4.}, coord! {x: 5., y: 6.}]);
         let geom_enum2 = TestableGeoType::LineString(ls1_geom);
 
-        let ext_poly_geom = LineString::new(vec![coord!{x:0.,y:0.}, coord!{x:1.,y:1.}, coord!{x:1.,y:0.}, coord!{x:0.,y:0.}]);
+        let ext_poly_geom = LineString::new(vec![
+            coord! {x:0.,y:0.},
+            coord! {x:1.,y:1.},
+            coord! {x:1.,y:0.},
+            coord! {x:0.,y:0.},
+        ]);
         let poly1_geom = Polygon::new(ext_poly_geom, vec![]);
         let geom_enum3 = TestableGeoType::Polygon(poly1_geom);
 
         // Test non-nullable Point variant
-        sqlx::query(&format!("INSERT INTO {} (id, geom_val) VALUES (1, ?)", table_name))
-            .bind(geom_enum1.clone())
-            .execute(&pool)
-            .await?;
-        let row1: MySqlRow = sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 1", table_name))
-            .fetch_one(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_val) VALUES (1, ?)",
+            table_name
+        ))
+        .bind(geom_enum1.clone())
+        .execute(&pool)
+        .await?;
+        let row1: MySqlRow =
+            sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 1", table_name))
+                .fetch_one(&pool)
+                .await?;
         let decoded_val1: TestableGeoType = row1.try_get("geom_val")?;
         assert_eq!(decoded_val1, geom_enum1);
 
         // Test non-nullable LineString variant
-        sqlx::query(&format!("INSERT INTO {} (id, geom_val) VALUES (2, ?)", table_name))
-            .bind(geom_enum2.clone())
-            .execute(&pool)
-            .await?;
-        let row2: MySqlRow = sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 2", table_name))
-            .fetch_one(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_val) VALUES (2, ?)",
+            table_name
+        ))
+        .bind(geom_enum2.clone())
+        .execute(&pool)
+        .await?;
+        let row2: MySqlRow =
+            sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 2", table_name))
+                .fetch_one(&pool)
+                .await?;
         let decoded_val2: TestableGeoType = row2.try_get("geom_val")?;
         assert_eq!(decoded_val2, geom_enum2);
 
         // Test non-nullable Polygon variant
-        sqlx::query(&format!("INSERT INTO {} (id, geom_val) VALUES (3, ?)", table_name))
-            .bind(geom_enum3.clone())
-            .execute(&pool)
-            .await?;
-        let row3: MySqlRow = sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 3", table_name))
-            .fetch_one(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_val) VALUES (3, ?)",
+            table_name
+        ))
+        .bind(geom_enum3.clone())
+        .execute(&pool)
+        .await?;
+        let row3: MySqlRow =
+            sqlx::query(&format!("SELECT geom_val FROM {} WHERE id = 3", table_name))
+                .fetch_one(&pool)
+                .await?;
         let decoded_val3: TestableGeoType = row3.try_get("geom_val")?;
         assert_eq!(decoded_val3, geom_enum3);
 
         // Test nullable Some(value) - using Point variant
         let some_val: Option<TestableGeoType> = Some(geom_enum1.clone());
-        sqlx::query(&format!("INSERT INTO {} (id, geom_null) VALUES (4, ?)", table_name))
-            .bind(some_val.clone())
-            .execute(&pool)
-            .await?;
-        let row_some: MySqlRow = sqlx::query(&format!("SELECT geom_null FROM {} WHERE id = 4", table_name))
-            .fetch_one(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_null) VALUES (4, ?)",
+            table_name
+        ))
+        .bind(some_val.clone())
+        .execute(&pool)
+        .await?;
+        let row_some: MySqlRow = sqlx::query(&format!(
+            "SELECT geom_null FROM {} WHERE id = 4",
+            table_name
+        ))
+        .fetch_one(&pool)
+        .await?;
         let decoded_some: Option<TestableGeoType> = row_some.try_get("geom_null")?;
         assert_eq!(decoded_some, some_val);
 
         // Test nullable None
         let none_val: Option<TestableGeoType> = None;
-        sqlx::query(&format!("INSERT INTO {} (id, geom_null) VALUES (5, ?)", table_name))
-            .bind(none_val.clone())
-            .execute(&pool)
-            .await?;
-        let row_none: MySqlRow = sqlx::query(&format!("SELECT geom_null FROM {} WHERE id = 5", table_name))
-            .fetch_one(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_null) VALUES (5, ?)",
+            table_name
+        ))
+        .bind(none_val.clone())
+        .execute(&pool)
+        .await?;
+        let row_none: MySqlRow = sqlx::query(&format!(
+            "SELECT geom_null FROM {} WHERE id = 5",
+            table_name
+        ))
+        .fetch_one(&pool)
+        .await?;
         let decoded_none: Option<TestableGeoType> = row_none.try_get("geom_null")?;
         assert_eq!(decoded_none, none_val);
 
-        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str()).await?;
+        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str())
+            .await?;
         Ok(())
     }
 }

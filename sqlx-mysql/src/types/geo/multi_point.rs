@@ -4,13 +4,13 @@ use sqlx_core::error::BoxDynError;
 use sqlx_core::types::Type;
 
 use crate::io::MySqlBufMutExt;
-use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::protocol::text::{ColumnFlags, ColumnType};
+use crate::{MySql, MySqlTypeInfo, MySqlValueRef};
 
 use std::convert::TryFrom;
 
-use geo_types::MultiPoint;
 use geo_traits::to_geo::ToGeoGeometry;
+use geo_types::MultiPoint;
 use wkb::reader;
 use wkb::writer;
 
@@ -57,8 +57,7 @@ impl<'r> Decode<'r, MySql> for MultiPoint {
         let wkb_reader_geom = reader::Wkb::try_new(wkb_data)
             .map_err(|e| BoxDynError::from(format!("WKB parsing error for MultiPoint: {}", e)))?;
 
-        let geo_geom: geo_types::Geometry<f64> = wkb_reader_geom
-            .to_geometry();
+        let geo_geom: geo_types::Geometry<f64> = wkb_reader_geom.to_geometry();
 
         MultiPoint::try_from(geo_geom).map_err(|e| {
             BoxDynError::from(format!(
@@ -71,15 +70,16 @@ impl<'r> Decode<'r, MySql> for MultiPoint {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::mysql::{MySqlPool, MySqlRow};
-    use sqlx::{Executor, Row};
     use geo_types::MultiPoint as TestableGeoType;
     use geo_types::Point;
+    use sqlx::mysql::{MySqlPool, MySqlRow};
+    use sqlx::{Executor, Row};
 
     #[sqlx::test]
     async fn test_encode_decode_multipoint(pool: MySqlPool) -> anyhow::Result<()> {
         let table_name = format!("test_geo_multipoint_table");
-        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str()).await?;
+        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str())
+            .await?;
         pool.execute(
             format!(
                 "CREATE TABLE {} (id INT, geom GEOMETRY, geom_null GEOMETRY NULL)",
@@ -89,14 +89,17 @@ mod tests {
         )
         .await?;
 
-        let mp1 = TestableGeoType::new(vec![Point::new(0.,0.), Point::new(1.,1.)]);
-        let mp2 = TestableGeoType::new(vec![Point::new(10.,10.), Point::new(20.,20.)]);
+        let mp1 = TestableGeoType::new(vec![Point::new(0., 0.), Point::new(1., 1.)]);
+        let mp2 = TestableGeoType::new(vec![Point::new(10., 10.), Point::new(20., 20.)]);
 
         // Test non-nullable
-        sqlx::query(&format!("INSERT INTO {} (id, geom) VALUES (1, ?)", table_name))
-            .bind(mp1.clone())
-            .execute(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom) VALUES (1, ?)",
+            table_name
+        ))
+        .bind(mp1.clone())
+        .execute(&pool)
+        .await?;
 
         let row: MySqlRow = sqlx::query(&format!("SELECT geom FROM {} WHERE id = 1", table_name))
             .fetch_one(&pool)
@@ -106,31 +109,44 @@ mod tests {
 
         // Test nullable Some(value)
         let some_val: Option<TestableGeoType> = Some(mp2.clone());
-        sqlx::query(&format!("INSERT INTO {} (id, geom_null) VALUES (2, ?)", table_name))
-            .bind(some_val.clone())
-            .execute(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_null) VALUES (2, ?)",
+            table_name
+        ))
+        .bind(some_val.clone())
+        .execute(&pool)
+        .await?;
 
-        let row_some: MySqlRow = sqlx::query(&format!("SELECT geom_null FROM {} WHERE id = 2", table_name))
-            .fetch_one(&pool)
-            .await?;
+        let row_some: MySqlRow = sqlx::query(&format!(
+            "SELECT geom_null FROM {} WHERE id = 2",
+            table_name
+        ))
+        .fetch_one(&pool)
+        .await?;
         let decoded_some: Option<TestableGeoType> = row_some.try_get("geom_null")?;
         assert_eq!(decoded_some, some_val);
 
         // Test nullable None
         let none_val: Option<TestableGeoType> = None;
-        sqlx::query(&format!("INSERT INTO {} (id, geom_null) VALUES (3, ?)", table_name))
-            .bind(none_val.clone())
-            .execute(&pool)
-            .await?;
+        sqlx::query(&format!(
+            "INSERT INTO {} (id, geom_null) VALUES (3, ?)",
+            table_name
+        ))
+        .bind(none_val.clone())
+        .execute(&pool)
+        .await?;
 
-        let row_none: MySqlRow = sqlx::query(&format!("SELECT geom_null FROM {} WHERE id = 3", table_name))
-            .fetch_one(&pool)
-            .await?;
+        let row_none: MySqlRow = sqlx::query(&format!(
+            "SELECT geom_null FROM {} WHERE id = 3",
+            table_name
+        ))
+        .fetch_one(&pool)
+        .await?;
         let decoded_none: Option<TestableGeoType> = row_none.try_get("geom_null")?;
         assert_eq!(decoded_none, none_val);
 
-        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str()).await?;
+        pool.execute(format!("DROP TABLE IF EXISTS {}", table_name).as_str())
+            .await?;
         Ok(())
     }
 }
