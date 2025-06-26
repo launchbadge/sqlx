@@ -32,6 +32,8 @@ _tls-none = []
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
 
+geo-types = ["dep:geo-types"]
+
 [dependencies]
 # Runtimes
 async-std = { workspace = true, optional = true }
@@ -47,6 +49,7 @@ rustls-native-certs = { version = "0.8.0", optional = true }
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
 bigdecimal = { workspace = true, optional = true }
+geo-types = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 ipnet = { workspace = true, optional = true }

@@ -189,3 +189,6 @@ mod time;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+#[cfg(feature = "spatial-data-types")]
+mod geo;
