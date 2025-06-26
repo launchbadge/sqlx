@@ -137,6 +137,7 @@ sqlx = { version = "=0.9.0-alpha.1", path = ".", default-features = false }
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
 bigdecimal = "0.4.0"
+geo-types = { version = "0.7.16", default-features = false }
 bit-vec = "0.6.3"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
 ipnet = "2.3.0"
@@ -174,6 +175,7 @@ env_logger = "0.11"
 async-std = { workspace = true, features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenvy = "0.15.0"
+geo-types = { workspace = true } # Added for tests
 trybuild = "1.0.53"
 sqlx-test = { path = "./sqlx-test" }
 paste = "1.0.6"
