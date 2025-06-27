@@ -1385,7 +1385,6 @@ checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
 dependencies = [
  "futures-channel",
  "futures-core",
- "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -1493,7 +1492,6 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
- "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -3401,7 +3399,7 @@ dependencies = [
  "criterion",
  "dotenvy",
  "env_logger",
- "futures",
+ "futures-util",
  "hex",
  "libsqlite3-sys",
  "paste",
@@ -3437,7 +3435,7 @@ dependencies = [
  "dialoguer",
  "dotenvy",
  "filetime",
- "futures",
+ "futures-util",
  "glob",
  "openssl",
  "serde_json",
@@ -3475,7 +3473,6 @@ dependencies = [
  "mac_address",
  "memchr",
  "native-tls",
- "once_cell",
  "percent-encoding",
  "regex",
  "rust_decimal",
@@ -3502,7 +3499,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "futures",
  "sqlx",
  "tokio",
 ]
@@ -3515,7 +3511,6 @@ dependencies = [
  "argon2",
  "axum",
  "dotenvy",
- "once_cell",
  "rand",
  "regex",
  "serde",
@@ -3536,7 +3531,6 @@ name = "sqlx-example-postgres-chat"
 version = "0.1.0"
 dependencies = [
  "crossterm",
- "futures",
  "ratatui",
  "sqlx",
  "tokio",
@@ -3560,7 +3554,6 @@ dependencies = [
  "anyhow",
  "clap",
  "dotenvy",
- "futures",
  "serde",
  "serde_json",
  "sqlx",
@@ -3571,7 +3564,7 @@ dependencies = [
 name = "sqlx-example-postgres-listen"
 version = "0.1.0"
 dependencies = [
- "futures",
+ "futures-util",
  "sqlx",
  "tokio",
 ]
@@ -3584,7 +3577,6 @@ dependencies = [
  "async-trait",
  "clap",
  "dotenvy",
- "futures",
  "mockall",
  "sqlx",
  "tokio",
@@ -3597,7 +3589,6 @@ dependencies = [
  "anyhow",
  "clap",
  "dotenvy",
- "futures",
  "sqlx",
  "tokio",
 ]
@@ -3606,7 +3597,6 @@ dependencies = [
 name = "sqlx-example-postgres-transaction"
 version = "0.1.0"
 dependencies = [
- "futures",
  "sqlx",
  "tokio",
 ]
@@ -3617,7 +3607,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "futures",
  "sqlx",
  "tokio",
 ]
@@ -3642,7 +3631,6 @@ dependencies = [
  "either",
  "heck 0.5.0",
  "hex",
- "once_cell",
  "proc-macro2",
  "quote",
  "serde",
@@ -3684,7 +3672,6 @@ dependencies = [
  "log",
  "md-5",
  "memchr",
- "once_cell",
  "percent-encoding",
  "rand",
  "rsa",
@@ -3732,7 +3719,6 @@ dependencies = [
  "md-5",
  "memchr",
  "num-bigint",
- "once_cell",
  "rand",
  "rust_decimal",
  "serde",

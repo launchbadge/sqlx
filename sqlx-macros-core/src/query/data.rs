@@ -4,9 +4,8 @@ use std::fs;
 use std::io::Write as _;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
-use once_cell::sync::Lazy;
 use serde::{Serialize, Serializer};
 
 use sqlx_core::database::Database;
@@ -65,8 +64,8 @@ impl<DB: Database> Serialize for SerializeDbName<DB> {
     }
 }
 
-static OFFLINE_DATA_CACHE: Lazy<Mutex<HashMap<PathBuf, DynQueryData>>> =
-    Lazy::new(Default::default);
+static OFFLINE_DATA_CACHE: LazyLock<Mutex<HashMap<PathBuf, DynQueryData>>> =
+    LazyLock::new(Default::default);
 
 /// Offline query data
 #[derive(Clone, serde::Deserialize)]

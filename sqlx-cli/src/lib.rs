@@ -1,8 +1,9 @@
+use std::future::Future;
 use std::io;
 use std::time::Duration;
 
 use anyhow::Result;
-use futures::{Future, TryFutureExt};
+use futures_util::TryFutureExt;
 
 use sqlx::{AnyConnection, Connection};
 use tokio::{select, signal};

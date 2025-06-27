@@ -1,4 +1,4 @@
-use futures_util::future::BoxFuture;
+use futures_core::future::BoxFuture;
 use std::borrow::Cow;
 
 use crate::any::{Any, AnyConnection};
