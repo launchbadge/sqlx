@@ -123,7 +123,9 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let var_name = Config::try_from_crate()?.common.database_url_var();
+    let var_name = Config::try_from_crate_or_default()?
+        .common
+        .database_url_var();
 
     let database_url = env(var_name).ok().or(database_url);
 
@@ -256,7 +258,7 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
-    let config = Config::try_from_crate()?;
+    let config = Config::try_from_crate_or_default()?;
 
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {
