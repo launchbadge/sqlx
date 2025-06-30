@@ -301,7 +301,7 @@ impl<DB: Database> PoolInner<DB> {
             private_tracing_dynamic_event!(
                 target: "sqlx::pool::acquire",
                 level,
-                aquired_after_secs = acquired_after.as_secs_f64(),
+                acquired_after_secs = acquired_after.as_secs_f64(),
                 slow_acquire_threshold_secs = self.options.acquire_slow_threshold.as_secs_f64(),
                 "acquired connection, but time to acquire exceeded slow threshold"
             );
@@ -309,7 +309,7 @@ impl<DB: Database> PoolInner<DB> {
             private_tracing_dynamic_event!(
                 target: "sqlx::pool::acquire",
                 level,
-                aquired_after_secs = acquired_after.as_secs_f64(),
+                acquired_after_secs = acquired_after.as_secs_f64(),
                 "acquired connection"
             );
         }
