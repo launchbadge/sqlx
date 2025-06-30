@@ -27,6 +27,8 @@ derive = []
 macros = []
 migrate = ["sqlx-core/migrate"]
 
+sqlx-toml = ["sqlx-core/sqlx-toml"]
+
 # database
 mysql = ["sqlx-mysql"]
 postgres = ["sqlx-postgres"]

@@ -32,6 +32,14 @@ _tls-none = []
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
 
+# Enable parsing of `sqlx.toml`.
+# For simplicity, the `config` module is always enabled,
+# but disabling this disables the `serde` derives and the `toml` crate,
+# which is a good bit less code to compile if the feature isn't being used.
+sqlx-toml = ["serde", "toml/parse"]
+
+_unstable-doc = ["sqlx-toml"]
+
 [dependencies]
 # Runtimes
 async-std = { workspace = true, optional = true }
@@ -71,6 +79,7 @@ percent-encoding = "2.1.0"
 regex = { version = "1.5.5", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
+toml = { version = "0.8.16", optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 #sqlformat = "0.2.0"
 thiserror = "2.0.0"
