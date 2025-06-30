@@ -455,7 +455,7 @@ impl ConnectOpts {
 }
 
 impl ConfigOpt {
-    pub async fn load_config(&self) -> anyhow::Result<&'static Config> {
+    pub async fn load_config(&self) -> anyhow::Result<Config> {
         let path = self.config.clone();
 
         // Tokio does file I/O on a background task anyway
@@ -470,7 +470,7 @@ impl ConfigOpt {
                     eprintln!("Found `sqlx.toml` in current directory; reading...");
                     Ok(Config::try_from_path(path)?)
                 } else {
-                    Ok(Config::get_or_default())
+                    Ok(Config::default())
                 }
             }
         })

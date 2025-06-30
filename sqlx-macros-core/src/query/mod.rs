@@ -27,7 +27,7 @@ mod output;
 pub struct QueryDriver {
     db_name: &'static str,
     url_schemes: &'static [&'static str],
-    expand: fn(QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
+    expand: fn(&Config, QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
 }
 
 impl QueryDriver {
@@ -75,6 +75,7 @@ struct Metadata {
     offline: bool,
     database_url: Option<String>,
     offline_dir: Option<String>,
+    config: Config,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -123,17 +124,16 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let var_name = Config::try_from_crate_or_default()?
-        .common
-        .database_url_var();
+    let config = Config::try_from_crate_or_default()?;
 
-    let database_url = env(var_name).ok().or(database_url);
+    let database_url = env(config.common.database_url_var()).ok().or(database_url);
 
     Ok(Metadata {
         manifest_dir,
         offline,
         database_url,
         offline_dir,
+        config,
         workspace_root: Arc::new(Mutex::new(None)),
     })
 }
@@ -197,7 +197,7 @@ pub fn expand_input<'a>(
 
     for driver in drivers {
         if data_source.matches_driver(driver) {
-            return (driver.expand)(input, data_source);
+            return (driver.expand)(&metadata.config, input, data_source);
         }
     }
 
@@ -219,6 +219,7 @@ pub fn expand_input<'a>(
 }
 
 fn expand_with<DB: DatabaseExt>(
+    config: &Config,
     input: QueryMacroInput,
     data_source: QueryDataSource,
 ) -> crate::Result<TokenStream>
@@ -233,7 +234,7 @@ where
         }
     };
 
-    expand_with_data(input, query_data, offline)
+    expand_with_data(config, input, query_data, offline)
 }
 
 // marker trait for `Describe` that lets us conditionally require it to be `Serialize + Deserialize`
@@ -251,6 +252,7 @@ struct Warnings {
 }
 
 fn expand_with_data<DB: DatabaseExt>(
+    config: &Config,
     input: QueryMacroInput,
     data: QueryData<DB>,
     offline: bool,
@@ -258,8 +260,6 @@ fn expand_with_data<DB: DatabaseExt>(
 where
     Describe<DB>: DescribeExt,
 {
-    let config = Config::try_from_crate_or_default()?;
-
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {
         Some(Either::Left(params)) => Some(params.len()),

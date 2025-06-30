@@ -149,12 +149,12 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
             quote! { args.migrator(&#migrator); }
         }
         MigrationsOpt::InferredPath if !inputs.is_empty() => {
-            let path = crate::migrate::default_path(config);
+            let path = crate::migrate::default_path(&config);
 
             let resolved_path = crate::common::resolve_path(path, proc_macro2::Span::call_site())?;
 
             if resolved_path.is_dir() {
-                let migrator = crate::migrate::expand_with_path(config, &resolved_path)?;
+                let migrator = crate::migrate::expand_with_path(&config, &resolved_path)?;
                 quote! { args.migrator(&#migrator); }
             } else {
                 quote! {}

@@ -16,10 +16,6 @@ use std::fmt::Debug;
 use std::io;
 use std::path::{Path, PathBuf};
 
-// `std::sync::OnceLock` doesn't have a stable `.get_or_try_init()`
-// because it's blocked on a stable `Try` trait.
-use once_cell::sync::OnceCell;
-
 /// Configuration shared by multiple components.
 ///
 /// See [`common::Config`] for details.
@@ -145,8 +141,6 @@ impl ConfigError {
     }
 }
 
-static CACHE: OnceCell<Config> = OnceCell::new();
-
 /// Internal methods for loading a `Config`.
 #[allow(clippy::result_large_err)]
 impl Config {
@@ -157,34 +151,13 @@ impl Config {
     /// Errors if `CARGO_MANIFEST_DIR` is not set, or if the config file could not be read.
     ///
     /// If the file does not exist, the cache is populated with `Config::default()`.
-    pub fn try_from_crate_or_default() -> Result<&'static Self, ConfigError> {
-        CACHE.get_or_try_init(|| {
-            Self::read_from(get_crate_path()?).or_else(|e| {
-                if let ConfigError::NotFound { .. } = e {
-                    Ok(Config::default())
-                } else {
-                    Err(e)
-                }
-            })
-        })
-    }
-
-    /// Get the cached config, or read `$CARGO_MANIFEST_DIR/sqlx.toml`.
-    ///
-    /// On success, the config is cached in a `static` and returned by future calls.
-    ///
-    /// Errors if `CARGO_MANIFEST_DIR` is not set, or if the config file could not be read.
-    ///
-    /// If the file does not exist, the cache is populated with `Config::default()`.
-    pub fn try_from_crate_or_default() -> Result<&'static Self, ConfigError> {
-        CACHE.get_or_try_init(|| {
-            Self::read_from(get_crate_path()?).or_else(|e| {
-                if let ConfigError::NotFound { .. } = e {
-                    Ok(Config::default())
-                } else {
-                    Err(e)
-                }
-            })
+    pub fn try_from_crate_or_default() -> Result<Self, ConfigError> {
+        Self::read_from(get_crate_path()?).or_else(|e| {
+            if let ConfigError::NotFound { .. } = e {
+                Ok(Config::default())
+            } else {
+                Err(e)
+            }
         })
     }
 
@@ -193,13 +166,8 @@ impl Config {
     /// On success, the config is cached in a `static` and returned by future calls.
     ///
     /// Errors if the config file does not exist, or could not be read.
-    pub fn try_from_path(path: PathBuf) -> Result<&'static Self, ConfigError> {
-        CACHE.get_or_try_init(|| Self::read_from(path))
-    }
-
-    /// Get the cached config, or return the default.
-    pub fn get_or_default() -> &'static Self {
-        CACHE.get_or_init(Config::default)
+    pub fn try_from_path(path: PathBuf) -> Result<Self, ConfigError> {
+        Self::read_from(path)
     }
 
     #[cfg(feature = "sqlx-toml")]
@@ -225,8 +193,8 @@ impl Config {
     #[cfg(not(feature = "sqlx-toml"))]
     fn read_from(path: PathBuf) -> Result<Self, ConfigError> {
         match path.try_exists() {
-            Ok(true) => Err(ConfigError::ParseDisabled { path: path.into() }),
-            Ok(false) => Err(ConfigError::NotFound { path: path.into() }),
+            Ok(true) => Err(ConfigError::ParseDisabled { path }),
+            Ok(false) => Err(ConfigError::NotFound { path }),
             Err(e) => Err(ConfigError::from_io(path, e)),
         }
     }

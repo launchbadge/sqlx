@@ -66,10 +66,10 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
                 migrate::run(
-                    config,
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -88,10 +88,10 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
                 migrate::revert(
-                    config,
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -107,9 +107,9 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
-                migrate::info(config, &source, &connect_opts).await?
+                migrate::info(&config, &source, &connect_opts).await?
             }
             MigrateCommand::BuildScript {
                 source,
@@ -118,7 +118,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                migrate::build_script(config, &source, force)?
+                migrate::build_script(&config, &source, force)?
             }
         },
 
@@ -129,7 +129,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
                 database::create(&connect_opts).await?
             }
             DatabaseCommand::Drop {
@@ -140,7 +140,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
                 database::drop(&connect_opts, !confirmation.yes, force).await?
             }
             DatabaseCommand::Reset {
@@ -152,8 +152,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
-                database::reset(config, &source, &connect_opts, !confirmation.yes, force).await?
+                connect_opts.populate_db_url(&config)?;
+                database::reset(&config, &source, &connect_opts, !confirmation.yes, force).await?
             }
             DatabaseCommand::Setup {
                 source,
@@ -162,8 +162,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
-                database::setup(config, &source, &connect_opts).await?
+                connect_opts.populate_db_url(&config)?;
+                database::setup(&config, &source, &connect_opts).await?
             }
         },
 
@@ -176,7 +176,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             config,
         } => {
             let config = config.load_config().await?;
-            connect_opts.populate_db_url(config)?;
+            connect_opts.populate_db_url(&config)?;
             prepare::run(check, all, workspace, connect_opts, args).await?
         }
 
