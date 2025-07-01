@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -47,12 +49,6 @@ impl<'r> Decode<'r, MySql> for &'r str {
     }
 }
 
-impl Encode<'_, MySql> for Box<str> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        <&str as Encode<MySql>>::encode(&**self, buf)
-    }
-}
-
 impl Type<MySql> for String {
     fn type_info() -> MySqlTypeInfo {
         <str as Type<MySql>>::type_info()
@@ -63,23 +59,14 @@ impl Type<MySql> for String {
     }
 }
 
-impl Encode<'_, MySql> for String {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        <&str as Encode<MySql>>::encode(&**self, buf)
-    }
-}
-
 impl Decode<'_, MySql> for String {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }
 
-impl Encode<'_, MySql> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        match self {
-            Cow::Borrowed(str) => <&str as Encode<MySql>>::encode(*str, buf),
-            Cow::Owned(str) => <&str as Encode<MySql>>::encode(&**str, buf),
-        }
-    }
-}
+forward_encode_impl!(Arc<str>, &str, MySql);
+forward_encode_impl!(Rc<str>, &str, MySql);
+forward_encode_impl!(Cow<'_, str>, &str, MySql);
+forward_encode_impl!(Box<str>, &str, MySql);
+forward_encode_impl!(String, &str, MySql);

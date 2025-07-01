@@ -200,3 +200,17 @@ where
         <&T as Encode<DB>>::size_hint(&self.as_ref())
     }
 }
+
+#[macro_export]
+macro_rules! forward_encode_impl {
+    ($for_type:ty, $forward_to:ty, $db:ident) => {
+        impl<'q> Encode<'q, $db> for $for_type {
+            fn encode_by_ref(
+                &self,
+                buf: &mut <$db as sqlx_core::database::Database>::ArgumentBuffer<'q>,
+            ) -> Result<IsNull, BoxDynError> {
+                <$forward_to as Encode<$db>>::encode(self.as_ref(), buf)
+            }
+        }
+    };
+}
