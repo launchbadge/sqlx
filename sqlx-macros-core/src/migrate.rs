@@ -92,14 +92,14 @@ pub fn default_path(config: &Config) -> &str {
 }
 
 pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
-    let config = Config::from_crate();
+    let config = Config::try_from_crate_or_default()?;
 
     let path = match path_arg {
         Some(path_arg) => crate::common::resolve_path(path_arg.value(), path_arg.span())?,
-        None => { crate::common::resolve_path(default_path(config), Span::call_site()) }?,
+        None => { crate::common::resolve_path(default_path(&config), Span::call_site()) }?,
     };
 
-    expand_with_path(config, &path)
+    expand_with_path(&config, &path)
 }
 
 pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStream> {

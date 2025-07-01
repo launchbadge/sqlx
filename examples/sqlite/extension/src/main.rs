@@ -25,6 +25,12 @@ async fn main() -> anyhow::Result<()> {
 
     let db = SqlitePool::connect_with(opts).await?;
 
+    // We're not running the migrations here, for the sake of brevity
+    // and to confirm that the needed extension was loaded during the
+    // CLI migrate operation. It would not be unusual to run the
+    // migrations here as well, though, using the database connection
+    // we just configured.
+
     query!("insert into addresses (address, family) values (?1, ipfamily(?1))", "10.0.0.10").execute(&db).await?;
 
     println!("Query which requires the extension was successfully executed.");

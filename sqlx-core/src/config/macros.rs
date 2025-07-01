@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
 /// Configuration for the `query!()` family of macros.
+///
+/// See also [`common::Config`][crate::config::common::Config] for renaming `DATABASE_URL`.
 #[derive(Debug, Default)]
 #[cfg_attr(
     feature = "sqlx-toml",

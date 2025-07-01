@@ -175,7 +175,8 @@ pub mod prelude {
 }
 
 #[cfg(feature = "_unstable-doc")]
-pub use sqlx_core::config;
+#[cfg_attr(docsrs, doc(cfg(feature = "_unstable-doc")))]
+pub use sqlx_core::config as _config;
 
 // NOTE: APIs exported in this module are SemVer-exempt.
 #[doc(hidden)]

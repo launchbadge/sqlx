@@ -44,14 +44,15 @@ impl AnyConnection {
     ///
     /// Connect to the database, and instruct the nested driver to
     /// read options from the sqlx.toml file as appropriate.
+    #[cfg(feature = "sqlx-toml")]
     #[doc(hidden)]
-    pub fn connect_with_config(url: &str) -> BoxFuture<'static, Result<Self, Error>>
+    pub fn connect_with_config(url: &str, path: Option<std::path::PathBuf>) -> BoxFuture<'static, Result<Self, Error>>
     where
         Self: Sized,
     {
         let options: Result<AnyConnectOptions, Error> = url.parse();
 
-        Box::pin(async move { Self::connect_with(&options?.allow_config_file()).await })
+        Box::pin(async move { Self::connect_with(&options?.with_config_file(path)).await })
     }
 
     pub(crate) fn connect_with_db<DB: Database>(

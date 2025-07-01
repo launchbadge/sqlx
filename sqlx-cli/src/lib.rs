@@ -2,11 +2,10 @@ use std::future::Future;
 use std::io;
 use std::time::Duration;
 
-use futures::{Future, TryFutureExt};
+use futures_util::TryFutureExt;
 
 use sqlx::{AnyConnection, Connection};
 use tokio::{select, signal};
-use anyhow::Context;
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
@@ -67,10 +66,10 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
                 migrate::run(
-                    config,
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -89,10 +88,10 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
                 migrate::revert(
-                    config,
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -108,9 +107,9 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
 
-                migrate::info(config, &source, &connect_opts).await?
+                migrate::info(&config, &source, &connect_opts).await?
             }
             MigrateCommand::BuildScript {
                 source,
@@ -119,7 +118,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                migrate::build_script(config, &source, force)?
+                migrate::build_script(&config, &source, force)?
             }
         },
 
@@ -130,7 +129,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
                 database::create(&connect_opts).await?
             }
             DatabaseCommand::Drop {
@@ -141,7 +140,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
+                connect_opts.populate_db_url(&config)?;
                 database::drop(&connect_opts, !confirmation.yes, force).await?
             }
             DatabaseCommand::Reset {
@@ -153,8 +152,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
-                database::reset(config, &source, &connect_opts, !confirmation.yes, force).await?
+                connect_opts.populate_db_url(&config)?;
+                database::reset(&config, &source, &connect_opts, !confirmation.yes, force).await?
             }
             DatabaseCommand::Setup {
                 source,
@@ -163,8 +162,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             } => {
                 let config = config.load_config().await?;
 
-                connect_opts.populate_db_url(config)?;
-                database::setup(config, &source, &connect_opts).await?
+                connect_opts.populate_db_url(&config)?;
+                database::setup(&config, &source, &connect_opts).await?
             }
         },
 
@@ -177,7 +176,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
             config,
         } => {
             let config = config.load_config().await?;
-            connect_opts.populate_db_url(config)?;
+            connect_opts.populate_db_url(&config)?;
             prepare::run(check, all, workspace, connect_opts, args).await?
         }
 
@@ -189,8 +188,35 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
 }
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
+#[cfg(feature = "sqlx-toml")]
 async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect_with_config).await
+    retry_connect_errors(
+        opts,
+        move |url| {
+            // This only handles the default case. For good support of
+            // the new command line options, we need to work out some
+            // way to make the appropriate ConfigOpt available here. I
+            // suspect that that infrastructure would be useful for
+            // other things in the future, as well, but it also seems
+            // like an extensive and intrusive change.
+            //
+            // On the other hand, the compile-time checking macros
+            // can't be configured to use a different config file at
+            // all, so I believe this is okay for the time being.
+            let config = Some(std::path::PathBuf::from("sqlx.toml"))
+                .and_then(|p| if p.exists() {Some(p)} else {None});
+
+            async move {
+                AnyConnection::connect_with_config(url, config.clone()).await
+            }
+        }
+    ).await
+}
+
+/// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
+#[cfg(not(feature = "sqlx-toml"))]
+async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
+    retry_connect_errors(opts, AnyConnection::connect).await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,

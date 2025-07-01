@@ -1,4 +1,4 @@
-# Axum App with multi-database Database
+# Using Multiple Databases with `sqlx.toml`
 
 This example project involves three crates, each owning a different schema in one database,
 with their own set of migrations.

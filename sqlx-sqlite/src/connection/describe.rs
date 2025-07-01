@@ -52,10 +52,6 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
 
             let origin = stmt.handle.column_origin(col);
 
-            let origin = stmt.handle.column_origin(col);
-
-            let origin = stmt.handle.column_origin(col);
-
             let type_info = if let Some(ty) = stmt.handle.column_decltype(col) {
                 ty
             } else {

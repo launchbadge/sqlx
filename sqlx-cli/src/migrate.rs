@@ -14,15 +14,15 @@ use std::time::Duration;
 pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
     let config = opts.config.load_config().await?;
 
-    let source = opts.source.resolve_path(config);
+    let source = opts.source.resolve_path(&config);
 
     fs::create_dir_all(source).context("Unable to create migrations directory")?;
 
-    let migrator = opts.source.resolve(config).await?;
+    let migrator = opts.source.resolve(&config).await?;
 
-    let version_prefix = opts.version_prefix(config, &migrator);
+    let version_prefix = opts.version_prefix(&config, &migrator);
 
-    if opts.reversible(config, &migrator) {
+    if opts.reversible(&config, &migrator) {
         create_file(
             source,
             &version_prefix,

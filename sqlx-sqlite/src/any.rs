@@ -202,10 +202,13 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
         let mut opts_out = SqliteConnectOptions::from_url(&opts.database_url)?;
         opts_out.log_settings = opts.log_settings.clone();
 
-        if opts.enable_config {
-            let config = sqlx_core::config::Config::from_crate();
-            for extension in config.common.drivers.sqlite.load_extensions.iter() {
-                opts_out = opts_out.extension(extension);
+        #[cfg(feature = "sqlx-toml")]
+        if let Some(ref path) = opts.enable_config {
+            if path.exists() {
+                let config = sqlx_core::config::Config::try_from_path(path.to_path_buf()).unwrap_or_default();
+                for extension in config.common.drivers.sqlite.load_extensions.iter() {
+                    opts_out = opts_out.extension(extension.to_owned());
+                }
             }
         }
 
