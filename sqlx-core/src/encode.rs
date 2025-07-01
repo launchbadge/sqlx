@@ -1,6 +1,9 @@
 //! Provides [`Encode`] for encoding values for the database.
 
+use std::borrow::Cow;
 use std::mem;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::database::Database;
 use crate::error::BoxDynError;
@@ -128,4 +131,72 @@ macro_rules! impl_encode_for_option {
             }
         }
     };
+}
+
+macro_rules! impl_encode_for_smartpointer {
+    ($smart_pointer:ty) => {
+        impl<'q, T, DB: Database> Encode<'q, DB> for $smart_pointer
+        where
+            T: Encode<'q, DB>,
+        {
+            #[inline]
+            fn encode(
+                self,
+                buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+            ) -> Result<IsNull, BoxDynError> {
+                <T as Encode<DB>>::encode_by_ref(self.as_ref(), buf)
+            }
+
+            #[inline]
+            fn encode_by_ref(
+                &self,
+                buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+            ) -> Result<IsNull, BoxDynError> {
+                <&T as Encode<DB>>::encode(self, buf)
+            }
+
+            #[inline]
+            fn produces(&self) -> Option<DB::TypeInfo> {
+                (**self).produces()
+            }
+
+            #[inline]
+            fn size_hint(&self) -> usize {
+                (**self).size_hint()
+            }
+        }
+    };
+}
+
+impl_encode_for_smartpointer!(Arc<T>);
+impl_encode_for_smartpointer!(Box<T>);
+impl_encode_for_smartpointer!(Rc<T>);
+
+impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'q, T>
+where
+    T: Encode<'q, DB>,
+    T: ToOwned,
+{
+    #[inline]
+    fn encode(self, buf: &mut <DB as Database>::ArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode_by_ref(&self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        <&T as Encode<DB>>::encode_by_ref(&self.as_ref(), buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        <&T as Encode<DB>>::produces(&self.as_ref())
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        <&T as Encode<DB>>::size_hint(&self.as_ref())
+    }
 }
