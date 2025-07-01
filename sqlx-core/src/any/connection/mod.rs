@@ -46,7 +46,10 @@ impl AnyConnection {
     /// read options from the sqlx.toml file as appropriate.
     #[cfg(feature = "sqlx-toml")]
     #[doc(hidden)]
-    pub fn connect_with_config(url: &str, path: Option<std::path::PathBuf>) -> BoxFuture<'static, Result<Self, Error>>
+    pub fn connect_with_config(
+        url: &str,
+        path: Option<std::path::PathBuf>,
+    ) -> BoxFuture<'static, Result<Self, Error>>
     where
         Self: Sized,
     {

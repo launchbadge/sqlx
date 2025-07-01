@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use sqlx::{query, sqlite::{SqlitePool, SqliteConnectOptions}};
+use sqlx::{
+    query,
+    sqlite::{SqliteConnectOptions, SqlitePool},
+};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -31,7 +34,12 @@ async fn main() -> anyhow::Result<()> {
     // migrations here as well, though, using the database connection
     // we just configured.
 
-    query!("insert into addresses (address, family) values (?1, ipfamily(?1))", "10.0.0.10").execute(&db).await?;
+    query!(
+        "insert into addresses (address, family) values (?1, ipfamily(?1))",
+        "10.0.0.10"
+    )
+    .execute(&db)
+    .await?;
 
     println!("Query which requires the extension was successfully executed.");
 

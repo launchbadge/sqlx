@@ -205,7 +205,8 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
         #[cfg(feature = "sqlx-toml")]
         if let Some(ref path) = opts.enable_config {
             if path.exists() {
-                let config = sqlx_core::config::Config::try_from_path(path.to_path_buf()).unwrap_or_default();
+                let config = sqlx_core::config::Config::try_from_path(path.to_path_buf())
+                    .unwrap_or_default();
                 for extension in config.common.drivers.sqlite.load_extensions.iter() {
                     opts_out = opts_out.extension(extension.to_owned());
                 }
