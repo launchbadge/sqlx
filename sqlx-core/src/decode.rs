@@ -125,7 +125,7 @@ impl_decode_for_smartpointer!(Box);
 impl_decode_for_smartpointer!(Rc);
 
 // implement `Decode` for Cow<T> for all SQL types
-impl<'r, 'a, DB, T> Decode<'r, DB> for Cow<'a, T>
+impl<'r, DB, T> Decode<'r, DB> for Cow<'_, T>
 where
     DB: Database,
     // `ToOwned` is required here to satisfy `Cow`
