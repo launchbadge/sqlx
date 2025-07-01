@@ -12,11 +12,7 @@ async fn it_gets_a_pool(pool: MySqlPool) -> sqlx::Result<()> {
         .fetch_one(&mut *conn)
         .await?;
 
-    assert!(
-        db_name.starts_with("_sqlx_test_database_"),
-        "db_name: {:?}",
-        db_name
-    );
+    assert!(db_name.starts_with("_sqlx_test_"), "db_name: {:?}", db_name);
 
     Ok(())
 }

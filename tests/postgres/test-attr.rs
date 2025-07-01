@@ -158,7 +158,7 @@ async fn it_gets_comments(pool: PgPool) -> sqlx::Result<()> {
     let post_1_comments: Vec<String> = sqlx::query_scalar(
         "SELECT content FROM comment WHERE post_id = $1::uuid ORDER BY created_at",
     )
-    .bind(&"252c1d98-a9b0-4f18-8298-e59058bdfe16")
+    .bind("252c1d98-a9b0-4f18-8298-e59058bdfe16")
     .fetch_all(&pool)
     .await?;
 
@@ -170,7 +170,7 @@ async fn it_gets_comments(pool: PgPool) -> sqlx::Result<()> {
     let post_2_comments: Vec<String> = sqlx::query_scalar(
         "SELECT content FROM comment WHERE post_id = $1::uuid ORDER BY created_at",
     )
-    .bind(&"844265f7-2472-4689-9a2e-b21f40dbf401")
+    .bind("844265f7-2472-4689-9a2e-b21f40dbf401")
     .fetch_all(&pool)
     .await?;
 
@@ -186,3 +186,16 @@ async fn it_gets_comments(pool: PgPool) -> sqlx::Result<()> {
 async fn this_should_compile(_pool: PgPool) -> sqlx::Result<()> {
     Ok(())
 }
+
+macro_rules! macro_using_test {
+    ($migrations: literal) => {
+        #[sqlx::test(
+                            migrations = $migrations,
+                            fixtures(path = "../fixtures/postgres", scripts("users", "posts"))
+                        )]
+        async fn macro_using_macro(_pool: PgPool) -> sqlx::Result<()> {
+            Ok(())
+        }
+    };
+}
+macro_using_test!("tests/postgres/migrations");

@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{future, marker::PhantomData};
 
 use either::Either;
 use futures_core::stream::BoxStream;
-use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
@@ -120,7 +120,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, A> Query<'q, DB, A>
+impl<DB, A> Query<'_, DB, A>
 where
     DB: Database + HasStatementCache,
 {
@@ -459,9 +459,11 @@ where
         O: 'e,
     {
         self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
+            .and_then(|row| {
+                future::ready(match row {
+                    Some(row) => Ok(row),
+                    None => Err(Error::RowNotFound),
+                })
             })
             .await
     }
@@ -499,7 +501,7 @@ where
 /// Execute a single SQL query as a prepared statement (explicitly created).
 pub fn query_statement<'q, DB>(
     statement: &'q DB::Statement<'q>,
-) -> Query<'q, DB, <DB as Database>::Arguments<'_>>
+) -> Query<'q, DB, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
 {

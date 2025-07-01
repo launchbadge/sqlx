@@ -195,7 +195,7 @@ struct Fields<'a> {
     offset: usize,
 }
 
-impl<'a> Iterator for Fields<'a> {
+impl Iterator for Fields<'_> {
     type Item = (u8, Range<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {

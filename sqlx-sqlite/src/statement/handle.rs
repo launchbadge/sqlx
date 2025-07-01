@@ -1,12 +1,9 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
 
-use std::os::raw::{c_char, c_int};
-use std::ptr;
-use std::ptr::NonNull;
-use std::slice::from_raw_parts;
-use std::str::{from_utf8, from_utf8_unchecked};
-
+use crate::error::{BoxDynError, Error};
+use crate::type_info::DataType;
+use crate::{SqliteError, SqliteTypeInfo};
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_parameter_count, sqlite3_bind_parameter_name,
@@ -19,10 +16,13 @@ use libsqlite3_sys::{
     sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW,
     SQLITE_TRANSIENT, SQLITE_UTF8,
 };
-
-use crate::error::{BoxDynError, Error};
-use crate::type_info::DataType;
-use crate::{SqliteError, SqliteTypeInfo};
+use sqlx_core::column::{ColumnOrigin, TableColumn};
+use std::os::raw::{c_char, c_int};
+use std::ptr;
+use std::ptr::NonNull;
+use std::slice::from_raw_parts;
+use std::str::{from_utf8, from_utf8_unchecked};
+use std::sync::Arc;
 
 use super::unlock_notify;
 
@@ -33,6 +33,9 @@ pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 // as long as the `sqlite3_step` call is serialized.
 
 unsafe impl Send for StatementHandle {}
+
+// Most of the getters below allocate internally, and unsynchronized access is undefined.
+// unsafe impl !Sync for StatementHandle {}
 
 macro_rules! expect_ret_valid {
     ($fn_name:ident($($args:tt)*)) => {{
@@ -81,8 +84,8 @@ impl StatementHandle {
     }
 
     #[inline]
-    pub(crate) fn last_error(&self) -> SqliteError {
-        SqliteError::new(unsafe { self.db_handle() })
+    pub(crate) fn last_error(&mut self) -> SqliteError {
+        unsafe { SqliteError::new(self.db_handle()) }
     }
 
     #[inline]
@@ -107,6 +110,65 @@ impl StatementHandle {
             debug_assert!(!name.is_null());
 
             from_utf8_unchecked(CStr::from_ptr(name).to_bytes())
+        }
+    }
+
+    pub(crate) fn column_origin(&self, index: usize) -> ColumnOrigin {
+        if let Some((table, name)) = self
+            .column_table_name(index)
+            .zip(self.column_origin_name(index))
+        {
+            let table: Arc<str> = self
+                .column_db_name(index)
+                .filter(|&db| db != "main")
+                .map_or_else(
+                    || table.into(),
+                    // TODO: check that SQLite returns the names properly quoted if necessary
+                    |db| format!("{db}.{table}").into(),
+                );
+
+            ColumnOrigin::Table(TableColumn {
+                table,
+                name: name.into(),
+            })
+        } else {
+            ColumnOrigin::Expression
+        }
+    }
+
+    fn column_db_name(&self, index: usize) -> Option<&str> {
+        unsafe {
+            let db_name = sqlite3_column_database_name(self.0.as_ptr(), check_col_idx!(index));
+
+            if !db_name.is_null() {
+                Some(from_utf8_unchecked(CStr::from_ptr(db_name).to_bytes()))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn column_table_name(&self, index: usize) -> Option<&str> {
+        unsafe {
+            let table_name = sqlite3_column_table_name(self.0.as_ptr(), check_col_idx!(index));
+
+            if !table_name.is_null() {
+                Some(from_utf8_unchecked(CStr::from_ptr(table_name).to_bytes()))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn column_origin_name(&self, index: usize) -> Option<&str> {
+        unsafe {
+            let origin_name = sqlite3_column_origin_name(self.0.as_ptr(), check_col_idx!(index));
+
+            if !origin_name.is_null() {
+                Some(from_utf8_unchecked(CStr::from_ptr(origin_name).to_bytes()))
+            } else {
+                None
+            }
         }
     }
 

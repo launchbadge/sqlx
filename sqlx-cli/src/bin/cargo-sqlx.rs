@@ -13,7 +13,8 @@ enum Cli {
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
+    sqlx_cli::maybe_apply_dotenv();
+
     let Cli::Sqlx(opt) = Cli::parse();
 
     if let Err(error) = sqlx_cli::run(opt).await {

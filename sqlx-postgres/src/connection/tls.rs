@@ -1,5 +1,3 @@
-use futures_core::future::BoxFuture;
-
 use crate::error::Error;
 use crate::net::tls::{self, TlsConfig};
 use crate::net::{Socket, SocketIntoBox, WithSocket};
@@ -9,11 +7,11 @@ use crate::{PgConnectOptions, PgSslMode};
 
 pub struct MaybeUpgradeTls<'a>(pub &'a PgConnectOptions);
 
-impl<'a> WithSocket for MaybeUpgradeTls<'a> {
-    type Output = BoxFuture<'a, crate::Result<Box<dyn Socket>>>;
+impl WithSocket for MaybeUpgradeTls<'_> {
+    type Output = crate::Result<Box<dyn Socket>>;
 
-    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
-        Box::pin(maybe_upgrade(socket, self.0))
+    async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+        maybe_upgrade(socket, self.0).await
     }
 }
 

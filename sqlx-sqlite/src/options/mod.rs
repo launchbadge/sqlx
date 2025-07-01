@@ -41,13 +41,19 @@ use sqlx_core::IndexMap;
 /// ```rust,no_run
 /// # async fn example() -> sqlx::Result<()> {
 /// use sqlx::ConnectOptions;
-/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool};
 /// use std::str::FromStr;
 ///
-/// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
+/// let opts = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
-///     .read_only(true)
-///     .connect().await?;
+///     .read_only(true);
+///
+/// // use in a pool
+/// let pool = SqlitePool::connect_with(opts).await?;
+///
+/// // or connect directly
+/// # let opts = SqliteConnectOptions::from_str("sqlite://data.db")?;
+/// let conn = opts.connect().await?;
 /// #
 /// # Ok(())
 /// # }

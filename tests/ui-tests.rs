@@ -17,7 +17,7 @@ fn ui_tests() {
             t.compile_fail("tests/ui/postgres/gated/uuid.rs");
         }
 
-        if cfg!(not(feature = "ipnetwork")) {
+        if cfg!(not(feature = "ipnet")) && cfg!(not(feature = "ipnetwork")) {
             t.compile_fail("tests/ui/postgres/gated/ipnetwork.rs");
         }
     }
@@ -31,7 +31,7 @@ fn ui_tests() {
         }
     }
 
-    if cfg!(feature = "sqlite") {
+    if cfg!(feature = "_sqlite") {
         if dotenvy::var("DATABASE_URL").map_or(true, |v| {
             Path::is_relative(v.trim_start_matches("sqlite://").as_ref())
         }) {

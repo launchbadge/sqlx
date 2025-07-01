@@ -1,9 +1,12 @@
 use crate::database::DatabaseExt;
-use crate::query::QueryMacroInput;
+use crate::query::{QueryMacroInput, Warnings};
 use either::Either;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
+use sqlx_core::config::Config;
 use sqlx_core::describe::Describe;
+use sqlx_core::type_checking;
+use sqlx_core::type_info::TypeInfo;
 use syn::spanned::Spanned;
 use syn::{Expr, ExprCast, ExprGroup, Type};
 
@@ -11,6 +14,8 @@ use syn::{Expr, ExprCast, ExprGroup, Type};
 /// and binds them to `DB::Arguments` with the ident `query_args`.
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
+    config: &Config,
+    warnings: &mut Warnings,
     info: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
@@ -55,25 +60,11 @@ pub fn quote_args<DB: DatabaseExt>(
                         return Ok(quote!());
                     }
 
-                    let param_ty =
-                        DB::param_type_for_id(param_ty)
-                            .ok_or_else(|| {
-                                if let Some(feature_gate) = DB::get_feature_gate(param_ty) {
-                                    format!(
-                                        "optional sqlx feature `{}` required for type {} of param #{}",
-                                        feature_gate,
-                                        param_ty,
-                                        i + 1,
-                                    )
-                                } else {
-                                    format!("unsupported type {} for param #{}", param_ty, i + 1)
-                                }
-                            })?
-                            .parse::<TokenStream>()
-                            .map_err(|_| format!("Rust type mapping for {param_ty} not parsable"))?;
+                    let param_ty = get_param_type::<DB>(param_ty, config, warnings, i)?;
 
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
+                        #[allow(clippy::missing_panics_doc, clippy::unreachable)]
                         if false {
                             use ::sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
@@ -89,7 +80,7 @@ pub fn quote_args<DB: DatabaseExt>(
                             _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
-                            ::std::panic!();
+                            ::std::unreachable!();
                         }
                     ))
                 })
@@ -112,6 +103,77 @@ pub fn quote_args<DB: DatabaseExt>(
         let query_args = ::core::result::Result::<_, ::sqlx::error::BoxDynError>::Ok(query_args)
         #(.and_then(move |mut query_args| query_args.add(#arg_name).map(move |()| query_args) ))*;
     })
+}
+
+fn get_param_type<DB: DatabaseExt>(
+    param_ty: &DB::TypeInfo,
+    config: &Config,
+    warnings: &mut Warnings,
+    i: usize,
+) -> crate::Result<TokenStream> {
+    if let Some(type_override) = config.macros.type_override(param_ty.name()) {
+        return Ok(type_override.parse()?);
+    }
+
+    let err = match DB::param_type_for_id(param_ty, &config.macros.preferred_crates) {
+        Ok(t) => return Ok(t.parse()?),
+        Err(e) => e,
+    };
+
+    let param_num = i + 1;
+
+    let message = match err {
+        type_checking::Error::NoMappingFound => {
+            if let Some(feature_gate) = DB::get_feature_gate(param_ty) {
+                format!(
+                    "optional sqlx feature `{feature_gate}` required for type {param_ty} of param #{param_num}",
+                )
+            } else {
+                format!(
+                    "no built-in mapping for type {param_ty} of param #{param_num}; \
+                         a type override may be required, see documentation for details"
+                )
+            }
+        }
+        type_checking::Error::DateTimeCrateFeatureNotEnabled => {
+            let feature_gate = config
+                .macros
+                .preferred_crates
+                .date_time
+                .crate_name()
+                .expect("BUG: got feature-not-enabled error for DateTimeCrate::Inferred");
+
+            format!(
+                "SQLx feature `{feature_gate}` required for type {param_ty} of param #{param_num} \
+                 (configured by `macros.preferred-crates.date-time` in sqlx.toml)",
+            )
+        }
+        type_checking::Error::NumericCrateFeatureNotEnabled => {
+            let feature_gate = config
+                .macros
+                .preferred_crates
+                .numeric
+                .crate_name()
+                .expect("BUG: got feature-not-enabled error for NumericCrate::Inferred");
+
+            format!(
+                "SQLx feature `{feature_gate}` required for type {param_ty} of param #{param_num} \
+                 (configured by `macros.preferred-crates.numeric` in sqlx.toml)",
+            )
+        }
+
+        type_checking::Error::AmbiguousDateTimeType { fallback } => {
+            warnings.ambiguous_datetime = true;
+            return Ok(fallback.parse()?);
+        }
+
+        type_checking::Error::AmbiguousNumericType { fallback } => {
+            warnings.ambiguous_numeric = true;
+            return Ok(fallback.parse()?);
+        }
+    };
+
+    Err(message.into())
 }
 
 fn get_type_override(expr: &Expr) -> Option<&Type> {

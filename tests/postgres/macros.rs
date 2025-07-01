@@ -1,7 +1,8 @@
 use sqlx::{Connection, PgConnection, Postgres, Transaction};
+use sqlx_postgres::types::PgHstore;
 use sqlx_test::new;
 
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 
 #[sqlx_macros::test]
 async fn test_query() -> anyhow::Result<()> {
@@ -294,6 +295,7 @@ async fn query_by_bigdecimal() -> anyhow::Result<()> {
     let decimal = "1234".parse::<BigDecimal>()?;
     let ref tuple = ("51245.121232".parse::<BigDecimal>()?,);
 
+    #[cfg_attr(feature = "rust_decimal", allow(deprecated))] // TODO: upgrade to `expect`
     let result = sqlx::query!(
         "SELECT * from (VALUES(1234.0)) decimals(decimal)\
          where decimal in ($1, $2, $3, $4, $5, $6, $7)",
@@ -633,6 +635,28 @@ async fn test_to_from_citext() -> anyhow::Result<()> {
     assert_eq!(foo_in, foo_out);
 
     tx.rollback().await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn pghstore_tests() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let mut store = PgHstore::default();
+    let stores = vec![store.clone(), store.clone()];
+
+    store.insert("key".into(), Some("value".to_string()));
+    sqlx::query!("         insert into mytable(f) values ($1)", store)
+        .execute(&mut conn)
+        .await?;
+
+    sqlx::query!(
+        "         insert into mytable(f) select * from unnest($1::hstore[])",
+        &stores
+    )
+    .execute(&mut conn)
+    .await?;
 
     Ok(())
 }

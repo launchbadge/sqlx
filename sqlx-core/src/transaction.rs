@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
+use std::future;
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
@@ -11,14 +12,20 @@ use crate::pool::MaybePoolConnection;
 /// Generic management of database transactions.
 ///
 /// This trait should not be used, except when implementing [`Connection`].
-#[doc(hidden)]
 pub trait TransactionManager {
     type Database: Database;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(
-        conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    ///
+    /// If this is a new transaction, `statement` may be used instead of the
+    /// default "BEGIN" statement.
+    ///
+    /// If we are already inside a transaction and `statement.is_some()`, then
+    /// `Error::InvalidSavePoint` is returned without running any statements.
+    fn begin<'conn>(
+        conn: &'conn mut <Self::Database as Database>::Connection,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'conn, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
@@ -32,6 +39,14 @@ pub trait TransactionManager {
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
     fn start_rollback(conn: &mut <Self::Database as Database>::Connection);
+
+    /// Returns the current transaction depth.
+    ///
+    /// Transaction depth indicates the level of nested transactions:
+    /// - Level 0: No active transaction.
+    /// - Level 1: A transaction is active.
+    /// - Level 2 or higher: A transaction is active and one or more SAVEPOINTs have been created within it.
+    fn get_transaction_depth(conn: &<Self::Database as Database>::Connection) -> usize;
 }
 
 /// An in-progress database transaction or savepoint.
@@ -83,11 +98,12 @@ where
     #[doc(hidden)]
     pub fn begin(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
+        statement: Option<Cow<'static, str>>,
     ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            DB::TransactionManager::begin(&mut conn).await?;
+            DB::TransactionManager::begin(&mut conn, statement).await?;
 
             Ok(Self {
                 connection: conn,
@@ -183,7 +199,7 @@ where
 //     }
 // }
 
-impl<'c, DB> Debug for Transaction<'c, DB>
+impl<DB> Debug for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -193,7 +209,7 @@ where
     }
 }
 
-impl<'c, DB> Deref for Transaction<'c, DB>
+impl<DB> Deref for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -205,7 +221,7 @@ where
     }
 }
 
-impl<'c, DB> DerefMut for Transaction<'c, DB>
+impl<DB> DerefMut for Transaction<'_, DB>
 where
     DB: Database,
 {
@@ -219,29 +235,29 @@ where
 // `PgAdvisoryLockGuard`.
 //
 // See: https://github.com/launchbadge/sqlx/issues/2520
-impl<'c, DB: Database> AsMut<DB::Connection> for Transaction<'c, DB> {
+impl<DB: Database> AsMut<DB::Connection> for Transaction<'_, DB> {
     fn as_mut(&mut self) -> &mut DB::Connection {
         &mut self.connection
     }
 }
 
-impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'c, DB> {
+impl<'t, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'_, DB> {
     type Database = DB;
 
     type Connection = &'t mut <DB as Database>::Connection;
 
     #[inline]
     fn acquire(self) -> BoxFuture<'t, Result<Self::Connection, Error>> {
-        Box::pin(futures_util::future::ok(&mut **self))
+        Box::pin(future::ready(Ok(&mut **self)))
     }
 
     #[inline]
     fn begin(self) -> BoxFuture<'t, Result<Transaction<'t, DB>, Error>> {
-        Transaction::begin(&mut **self)
+        Transaction::begin(&mut **self, None)
     }
 }
 
-impl<'c, DB> Drop for Transaction<'c, DB>
+impl<DB> Drop for Transaction<'_, DB>
 where
     DB: Database,
 {

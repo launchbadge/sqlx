@@ -64,6 +64,7 @@ pub trait Row: Unpin + Send + Sync + 'static {
     /// See [`try_get`](Self::try_get) for a non-panicking version.
     ///
     #[inline]
+    #[track_caller]
     fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,

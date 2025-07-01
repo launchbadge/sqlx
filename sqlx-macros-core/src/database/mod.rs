@@ -1,8 +1,6 @@
 use std::collections::hash_map;
 use std::collections::HashMap;
-use std::sync::Mutex;
-
-use once_cell::sync::Lazy;
+use std::sync::{LazyLock, Mutex};
 
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
@@ -10,7 +8,7 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::type_checking::TypeChecking;
 
-#[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
+#[cfg(any(feature = "postgres", feature = "mysql", feature = "_sqlite"))]
 mod impls;
 
 pub trait DatabaseExt: Database + TypeChecking {
@@ -30,14 +28,14 @@ pub trait DatabaseExt: Database + TypeChecking {
 
 #[allow(dead_code)]
 pub struct CachingDescribeBlocking<DB: DatabaseExt> {
-    connections: Lazy<Mutex<HashMap<String, DB::Connection>>>,
+    connections: LazyLock<Mutex<HashMap<String, DB::Connection>>>,
 }
 
 #[allow(dead_code)]
 impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
     pub const fn new() -> Self {
         CachingDescribeBlocking {
-            connections: Lazy::new(|| Mutex::new(HashMap::new())),
+            connections: LazyLock::new(|| Mutex::new(HashMap::new())),
         }
     }
 

@@ -1,10 +1,19 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("lib.md")]
 
+#[cfg(all(
+    feature = "sqlite-preupdate-hook",
+    not(any(feature = "sqlite", feature = "sqlite-unbundled"))
+))]
+compile_error!(
+    "sqlite-preupdate-hook requires either 'sqlite' or 'sqlite-unbundled' to be enabled"
+);
+
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
 pub use sqlx_core::column::ColumnIndex;
+pub use sqlx_core::column::ColumnOrigin;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
@@ -22,7 +31,7 @@ pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::raw_sql::{raw_sql, RawSql};
 pub use sqlx_core::row::Row;
 pub use sqlx_core::statement::Statement;
-pub use sqlx_core::transaction::{Transaction, TransactionManager};
+pub use sqlx_core::transaction::Transaction;
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
@@ -37,17 +46,23 @@ pub use sqlx_core::migrate;
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 #[doc(inline)]
-pub use sqlx_mysql::{self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
+pub use sqlx_mysql::{
+    self as mysql, MySql, MySqlConnection, MySqlExecutor, MySqlPool, MySqlTransaction,
+};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 #[doc(inline)]
-pub use sqlx_postgres::{self as postgres, PgConnection, PgExecutor, PgPool, Postgres};
+pub use sqlx_postgres::{
+    self as postgres, PgConnection, PgExecutor, PgPool, PgTransaction, Postgres,
+};
 
-#[cfg(feature = "sqlite")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+#[cfg(feature = "_sqlite")]
+#[cfg_attr(docsrs, doc(cfg(feature = "_sqlite")))]
 #[doc(inline)]
-pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
+pub use sqlx_sqlite::{
+    self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool, SqliteTransaction,
+};
 
 #[cfg(feature = "any")]
 #[cfg_attr(docsrs, doc(cfg(feature = "any")))]
@@ -158,3 +173,37 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
+
+#[cfg(feature = "_unstable-doc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "_unstable-doc")))]
+pub use sqlx_core::config as _config;
+
+// NOTE: APIs exported in this module are SemVer-exempt.
+#[doc(hidden)]
+pub mod _unstable {
+    pub use sqlx_core::config;
+}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "chrono", feature = "time"),
+    deprecated = "SQLx has both `chrono` and `time` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping date/time types. \
+        The `query!()` macros prefer types from `time` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.date_time"
+)]
+pub fn warn_on_ambiguous_inferred_date_time_crate() {}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "bigdecimal", feature = "rust_decimal"),
+    deprecated = "SQLx has both `bigdecimal` and `rust_decimal` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping `NUMERIC`. \
+        The `query!()` macros prefer `bigdecimal::BigDecimal` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.numeric"
+)]
+pub fn warn_on_ambiguous_inferred_numeric_crate() {}

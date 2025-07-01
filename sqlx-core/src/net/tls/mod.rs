@@ -25,11 +25,12 @@ pub enum CertificateInput {
 
 impl From<String> for CertificateInput {
     fn from(value: String) -> Self {
+        // Leading and trailing whitespace/newlines
         let trimmed = value.trim();
-        // Some heuristics according to https://tools.ietf.org/html/rfc7468
-        if trimmed.starts_with("-----BEGIN CERTIFICATE-----")
-            && trimmed.contains("-----END CERTIFICATE-----")
-        {
+
+        // Heuristic for PEM encoded inputs:
+        // https://tools.ietf.org/html/rfc7468
+        if trimmed.starts_with("-----BEGIN") && trimmed.ends_with("-----") {
             CertificateInput::Inline(value.as_bytes().to_vec())
         } else {
             CertificateInput::File(PathBuf::from(value))
@@ -75,10 +76,14 @@ where
     Ws: WithSocket,
 {
     #[cfg(feature = "_tls-native-tls")]
-    return Ok(with_socket.with_socket(tls_native_tls::handshake(socket, config).await?));
+    return Ok(with_socket
+        .with_socket(tls_native_tls::handshake(socket, config).await?)
+        .await);
 
     #[cfg(all(feature = "_tls-rustls", not(feature = "_tls-native-tls")))]
-    return Ok(with_socket.with_socket(tls_rustls::handshake(socket, config).await?));
+    return Ok(with_socket
+        .with_socket(tls_rustls::handshake(socket, config).await?)
+        .await);
 
     #[cfg(not(any(feature = "_tls-native-tls", feature = "_tls-rustls")))]
     {

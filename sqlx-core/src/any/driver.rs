@@ -5,11 +5,11 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::Error;
 use futures_core::future::BoxFuture;
-use once_cell::sync::OnceCell;
 use std::fmt::{Debug, Formatter};
+use std::sync::OnceLock;
 use url::Url;
 
-static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();
+static DRIVERS: OnceLock<&'static [AnyDriver]> = OnceLock::new();
 
 #[macro_export]
 macro_rules! declare_driver_with_optional_migrate {

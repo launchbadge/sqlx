@@ -33,6 +33,15 @@ impl Decode<'_, MySql> for Uuid {
         // delegate to the &[u8] type to decode from MySQL
         let bytes = <&[u8] as Decode<MySql>>::decode(value)?;
 
+        if bytes.len() != 16 {
+            return Err(format!(
+                "Expected 16 bytes, got {}; `Uuid` uses binary format for MySQL/MariaDB. \
+                 For text-formatted UUIDs, use `uuid::fmt::Hyphenated` instead of `Uuid`.",
+                bytes.len(),
+            )
+            .into());
+        }
+
         // construct a Uuid from the returned bytes
         Uuid::from_slice(bytes).map_err(Into::into)
     }

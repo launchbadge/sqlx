@@ -14,20 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use latest Rust
-        run: rustup override set stable
+      - name: Setup Rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup override set stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: sqlx-cli
 
       - run: >
-            cargo build
-            -p sqlx-cli
-            --bin sqlx
-            --release
-            --no-default-features
-            --features mysql,postgres,sqlite
+          cargo build
+          -p sqlx-cli
+          --bin sqlx
+          --release
+          --no-default-features
+          --features mysql,postgres,sqlite,sqlx-toml
 
       - uses: actions/upload-artifact@v4
         with:
@@ -63,9 +63,10 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: mysql-examples
 
       - name: Todos (Setup)
         working-directory: examples/mysql/todos
@@ -98,7 +99,7 @@ jobs:
           name: sqlx-cli
           path: /home/runner/.local/bin
 
-      - run:  |
+      - run: |
           ls -R /home/runner/.local/bin
           chmod +x $HOME/.local/bin/sqlx
           echo $HOME/.local/bin >> $GITHUB_PATH
@@ -106,9 +107,8 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: pg-examples
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
 
       - name: Axum Social with Tests (Setup)
         working-directory: examples/postgres/axum-social-with-tests
@@ -175,6 +175,49 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
         run: cargo run -p sqlx-example-postgres-mockable-todos
 
+      - name: Multi-Database (Setup)
+        working-directory: examples/postgres/multi-database
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+        run: |
+          (cd accounts && sqlx db setup)
+          (cd payments && sqlx db setup)
+          sqlx db setup
+
+      - name: Multi-Database (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+        run: cargo run -p sqlx-example-postgres-multi-database
+
+      - name: Multi-Tenant (Setup)
+        working-directory: examples/postgres/multi-tenant
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-tenant
+        run: |
+          (cd accounts && sqlx db setup)
+          (cd payments && sqlx migrate run)
+          sqlx migrate run
+
+      - name: Multi-Tenant (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-tenant
+        run: cargo run -p sqlx-example-postgres-multi-tenant
+
+      - name: Preferred-Crates (Setup)
+        working-directory: examples/postgres/preferred-crates
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/preferred-crates
+        run: sqlx db setup
+
+      - name: Multi-Tenant (Run)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/preferred-crates
+        run: cargo run -p sqlx-example-postgres-preferred-crates
+
       - name: TODOs (Setup)
         working-directory: examples/postgres/todos
         env:
@@ -217,9 +260,10 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: sqlite-examples
 
       - name: TODOs (Setup)
         env:

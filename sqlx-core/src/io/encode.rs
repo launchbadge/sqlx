@@ -9,7 +9,7 @@ pub trait ProtocolEncode<'en, Context = ()> {
     fn encode_with(&self, buf: &mut Vec<u8>, context: Context) -> Result<(), crate::Error>;
 }
 
-impl<'en, C> ProtocolEncode<'en, C> for &'_ [u8] {
+impl<C> ProtocolEncode<'_, C> for &'_ [u8] {
     fn encode_with(&self, buf: &mut Vec<u8>, _context: C) -> Result<(), crate::Error> {
         buf.extend_from_slice(self);
         Ok(())

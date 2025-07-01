@@ -115,9 +115,33 @@
 //!
 //! | Rust type                             | MySQL/MariaDB type(s)                                |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `uuid::Uuid`                          | BINARY(16), VARCHAR, CHAR, TEXT                      |
-//! | `uuid::fmt::Hyphenated`               | CHAR(36), UUID (MariaDB-only)                        |
-//! | `uuid::fmt::Simple`                   | CHAR(32)                                             |
+//! | `uuid::Uuid`                          | BINARY(16) (see note)                                |
+//! | `uuid::fmt::Hyphenated`               | CHAR(36), VARCHAR, TEXT, UUID (MariaDB-only)         |
+//! | `uuid::fmt::Simple`                   | CHAR(32), VARCHAR, TEXT                              |
+//!
+//! #### Note: `Uuid` uses binary format
+//!
+//! MySQL does not have a native datatype for UUIDs.
+//! The `UUID()` function returns a 36-character `TEXT` value,
+//! which encourages storing UUIDs as text.
+//!
+//! MariaDB's `UUID` type stores and retrieves as text, though it has a better representation
+//! for index sorting (see [MariaDB manual: UUID data-type][mariadb-uuid] for details).
+//!
+//! As an opinionated library, SQLx chose to map `uuid::Uuid` to/from binary format by default
+//! (16 bytes, the raw value of a UUID; SQL type `BINARY(16)`).
+//! This saves 20 bytes over the text format for each value.
+//!
+//! The `impl Decode<MySql> for Uuid` does not support the text format, and will return an error.
+//!
+//! If you want to use the text format compatible with the `UUID()` function,
+//! use [`uuid::fmt::Hyphenated`][::uuid::fmt::Hyphenated] in the place of `Uuid`.
+//!
+//! The MySQL official blog has an article showing how to support both binary and text format UUIDs
+//! by storing the binary and adding a generated column for the text format, though this is rather
+//! verbose and fiddly: <https://dev.mysql.com/blog-archive/storing-uuid-values-in-mysql-tables/>
+//!
+//! [mariadb-uuid]: https://mariadb.com/kb/en/uuid-data-type/
 //!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!

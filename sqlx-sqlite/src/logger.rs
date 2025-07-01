@@ -416,11 +416,13 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
             summary.push_str(" …");
             format!(
                 "\n\n{}\n",
-                sqlformat::format(
-                    self.sql,
-                    &sqlformat::QueryParams::None,
-                    sqlformat::FormatOptions::default()
-                )
+                self.sql /*
+                         sqlformat::format(
+                             self.sql,
+                             &sqlformat::QueryParams::None,
+                             sqlformat::FormatOptions::default()
+                         )
+                         */
             )
         } else {
             String::new()
@@ -434,7 +436,7 @@ impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> QueryPlanLogger<'q, R, S, P> 
     }
 }
 
-impl<'q, R: Debug, S: Debug + DebugDiff, P: Debug> Drop for QueryPlanLogger<'q, R, S, P> {
+impl<R: Debug, S: Debug + DebugDiff, P: Debug> Drop for QueryPlanLogger<'_, R, S, P> {
     fn drop(&mut self) {
         self.finish();
     }

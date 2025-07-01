@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
+use std::future::{self, Future};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -11,7 +12,6 @@ use crate::error::Error;
 
 use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
-use std::future::Future;
 
 const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -183,7 +183,7 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
 
     #[inline]
     fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
-        Box::pin(futures_util::future::ok(&mut **self))
+        Box::pin(future::ready(Ok(&mut **self)))
     }
 
     #[inline]
@@ -191,7 +191,7 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
         self,
     ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c, DB>, Error>>
     {
-        crate::transaction::Transaction::begin(&mut **self)
+        crate::transaction::Transaction::begin(&mut **self, None)
     }
 }
 

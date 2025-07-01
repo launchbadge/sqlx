@@ -21,11 +21,12 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::{pin_mut, TryStreamExt};
-use std::{borrow::Cow, sync::Arc};
+use futures_util::TryStreamExt;
+use sqlx_core::column::{ColumnOrigin, TableColumn};
+use std::{borrow::Cow, pin::pin, sync::Arc};
 
 impl MySqlConnection {
-    async fn prepare_statement<'c>(
+    async fn prepare_statement(
         &mut self,
         sql: &str,
     ) -> Result<(u32, MySqlStatementMetadata), Error> {
@@ -72,7 +73,7 @@ impl MySqlConnection {
         Ok((id, metadata))
     }
 
-    async fn get_or_prepare_statement<'c>(
+    async fn get_or_prepare_statement(
         &mut self,
         sql: &str,
     ) -> Result<(u32, MySqlStatementMetadata), Error> {
@@ -111,7 +112,7 @@ impl MySqlConnection {
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
 
-        Ok(Box::pin(try_stream! {
+        Ok(try_stream! {
             // make a slot for the shared column data
             // as long as a reference to a row is not held past one iteration, this enables us
             // to re-use this memory freely between result sets
@@ -166,6 +167,8 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
+                    self.inner.status_flags = ok.status;
+
                     let rows_affected = ok.affected_rows;
                     logger.increase_rows_affected(rows_affected);
                     let done = MySqlQueryResult {
@@ -208,6 +211,8 @@ impl MySqlConnection {
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.inner.stream.capabilities)?;
 
+                        self.inner.status_flags = eof.status;
+
                         r#yield!(Either::Left(MySqlQueryResult {
                             rows_affected: 0,
                             last_insert_id: 0,
@@ -240,7 +245,7 @@ impl MySqlConnection {
                     r#yield!(v);
                 }
             }
-        }))
+        })
     }
 }
 
@@ -263,8 +268,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
 
         Box::pin(try_stream! {
             let arguments = arguments?;
-            let s = self.run(sql, arguments, persistent).await?;
-            pin_mut!(s);
+            let mut s = pin!(self.run(sql, arguments, persistent).await?);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);
@@ -382,9 +386,28 @@ async fn recv_result_columns(
 fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MySqlColumn, Error> {
     // if the alias is empty, use the alias
     // only then use the name
+    let column_name = def.name()?;
+
     let name = match (def.name()?, def.alias()?) {
         (_, alias) if !alias.is_empty() => UStr::new(alias),
         (name, _) => UStr::new(name),
+    };
+
+    let table = def.table()?;
+
+    let origin = if table.is_empty() {
+        ColumnOrigin::Expression
+    } else {
+        let schema = def.schema()?;
+
+        ColumnOrigin::Table(TableColumn {
+            table: if !schema.is_empty() {
+                format!("{schema}.{table}").into()
+            } else {
+                table.into()
+            },
+            name: column_name.into(),
+        })
     };
 
     let type_info = MySqlTypeInfo::from_column(def);
@@ -394,6 +417,7 @@ fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MyS
         type_info,
         ordinal,
         flags: Some(def.flags),
+        origin,
     })
 }
 

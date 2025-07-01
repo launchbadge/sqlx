@@ -2,10 +2,9 @@ use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use bytes::BufMut;
-use futures_core::ready;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
 
@@ -63,7 +62,7 @@ pub struct Read<'a, S: ?Sized, B> {
     buf: &'a mut B,
 }
 
-impl<'a, S: ?Sized, B> Future for Read<'a, S, B>
+impl<S: ?Sized, B> Future for Read<'_, S, B>
 where
     S: Socket,
     B: ReadBuf,
@@ -91,7 +90,7 @@ pub struct Write<'a, S: ?Sized> {
     buf: &'a [u8],
 }
 
-impl<'a, S: ?Sized> Future for Write<'a, S>
+impl<S: ?Sized> Future for Write<'_, S>
 where
     S: Socket,
 {
@@ -117,7 +116,7 @@ pub struct Flush<'a, S: ?Sized> {
     socket: &'a mut S,
 }
 
-impl<'a, S: Socket + ?Sized> Future for Flush<'a, S> {
+impl<S: Socket + ?Sized> Future for Flush<'_, S> {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -129,7 +128,7 @@ pub struct Shutdown<'a, S: ?Sized> {
     socket: &'a mut S,
 }
 
-impl<'a, S: ?Sized> Future for Shutdown<'a, S>
+impl<S: ?Sized> Future for Shutdown<'_, S>
 where
     S: Socket,
 {
@@ -143,7 +142,10 @@ where
 pub trait WithSocket {
     type Output;
 
-    fn with_socket<S: Socket>(self, socket: S) -> Self::Output;
+    fn with_socket<S: Socket>(
+        self,
+        socket: S,
+    ) -> impl std::future::Future<Output = Self::Output> + Send;
 }
 
 pub struct SocketIntoBox;
@@ -151,7 +153,7 @@ pub struct SocketIntoBox;
 impl WithSocket for SocketIntoBox {
     type Output = Box<dyn Socket>;
 
-    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+    async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
         Box::new(socket)
     }
 }
@@ -197,7 +199,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
         let stream = TcpStream::connect((host, port)).await?;
         stream.set_nodelay(true)?;
 
-        return Ok(with_socket.with_socket(stream));
+        return Ok(with_socket.with_socket(stream).await);
     }
 
     #[cfg(feature = "_rt-async-std")]
@@ -217,7 +219,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
                     Ok(s)
                 });
             match stream {
-                Ok(stream) => return Ok(with_socket.with_socket(stream)),
+                Ok(stream) => return Ok(with_socket.with_socket(stream).await),
                 Err(e) => last_err = Some(e),
             }
         }
@@ -255,7 +257,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 
             let stream = UnixStream::connect(path).await?;
 
-            return Ok(with_socket.with_socket(stream));
+            return Ok(with_socket.with_socket(stream).await);
         }
 
         #[cfg(feature = "_rt-async-std")]
@@ -265,7 +267,7 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 
             let stream = Async::<UnixStream>::connect(path).await?;
 
-            Ok(with_socket.with_socket(stream))
+            Ok(with_socket.with_socket(stream).await)
         }
 
         #[cfg(not(feature = "_rt-async-std"))]

@@ -7,8 +7,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version.workspace = true
 
 [features]
 any = ["sqlx-core/any"]
@@ -23,6 +22,15 @@ uuid = ["dep:uuid", "sqlx-core/uuid"]
 
 regexp = ["dep:regex"]
 
+preupdate-hook = ["libsqlite3-sys/preupdate_hook"]
+
+bundled = ["libsqlite3-sys/bundled"]
+unbundled = ["libsqlite3-sys/buildtime_bindgen"]
+
+# Note: currently unused, only to satisfy "unexpected `cfg` condition" lint
+bigdecimal = []
+rust_decimal = []
+
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
@@ -35,7 +43,7 @@ chrono = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
-url = { version = "2.2.2", default-features = false }
+url = { version = "2.2.2" }
 percent-encoding = "2.1.0"
 serde_urlencoded = "0.7"
 
@@ -45,6 +53,7 @@ atoi = "2.0"
 
 log = "0.4.18"
 tracing = { version = "0.1.37", features = ["log"] }
+thiserror = "2.0.0"
 
 serde = { version = "1.0.145", features = ["derive"], optional = true }
 regex = { version = "1.5.5", optional = true }
@@ -55,7 +64,6 @@ default-features = false
 features = [
     "pkg-config",
     "vcpkg",
-    "bundled",
     "unlock_notify"
 ]
 
@@ -67,3 +75,6 @@ sqlx = { workspace = true, default-features = false, features = ["macros", "runt
 
 [lints]
 workspace = true
+
+[package.metadata.docs.rs]
+features = ["bundled", "any", "json", "chrono", "time", "uuid"]

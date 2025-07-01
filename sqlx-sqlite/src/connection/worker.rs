@@ -21,6 +21,8 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
+use super::serialize::{deserialize, serialize, SchemaName, SqliteOwnedBuf};
+
 // Each SQLite connection has a dedicated thread.
 
 // TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
@@ -34,8 +36,19 @@ pub(crate) struct ConnectionWorker {
 }
 
 pub(crate) struct WorkerSharedState {
-    pub(crate) cached_statements_size: AtomicUsize,
+    transaction_depth: AtomicUsize,
+    cached_statements_size: AtomicUsize,
     pub(crate) conn: Mutex<ConnectionState>,
+}
+
+impl WorkerSharedState {
+    pub(crate) fn get_transaction_depth(&self) -> usize {
+        self.transaction_depth.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn get_cached_statements_size(&self) -> usize {
+        self.cached_statements_size.load(Ordering::Acquire)
+    }
 }
 
 enum Command {
@@ -54,8 +67,19 @@ enum Command {
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
         limit: Option<usize>,
     },
+    Serialize {
+        schema: Option<SchemaName>,
+        tx: oneshot::Sender<Result<SqliteOwnedBuf, Error>>,
+    },
+    Deserialize {
+        schema: Option<SchemaName>,
+        data: SqliteOwnedBuf,
+        read_only: bool,
+        tx: oneshot::Sender<Result<(), Error>>,
+    },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
+        statement: Option<Cow<'static, str>>,
     },
     Commit {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -93,6 +117,7 @@ impl ConnectionWorker {
                 };
 
                 let shared = Arc::new(WorkerSharedState {
+                    transaction_depth: AtomicUsize::new(0),
                     cached_statements_size: AtomicUsize::new(0),
                     // note: must be fair because in `Command::UnlockDb` we unlock the mutex
                     // and then immediately try to relock it; an unfair mutex would immediately
@@ -120,14 +145,14 @@ impl ConnectionWorker {
                     let _guard = span.enter();
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, &query).map(|prepared| {
-                                update_cached_statements_size(
-                                    &conn,
-                                    &shared.cached_statements_size,
-                                );
-                                prepared
-                            }))
-                            .ok();
+                            tx.send(prepare(&mut conn, &query)).ok();
+
+                            // This may issue an unnecessary write on failure,
+                            // but it doesn't matter in the grand scheme of things.
+                            update_cached_statements_size(
+                                &conn,
+                                &shared.cached_statements_size,
+                            );
                         }
                         Command::Describe { query, tx } => {
                             tx.send(describe(&mut conn, &query)).ok();
@@ -151,7 +176,8 @@ impl ConnectionWorker {
                             match limit {
                                 None => {
                                     for res in iter {
-                                        if tx.send(res).is_err() {
+                                        let has_error = res.is_err();
+                                        if tx.send(res).is_err() || has_error {
                                             break;
                                         }
                                     }
@@ -171,7 +197,8 @@ impl ConnectionWorker {
                                                 }
                                             }
                                         }
-                                        if tx.send(res).is_err() {
+                                        let has_error = res.is_err();
+                                        if tx.send(res).is_err() || has_error {
                                             break;
                                         }
                                     }
@@ -180,13 +207,27 @@ impl ConnectionWorker {
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                         }
-                        Command::Begin { tx } => {
-                            let depth = conn.transaction_depth;
+                        Command::Begin { tx, statement } => {
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
+
+                            let statement = match statement {
+                                // custom `BEGIN` statements are not allowed if
+                                // we're already in a transaction (we need to
+                                // issue a `SAVEPOINT` instead)
+                                Some(_) if depth > 0 => {
+                                    if tx.blocking_send(Err(Error::InvalidSavePointStatement)).is_err() {
+                                        break;
+                                    }
+                                    continue;
+                                },
+                                Some(statement) => statement,
+                                None => begin_ansi_transaction_sql(depth),
+                            };
                             let res =
                                 conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth))
+                                    .exec(statement)
                                     .map(|_| {
-                                        conn.transaction_depth += 1;
+                                        shared.transaction_depth.fetch_add(1, Ordering::Release);
                                     });
                             let res_ok = res.is_ok();
 
@@ -199,7 +240,7 @@ impl ConnectionWorker {
                                     .handle
                                     .exec(rollback_ansi_transaction_sql(depth + 1))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                                 {
                                     // The rollback failed. To prevent leaving the connection
@@ -211,13 +252,13 @@ impl ConnectionWorker {
                             }
                         }
                         Command::Commit { tx } => {
-                            let depth = conn.transaction_depth;
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
 
                             let res = if depth > 0 {
                                 conn.handle
                                     .exec(commit_ansi_transaction_sql(depth))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                             } else {
                                 Ok(())
@@ -237,13 +278,13 @@ impl ConnectionWorker {
                                 continue;
                             }
 
-                            let depth = conn.transaction_depth;
+                            let depth = shared.transaction_depth.load(Ordering::Acquire);
 
                             let res = if depth > 0 {
                                 conn.handle
                                     .exec(rollback_ansi_transaction_sql(depth))
                                     .map(|_| {
-                                        conn.transaction_depth -= 1;
+                                        shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
                             } else {
                                 Ok(())
@@ -260,6 +301,12 @@ impl ConnectionWorker {
                                     ignore_next_start_rollback = true;
                                 }
                             }
+                        }
+                        Command::Serialize { schema, tx } => {
+                            tx.send(serialize(&mut conn, schema)).ok();
+                        }
+                        Command::Deserialize { schema, data, read_only, tx } => {
+                            tx.send(deserialize(&mut conn, schema, data, read_only)).ok();
                         }
                         Command::ClearCache { tx } => {
                             conn.statements.clear();
@@ -331,8 +378,11 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<(), Error> {
-        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
+    pub(crate) async fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> Result<(), Error> {
+        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx, statement })
             .await?
     }
 
@@ -354,6 +404,29 @@ impl ConnectionWorker {
 
     pub(crate) async fn ping(&mut self) -> Result<(), Error> {
         self.oneshot_cmd(|tx| Command::Ping { tx }).await
+    }
+
+    pub(crate) async fn deserialize(
+        &mut self,
+        schema: Option<SchemaName>,
+        data: SqliteOwnedBuf,
+        read_only: bool,
+    ) -> Result<(), Error> {
+        self.oneshot_cmd(|tx| Command::Deserialize {
+            schema,
+            data,
+            read_only,
+            tx,
+        })
+        .await?
+    }
+
+    pub(crate) async fn serialize(
+        &mut self,
+        schema: Option<SchemaName>,
+    ) -> Result<SqliteOwnedBuf, Error> {
+        self.oneshot_cmd(|tx| Command::Serialize { schema, tx })
+            .await?
     }
 
     async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T, Error>

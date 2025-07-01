@@ -1,7 +1,7 @@
-use futures_util::future;
-use std::io::{self, BufReader, Cursor, Read, Write};
+use std::future;
+use std::io::{self, Read, Write};
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use rustls::{
     client::{
@@ -9,7 +9,10 @@ use rustls::{
         WebPkiServerVerifier,
     },
     crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider},
-    pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime},
+    pki_types::{
+        pem::{self, PemObject},
+        CertificateDer, PrivateKeyDer, ServerName, UnixTime,
+    },
     CertificateError, ClientConfig, ClientConnection, Error as TlsError, RootCertStore,
 };
 
@@ -30,7 +33,7 @@ impl<S: Socket> RustlsSocket<S> {
         loop {
             match self.state.complete_io(&mut self.inner) {
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    futures_util::ready!(self.inner.poll_ready(cx))?;
+                    ready!(self.inner.poll_ready(cx))?;
                 }
                 ready => return Poll::Ready(ready.map(|_| ())),
             }
@@ -73,12 +76,12 @@ impl<S: Socket> Socket for RustlsSocket<S> {
             self.close_notify_sent = true;
         }
 
-        futures_util::ready!(self.poll_complete_io(cx))?;
+        ready!(self.poll_complete_io(cx))?;
 
         // Server can close socket as soon as it receives the connection shutdown request.
         // We shouldn't expect it to stick around for the TLS session to close cleanly.
         // https://security.stackexchange.com/a/82034
-        let _ = futures_util::ready!(self.inner.socket.poll_shutdown(cx));
+        let _ = ready!(self.inner.socket.poll_shutdown(cx));
 
         Poll::Ready(Ok(()))
     }
@@ -88,9 +91,16 @@ pub async fn handshake<S>(socket: S, tls_config: TlsConfig<'_>) -> Result<Rustls
 where
     S: Socket,
 {
-    #[cfg(all(feature = "_tls-rustls-aws-lc-rs", not(feature = "_tls-rustls-ring")))]
+    #[cfg(all(
+        feature = "_tls-rustls-aws-lc-rs",
+        not(feature = "_tls-rustls-ring-webpki"),
+        not(feature = "_tls-rustls-ring-native-roots")
+    ))]
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    #[cfg(feature = "_tls-rustls-ring")]
+    #[cfg(any(
+        feature = "_tls-rustls-ring-webpki",
+        feature = "_tls-rustls-ring-native-roots"
+    ))]
     let provider = Arc::new(rustls::crypto::ring::default_provider());
 
     // Unwrapping is safe here because we use a default provider.
@@ -127,14 +137,12 @@ where
                 .with_no_client_auth()
         }
     } else {
-        let mut cert_store = RootCertStore::empty();
-        cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        let mut cert_store = import_root_certs();
 
         if let Some(ca) = tls_config.root_cert_path {
             let data = ca.data().await?;
-            let mut cursor = Cursor::new(data);
 
-            for result in rustls_pemfile::certs(&mut cursor) {
+            for result in CertificateDer::pem_slice_iter(&data) {
                 let Ok(cert) = result else {
                     return Err(Error::Tls(format!("Invalid certificate {ca}").into()));
                 };
@@ -187,21 +195,45 @@ where
 }
 
 fn certs_from_pem(pem: Vec<u8>) -> Result<Vec<CertificateDer<'static>>, Error> {
-    let cur = Cursor::new(pem);
-    let mut reader = BufReader::new(cur);
-    rustls_pemfile::certs(&mut reader)
+    CertificateDer::pem_slice_iter(&pem)
         .map(|result| result.map_err(|err| Error::Tls(err.into())))
         .collect()
 }
 
 fn private_key_from_pem(pem: Vec<u8>) -> Result<PrivateKeyDer<'static>, Error> {
-    let cur = Cursor::new(pem);
-    let mut reader = BufReader::new(cur);
-    match rustls_pemfile::private_key(&mut reader) {
-        Ok(Some(key)) => Ok(key),
-        Ok(None) => Err(Error::Configuration("no keys found pem file".into())),
+    match PrivateKeyDer::from_pem_slice(&pem) {
+        Ok(key) => Ok(key),
+        Err(pem::Error::NoItemsFound) => Err(Error::Configuration("no keys found pem file".into())),
         Err(e) => Err(Error::Configuration(e.to_string().into())),
     }
+}
+
+#[cfg(all(feature = "webpki-roots", not(feature = "rustls-native-certs")))]
+fn import_root_certs() -> RootCertStore {
+    RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
+}
+
+#[cfg(feature = "rustls-native-certs")]
+fn import_root_certs() -> RootCertStore {
+    let mut root_cert_store = RootCertStore::empty();
+
+    let load_results = rustls_native_certs::load_native_certs();
+    for e in load_results.errors {
+        log::warn!("Error loading native certificates: {e:?}");
+    }
+    for cert in load_results.certs {
+        if let Err(e) = root_cert_store.add(cert) {
+            log::warn!("rustls failed to parse native certificate: {e:?}");
+        }
+    }
+
+    root_cert_store
+}
+
+// Not currently used but allows for a "tls-rustls-no-roots" feature.
+#[cfg(not(any(feature = "rustls-native-certs", feature = "webpki-roots")))]
+fn import_root_certs() -> RootCertStore {
+    RootCertStore::empty()
 }
 
 #[derive(Debug)]

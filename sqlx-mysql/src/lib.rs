@@ -60,6 +60,9 @@ pub type MySqlPoolOptions = crate::pool::PoolOptions<MySql>;
 pub trait MySqlExecutor<'c>: Executor<'c, Database = MySql> {}
 impl<'c, T: Executor<'c, Database = MySql>> MySqlExecutor<'c> for T {}
 
+/// An alias for [`Transaction`][crate::transaction::Transaction], specialized for MySQL.
+pub type MySqlTransaction<'c> = crate::transaction::Transaction<'c, MySql>;
+
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);
 impl_acquire!(MySql, MySqlConnection);

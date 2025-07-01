@@ -5,9 +5,13 @@ use crate::{
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
-use std::future;
+use std::borrow::Cow;
+use std::{future, pin::pin};
 
-pub use sqlx_core::any::*;
+use sqlx_core::any::{
+    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
+};
 
 use crate::type_info::PgType;
 use sqlx_core::connection::Connection;
@@ -36,8 +40,11 @@ impl AnyConnectionBackend for PgConnection {
         Connection::ping(self)
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::begin(self)
+    fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        PgTransactionManager::begin(self, statement)
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
@@ -50,6 +57,10 @@ impl AnyConnectionBackend for PgConnection {
 
     fn start_rollback(&mut self) {
         PgTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&self) -> usize {
+        PgTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {
@@ -86,7 +97,7 @@ impl AnyConnectionBackend for PgConnection {
         };
 
         Box::pin(
-            self.run(query, arguments, 0, persistent, None)
+            self.run(query, arguments, persistent, None)
                 .try_flatten_stream()
                 .map(
                     move |res: sqlx_core::Result<Either<PgQueryResult, PgRow>>| match res? {
@@ -112,8 +123,7 @@ impl AnyConnectionBackend for PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let stream = self.run(query, arguments, 1, persistent, None).await?;
-            futures_util::pin_mut!(stream);
+            let mut stream = pin!(self.run(query, arguments, persistent, None).await?);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
                 return Ok(Some(AnyRow::try_from(&row)?));
