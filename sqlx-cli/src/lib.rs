@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use futures_util::TryFutureExt;
 
-use sqlx::{AnyConnection, Connection};
+use sqlx::AnyConnection;
 use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
