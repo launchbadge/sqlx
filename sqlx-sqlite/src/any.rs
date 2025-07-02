@@ -44,15 +44,15 @@ impl AnyConnectionBackend for SqliteConnection {
         &mut self,
         statement: Option<Cow<'static, str>>,
     ) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::begin(self, statement)
+        SqliteTransactionManager::begin(self, statement).boxed()
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::commit(self)
+        SqliteTransactionManager::commit(self).boxed()
     }
 
     fn rollback(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::rollback(self)
+        SqliteTransactionManager::rollback(self).boxed()
     }
 
     fn start_rollback(&mut self) {

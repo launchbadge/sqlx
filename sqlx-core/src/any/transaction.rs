@@ -1,5 +1,5 @@
-use futures_core::future::BoxFuture;
 use std::borrow::Cow;
+use std::future::Future;
 
 use crate::any::{Any, AnyConnection};
 use crate::database::Database;
@@ -14,15 +14,15 @@ impl TransactionManager for AnyTransactionManager {
     fn begin<'conn>(
         conn: &'conn mut AnyConnection,
         statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'conn, Result<(), Error>> {
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'conn {
         conn.backend.begin(statement)
     }
 
-    fn commit(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn commit(conn: &mut AnyConnection) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         conn.backend.commit()
     }
 
-    fn rollback(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn rollback(conn: &mut AnyConnection) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         conn.backend.rollback()
     }
 

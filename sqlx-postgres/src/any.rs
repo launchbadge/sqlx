@@ -44,15 +44,15 @@ impl AnyConnectionBackend for PgConnection {
         &mut self,
         statement: Option<Cow<'static, str>>,
     ) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::begin(self, statement)
+        PgTransactionManager::begin(self, statement).boxed()
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::commit(self)
+        PgTransactionManager::commit(self).boxed()
     }
 
     fn rollback(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::rollback(self)
+        PgTransactionManager::rollback(self).boxed()
     }
 
     fn start_rollback(&mut self) {
