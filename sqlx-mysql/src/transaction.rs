@@ -14,8 +14,8 @@ pub struct MySqlTransactionManager;
 impl TransactionManager for MySqlTransactionManager {
     type Database = MySql;
 
-    async fn begin<'conn>(
-        conn: &'conn mut MySqlConnection,
+    async fn begin(
+        conn: &mut MySqlConnection,
         statement: Option<Cow<'static, str>>,
     ) -> Result<(), Error> {
         let depth = conn.inner.transaction_depth;

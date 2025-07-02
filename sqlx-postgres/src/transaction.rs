@@ -14,8 +14,8 @@ pub struct PgTransactionManager;
 impl TransactionManager for PgTransactionManager {
     type Database = Postgres;
 
-    async fn begin<'conn>(
-        conn: &'conn mut PgConnection,
+    async fn begin(
+        conn: &mut PgConnection,
         statement: Option<Cow<'static, str>>,
     ) -> Result<(), Error> {
         let depth = conn.inner.transaction_depth;

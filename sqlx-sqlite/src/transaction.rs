@@ -11,8 +11,8 @@ pub struct SqliteTransactionManager;
 impl TransactionManager for SqliteTransactionManager {
     type Database = Sqlite;
 
-    async fn begin<'conn>(
-        conn: &'conn mut SqliteConnection,
+    async fn begin(
+        conn: &mut SqliteConnection,
         statement: Option<Cow<'static, str>>,
     ) -> Result<(), Error> {
         let is_custom_statement = statement.is_some();
