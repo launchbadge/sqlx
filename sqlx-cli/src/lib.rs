@@ -188,7 +188,6 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
 }
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
-#[cfg(feature = "sqlx-toml")]
 async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
     retry_connect_errors(opts, move |url| {
         // This only handles the default case. For good support of
@@ -212,12 +211,6 @@ async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
         async move { AnyConnection::connect_with_config(url, config.clone()).await }
     })
     .await
-}
-
-/// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
-#[cfg(not(feature = "sqlx-toml"))]
-async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect).await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,

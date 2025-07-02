@@ -57,14 +57,24 @@ impl Config {
 }
 
 /// Configuration for specific database drivers.
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(default, deny_unknown_fields)
+)]
 pub struct Drivers {
     /// Specify options for the SQLite driver.
     pub sqlite: SQLite,
 }
 
 /// Configuration for the SQLite database driver.
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default)]
+#[cfg_attr(
+    feature = "sqlx-toml",
+    derive(serde::Deserialize),
+    serde(default, deny_unknown_fields)
+)]
 pub struct SQLite {
     /// Specify extensions to load.
     ///

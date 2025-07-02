@@ -127,20 +127,17 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
 pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
-    #[cfg(feature = "sqlx-toml")]
-    let opts = {
-        let mut opts: SqliteConnectOptions = database_url.parse()?;
+    let mut opts: SqliteConnectOptions = database_url.parse()?;
 
-        let config = sqlx_core::config::Config::try_from_crate_or_default().unwrap_or_default();
-        for extension in config.common.drivers.sqlite.load_extensions.iter() {
-            opts = opts.extension(extension.to_owned());
+    match sqlx_core::config::Config::try_from_crate_or_default() {
+        Ok(config) => {
+            for extension in config.common.drivers.sqlite.load_extensions.iter() {
+                opts = opts.extension(extension.to_owned());
+            }
         }
-
-        opts
-    };
-
-    #[cfg(not(feature = "sqlx-toml"))]
-    let opts: SqliteConnectOptions = database_url.parse()?;
+        Err(sqlx_core::config::ConfigError::NotFound { path: _ }) => {}
+        Err(err) => return Err(Error::ConfigFile(err)),
+    }
 
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;
