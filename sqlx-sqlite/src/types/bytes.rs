@@ -106,10 +106,6 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
 }
 
 impl<'q> Encode<'q, Sqlite> for Arc<[u8]> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
-    }
-
     fn encode_by_ref(
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
@@ -119,10 +115,6 @@ impl<'q> Encode<'q, Sqlite> for Arc<[u8]> {
 }
 
 impl<'q> Encode<'q, Sqlite> for Rc<[u8]> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
-    }
-
     fn encode_by_ref(
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
