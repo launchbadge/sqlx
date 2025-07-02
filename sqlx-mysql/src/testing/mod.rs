@@ -1,9 +1,8 @@
+use std::future::Future;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Duration;
-
-use futures_core::future::BoxFuture;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -21,83 +20,77 @@ pub(crate) use sqlx_core::testing::*;
 static MASTER_POOL: OnceLock<Pool<MySql>> = OnceLock::new();
 
 impl TestSupport for MySql {
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move { test_context(args).await })
+    fn test_context(
+        args: &TestArgs,
+    ) -> impl Future<Output = Result<TestContext<Self>, Error>> + Send + '_ {
+        test_context(args)
     }
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let mut conn = MASTER_POOL
-                .get()
-                .expect("cleanup_test() invoked outside `#[sqlx::test]`")
-                .acquire()
-                .await?;
+    async fn cleanup_test(db_name: &str) -> Result<(), Error> {
+        let mut conn = MASTER_POOL
+            .get()
+            .expect("cleanup_test() invoked outside `#[sqlx::test]`")
+            .acquire()
+            .await?;
 
-            do_cleanup(&mut conn, db_name).await
-        })
+        do_cleanup(&mut conn, db_name).await
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    async fn cleanup_test_dbs() -> Result<Option<usize>, Error> {
+        let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-            let mut conn = MySqlConnection::connect(&url).await?;
+        let mut conn = MySqlConnection::connect(&url).await?;
 
-            let delete_db_names: Vec<String> =
-                query_scalar("select db_name from _sqlx_test_databases")
-                    .fetch_all(&mut conn)
-                    .await?;
+        let delete_db_names: Vec<String> = query_scalar("select db_name from _sqlx_test_databases")
+            .fetch_all(&mut conn)
+            .await?;
 
-            if delete_db_names.is_empty() {
-                return Ok(None);
-            }
+        if delete_db_names.is_empty() {
+            return Ok(None);
+        }
 
-            let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
+        let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-            let mut command = String::new();
+        let mut command = String::new();
 
-            for db_name in &delete_db_names {
-                command.clear();
+        for db_name in &delete_db_names {
+            command.clear();
 
-                let db_name = format!("_sqlx_test_database_{db_name}");
+            let db_name = format!("_sqlx_test_database_{db_name}");
 
-                writeln!(command, "drop database if exists {db_name};").ok();
-                match conn.execute(&*command).await {
-                    Ok(_deleted) => {
-                        deleted_db_names.push(db_name);
-                    }
-                    // Assume a database error just means the DB is still in use.
-                    Err(Error::Database(dbe)) => {
-                        eprintln!("could not clean test database {db_name:?}: {dbe}")
-                    }
-                    // Bubble up other errors
-                    Err(e) => return Err(e),
+            writeln!(command, "drop database if exists {db_name};").ok();
+            match conn.execute(&*command).await {
+                Ok(_deleted) => {
+                    deleted_db_names.push(db_name);
                 }
+                // Assume a database error just means the DB is still in use.
+                Err(Error::Database(dbe)) => {
+                    eprintln!("could not clean test database {db_name:?}: {dbe}")
+                }
+                // Bubble up other errors
+                Err(e) => return Err(e),
             }
+        }
 
-            if deleted_db_names.is_empty() {
-                return Ok(None);
-            }
+        if deleted_db_names.is_empty() {
+            return Ok(None);
+        }
 
-            let mut query =
-                QueryBuilder::new("delete from _sqlx_test_databases where db_name in (");
+        let mut query = QueryBuilder::new("delete from _sqlx_test_databases where db_name in (");
 
-            let mut separated = query.separated(",");
+        let mut separated = query.separated(",");
 
-            for db_name in &deleted_db_names {
-                separated.push_bind(db_name);
-            }
+        for db_name in &deleted_db_names {
+            separated.push_bind(db_name);
+        }
 
-            query.push(")").build().execute(&mut conn).await?;
+        query.push(")").build().execute(&mut conn).await?;
 
-            let _ = conn.close().await;
-            Ok(Some(delete_db_names.len()))
-        })
+        let _ = conn.close().await;
+        Ok(Some(delete_db_names.len()))
     }
 
-    fn snapshot(
-        _conn: &mut Self::Connection,
-    ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
+    async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {
         // TODO: I want to get the testing feature out the door so this will have to wait,
         // but I'm keeping the code around for now because I plan to come back to it.
         todo!()
