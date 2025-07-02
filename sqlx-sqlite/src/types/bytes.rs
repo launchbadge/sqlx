@@ -114,7 +114,7 @@ impl<'q> Encode<'q, Sqlite> for Arc<[u8]> {
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
     ) -> Result<IsNull, BoxDynError> {
-        <Self as Encode<'_, Sqlite>>::encode(self.clone(), args)
+        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }
 
@@ -127,6 +127,6 @@ impl<'q> Encode<'q, Sqlite> for Rc<[u8]> {
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
     ) -> Result<IsNull, BoxDynError> {
-        <Self as Encode<'_, Sqlite>>::encode(self.clone(), args)
+        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }

@@ -106,7 +106,7 @@ impl<'q> Encode<'q, Sqlite> for Arc<str> {
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
     ) -> Result<IsNull, BoxDynError> {
-        <Self as Encode<'_, Sqlite>>::encode(self.clone(), args)
+        <String as Encode<'_, Sqlite>>::encode(self.to_string(), args)
     }
 }
 
@@ -119,6 +119,6 @@ impl<'q> Encode<'q, Sqlite> for Rc<str> {
         &self,
         args: &mut Vec<SqliteArgumentValue<'q>>,
     ) -> Result<IsNull, BoxDynError> {
-        <Self as Encode<'_, Sqlite>>::encode(self.clone(), args)
+        <String as Encode<'_, Sqlite>>::encode(self.to_string(), args)
     }
 }
