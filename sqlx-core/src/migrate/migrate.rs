@@ -1,25 +1,26 @@
 use crate::error::Error;
 use crate::migrate::{AppliedMigration, MigrateError, Migration};
 use futures_core::future::BoxFuture;
+use std::future::Future;
 use std::time::Duration;
 
 pub trait MigrateDatabase {
     // create database in url
     // uses a maintenance database depending on driver
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
+    fn create_database(url: &str) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     // check if the database in url exists
     // uses a maintenance database depending on driver
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>>;
+    fn database_exists(url: &str) -> impl Future<Output = Result<bool, Error>> + Send + '_;
 
     // drop database in url
     // uses a maintenance database depending on driver
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
+    fn drop_database(url: &str) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     // force drop database in url
     // uses a maintenance database depending on driver
-    fn force_drop_database(_url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async { Err(MigrateError::ForceNotSupported)? })
+    fn force_drop_database(_url: &str) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        async { Err(MigrateError::ForceNotSupported)? }
     }
 }
 
