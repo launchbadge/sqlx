@@ -101,7 +101,7 @@ mod macros;
 #[doc(hidden)]
 pub mod ty_match;
 
-#[cfg(feature = "macros")]
+#[cfg(any(feature = "derive", feature = "macros"))]
 #[doc(hidden)]
 pub mod spec_error;
 
