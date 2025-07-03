@@ -124,6 +124,16 @@ impl MySqlConnection {
                         .get_or_prepare_statement(sql)
                         .await?;
 
+                    if arguments.types.len() != metadata.parameters {
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
+                    }
+
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
                     self.inner.stream
                         .send_packet(StatementExecute {
@@ -137,6 +147,16 @@ impl MySqlConnection {
                     let (id, metadata) = self
                         .prepare_statement(sql)
                         .await?;
+
+                    if arguments.types.len() != metadata.parameters {
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
+                    }
 
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
                     self.inner.stream
