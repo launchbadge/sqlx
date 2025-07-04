@@ -62,7 +62,9 @@ impl TryFrom<&'_ PgNumeric> for Decimal {
                 .checked_powi(weight as i64)
                 .ok_or("value not representable as rust_decimal::Decimal")?;
 
-            let part = Decimal::from(digit) * mul;
+            let part = Decimal::from(digit)
+                .checked_mul(mul)
+                .ok_or("value not representable as rust_decimal::Decimal")?;
 
             value = value
                 .checked_add(part)
@@ -381,6 +383,19 @@ mod tests {
             7_9228_1625_1426_4337_5935_4395_0335
         );
         assert_eq!(actual_decimal.scale(), 0);
+    }
+
+    #[test]
+    fn mult_overflow() {
+        //  -24_0711_6702_1036_7100_2022_8579_3280.00
+        let large_negative_number = PgNumeric::Number {
+            sign: PgNumericSign::Negative,
+            scale: 0,
+            weight: 7,
+            digits: vec![24, 0711, 6702, 1036, 7100, 2022, 8579, 3280],
+        };
+
+        assert!(Decimal::try_from(large_negative_number).is_err());
     }
 
     #[test]
