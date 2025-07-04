@@ -214,6 +214,7 @@ impl DatabaseError for PgDatabaseError {
             error_codes::FOREIGN_KEY_VIOLATION => ErrorKind::ForeignKeyViolation,
             error_codes::NOT_NULL_VIOLATION => ErrorKind::NotNullViolation,
             error_codes::CHECK_VIOLATION => ErrorKind::CheckViolation,
+            error_codes::EXCLUSION_VIOLATION => ErrorKind::ExclusionViolation,
             _ => ErrorKind::Other,
         }
     }
@@ -239,4 +240,6 @@ pub(crate) mod error_codes {
     pub const NOT_NULL_VIOLATION: &str = "23502";
     /// Caused when a check constraint is violated.
     pub const CHECK_VIOLATION: &str = "23514";
+    /// Caused when a exclude constraint is violated.
+    pub const EXCLUSION_VIOLATION: &str = "23P01";
 }
