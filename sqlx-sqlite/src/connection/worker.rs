@@ -146,13 +146,14 @@ impl ConnectionWorker {
                     let _guard = span.enter();
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, query).inspect(|_| {
-                                update_cached_statements_size(
-                                    &conn,
-                                    &shared.cached_statements_size,
-                                );
-                            }))
-                            .ok();
+                            tx.send(prepare(&mut conn, query)).ok();
+
+                            // This may issue an unnecessary write on failure,
+                            // but it doesn't matter in the grand scheme of things.
+                            update_cached_statements_size(
+                                &conn,
+                                &shared.cached_statements_size,
+                            );
                         }
                         Command::Describe { query, tx } => {
                             tx.send(describe(&mut conn, query)).ok();

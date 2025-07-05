@@ -6,6 +6,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
@@ -26,6 +27,8 @@ _tls-rustls-ring-native-roots = ["sqlx-macros-core/_tls-rustls-ring-native-roots
 derive = ["sqlx-macros-core/derive"]
 macros = ["sqlx-macros-core/macros"]
 migrate = ["sqlx-macros-core/migrate"]
+
+sqlx-toml = ["sqlx-macros-core/sqlx-toml"]
 
 # database
 mysql = ["sqlx-macros-core/mysql"]

@@ -6,8 +6,8 @@ use crate::sql_str::{SqlSafeStr, SqlStr};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
-use std::fmt::Debug;
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use std::{fmt::Debug, future};
 
 /// A type that contains or can provide a database
 /// connection to use for executing queries against the database.
@@ -122,9 +122,11 @@ pub trait Executor<'c>: Send + Debug + Sized {
         E: 'q + Execute<'q, Self::Database>,
     {
         self.fetch_optional(query)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
+            .and_then(|row| {
+                future::ready(match row {
+                    Some(row) => Ok(row),
+                    None => Err(Error::RowNotFound),
+                })
             })
             .boxed()
     }

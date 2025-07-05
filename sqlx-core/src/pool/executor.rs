@@ -67,10 +67,7 @@ where
     fn describe<'e>(
         self,
         sql: impl SqlSafeStr,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
-    where
-        'p: 'e,
-    {
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
         let pool = self.clone();
         let sql = sql.into_sql_str();
 

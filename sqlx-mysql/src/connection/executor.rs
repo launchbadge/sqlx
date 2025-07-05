@@ -22,6 +22,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
+use sqlx_core::column::{ColumnOrigin, TableColumn};
 use sqlx_core::sql_str::{SqlSafeStr, SqlStr};
 use std::{pin::pin, sync::Arc};
 
@@ -122,6 +123,16 @@ impl MySqlConnection {
                         .get_or_prepare_statement(sql.as_str())
                         .await?;
 
+                    if arguments.types.len() != metadata.parameters {
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
+                    }
+
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
                     self.inner.stream
                         .send_packet(StatementExecute {
@@ -135,6 +146,16 @@ impl MySqlConnection {
                     let (id, metadata) = self
                         .prepare_statement(sql.as_str())
                         .await?;
+
+                    if arguments.types.len() != metadata.parameters {
+                        return Err(
+                            err_protocol!(
+                                "prepared statement expected {} parameters but {} parameters were provided",
+                                metadata.parameters,
+                                arguments.types.len()
+                            )
+                        );
+                    }
 
                     // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
                     self.inner.stream
@@ -207,22 +228,27 @@ impl MySqlConnection {
                 loop {
                     let packet = self.inner.stream.recv_packet().await?;
 
-                    if packet[0] == 0xfe && packet.len() < 9 {
-                        let eof = packet.eof(self.inner.stream.capabilities)?;
+                    if packet[0] == 0xfe {
+                        let (rows_affected, last_insert_id, status) = if packet.len() < 9 {
+                            // EOF packet
+                            let eof = packet.eof(self.inner.stream.capabilities)?;
+                            (0, 0, eof.status)
+                        } else {
+                            // OK packet
+                            let ok = packet.ok()?;
+                            (ok.affected_rows, ok.last_insert_id, ok.status)
+                        };
 
-                        self.inner.status_flags = eof.status;
-
+                        self.inner.status_flags = status;
                         r#yield!(Either::Left(MySqlQueryResult {
-                            rows_affected: 0,
-                            last_insert_id: 0,
+                            rows_affected,
+                            last_insert_id,
                         }));
 
-                        if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
-                            // more result sets exist, continue to the next one
+                        if status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             *self.inner.stream.waiting.front_mut().unwrap() = Waiting::Result;
                             break;
                         }
-
                         self.inner.stream.waiting.pop_front();
                         return Ok(());
                     }
@@ -387,9 +413,28 @@ async fn recv_result_columns(
 fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MySqlColumn, Error> {
     // if the alias is empty, use the alias
     // only then use the name
+    let column_name = def.name()?;
+
     let name = match (def.name()?, def.alias()?) {
         (_, alias) if !alias.is_empty() => UStr::new(alias),
         (name, _) => UStr::new(name),
+    };
+
+    let table = def.table()?;
+
+    let origin = if table.is_empty() {
+        ColumnOrigin::Expression
+    } else {
+        let schema = def.schema()?;
+
+        ColumnOrigin::Table(TableColumn {
+            table: if !schema.is_empty() {
+                format!("{schema}.{table}").into()
+            } else {
+                table.into()
+            },
+            name: column_name.into(),
+        })
     };
 
     let type_info = MySqlTypeInfo::from_column(def);
@@ -399,6 +444,7 @@ fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<MyS
         type_info,
         ordinal,
         flags: Some(def.flags),
+        origin,
     })
 }
 

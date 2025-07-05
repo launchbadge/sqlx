@@ -1,6 +1,6 @@
-use crate::opt::ConnectOpts;
+use crate::config::Config;
+use crate::opt::{AddMigrationOpts, ConnectOpts, MigrationSourceOpt};
 use anyhow::{bail, Context};
-use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
 use sqlx::Connection;
@@ -11,142 +11,47 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
 
-fn create_file(
-    migration_source: &str,
-    file_prefix: &str,
-    description: &str,
-    migration_type: MigrationType,
-) -> anyhow::Result<()> {
-    use std::path::PathBuf;
+pub async fn add(opts: AddMigrationOpts) -> anyhow::Result<()> {
+    let config = opts.config.load_config().await?;
 
-    let mut file_name = file_prefix.to_string();
-    file_name.push('_');
-    file_name.push_str(&description.replace(' ', "_"));
-    file_name.push_str(migration_type.suffix());
+    let source = opts.source.resolve_path(&config);
 
-    let mut path = PathBuf::new();
-    path.push(migration_source);
-    path.push(&file_name);
+    fs::create_dir_all(source).context("Unable to create migrations directory")?;
 
-    println!("Creating {}", style(path.display()).cyan());
+    let migrator = opts.source.resolve(&config).await?;
 
-    let mut file = File::create(&path).context("Failed to create migration file")?;
+    let version_prefix = opts.version_prefix(&config, &migrator);
 
-    std::io::Write::write_all(&mut file, migration_type.file_content().as_bytes())?;
-
-    Ok(())
-}
-
-enum MigrationOrdering {
-    Timestamp(String),
-    Sequential(String),
-}
-
-impl MigrationOrdering {
-    fn timestamp() -> MigrationOrdering {
-        Self::Timestamp(Utc::now().format("%Y%m%d%H%M%S").to_string())
-    }
-
-    fn sequential(version: i64) -> MigrationOrdering {
-        Self::Sequential(format!("{version:04}"))
-    }
-
-    fn file_prefix(&self) -> &str {
-        match self {
-            MigrationOrdering::Timestamp(prefix) => prefix,
-            MigrationOrdering::Sequential(prefix) => prefix,
-        }
-    }
-
-    fn infer(sequential: bool, timestamp: bool, migrator: &Migrator) -> Self {
-        match (timestamp, sequential) {
-            (true, true) => panic!("Impossible to specify both timestamp and sequential mode"),
-            (true, false) => MigrationOrdering::timestamp(),
-            (false, true) => MigrationOrdering::sequential(
-                migrator
-                    .iter()
-                    .last()
-                    .map_or(1, |last_migration| last_migration.version + 1),
-            ),
-            (false, false) => {
-                // inferring the naming scheme
-                let migrations = migrator
-                    .iter()
-                    .filter(|migration| migration.migration_type.is_up_migration())
-                    .rev()
-                    .take(2)
-                    .collect::<Vec<_>>();
-                if let [last, pre_last] = &migrations[..] {
-                    // there are at least two migrations, compare the last twothere's only one existing migration
-                    if last.version - pre_last.version == 1 {
-                        // their version numbers differ by 1, infer sequential
-                        MigrationOrdering::sequential(last.version + 1)
-                    } else {
-                        MigrationOrdering::timestamp()
-                    }
-                } else if let [last] = &migrations[..] {
-                    // there is only one existing migration
-                    if last.version == 0 || last.version == 1 {
-                        // infer sequential if the version number is 0 or 1
-                        MigrationOrdering::sequential(last.version + 1)
-                    } else {
-                        MigrationOrdering::timestamp()
-                    }
-                } else {
-                    MigrationOrdering::timestamp()
-                }
-            }
-        }
-    }
-}
-
-pub async fn add(
-    migration_source: &str,
-    description: &str,
-    reversible: bool,
-    sequential: bool,
-    timestamp: bool,
-) -> anyhow::Result<()> {
-    fs::create_dir_all(migration_source).context("Unable to create migrations directory")?;
-
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
-    // Type of newly created migration will be the same as the first one
-    // or reversible flag if this is the first migration
-    let migration_type = MigrationType::infer(&migrator, reversible);
-
-    let ordering = MigrationOrdering::infer(sequential, timestamp, &migrator);
-    let file_prefix = ordering.file_prefix();
-
-    if migration_type.is_reversible() {
+    if opts.reversible(&config, &migrator) {
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            source,
+            &version_prefix,
+            &opts.description,
             MigrationType::ReversibleUp,
         )?;
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            source,
+            &version_prefix,
+            &opts.description,
             MigrationType::ReversibleDown,
         )?;
     } else {
         create_file(
-            migration_source,
-            file_prefix,
-            description,
+            source,
+            &version_prefix,
+            &opts.description,
             MigrationType::Simple,
         )?;
     }
 
     // if the migrations directory is empty
-    let has_existing_migrations = fs::read_dir(migration_source)
+    let has_existing_migrations = fs::read_dir(source)
         .map(|mut dir| dir.next().is_some())
         .unwrap_or(false);
 
     if !has_existing_migrations {
-        let quoted_source = if migration_source != "migrations" {
-            format!("{migration_source:?}")
+        let quoted_source = if opts.source.source.is_some() {
+            format!("{source:?}")
         } else {
             "".to_string()
         };
@@ -184,6 +89,32 @@ See: https://docs.rs/sqlx/{version}/sqlx/macro.migrate.html
     Ok(())
 }
 
+fn create_file(
+    migration_source: &str,
+    file_prefix: &str,
+    description: &str,
+    migration_type: MigrationType,
+) -> anyhow::Result<()> {
+    use std::path::PathBuf;
+
+    let mut file_name = file_prefix.to_string();
+    file_name.push('_');
+    file_name.push_str(&description.replace(' ', "_"));
+    file_name.push_str(migration_type.suffix());
+
+    let mut path = PathBuf::new();
+    path.push(migration_source);
+    path.push(&file_name);
+
+    println!("Creating {}", style(path.display()).cyan());
+
+    let mut file = File::create(&path).context("Failed to create migration file")?;
+
+    std::io::Write::write_all(&mut file, migration_type.file_content().as_bytes())?;
+
+    Ok(())
+}
+
 fn short_checksum(checksum: &[u8]) -> String {
     let mut s = String::with_capacity(checksum.len() * 2);
     for b in checksum {
@@ -192,14 +123,25 @@ fn short_checksum(checksum: &[u8]) -> String {
     s
 }
 
-pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
+pub async fn info(
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
+    connect_opts: &ConnectOpts,
+) -> anyhow::Result<()> {
+    let migrator = migration_source.resolve(config).await?;
+
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    // FIXME: we shouldn't actually be creating anything here
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
+
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
 
     let applied_migrations: HashMap<_, _> = conn
-        .list_applied_migrations()
+        .list_applied_migrations(config.migrate.table_name())
         .await?
         .into_iter()
         .map(|m| (m.version, m))
@@ -272,13 +214,15 @@ fn validate_applied_migrations(
 }
 
 pub async fn run(
-    migration_source: &str,
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
+    let migrator = migration_source.resolve(config).await?;
+
     if let Some(target_version) = target_version {
         if !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -287,14 +231,21 @@ pub async fn run(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
 
-    let version = conn.dirty_version().await?;
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
+
+    let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn
+        .list_applied_migrations(config.migrate.table_name())
+        .await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -332,7 +283,7 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else {
-                    conn.apply(migration).await?
+                    conn.apply(config.migrate.table_name(), migration).await?
                 };
                 let text = if skip {
                     "Skipped"
@@ -365,13 +316,15 @@ pub async fn run(
 }
 
 pub async fn revert(
-    migration_source: &str,
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
     connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
 ) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(migration_source)).await?;
+    let migrator = migration_source.resolve(config).await?;
+
     if let Some(target_version) = target_version {
         if target_version != 0 && !migrator.version_exists(target_version) {
             bail!(MigrateError::VersionNotPresent(target_version));
@@ -380,14 +333,22 @@ pub async fn revert(
 
     let mut conn = crate::connect(connect_opts).await?;
 
-    conn.ensure_migrations_table().await?;
+    // FIXME: we should not be creating anything here if it doesn't exist
+    for schema_name in &config.migrate.create_schemas {
+        conn.create_schema_if_not_exists(schema_name).await?;
+    }
 
-    let version = conn.dirty_version().await?;
+    conn.ensure_migrations_table(config.migrate.table_name())
+        .await?;
+
+    let version = conn.dirty_version(config.migrate.table_name()).await?;
     if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
 
-    let applied_migrations = conn.list_applied_migrations().await?;
+    let applied_migrations = conn
+        .list_applied_migrations(config.migrate.table_name())
+        .await?;
     validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let latest_version = applied_migrations
@@ -421,7 +382,7 @@ pub async fn revert(
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else {
-                conn.revert(migration).await?
+                conn.revert(config.migrate.table_name(), migration).await?
             };
             let text = if skip {
                 "Skipped"
@@ -458,7 +419,13 @@ pub async fn revert(
     Ok(())
 }
 
-pub fn build_script(migration_source: &str, force: bool) -> anyhow::Result<()> {
+pub fn build_script(
+    config: &Config,
+    migration_source: &MigrationSourceOpt,
+    force: bool,
+) -> anyhow::Result<()> {
+    let source = migration_source.resolve_path(config);
+
     anyhow::ensure!(
         Path::new("Cargo.toml").exists(),
         "must be run in a Cargo project root"
@@ -473,7 +440,7 @@ pub fn build_script(migration_source: &str, force: bool) -> anyhow::Result<()> {
         r#"// generated by `sqlx migrate build-script`
 fn main() {{
     // trigger recompilation when a new migration is added
-    println!("cargo:rerun-if-changed={migration_source}");
+    println!("cargo:rerun-if-changed={source}");
 }}
 "#,
     );

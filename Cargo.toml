@@ -16,15 +16,19 @@ members = [
     "examples/postgres/files",
     "examples/postgres/json",
     "examples/postgres/listen",
-    "examples/postgres/todos",
     "examples/postgres/mockable-todos",
+    "examples/postgres/multi-database",
+    "examples/postgres/multi-tenant",
+    "examples/postgres/preferred-crates",
+    "examples/postgres/todos",
     "examples/postgres/transaction",
     "examples/sqlite/todos",
 ]
 
 [workspace.package]
-version = "0.8.3"
+version = "0.9.0-alpha.1"
 license = "MIT OR Apache-2.0"
+# TODO: upgrade to edition 2024 (after merging all pending PRs)
 edition = "2021"
 repository = "https://github.com/launchbadge/sqlx"
 keywords = ["database", "async", "postgres", "mysql", "sqlite"]
@@ -35,8 +39,7 @@ authors = [
     "Chloe Ross <orangesnowfox@gmail.com>",
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
-# TODO: enable this for 0.9.0
-# rust-version = "1.80.0"
+rust-version = "1.86.0"
 
 [package]
 name = "sqlx"
@@ -48,9 +51,10 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types", "sqlite-preupdate-hook"]
+features = ["all-databases", "_unstable-all-types", "_unstable-doc", "sqlite-preupdate-hook"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -59,6 +63,9 @@ default = ["any", "macros", "migrate", "json"]
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
+
+# Enable parsing of `sqlx.toml` for configuring macros and migrations.
+sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml"]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
@@ -75,6 +82,8 @@ _unstable-all-types = [
     "bit-vec",
     "bstr"
 ]
+# Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
+_unstable-doc = []
 
 # Base runtime features without TLS
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
@@ -90,14 +99,6 @@ tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots", "sqlx
 
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
-
-# Legacy Runtime + TLS features
-
-runtime-async-std-native-tls = ["runtime-async-std", "tls-native-tls"]
-runtime-async-std-rustls = ["runtime-async-std", "tls-rustls-ring"]
-
-runtime-tokio-native-tls = ["runtime-tokio", "tls-native-tls"]
-runtime-tokio-rustls = ["runtime-tokio", "tls-rustls-ring"]
 
 # for conditional compilation
 _rt-async-std = []
@@ -129,17 +130,17 @@ bstr = ["sqlx-core/bstr"]
 
 [workspace.dependencies]
 # Core Crates
-sqlx-core = { version = "=0.8.3", path = "sqlx-core" }
-sqlx-macros-core = { version = "=0.8.3", path = "sqlx-macros-core" }
-sqlx-macros = { version = "=0.8.3", path = "sqlx-macros" }
+sqlx-core = { version = "=0.9.0-alpha.1", path = "sqlx-core" }
+sqlx-macros-core = { version = "=0.9.0-alpha.1", path = "sqlx-macros-core" }
+sqlx-macros = { version = "=0.9.0-alpha.1", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.8.3", path = "sqlx-mysql" }
-sqlx-postgres = { version = "=0.8.3", path = "sqlx-postgres" }
-sqlx-sqlite = { version = "=0.8.3", path = "sqlx-sqlite" }
+sqlx-mysql = { version = "=0.9.0-alpha.1", path = "sqlx-mysql" }
+sqlx-postgres = { version = "=0.9.0-alpha.1", path = "sqlx-postgres" }
+sqlx-sqlite = { version = "=0.9.0-alpha.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.8.3", path = ".", default-features = false }
+sqlx = { version = "=0.9.0-alpha.1", path = "." }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -154,7 +155,7 @@ time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
-dotenvy = { version = "0.15.0", default-features = false }
+dotenvy = { version = "0.15.7", default-features = false }
 
 # Runtimes
 [workspace.dependencies.async-std]
@@ -176,7 +177,7 @@ sqlx-sqlite = { workspace = true, optional = true }
 [dev-dependencies]
 anyhow = "1.0.52"
 time_ = { version = "0.3.2", package = "time" }
-futures = "0.3.19"
+futures-util = { version = "0.3.19", default-features = false, features = ["alloc"] }
 env_logger = "0.11"
 async-std = { workspace = true, features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }

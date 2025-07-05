@@ -54,6 +54,8 @@ pub(crate) fn describe(
         for col in 0..num {
             let name = stmt.handle.column_name(col).to_owned();
 
+            let origin = stmt.handle.column_origin(col);
+
             let type_info = if let Some(ty) = stmt.handle.column_decltype(col) {
                 ty
             } else {
@@ -86,6 +88,7 @@ pub(crate) fn describe(
                 name: name.into(),
                 type_info,
                 ordinal: col,
+                origin,
             });
         }
     }

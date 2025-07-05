@@ -63,3 +63,8 @@ CREATE SCHEMA IF NOT EXISTS foo;
 CREATE TYPE foo."Foo" as ENUM ('Bar', 'Baz');
 
 CREATE TABLE mytable(f HSTORE);
+
+CREATE TABLE circles (
+    c circle,
+    EXCLUDE USING gist (c WITH &&)
+);

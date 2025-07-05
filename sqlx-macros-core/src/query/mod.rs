@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::collections::{hash_map, HashMap};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
 
-use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
 
@@ -15,6 +15,7 @@ use crate::database::DatabaseExt;
 use crate::query::data::{hash_string, DynQueryData, QueryData};
 use crate::query::input::RecordType;
 use either::Either;
+use sqlx_core::config::Config;
 use url::Url;
 
 mod args;
@@ -26,7 +27,7 @@ mod output;
 pub struct QueryDriver {
     db_name: &'static str,
     url_schemes: &'static [&'static str],
-    expand: fn(QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
+    expand: fn(&Config, QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
 }
 
 impl QueryDriver {
@@ -73,6 +74,8 @@ struct Metadata {
     manifest_dir: PathBuf,
     offline: bool,
     database_url: Option<String>,
+    offline_dir: Option<String>,
+    config: Config,
     workspace_root: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -106,73 +109,77 @@ impl Metadata {
     }
 }
 
+static METADATA: LazyLock<Mutex<HashMap<String, Metadata>>> = LazyLock::new(Default::default);
+
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static METADATA: Lazy<Metadata> = Lazy::new(|| {
-    let manifest_dir: PathBuf = env("CARGO_MANIFEST_DIR")
-        .expect("`CARGO_MANIFEST_DIR` must be set")
-        .into();
+fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
+    let manifest_dir: PathBuf = manifest_dir.into();
 
-    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
-    // otherwise fallback to default dotenv behaviour.
-    let env_path = manifest_dir.join(".env");
-
-    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
-    let env_path = if env_path.exists() {
-        let res = dotenvy::from_path(&env_path);
-        if let Err(e) = res {
-            panic!("failed to load environment from {env_path:?}, {e}");
-        }
-
-        Some(env_path)
-    } else {
-        dotenvy::dotenv().ok()
-    };
-
-    // tell the compiler to watch the `.env` for changes, if applicable
-    #[cfg(procmacro2_semver_exempt)]
-    if let Some(env_path) = env_path.as_ref().and_then(|path| path.to_str()) {
-        proc_macro::tracked_path::path(env_path);
-    }
+    let (database_url, offline, offline_dir) = load_dot_env(&manifest_dir);
 
     let offline = env("SQLX_OFFLINE")
+        .ok()
+        .or(offline)
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env("DATABASE_URL").ok();
+    let config = Config::try_from_crate_or_default()?;
 
-    Metadata {
+    let database_url = env(config.common.database_url_var()).ok().or(database_url);
+
+    Ok(Metadata {
         manifest_dir,
         offline,
         database_url,
+        offline_dir,
+        config,
         workspace_root: Arc::new(Mutex::new(None)),
-    }
-});
+    })
+}
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let data_source = match &*METADATA {
+    let manifest_dir = env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+
+    let mut metadata_lock = METADATA
+        .lock()
+        // Just reset the metadata on error
+        .unwrap_or_else(|poison_err| {
+            let mut guard = poison_err.into_inner();
+            *guard = Default::default();
+            guard
+        });
+
+    let metadata = match metadata_lock.entry(manifest_dir) {
+        hash_map::Entry::Occupied(occupied) => occupied.into_mut(),
+        hash_map::Entry::Vacant(vacant) => {
+            let metadata = init_metadata(vacant.key())?;
+            vacant.insert(metadata)
+        }
+    };
+
+    let data_source = match &metadata {
         Metadata {
             offline: false,
             database_url: Some(db_url),
             ..
         } => QueryDataSource::live(db_url)?,
-
         Metadata { offline, .. } => {
             // Try load the cached query metadata file.
             let filename = format!("query-{}.json", hash_string(&input.sql));
 
             // Check SQLX_OFFLINE_DIR, then local .sqlx, then workspace .sqlx.
             let dirs = [
-                || env("SQLX_OFFLINE_DIR").ok().map(PathBuf::from),
-                || Some(METADATA.manifest_dir.join(".sqlx")),
-                || Some(METADATA.workspace_root().join(".sqlx")),
+                |meta: &Metadata| meta.offline_dir.as_deref().map(PathBuf::from),
+                |meta: &Metadata| Some(meta.manifest_dir.join(".sqlx")),
+                |meta: &Metadata| Some(meta.workspace_root().join(".sqlx")),
             ];
             let Some(data_file_path) = dirs
                 .iter()
-                .filter_map(|path| path())
+                .filter_map(|path| path(metadata))
                 .map(|path| path.join(&filename))
                 .find(|path| path.exists())
             else {
@@ -184,14 +191,13 @@ pub fn expand_input<'a>(
                     }.into()
                 );
             };
-
             QueryDataSource::Cached(DynQueryData::from_data_file(&data_file_path, &input.sql)?)
         }
     };
 
     for driver in drivers {
         if data_source.matches_driver(driver) {
-            return (driver.expand)(input, data_source);
+            return (driver.expand)(&metadata.config, input, data_source);
         }
     }
 
@@ -213,6 +219,7 @@ pub fn expand_input<'a>(
 }
 
 fn expand_with<DB: DatabaseExt>(
+    config: &Config,
     input: QueryMacroInput,
     data_source: QueryDataSource,
 ) -> crate::Result<TokenStream>
@@ -227,7 +234,7 @@ where
         }
     };
 
-    expand_with_data(input, query_data, offline)
+    expand_with_data(config, input, query_data, offline)
 }
 
 // marker trait for `Describe` that lets us conditionally require it to be `Serialize + Deserialize`
@@ -238,7 +245,14 @@ impl<DB: Database> DescribeExt for Describe<DB> where
 {
 }
 
+#[derive(Default)]
+struct Warnings {
+    ambiguous_datetime: bool,
+    ambiguous_numeric: bool,
+}
+
 fn expand_with_data<DB: DatabaseExt>(
+    config: &Config,
     input: QueryMacroInput,
     data: QueryData<DB>,
     offline: bool,
@@ -262,7 +276,9 @@ where
         }
     }
 
-    let args_tokens = args::quote_args(&input, &data.describe)?;
+    let mut warnings = Warnings::default();
+
+    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
@@ -281,7 +297,7 @@ where
     } else {
         match input.record_type {
             RecordType::Generated => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
@@ -317,21 +333,43 @@ where
                 record_tokens
             }
             RecordType::Given(ref out_ty) => {
-                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+                let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
-            RecordType::Scalar => {
-                output::quote_query_scalar::<DB>(&input, &query_args, &data.describe)?
-            }
+            RecordType::Scalar => output::quote_query_scalar::<DB>(
+                &input,
+                config,
+                &mut warnings,
+                &query_args,
+                &data.describe,
+            )?,
         }
     };
+
+    let mut warnings_out = TokenStream::new();
+
+    if warnings.ambiguous_datetime {
+        // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
+        warnings_out.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
+        });
+    }
+
+    if warnings.ambiguous_numeric {
+        // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
+        warnings_out.extend(quote! {
+            ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
+        });
+    }
 
     let ret_tokens = quote! {
         {
             #[allow(clippy::all)]
             {
                 use ::sqlx::Arguments as _;
+
+                #warnings_out
 
                 #args_tokens
 
@@ -386,4 +424,53 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+/// Get `DATABASE_URL`, `SQLX_OFFLINE` and `SQLX_OFFLINE_DIR` from the `.env`.
+fn load_dot_env(manifest_dir: &Path) -> (Option<String>, Option<String>, Option<String>) {
+    let mut env_path = manifest_dir.join(".env");
+
+    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
+    // otherwise fallback to default dotenv file.
+    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
+    let env_file = if env_path.exists() {
+        let res = dotenvy::from_path_iter(&env_path);
+        match res {
+            Ok(iter) => Some(iter),
+            Err(e) => panic!("failed to load environment from {env_path:?}, {e}"),
+        }
+    } else {
+        #[allow(unused_assignments)]
+        {
+            env_path = PathBuf::from(".env");
+        }
+        dotenvy::dotenv_iter().ok()
+    };
+
+    let mut offline = None;
+    let mut database_url = None;
+    let mut offline_dir = None;
+
+    if let Some(env_file) = env_file {
+        // tell the compiler to watch the `.env` for changes.
+        #[cfg(procmacro2_semver_exempt)]
+        if let Some(env_path) = env_path.to_str() {
+            proc_macro::tracked_path::path(env_path);
+        }
+
+        for item in env_file {
+            let Ok((key, value)) = item else {
+                continue;
+            };
+
+            match key.as_str() {
+                "DATABASE_URL" => database_url = Some(value),
+                "SQLX_OFFLINE" => offline = Some(value),
+                "SQLX_OFFLINE_DIR" => offline_dir = Some(value),
+                _ => {}
+            };
+        }
+    }
+
+    (database_url, offline, offline_dir)
 }

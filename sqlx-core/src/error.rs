@@ -197,6 +197,8 @@ pub enum ErrorKind {
     NotNullViolation,
     /// Check constraint violation.
     CheckViolation,
+    /// Exclusion constraint violation.
+    ExclusionViolation,
     /// An unmapped error.
     Other,
 }

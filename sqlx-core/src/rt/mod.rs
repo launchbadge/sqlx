@@ -24,6 +24,9 @@ pub enum JoinHandle<T> {
 }
 
 pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, TimeoutError> {
+    #[cfg(debug_assertions)]
+    let f = Box::pin(f);
+
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {
         #[allow(clippy::needless_return)]
@@ -117,12 +120,11 @@ pub async fn yield_now() {
 pub fn test_block_on<F: Future>(f: F) -> F::Output {
     #[cfg(feature = "_rt-tokio")]
     {
-        #[allow(clippy::needless_return)]
-        return tokio::runtime::Builder::new_current_thread()
+        tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("failed to start Tokio runtime")
-            .block_on(f);
+            .block_on(f)
     }
 
     #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]

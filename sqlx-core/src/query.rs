@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{future, marker::PhantomData};
 
 use either::Either;
 use futures_core::stream::BoxStream;
-use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
@@ -460,9 +460,11 @@ where
         O: 'e,
     {
         self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
+            .and_then(|row| {
+                future::ready(match row {
+                    Some(row) => Ok(row),
+                    None => Err(Error::RowNotFound),
+                })
             })
             .await
     }
