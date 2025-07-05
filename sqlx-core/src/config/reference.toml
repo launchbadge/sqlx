@@ -19,7 +19,7 @@ database-url-var = "FOO_DATABASE_URL"
 # Load extensions into SQLite when running macros or migrations
 #
 # Defaults to an empty list, which has no effect.
-load_extensions = ["uuid", "vsv"]
+load-extensions = ["uuid", "vsv"]
 
 ###############################################################################################
 

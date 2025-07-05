@@ -61,7 +61,7 @@ impl Config {
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
-    serde(default, deny_unknown_fields)
+    serde(default, rename_all = "kebab-case", deny_unknown_fields)
 )]
 pub struct Drivers {
     /// Specify options for the SQLite driver.
@@ -73,7 +73,7 @@ pub struct Drivers {
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
-    serde(default, deny_unknown_fields)
+    serde(default, rename_all = "kebab-case", deny_unknown_fields)
 )]
 pub struct SQLite {
     /// Specify extensions to load.
@@ -82,7 +82,7 @@ pub struct SQLite {
     /// `sqlx.toml`:
     /// ```toml
     /// [common.drivers.sqlite]
-    /// load_extensions = ["uuid", "vsv"]
+    /// load-extensions = ["uuid", "vsv"]
     /// ```
     pub load_extensions: Vec<String>,
 }
