@@ -70,6 +70,7 @@ pub struct SqliteConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
     pub(crate) vfs: Option<Cow<'static, str>>,
+    pub(crate) thread_stack_size: usize,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
     /// Extensions are specified as a pair of \<Extension Name : Optional Entry Point>, the majority
@@ -191,6 +192,8 @@ impl SqliteConnectOptions {
         // Soft limit on the number of rows that `ANALYZE` touches per index.
         pragmas.insert("analysis_limit".into(), None);
 
+        let default_thread_stack_size = 512 * 1024; // 512KB
+
         Self {
             filename: Cow::Borrowed(Path::new(":memory:")),
             in_memory: false,
@@ -202,6 +205,7 @@ impl SqliteConnectOptions {
             log_settings: Default::default(),
             immutable: false,
             vfs: None,
+            thread_stack_size: default_thread_stack_size,
             pragmas,
             extensions: Default::default(),
             collations: Default::default(),
@@ -228,6 +232,19 @@ impl SqliteConnectOptions {
     /// Gets the current name of the database file.
     pub fn get_filename(&self) -> &Path {
         &self.filename
+    }
+
+    /// Set the thread stack size in bytes.
+    ///
+    /// The default thread stack size is 512KB.
+    pub fn thread_stack_size(mut self, size: usize) -> Self {
+        self.thread_stack_size = size;
+        self
+    }
+
+    /// Get the current thread stack size in bytes.
+    pub fn get_thread_stack_size(&self) -> usize {
+        self.thread_stack_size
     }
 
     /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).

@@ -105,6 +105,7 @@ impl ConnectionWorker {
 
         thread::Builder::new()
             .name(params.thread_name.clone())
+            .stack_size(params.thread_stack_size)
             .spawn(move || {
                 let (command_tx, command_rx) = flume::bounded(params.command_channel_size);
 
