@@ -1,5 +1,6 @@
 use futures_core::future::BoxFuture;
 use std::borrow::Cow;
+use std::future::Future;
 
 use crate::any::{Any, AnyConnectOptions};
 use crate::connection::{ConnectOptions, Connection};
@@ -72,19 +73,21 @@ impl Connection for AnyConnection {
 
     type Options = AnyConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
+    fn close(self) -> impl Future<Output = Result<(), Error>> + Send + 'static {
         self.backend.close()
     }
 
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+    fn close_hard(self) -> impl Future<Output = Result<(), Error>> + Send + 'static {
         self.backend.close()
     }
 
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    fn ping(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         self.backend.ping()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin(
+        &mut self,
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
@@ -94,7 +97,7 @@ impl Connection for AnyConnection {
     fn begin_with(
         &mut self,
         statement: impl Into<Cow<'static, str>>,
-    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
@@ -105,7 +108,7 @@ impl Connection for AnyConnection {
         self.backend.cached_statements_size()
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, crate::Result<()>> {
+    fn clear_cached_statements(&mut self) -> impl Future<Output = crate::Result<()>> + Send + '_ {
         self.backend.clear_cached_statements()
     }
 
@@ -114,7 +117,7 @@ impl Connection for AnyConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         self.backend.flush()
     }
 

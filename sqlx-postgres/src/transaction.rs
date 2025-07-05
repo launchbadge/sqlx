@@ -1,4 +1,3 @@
-use futures_core::future::BoxFuture;
 use sqlx_core::database::Database;
 use std::borrow::Cow;
 
@@ -15,59 +14,53 @@ pub struct PgTransactionManager;
 impl TransactionManager for PgTransactionManager {
     type Database = Postgres;
 
-    fn begin<'conn>(
-        conn: &'conn mut PgConnection,
+    async fn begin(
+        conn: &mut PgConnection,
         statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'conn, Result<(), Error>> {
-        Box::pin(async move {
-            let depth = conn.inner.transaction_depth;
-            let statement = match statement {
-                // custom `BEGIN` statements are not allowed if we're already in
-                // a transaction (we need to issue a `SAVEPOINT` instead)
-                Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
-                Some(statement) => statement,
-                None => begin_ansi_transaction_sql(depth),
-            };
+    ) -> Result<(), Error> {
+        let depth = conn.inner.transaction_depth;
+        let statement = match statement {
+            // custom `BEGIN` statements are not allowed if we're already in
+            // a transaction (we need to issue a `SAVEPOINT` instead)
+            Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
+            Some(statement) => statement,
+            None => begin_ansi_transaction_sql(depth),
+        };
 
-            let rollback = Rollback::new(conn);
-            rollback.conn.queue_simple_query(&statement)?;
-            rollback.conn.wait_until_ready().await?;
-            if !rollback.conn.in_transaction() {
-                return Err(Error::BeginFailed);
-            }
-            rollback.conn.inner.transaction_depth += 1;
-            rollback.defuse();
+        let rollback = Rollback::new(conn);
+        rollback.conn.queue_simple_query(&statement)?;
+        rollback.conn.wait_until_ready().await?;
+        if !rollback.conn.in_transaction() {
+            return Err(Error::BeginFailed);
+        }
+        rollback.conn.inner.transaction_depth += 1;
+        rollback.defuse();
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    fn commit(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            if conn.inner.transaction_depth > 0 {
-                conn.execute(&*commit_ansi_transaction_sql(conn.inner.transaction_depth))
-                    .await?;
-
-                conn.inner.transaction_depth -= 1;
-            }
-
-            Ok(())
-        })
-    }
-
-    fn rollback(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            if conn.inner.transaction_depth > 0 {
-                conn.execute(&*rollback_ansi_transaction_sql(
-                    conn.inner.transaction_depth,
-                ))
+    async fn commit(conn: &mut PgConnection) -> Result<(), Error> {
+        if conn.inner.transaction_depth > 0 {
+            conn.execute(&*commit_ansi_transaction_sql(conn.inner.transaction_depth))
                 .await?;
 
-                conn.inner.transaction_depth -= 1;
-            }
+            conn.inner.transaction_depth -= 1;
+        }
 
-            Ok(())
-        })
+        Ok(())
+    }
+
+    async fn rollback(conn: &mut PgConnection) -> Result<(), Error> {
+        if conn.inner.transaction_depth > 0 {
+            conn.execute(&*rollback_ansi_transaction_sql(
+                conn.inner.transaction_depth,
+            ))
+            .await?;
+
+            conn.inner.transaction_depth -= 1;
+        }
+
+        Ok(())
     }
 
     fn start_rollback(conn: &mut PgConnection) {

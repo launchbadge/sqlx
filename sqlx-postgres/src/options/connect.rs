@@ -1,9 +1,9 @@
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::{PgConnectOptions, PgConnection};
-use futures_core::future::BoxFuture;
 use log::LevelFilter;
 use sqlx_core::Url;
+use std::future::Future;
 use std::time::Duration;
 
 impl ConnectOptions for PgConnectOptions {
@@ -17,11 +17,11 @@ impl ConnectOptions for PgConnectOptions {
         self.build_url()
     }
 
-    fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
+    fn connect(&self) -> impl Future<Output = Result<Self::Connection, Error>> + Send + '_
     where
         Self::Connection: Sized,
     {
-        Box::pin(PgConnection::establish(self))
+        PgConnection::establish(self)
     }
 
     fn log_statements(mut self, level: LevelFilter) -> Self {

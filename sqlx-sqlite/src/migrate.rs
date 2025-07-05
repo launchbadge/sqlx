@@ -18,49 +18,43 @@ pub(crate) use sqlx_core::migrate::*;
 use sqlx_core::query_scalar::query_scalar;
 
 impl MigrateDatabase for Sqlite {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let mut opts = SqliteConnectOptions::from_str(url)?.create_if_missing(true);
+    async fn create_database(url: &str) -> Result<(), Error> {
+        let mut opts = SqliteConnectOptions::from_str(url)?.create_if_missing(true);
 
-            // Since it doesn't make sense to include this flag in the connection URL,
-            // we just use an `AtomicBool` to pass it.
-            if super::CREATE_DB_WAL.load(Ordering::Acquire) {
-                opts = opts.journal_mode(SqliteJournalMode::Wal);
-            }
+        // Since it doesn't make sense to include this flag in the connection URL,
+        // we just use an `AtomicBool` to pass it.
+        if super::CREATE_DB_WAL.load(Ordering::Acquire) {
+            opts = opts.journal_mode(SqliteJournalMode::Wal);
+        }
 
-            // Opening a connection to sqlite creates the database
-            opts.connect()
-                .await?
-                // Ensure WAL mode tempfiles are cleaned up
-                .close()
-                .await?;
+        // Opening a connection to sqlite creates the database
+        opts.connect()
+            .await?
+            // Ensure WAL mode tempfiles are cleaned up
+            .close()
+            .await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
-        Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(url)?;
+    async fn database_exists(url: &str) -> Result<bool, Error> {
+        let options = SqliteConnectOptions::from_str(url)?;
 
-            if options.in_memory {
-                Ok(true)
-            } else {
-                Ok(options.filename.exists())
-            }
-        })
+        if options.in_memory {
+            Ok(true)
+        } else {
+            Ok(options.filename.exists())
+        }
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(url)?;
+    async fn drop_database(url: &str) -> Result<(), Error> {
+        let options = SqliteConnectOptions::from_str(url)?;
 
-            if !options.in_memory {
-                fs::remove_file(&*options.filename).await?;
-            }
+        if !options.in_memory {
+            fs::remove_file(&*options.filename).await?;
+        }
 
-            Ok(())
-        })
+        Ok(())
     }
 }
 

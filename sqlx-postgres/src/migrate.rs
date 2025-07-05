@@ -39,74 +39,66 @@ fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error>
 }
 
 impl MigrateDatabase for Postgres {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
+    async fn create_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            let _ = conn
-                .execute(&*format!(
-                    "CREATE DATABASE \"{}\"",
-                    database.replace('"', "\"\"")
-                ))
-                .await?;
-
-            Ok(())
-        })
-    }
-
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let exists: bool =
-                query_scalar("select exists(SELECT 1 from pg_database WHERE datname = $1)")
-                    .bind(database)
-                    .fetch_one(&mut conn)
-                    .await?;
-
-            Ok(exists)
-        })
-    }
-
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let _ = conn
-                .execute(&*format!(
-                    "DROP DATABASE IF EXISTS \"{}\"",
-                    database.replace('"', "\"\"")
-                ))
-                .await?;
-
-            Ok(())
-        })
-    }
-
-    fn force_drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let row: (String,) = query_as("SELECT current_setting('server_version_num')")
-                .fetch_one(&mut conn)
-                .await?;
-
-            let version = row.0.parse::<i32>().unwrap();
-
-            let pid_type = if version >= 90200 { "pid" } else { "procpid" };
-
-            conn.execute(&*format!(
-                "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
-                 WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
+        let _ = conn
+            .execute(&*format!(
+                "CREATE DATABASE \"{}\"",
+                database.replace('"', "\"\"")
             ))
             .await?;
 
-            Self::drop_database(url).await
-        })
+        Ok(())
+    }
+
+    async fn database_exists(url: &str) -> Result<bool, Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
+
+        let exists: bool =
+            query_scalar("select exists(SELECT 1 from pg_database WHERE datname = $1)")
+                .bind(database)
+                .fetch_one(&mut conn)
+                .await?;
+
+        Ok(exists)
+    }
+
+    async fn drop_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
+
+        let _ = conn
+            .execute(&*format!(
+                "DROP DATABASE IF EXISTS \"{}\"",
+                database.replace('"', "\"\"")
+            ))
+            .await?;
+
+        Ok(())
+    }
+
+    async fn force_drop_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
+
+        let row: (String,) = query_as("SELECT current_setting('server_version_num')")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let version = row.0.parse::<i32>().unwrap();
+
+        let pid_type = if version >= 90200 { "pid" } else { "procpid" };
+
+        conn.execute(&*format!(
+            "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
+                 WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
+        ))
+        .await?;
+
+        Self::drop_database(url).await
     }
 }
 

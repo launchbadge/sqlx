@@ -6,40 +6,32 @@ use futures_core::future::BoxFuture;
 use std::time::Duration;
 
 impl MigrateDatabase for Any {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async {
-            driver::from_url_str(url)?
-                .get_migrate_database()?
-                .create_database(url)
-                .await
-        })
+    async fn create_database(url: &str) -> Result<(), Error> {
+        driver::from_url_str(url)?
+            .get_migrate_database()?
+            .create_database(url)
+            .await
     }
 
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
-        Box::pin(async {
-            driver::from_url_str(url)?
-                .get_migrate_database()?
-                .database_exists(url)
-                .await
-        })
+    async fn database_exists(url: &str) -> Result<bool, Error> {
+        driver::from_url_str(url)?
+            .get_migrate_database()?
+            .database_exists(url)
+            .await
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async {
-            driver::from_url_str(url)?
-                .get_migrate_database()?
-                .drop_database(url)
-                .await
-        })
+    async fn drop_database(url: &str) -> Result<(), Error> {
+        driver::from_url_str(url)?
+            .get_migrate_database()?
+            .drop_database(url)
+            .await
     }
 
-    fn force_drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async {
-            driver::from_url_str(url)?
-                .get_migrate_database()?
-                .force_drop_database(url)
-                .await
-        })
+    async fn force_drop_database(url: &str) -> Result<(), Error> {
+        driver::from_url_str(url)?
+            .get_migrate_database()?
+            .force_drop_database(url)
+            .await
     }
 }
 

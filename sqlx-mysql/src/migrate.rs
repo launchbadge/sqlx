@@ -30,46 +30,40 @@ fn parse_for_maintenance(url: &str) -> Result<(MySqlConnectOptions, String), Err
 }
 
 impl MigrateDatabase for MySql {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
+    async fn create_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            let _ = conn
-                .execute(&*format!("CREATE DATABASE `{database}`"))
-                .await?;
-
-            Ok(())
-        })
-    }
-
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let exists: bool = query_scalar(
-                "select exists(SELECT 1 from INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?)",
-            )
-            .bind(database)
-            .fetch_one(&mut conn)
+        let _ = conn
+            .execute(&*format!("CREATE DATABASE `{database}`"))
             .await?;
 
-            Ok(exists)
-        })
+        Ok(())
     }
 
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
+    async fn database_exists(url: &str) -> Result<bool, Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            let _ = conn
-                .execute(&*format!("DROP DATABASE IF EXISTS `{database}`"))
-                .await?;
+        let exists: bool = query_scalar(
+            "select exists(SELECT 1 from INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?)",
+        )
+        .bind(database)
+        .fetch_one(&mut conn)
+        .await?;
 
-            Ok(())
-        })
+        Ok(exists)
+    }
+
+    async fn drop_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
+
+        let _ = conn
+            .execute(&*format!("DROP DATABASE IF EXISTS `{database}`"))
+            .await?;
+
+        Ok(())
     }
 }
 
