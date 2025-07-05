@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -41,12 +43,6 @@ impl Encode<'_, Postgres> for &'_ [u8] {
         buf.extend_from_slice(self);
 
         Ok(IsNull::No)
-    }
-}
-
-impl Encode<'_, Postgres> for Box<[u8]> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
     }
 }
 
@@ -104,8 +100,7 @@ impl<const N: usize> Decode<'_, Postgres> for [u8; N] {
     }
 }
 
-impl Encode<'_, Postgres> for Cow<'_, [u8]> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        <&[u8] as Encode<Postgres>>::encode(self.as_ref(), buf)
-    }
-}
+forward_encode_impl!(Arc<[u8]>, &[u8], Postgres);
+forward_encode_impl!(Rc<[u8]>, &[u8], Postgres);
+forward_encode_impl!(Box<[u8]>, &[u8], Postgres);
+forward_encode_impl!(Cow<'_, [u8]>, &[u8], Postgres);

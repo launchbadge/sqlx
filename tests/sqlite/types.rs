@@ -219,9 +219,13 @@ test_type!(test_rc<Rc<i32>>(Sqlite, "1" == Rc::new(1i32)));
 
 test_type!(test_box_str<Box<str>>(Sqlite, "'John'" == Box::<str>::from("John")));
 test_type!(test_cow_str<Cow<'_, str>>(Sqlite, "'Phil'" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(Sqlite, "'1234'" == Arc::<str>::from("1234")));
+test_type!(test_rc_str<Rc<str>>(Sqlite, "'5678'" == Rc::<str>::from("5678")));
 
 test_type!(test_box_slice<Box<[u8]>>(Sqlite, "X'01020304'" == Box::<[u8]>::from([1,2,3,4])));
 test_type!(test_cow_slice<Cow<'_, [u8]>>(Sqlite, "X'01020304'" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_type!(test_arc_slice<Arc<[u8]>>(Sqlite, "X'01020304'" == Arc::<[u8]>::from([1,2,3,4])));
+test_type!(test_rc_slice<Rc<[u8]>>(Sqlite, "X'01020304'" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {

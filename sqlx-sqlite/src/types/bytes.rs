@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -100,5 +102,23 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
         args.push(SqliteArgumentValue::Blob(self.clone()));
 
         Ok(IsNull::No)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Arc<[u8]> {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
+        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Rc<[u8]> {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<SqliteArgumentValue<'q>>,
+    ) -> Result<IsNull, BoxDynError> {
+        <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }

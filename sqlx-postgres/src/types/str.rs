@@ -5,6 +5,8 @@ use crate::types::array_compatible;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef, Postgres};
 use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
@@ -82,27 +84,6 @@ impl Encode<'_, Postgres> for &'_ str {
     }
 }
 
-impl Encode<'_, Postgres> for Cow<'_, str> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        match self {
-            Cow::Borrowed(str) => <&str as Encode<Postgres>>::encode(*str, buf),
-            Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf),
-        }
-    }
-}
-
-impl Encode<'_, Postgres> for Box<str> {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        <&str as Encode<Postgres>>::encode(&**self, buf)
-    }
-}
-
-impl Encode<'_, Postgres> for String {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        <&str as Encode<Postgres>>::encode(&**self, buf)
-    }
-}
-
 impl<'r> Decode<'r, Postgres> for &'r str {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         value.as_str()
@@ -114,3 +95,9 @@ impl Decode<'_, Postgres> for String {
         Ok(value.as_str()?.to_owned())
     }
 }
+
+forward_encode_impl!(Arc<str>, &str, Postgres);
+forward_encode_impl!(Rc<str>, &str, Postgres);
+forward_encode_impl!(Cow<'_, str>, &str, Postgres);
+forward_encode_impl!(Box<str>, &str, Postgres);
+forward_encode_impl!(String, &str, Postgres);
