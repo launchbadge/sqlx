@@ -1,4 +1,5 @@
 use sqlx::{Error, PgPool};
+use sqlx_core::sql_str::AssertSqlSafe;
 
 use std::{cmp, str};
 
@@ -114,7 +115,7 @@ async fn rustsec_2024_0363(pool: PgPool) -> anyhow::Result<()> {
 
     assert_eq!(wrapped_len, fake_payload_len);
 
-    let res = sqlx::raw_sql(&query)
+    let res = sqlx::raw_sql(AssertSqlSafe(query))
         // Note: the connection may hang afterward
         // because `pending_ready_for_query_count` will underflow.
         .execute(&pool)

@@ -3,6 +3,7 @@ use log::LevelFilter;
 use sqlx_core::connection::ConnectOptions;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::fmt::Write;
 use std::str::FromStr;
 use std::time::Duration;
@@ -34,7 +35,7 @@ impl ConnectOptions for SqliteConnectOptions {
         let mut conn = SqliteConnection::establish(self).await?;
 
         // Execute PRAGMAs
-        conn.execute(&*self.pragma_string()).await?;
+        conn.execute(AssertSqlSafe(self.pragma_string())).await?;
 
         if !self.collations.is_empty() {
             let mut locked = conn.lock_handle().await?;

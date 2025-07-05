@@ -8,6 +8,7 @@ use futures_core::future::BoxFuture;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::MaybePoolConnection;
+use crate::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
 
 /// Generic management of database transactions.
 ///
@@ -274,29 +275,30 @@ where
     }
 }
 
-pub fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn begin_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 0 {
-        Cow::Borrowed("BEGIN")
+        "BEGIN".into_sql_str()
     } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{depth}"))
+        AssertSqlSafe(format!("SAVEPOINT _sqlx_savepoint_{depth}")).into_sql_str()
     }
 }
 
-pub fn commit_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn commit_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 1 {
-        Cow::Borrowed("COMMIT")
+        "COMMIT".into_sql_str()
     } else {
-        Cow::Owned(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1))
+        AssertSqlSafe(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1)).into_sql_str()
     }
 }
 
-pub fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+pub fn rollback_ansi_transaction_sql(depth: usize) -> SqlStr {
     if depth == 1 {
-        Cow::Borrowed("ROLLBACK")
+        "ROLLBACK".into_sql_str()
     } else {
-        Cow::Owned(format!(
+        AssertSqlSafe(format!(
             "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
             depth - 1
         ))
+        .into_sql_str()
     }
 }

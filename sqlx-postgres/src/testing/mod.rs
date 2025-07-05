@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::future::Future;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -6,7 +5,9 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use sqlx_core::connection::Connection;
+use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
+use sqlx_core::sql_str::AssertSqlSafe;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -52,12 +53,12 @@ impl TestSupport for Postgres {
 
         let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-        let mut command = String::new();
+        let mut builder = QueryBuilder::new("drop database if exists ");
 
         for db_name in &delete_db_names {
-            command.clear();
-            writeln!(command, "drop database if exists {db_name:?};").ok();
-            match conn.execute(&*command).await {
+            builder.push(db_name);
+
+            match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {
                     deleted_db_names.push(db_name);
                 }
@@ -68,6 +69,8 @@ impl TestSupport for Postgres {
                 // Bubble up other errors
                 Err(e) => return Err(e),
             }
+
+            builder.reset();
         }
 
         query("delete from _sqlx_test.databases where db_name = any($1::text[])")
@@ -163,7 +166,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 
     let create_command = format!("create database {db_name:?}");
     debug_assert!(create_command.starts_with("create database \""));
-    conn.execute(&(create_command)[..]).await?;
+    conn.execute(AssertSqlSafe(create_command)).await?;
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
@@ -185,7 +188,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 
 async fn do_cleanup(conn: &mut PgConnection, db_name: &str) -> Result<(), Error> {
     let delete_db_command = format!("drop database if exists {db_name:?};");
-    conn.execute(&*delete_db_command).await?;
+    conn.execute(AssertSqlSafe(delete_db_command)).await?;
     query("delete from _sqlx_test.databases where db_name = $1::text")
         .bind(db_name)
         .execute(&mut *conn)

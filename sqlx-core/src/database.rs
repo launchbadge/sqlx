@@ -101,7 +101,7 @@ pub trait Database: 'static + Sized + Send + Debug {
     type ArgumentBuffer<'q>;
 
     /// The concrete `Statement` implementation for this database.
-    type Statement<'q>: Statement<'q, Database = Self>;
+    type Statement: Statement<Database = Self>;
 
     /// The display name for this database driver.
     const NAME: &'static str;

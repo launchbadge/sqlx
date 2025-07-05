@@ -8,8 +8,9 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
+use crate::sql_str::SqlSafeStr;
 
-impl<DB: Database> Executor<'_> for &'_ Pool<DB>
+impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
 {
@@ -48,22 +49,27 @@ where
         Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: impl SqlSafeStr,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>> {
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
+    where
+        'p: 'e,
+    {
         let pool = self.clone();
+        let sql = sql.into_sql_str();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
+    fn describe<'e>(
         self,
-        sql: &'q str,
+        sql: impl SqlSafeStr,
     ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
         let pool = self.clone();
+        let sql = sql.into_sql_str();
 
         Box::pin(async move { pool.acquire().await?.describe(sql).await })
     }
