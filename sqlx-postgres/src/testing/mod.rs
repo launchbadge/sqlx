@@ -1,12 +1,11 @@
-use std::fmt::Write;
 use std::future::Future;
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
 
 use sqlx_core::connection::Connection;
+use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
 use sqlx_core::sql_str::AssertSqlSafe;
 
@@ -54,15 +53,12 @@ impl TestSupport for Postgres {
 
         let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-        let mut command_arced = Arc::new(String::new());
+        let mut builder = QueryBuilder::new("drop database if exists ");
 
         for db_name in &delete_db_names {
-            let command = Arc::get_mut(&mut command_arced).unwrap();
-            command.clear();
+            builder.push(db_name);
 
-            writeln!(command, "drop database if exists {db_name:?};").ok();
-
-            match conn.execute(AssertSqlSafe(command_arced.clone())).await {
+            match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {
                     deleted_db_names.push(db_name);
                 }
@@ -73,6 +69,8 @@ impl TestSupport for Postgres {
                 // Bubble up other errors
                 Err(e) => return Err(e),
             }
+
+            builder.reset();
         }
 
         query("delete from _sqlx_test.databases where db_name = any($1::text[])")

@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use crate::error::Error;
@@ -13,7 +13,6 @@ use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
 use sqlx_core::sql_str::AssertSqlSafe;
-use std::fmt::Write;
 
 pub(crate) use sqlx_core::testing::*;
 
@@ -52,16 +51,14 @@ impl TestSupport for MySql {
 
         let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-        let mut command_arced = Arc::new(String::new());
+        let mut builder = QueryBuilder::new("drop database if exists ");
 
         for db_name in &delete_db_names {
-            let command = Arc::get_mut(&mut command_arced).unwrap();
-            command.clear();
-
             let db_name = format!("_sqlx_test_database_{db_name}");
 
-            writeln!(command, "drop database if exists {db_name};").ok();
-            match conn.execute(AssertSqlSafe(command_arced.clone())).await {
+            builder.push(&db_name);
+
+            match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {
                     deleted_db_names.push(db_name);
                 }
@@ -72,6 +69,8 @@ impl TestSupport for MySql {
                 // Bubble up other errors
                 Err(e) => return Err(e),
             }
+
+            builder.reset();
         }
 
         if deleted_db_names.is_empty() {
