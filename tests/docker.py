@@ -17,9 +17,10 @@ def start_database(driver, database, cwd):
         database = path.join(cwd, database)
         (base_path, ext) = path.splitext(database)
         new_database = f"{base_path}.test{ext}"
-        shutil.copy(database, new_database)
+        if path.exists(database):
+            shutil.copy(database, new_database)
         # short-circuit for sqlite
-        return f"sqlite://{path.join(cwd, new_database)}"
+        return f"sqlite://{path.join(cwd, new_database)}?mode=rwc"
 
     res = subprocess.run(
         ["docker-compose", "up", "-d", driver],

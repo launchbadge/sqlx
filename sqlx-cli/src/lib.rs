@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use futures_util::TryFutureExt;
 
-use sqlx::{AnyConnection, Connection};
+use sqlx::AnyConnection;
 use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
@@ -189,7 +189,28 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
 async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect).await
+    retry_connect_errors(opts, move |url| {
+        // This only handles the default case. For good support of
+        // the new command line options, we need to work out some
+        // way to make the appropriate ConfigOpt available here. I
+        // suspect that that infrastructure would be useful for
+        // other things in the future, as well, but it also seems
+        // like an extensive and intrusive change.
+        //
+        // On the other hand, the compile-time checking macros
+        // can't be configured to use a different config file at
+        // all, so I believe this is okay for the time being.
+        let config = Some(std::path::PathBuf::from("sqlx.toml")).and_then(|p| {
+            if p.exists() {
+                Some(p)
+            } else {
+                None
+            }
+        });
+
+        async move { AnyConnection::connect_with_config(url, config.clone()).await }
+    })
+    .await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,

@@ -27,6 +27,8 @@ preupdate-hook = ["libsqlite3-sys/preupdate_hook"]
 bundled = ["libsqlite3-sys/bundled"]
 unbundled = ["libsqlite3-sys/buildtime_bindgen"]
 
+sqlx-toml = ["sqlx-core/sqlx-toml"]
+
 # Note: currently unused, only to satisfy "unexpected `cfg` condition" lint
 bigdecimal = []
 rust_decimal = []

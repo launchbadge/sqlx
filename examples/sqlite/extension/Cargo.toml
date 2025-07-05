@@ -1,0 +1,17 @@
+[package]
+name = "sqlx-example-sqlite-extension"
+version = "0.1.0"
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+sqlx = { path = "../../../", features = [ "sqlite", "runtime-tokio", "tls-native-tls", "sqlx-toml"] }
+tokio = { version = "1.20.0", features = ["rt", "macros"]}
+anyhow = "1.0"
+
+[lints]
+workspace = true
