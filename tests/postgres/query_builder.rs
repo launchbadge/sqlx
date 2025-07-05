@@ -79,12 +79,10 @@ fn test_reset() {
 fn test_query_builder_reuse() {
     let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
 
-    {
-        let _query = qb
-            .push("SELECT * FROM users WHERE id = ")
-            .push_bind(42i32)
-            .build();
-    }
+    let _query = qb
+        .push("SELECT * FROM users WHERE id = ")
+        .push_bind(42i32)
+        .build();
 
     qb.reset();
 

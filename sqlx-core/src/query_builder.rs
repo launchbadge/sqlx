@@ -517,7 +517,9 @@ where
     /// The query is truncated to the initial fragment provided to [`new()`][Self::new] and
     /// the bind arguments are reset.
     pub fn reset(&mut self) -> &mut Self {
-        let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
+        // Someone can hold onto a clone of `self.query` by calling build and not executing the
+        // query. To avoid panicking here we might as well allocate a new `String`.
+        let query: &mut String = Arc::make_mut(&mut self.query);
         query.truncate(self.init_len);
         self.arguments = Some(Default::default());
 
