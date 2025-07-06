@@ -4,7 +4,8 @@ use crate::{
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use std::borrow::Cow;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{
@@ -28,31 +29,38 @@ impl AnyConnectionBackend for PgConnection {
     }
 
     fn close(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close(*self)
+        Connection::close(*self).boxed()
     }
 
     fn close_hard(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close_hard(*self)
+        Connection::close_hard(*self).boxed()
     }
 
     fn ping(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::ping(self)
+        Connection::ping(self).boxed()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::begin(self)
+    fn begin(
+        &mut self,
+        statement: Option<Cow<'static, str>>,
+    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        PgTransactionManager::begin(self, statement).boxed()
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::commit(self)
+        PgTransactionManager::commit(self).boxed()
     }
 
     fn rollback(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        PgTransactionManager::rollback(self)
+        PgTransactionManager::rollback(self).boxed()
     }
 
     fn start_rollback(&mut self) {
         PgTransactionManager::start_rollback(self)
+    }
+
+    fn get_transaction_depth(&self) -> usize {
+        PgTransactionManager::get_transaction_depth(self)
     }
 
     fn shrink_buffers(&mut self) {
@@ -60,7 +68,7 @@ impl AnyConnectionBackend for PgConnection {
     }
 
     fn flush(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::flush(self)
+        Connection::flush(self).boxed()
     }
 
     fn should_flush(&self) -> bool {
@@ -89,7 +97,7 @@ impl AnyConnectionBackend for PgConnection {
         };
 
         Box::pin(
-            self.run(query, arguments, 0, persistent, None)
+            self.run(query, arguments, persistent, None)
                 .try_flatten_stream()
                 .map(
                     move |res: sqlx_core::Result<Either<PgQueryResult, PgRow>>| match res? {
@@ -115,7 +123,7 @@ impl AnyConnectionBackend for PgConnection {
 
         Box::pin(async move {
             let arguments = arguments?;
-            let mut stream = pin!(self.run(query, arguments, 1, persistent, None).await?);
+            let mut stream = pin!(self.run(query, arguments, persistent, None).await?);
 
             if let Some(Either::Right(row)) = stream.try_next().await? {
                 return Ok(Some(AnyRow::try_from(&row)?));

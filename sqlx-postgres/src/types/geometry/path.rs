@@ -27,7 +27,10 @@ const BYTE_WIDTH: usize = mem::size_of::<f64>();
 /// where the points are the end points of the line segments comprising the path. Square brackets `([])` indicate an open path, while parentheses `(())` indicate a closed path.
 /// When the outermost parentheses are omitted, as in the third through fifth syntaxes, a closed path is assumed.
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
+/// See [Postgres Manual, Section 8.8.5, Geometric Types - Paths][PG.S.8.8.5] for details.
+///
+/// [PG.S.8.8.5]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPath {
     pub closed: bool,
@@ -61,7 +64,7 @@ impl<'r> Decode<'r, Postgres> for PgPath {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgPath {
+impl Encode<'_, Postgres> for PgPath {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("path"))
     }

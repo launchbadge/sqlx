@@ -4,12 +4,6 @@
 // We'll generally lean towards Tokio's types as those are more featureful
 // (including `tokio-console` support) and more widely deployed.
 
-#[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-pub use async_std::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(feature = "_rt-tokio")]
-pub use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
 pub struct AsyncSemaphore {
     // We use the semaphore from futures-intrusive as the one from async-std
     // is missing the ability to add arbitrary permits, and is not guaranteed to be fair:

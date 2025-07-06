@@ -1,10 +1,12 @@
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::borrow::Cow;
 use std::fmt::Debug;
+use std::future::Future;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
@@ -31,23 +33,50 @@ pub trait Connection: Send {
     ///
     /// Therefore it is recommended to call `.close()` on a connection when you are done using it
     /// and to `.await` the result to ensure the termination message is sent.
-    fn close(self) -> BoxFuture<'static, Result<(), Error>>;
+    fn close(self) -> impl Future<Output = Result<(), Error>> + Send + 'static;
 
     /// Immediately close the connection without sending a graceful shutdown.
     ///
     /// This should still at least send a TCP `FIN` frame to let the server know we're dying.
     #[doc(hidden)]
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>>;
+    fn close_hard(self) -> impl Future<Output = Result<(), Error>> + Send + 'static;
 
     /// Checks if a connection to the database is still valid.
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>>;
+    fn ping(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin(
+        &mut self,
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_;
+
+    /// Begin a new transaction with a custom statement.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    ///
+    /// Returns an error if the connection is already in a transaction or if
+    /// `statement` does not put the connection into a transaction.
+    fn begin_with(
+        &mut self,
+        statement: impl Into<Cow<'static, str>>,
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        Transaction::begin(self, Some(statement.into()))
+    }
+
+    /// Returns `true` if the connection is currently in a transaction.
+    ///
+    /// # Note: Automatic Rollbacks May Not Be Counted
+    /// Certain database errors (such as a serializable isolation failure)
+    /// can cause automatic rollbacks of a transaction
+    /// which may not be indicated in the return value of this method.
+    #[inline]
+    fn is_in_transaction(&self) -> bool {
+        <Self::Database as Database>::TransactionManager::get_transaction_depth(self) != 0
+    }
 
     /// Execute the function inside a transaction.
     ///
@@ -66,7 +95,10 @@ pub trait Connection: Send {
     /// })).await
     /// # }
     /// ```
-    fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
+    fn transaction<'a, F, R, E>(
+        &'a mut self,
+        callback: F,
+    ) -> impl Future<Output = Result<R, E>> + Send + 'a
     where
         for<'c> F: FnOnce(&'c mut Transaction<'_, Self::Database>) -> BoxFuture<'c, Result<R, E>>
             + 'a
@@ -76,7 +108,7 @@ pub trait Connection: Send {
         R: Send,
         E: From<Error> + Send,
     {
-        Box::pin(async move {
+        async move {
             let mut transaction = self.begin().await?;
             let ret = callback(&mut transaction).await;
 
@@ -92,7 +124,7 @@ pub trait Connection: Send {
                     Err(err)
                 }
             }
-        })
+        }
     }
 
     /// The number of statements currently cached in the connection.
@@ -105,11 +137,11 @@ pub trait Connection: Send {
 
     /// Removes all statements from the cache, closing them on the server if
     /// needed.
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>>
+    fn clear_cached_statements(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_
     where
         Self::Database: HasStatementCache,
     {
-        Box::pin(async move { Ok(()) })
+        async move { Ok(()) }
     }
 
     /// Restore any buffers in the connection to their default capacity, if possible.
@@ -127,7 +159,7 @@ pub trait Connection: Send {
     fn shrink_buffers(&mut self);
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>>;
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool;
@@ -137,17 +169,19 @@ pub trait Connection: Send {
     /// A value of [`Options`][Self::Options] is parsed from the provided connection string. This parsing
     /// is database-specific.
     #[inline]
-    fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>>
+    fn connect(url: &str) -> impl Future<Output = Result<Self, Error>> + Send + 'static
     where
         Self: Sized,
     {
         let options = url.parse();
 
-        Box::pin(async move { Self::connect_with(&options?).await })
+        async move { Self::connect_with(&options?).await }
     }
 
     /// Establish a new database connection with the provided options.
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>>
+    fn connect_with(
+        options: &Self::Options,
+    ) -> impl Future<Output = Result<Self, Error>> + Send + '_
     where
         Self: Sized,
     {
@@ -219,7 +253,7 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
     }
 
     /// Establish a new database connection with the options specified by `self`.
-    fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
+    fn connect(&self) -> impl Future<Output = Result<Self::Connection, Error>> + Send + '_
     where
         Self::Connection: Sized;
 

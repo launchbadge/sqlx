@@ -93,7 +93,7 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
         let conn = self.acquire();
 
         Box::pin(async move {
-            Transaction::begin(MaybePoolConnection::PoolConnection(conn.await?)).await
+            Transaction::begin(MaybePoolConnection::PoolConnection(conn.await?), None).await
         })
     }
 }
@@ -111,7 +111,7 @@ macro_rules! impl_acquire {
                 self,
             ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, $crate::error::Error>>
             {
-                Box::pin(futures_util::future::ok(self))
+                Box::pin(std::future::ready(Ok(self)))
             }
 
             #[inline]
@@ -121,7 +121,7 @@ macro_rules! impl_acquire {
                 'c,
                 Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
             > {
-                $crate::transaction::Transaction::begin(self)
+                $crate::transaction::Transaction::begin(self, None)
             }
         }
     };

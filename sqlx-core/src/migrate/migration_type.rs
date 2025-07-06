@@ -74,8 +74,9 @@ impl MigrationType {
         }
     }
 
+    #[deprecated = "unused"]
     pub fn infer(migrator: &Migrator, reversible: bool) -> MigrationType {
-        match migrator.iter().next() {
+        match migrator.iter().last() {
             Some(first_migration) => first_migration.migration_type,
             None => {
                 if reversible {

@@ -1,104 +1,96 @@
+use std::future::Future;
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Duration;
-
-use futures_core::future::BoxFuture;
-
-use once_cell::sync::OnceCell;
-use sqlx_core::connection::Connection;
-use sqlx_core::query_builder::QueryBuilder;
-use sqlx_core::query_scalar::query_scalar;
-use std::fmt::Write;
 
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
 use crate::query::query;
-use crate::{MySql, MySqlConnectOptions, MySqlConnection};
+use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
+use sqlx_core::connection::Connection;
+use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::query_scalar::query_scalar;
+use std::fmt::Write;
 
 pub(crate) use sqlx_core::testing::*;
 
-// Using a blocking `OnceCell` here because the critical sections are short.
-static MASTER_POOL: OnceCell<Pool<MySql>> = OnceCell::new();
+// Using a blocking `OnceLock` here because the critical sections are short.
+static MASTER_POOL: OnceLock<Pool<MySql>> = OnceLock::new();
 
 impl TestSupport for MySql {
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move { test_context(args).await })
+    fn test_context(
+        args: &TestArgs,
+    ) -> impl Future<Output = Result<TestContext<Self>, Error>> + Send + '_ {
+        test_context(args)
     }
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let mut conn = MASTER_POOL
-                .get()
-                .expect("cleanup_test() invoked outside `#[sqlx::test]`")
-                .acquire()
-                .await?;
+    async fn cleanup_test(db_name: &str) -> Result<(), Error> {
+        let mut conn = MASTER_POOL
+            .get()
+            .expect("cleanup_test() invoked outside `#[sqlx::test]`")
+            .acquire()
+            .await?;
 
-            do_cleanup(&mut conn, db_name).await
-        })
+        do_cleanup(&mut conn, db_name).await
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    async fn cleanup_test_dbs() -> Result<Option<usize>, Error> {
+        let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-            let mut conn = MySqlConnection::connect(&url).await?;
+        let mut conn = MySqlConnection::connect(&url).await?;
 
-            let delete_db_names: Vec<String> =
-                query_scalar("select db_name from _sqlx_test_databases")
-                    .fetch_all(&mut conn)
-                    .await?;
+        let delete_db_names: Vec<String> = query_scalar("select db_name from _sqlx_test_databases")
+            .fetch_all(&mut conn)
+            .await?;
 
-            if delete_db_names.is_empty() {
-                return Ok(None);
-            }
+        if delete_db_names.is_empty() {
+            return Ok(None);
+        }
 
-            let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
+        let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-            let mut command = String::new();
+        let mut command = String::new();
 
-            for db_name in &delete_db_names {
-                command.clear();
+        for db_name in &delete_db_names {
+            command.clear();
 
-                let db_name = format!("_sqlx_test_database_{db_name}");
+            let db_name = format!("_sqlx_test_database_{db_name}");
 
-                writeln!(command, "drop database if exists {db_name:?};").ok();
-                match conn.execute(&*command).await {
-                    Ok(_deleted) => {
-                        deleted_db_names.push(db_name);
-                    }
-                    // Assume a database error just means the DB is still in use.
-                    Err(Error::Database(dbe)) => {
-                        eprintln!("could not clean test database {db_name:?}: {dbe}")
-                    }
-                    // Bubble up other errors
-                    Err(e) => return Err(e),
+            writeln!(command, "drop database if exists {db_name};").ok();
+            match conn.execute(&*command).await {
+                Ok(_deleted) => {
+                    deleted_db_names.push(db_name);
                 }
+                // Assume a database error just means the DB is still in use.
+                Err(Error::Database(dbe)) => {
+                    eprintln!("could not clean test database {db_name:?}: {dbe}")
+                }
+                // Bubble up other errors
+                Err(e) => return Err(e),
             }
+        }
 
-            if deleted_db_names.is_empty() {
-                return Ok(None);
-            }
+        if deleted_db_names.is_empty() {
+            return Ok(None);
+        }
 
-            let mut query =
-                QueryBuilder::new("delete from _sqlx_test_databases where db_name in (");
+        let mut query = QueryBuilder::new("delete from _sqlx_test_databases where db_name in (");
 
-            let mut separated = query.separated(",");
+        let mut separated = query.separated(",");
 
-            for db_name in &deleted_db_names {
-                separated.push_bind(db_name);
-            }
+        for db_name in &deleted_db_names {
+            separated.push_bind(db_name);
+        }
 
-            query.push(")").build().execute(&mut conn).await?;
+        query.push(")").build().execute(&mut conn).await?;
 
-            let _ = conn.close().await;
-            Ok(Some(delete_db_names.len()))
-        })
+        let _ = conn.close().await;
+        Ok(Some(delete_db_names.len()))
     }
 
-    fn snapshot(
-        _conn: &mut Self::Connection,
-    ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
+    async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {
         // TODO: I want to get the testing feature out the door so this will have to wait,
         // but I'm keeping the code around for now because I plan to come back to it.
         todo!()
@@ -119,7 +111,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
         .connect_lazy_with(master_opts);
 
-    let master_pool = match MASTER_POOL.try_insert(pool) {
+    let master_pool = match once_lock_try_insert_polyfill(&MASTER_POOL, pool) {
         Ok(inserted) => inserted,
         Err((existing, pool)) => {
             // Sanity checks.
@@ -141,14 +133,19 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 
     let mut conn = master_pool.acquire().await?;
 
+    cleanup_old_dbs(&mut conn).await?;
+
     // language=MySQL
     conn.execute(
         r#"
         create table if not exists _sqlx_test_databases (
-            db_name text primary key,
+            db_name text not null,
             test_path text not null,
-            created_at timestamp not null default current_timestamp
-        );
+            created_at timestamp not null default current_timestamp,
+            -- BLOB/TEXT columns can only be used as index keys with a prefix length:
+            -- https://dev.mysql.com/doc/refman/8.4/en/column-indexes.html#column-indexes-prefix
+            primary key(db_name(63))
+        );        
     "#,
     )
     .await?;
@@ -162,7 +159,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(&format!("create database {db_name:?}")[..])
+    conn.execute(&format!("create database {db_name}")[..])
         .await?;
 
     eprintln!("created database {db_name}");
@@ -186,12 +183,72 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 }
 
 async fn do_cleanup(conn: &mut MySqlConnection, db_name: &str) -> Result<(), Error> {
-    let delete_db_command = format!("drop database if exists {db_name:?};");
+    let delete_db_command = format!("drop database if exists {db_name};");
     conn.execute(&*delete_db_command).await?;
-    query("delete from _sqlx_test.databases where db_name = $1::text")
+    query("delete from _sqlx_test_databases where db_name = ?")
         .bind(db_name)
         .execute(&mut *conn)
         .await?;
 
     Ok(())
+}
+
+async fn cleanup_old_dbs(conn: &mut MySqlConnection) -> Result<(), Error> {
+    let res: Result<Vec<u64>, Error> = query_scalar("select db_id from _sqlx_test_databases")
+        .fetch_all(&mut *conn)
+        .await;
+
+    let db_ids = match res {
+        Ok(db_ids) => db_ids,
+        Err(e) => {
+            if let Some(dbe) = e.as_database_error() {
+                match dbe.downcast_ref::<MySqlDatabaseError>().number() {
+                    // Column `db_id` does not exist:
+                    // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html#error_er_bad_field_error
+                    //
+                    // The table has already been migrated.
+                    1054 => return Ok(()),
+                    // Table `_sqlx_test_databases` does not exist.
+                    // No cleanup needed.
+                    // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html#error_er_no_such_table
+                    1146 => return Ok(()),
+                    _ => (),
+                }
+            }
+
+            return Err(e);
+        }
+    };
+
+    // Drop old-style test databases.
+    for id in db_ids {
+        match conn
+            .execute(&*format!(
+                "drop database if exists _sqlx_test_database_{id}"
+            ))
+            .await
+        {
+            Ok(_deleted) => (),
+            // Assume a database error just means the DB is still in use.
+            Err(Error::Database(dbe)) => {
+                eprintln!("could not clean old test database _sqlx_test_database_{id}: {dbe}");
+            }
+            // Bubble up other errors
+            Err(e) => return Err(e),
+        }
+    }
+
+    conn.execute("drop table if exists _sqlx_test_databases")
+        .await?;
+
+    Ok(())
+}
+
+fn once_lock_try_insert_polyfill<T>(this: &OnceLock<T>, value: T) -> Result<&T, (&T, T)> {
+    let mut value = Some(value);
+    let res = this.get_or_init(|| value.take().unwrap());
+    match value {
+        None => Ok(res),
+        Some(value) => Err((res, value)),
+    }
 }

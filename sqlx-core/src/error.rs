@@ -117,6 +117,12 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    #[error("attempted to call begin_with at non-zero transaction depth")]
+    InvalidSavePointStatement,
+
+    #[error("got unexpected connection status after attempting to begin transaction")]
+    BeginFailed,
 }
 
 impl StdError for Box<dyn DatabaseError> {}
@@ -191,6 +197,8 @@ pub enum ErrorKind {
     NotNullViolation,
     /// Check constraint violation.
     CheckViolation,
+    /// Exclusion constraint violation.
+    ExclusionViolation,
     /// An unmapped error.
     Other,
 }

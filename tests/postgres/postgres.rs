@@ -1,4 +1,4 @@
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures_util::{Stream, StreamExt, TryStreamExt};
 
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
@@ -515,6 +515,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    assert!(!conn.is_in_transaction());
 
     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
         .await?;
@@ -523,6 +524,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin
     let mut tx = conn.begin().await?; // transaction
+    assert!(tx.is_in_transaction());
 
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -532,6 +534,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // begin once more
     let mut tx2 = tx.begin().await?; // savepoint
+    assert!(tx2.is_in_transaction());
 
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
@@ -541,6 +544,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // never mind, rollback
     tx2.rollback().await?; // roll that one back
+    assert!(tx.is_in_transaction());
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
@@ -551,6 +555,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // actually, commit
     tx.commit().await?;
+    assert!(!conn.is_in_transaction());
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
@@ -599,7 +604,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    use futures::{future, task::Poll, Future};
+    use futures_util::{task::Poll, Future};
 
     eprintln!("starting pool");
 
@@ -640,7 +645,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 let mut acquire = pin!(pool.acquire());
 
                 // poll the acquire future once to put the waiter in the queue
-                future::poll_fn(move |cx| {
+                std::future::poll_fn(move |cx| {
                     let _ = acquire.as_mut().poll(cx);
                     Poll::Ready(())
                 })
@@ -813,6 +818,27 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_closes_statements_when_not_persistent_issue_3850() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _row = sqlx::query("SELECT $1 AS val")
+        .bind(Oid(1))
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let row = sqlx::query("SELECT count(*) AS num_prepared_statements FROM pg_prepared_statements")
+        .persistent(false)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let n: i64 = row.get("num_prepared_statements");
+    assert_eq!(0, n, "no prepared statements should be open");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_sets_application_name() -> anyhow::Result<()> {
     sqlx_test::setup_if_needed();
 
@@ -917,7 +943,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         }));
     }
 
-    futures::future::try_join_all(handles).await?;
+    futures_util::future::try_join_all(handles).await?;
 
     Ok(())
 }
@@ -2043,6 +2069,62 @@ async fn test_issue_3052() {
 }
 
 #[sqlx_macros::test]
+async fn test_bind_iter() -> anyhow::Result<()> {
+    use sqlx::postgres::PgBindIterExt;
+    use sqlx::types::chrono::{DateTime, Utc};
+
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(sqlx::FromRow, PartialEq, Debug)]
+    struct Person {
+        id: i64,
+        name: String,
+        birthdate: DateTime<Utc>,
+    }
+
+    let people: Vec<Person> = vec![
+        Person {
+            id: 1,
+            name: "Alice".into(),
+            birthdate: "1984-01-01T00:00:00Z".parse().unwrap(),
+        },
+        Person {
+            id: 2,
+            name: "Bob".into(),
+            birthdate: "2000-01-01T00:00:00Z".parse().unwrap(),
+        },
+    ];
+
+    sqlx::query(
+        r#"
+create temporary table person(
+  id int8 primary key,
+  name text not null,
+  birthdate timestamptz not null
+)"#,
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let rows_affected =
+        sqlx::query("insert into person(id, name, birthdate) select * from unnest($1, $2, $3)")
+            // owned value
+            .bind(people.iter().map(|p| p.id).bind_iter())
+            // borrowed value
+            .bind(people.iter().map(|p| &p.name).bind_iter())
+            .bind(people.iter().map(|p| &p.birthdate).bind_iter())
+            .execute(&mut conn)
+            .await?
+            .rows_affected();
+    assert_eq!(rows_affected, 2);
+
+    let p_query = sqlx::query_as::<_, Person>("select * from person order by id")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(people, p_query);
+    Ok(())
+}
 async fn test_pg_copy_chunked() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 

@@ -6,6 +6,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
@@ -27,6 +28,8 @@ derive = ["sqlx-macros-core/derive"]
 macros = ["sqlx-macros-core/macros"]
 migrate = ["sqlx-macros-core/migrate"]
 
+sqlx-toml = ["sqlx-macros-core/sqlx-toml"]
+
 # database
 mysql = ["sqlx-macros-core/mysql"]
 postgres = ["sqlx-macros-core/postgres"]
@@ -37,6 +40,7 @@ sqlite-unbundled = ["sqlx-macros-core/sqlite-unbundled"]
 bigdecimal = ["sqlx-macros-core/bigdecimal"]
 bit-vec = ["sqlx-macros-core/bit-vec"]
 chrono = ["sqlx-macros-core/chrono"]
+ipnet = ["sqlx-macros-core/ipnet"]
 ipnetwork = ["sqlx-macros-core/ipnetwork"]
 mac_address = ["sqlx-macros-core/mac_address"]
 rust_decimal = ["sqlx-macros-core/rust_decimal"]

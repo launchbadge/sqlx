@@ -25,11 +25,12 @@ pub enum CertificateInput {
 
 impl From<String> for CertificateInput {
     fn from(value: String) -> Self {
+        // Leading and trailing whitespace/newlines
         let trimmed = value.trim();
-        // Some heuristics according to https://tools.ietf.org/html/rfc7468
-        if trimmed.starts_with("-----BEGIN CERTIFICATE-----")
-            && trimmed.contains("-----END CERTIFICATE-----")
-        {
+
+        // Heuristic for PEM encoded inputs:
+        // https://tools.ietf.org/html/rfc7468
+        if trimmed.starts_with("-----BEGIN") && trimmed.ends_with("-----") {
             CertificateInput::Inline(value.as_bytes().to_vec())
         } else {
             CertificateInput::File(PathBuf::from(value))

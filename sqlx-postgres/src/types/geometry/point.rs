@@ -19,7 +19,10 @@ use std::str::FromStr;
 /// ````
 /// where x and y are the respective coordinates, as floating-point numbers.
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-POINTS
+/// See [Postgres Manual, Section 8.8.1, Geometric Types - Points][PG.S.8.8.1] for details.
+///
+/// [PG.S.8.8.1]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-GEOMETRIC-POINTS
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgPoint {
     pub x: f64,
@@ -47,7 +50,7 @@ impl<'r> Decode<'r, Postgres> for PgPoint {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgPoint {
+impl Encode<'_, Postgres> for PgPoint {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("point"))
     }
@@ -74,7 +77,7 @@ impl FromStr for PgPoint {
             .ok_or_else(|| format!("error decoding POINT: could not get x and y from {}", s))?;
 
         let x = parse_float_from_str(x_str, "error decoding POINT: could not get x")?;
-        let y = parse_float_from_str(y_str, "error decoding POINT: could not get x")?;
+        let y = parse_float_from_str(y_str, "error decoding POINT: could not get y")?;
 
         Ok(PgPoint { x, y })
     }

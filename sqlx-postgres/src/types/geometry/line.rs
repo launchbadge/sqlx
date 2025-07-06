@@ -15,7 +15,10 @@ const ERROR: &str = "error decoding LINE";
 ///
 /// Lines are represented by the linear equation Ax + By + C = 0, where A and B are not both zero.
 ///
-/// See https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-LINE
+/// See [Postgres Manual, Section 8.8.2, Geometric Types - Lines][PG.S.8.8.2] for details.
+///
+/// [PG.S.8.8.2]: https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LINE
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct PgLine {
     pub a: f64,
@@ -44,7 +47,7 @@ impl<'r> Decode<'r, Postgres> for PgLine {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgLine {
+impl Encode<'_, Postgres> for PgLine {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("line"))
     }

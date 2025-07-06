@@ -26,6 +26,8 @@
 //! | [`PgLSeg`]                            | LSEG                                                 |
 //! | [`PgBox`]                             | BOX                                                  |
 //! | [`PgPath`]                            | PATH                                                 |
+//! | [`PgPolygon`]                         | POLYGON                                              |
+//! | [`PgCircle`]                          | CIRCLE                                               |
 //! | [`PgHstore`]                          | HSTORE                                               |
 //!
 //! <sup>1</sup> SQLx generally considers `CITEXT` to be compatible with `String`, `&str`, etc.,
@@ -85,7 +87,7 @@
 //!
 //! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
 //!
-//! Requires the `ipnetwork` Cargo feature flag.
+//! Requires the `ipnetwork` Cargo feature flag (takes precedence over `ipnet` if both are used).
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
@@ -97,6 +99,17 @@
 //! `/32` for IPv4 addresses and `/128` for IPv6 addresses.
 //!
 //! `IpNetwork` does not have this limitation.
+//!
+//! ### [`ipnet`](https://crates.io/crates/ipnet)
+//!
+//! Requires the `ipnet` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ipnet::IpNet`                        | INET, CIDR                                           |
+//! | `std::net::IpAddr`                    | INET, CIDR                                           |
+//!
+//! The same `IpAddr` limitation for smaller network prefixes applies as with `ipnet`.
 //!
 //! ### [`mac_address`](https://crates.io/crates/mac_address)
 //!
@@ -246,11 +259,11 @@ mod time;
 #[cfg(feature = "uuid")]
 mod uuid;
 
-#[cfg(feature = "ipnetwork")]
-mod ipnetwork;
+#[cfg(feature = "ipnet")]
+mod ipnet;
 
 #[cfg(feature = "ipnetwork")]
-mod ipaddr;
+mod ipnetwork;
 
 #[cfg(feature = "mac_address")]
 mod mac_address;
@@ -261,10 +274,12 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use citext::PgCiText;
 pub use cube::PgCube;
+pub use geometry::circle::PgCircle;
 pub use geometry::line::PgLine;
 pub use geometry::line_segment::PgLSeg;
 pub use geometry::path::PgPath;
 pub use geometry::point::PgPoint;
+pub use geometry::polygon::PgPolygon;
 pub use geometry::r#box::PgBox;
 pub use hstore::PgHstore;
 pub use interval::PgInterval;

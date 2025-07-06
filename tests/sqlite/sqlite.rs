@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
@@ -6,7 +6,9 @@ use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
+use sqlx_sqlite::LockedSqliteHandle;
 use sqlx_test::new;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -638,7 +640,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // Random seed:
     let seed: [u8; 32] = rand::random();
-    println!("RNG seed: {}", hex::encode(&seed));
+    println!("RNG seed: {}", hex::encode(seed));
 
     // Pre-determined seed:
     // let mut seed: [u8; 32] = [0u8; 32];
@@ -733,7 +735,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_progress_handler(1, move || {
         assert_eq!(state, "test");
         false
@@ -801,7 +803,7 @@ async fn test_query_with_update_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_update_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Insert);
@@ -857,7 +859,7 @@ async fn test_query_with_commit_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_commit_hook(move || {
         CALLED.store(true, Ordering::Relaxed);
         assert_eq!(state, "test");
@@ -919,7 +921,7 @@ async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     static CALLED: AtomicBool = AtomicBool::new(false);
     conn.lock_handle().await?.set_rollback_hook(move || {
         assert_eq!(state, "test");
@@ -968,6 +970,24 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn issue_3150() {
+    // Same bounds as `tokio::spawn()`
+    async fn fake_spawn<F>(future: F) -> F::Output
+    where
+        F: Future + Send + 'static,
+    {
+        future.await
+    }
+
+    fake_spawn(async {
+        let mut db = SqliteConnection::connect(":memory:").await.unwrap();
+        sqlx::raw_sql("").execute(&mut db).await.unwrap();
+        db.close().await.unwrap();
+    })
+    .await;
+}
+
 #[cfg(feature = "sqlite-preupdate-hook")]
 #[sqlx_macros::test]
 async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
@@ -976,7 +996,7 @@ async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         move |result| {
             assert_eq!(state, "test");
@@ -1029,7 +1049,7 @@ async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
         .await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Delete);
@@ -1076,7 +1096,7 @@ async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
     static CALLED: AtomicBool = AtomicBool::new(false);
     let sqlite_value_stored: Arc<std::sync::Mutex<Option<_>>> = Default::default();
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         let sqlite_value_stored = sqlite_value_stored.clone();
         move |result| {
@@ -1315,4 +1335,54 @@ async fn test_serialize_invalid_schema() -> anyhow::Result<()> {
     );
 
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_use_transaction_options() -> anyhow::Result<()> {
+    async fn check_txn_state(conn: &mut SqliteConnection, expected: SqliteTransactionState) {
+        let state = transaction_state(&mut conn.lock_handle().await.unwrap());
+        assert_eq!(state, expected);
+    }
+
+    let mut conn = SqliteConnectOptions::new()
+        .in_memory(true)
+        .connect()
+        .await
+        .unwrap();
+
+    check_txn_state(&mut conn, SqliteTransactionState::None).await;
+
+    let mut tx = conn.begin_with("BEGIN DEFERRED").await?;
+    check_txn_state(&mut tx, SqliteTransactionState::None).await;
+    drop(tx);
+
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await;
+    drop(tx);
+
+    let mut tx = conn.begin_with("BEGIN EXCLUSIVE").await?;
+    check_txn_state(&mut tx, SqliteTransactionState::Write).await;
+    drop(tx);
+
+    Ok(())
+}
+
+fn transaction_state(handle: &mut LockedSqliteHandle) -> SqliteTransactionState {
+    use libsqlite3_sys::{sqlite3_txn_state, SQLITE_TXN_NONE, SQLITE_TXN_READ, SQLITE_TXN_WRITE};
+
+    let unchecked_state =
+        unsafe { sqlite3_txn_state(handle.as_raw_handle().as_ptr(), std::ptr::null()) };
+    match unchecked_state {
+        SQLITE_TXN_NONE => SqliteTransactionState::None,
+        SQLITE_TXN_READ => SqliteTransactionState::Read,
+        SQLITE_TXN_WRITE => SqliteTransactionState::Write,
+        _ => panic!("unknown txn state: {unchecked_state}"),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SqliteTransactionState {
+    None,
+    Read,
+    Write,
 }

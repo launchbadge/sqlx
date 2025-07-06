@@ -1,7 +1,11 @@
 extern crate time_ as time;
 
+use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::rc::Rc;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -9,7 +13,6 @@ use sqlx_test::{new, test_decode_type, test_prepared_type, test_type};
 
 use sqlx_core::executor::Executor;
 use sqlx_core::types::Text;
-use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
     "NULL::int2" == None::<i16>
@@ -171,6 +174,38 @@ test_type!(uuid_vec<Vec<sqlx::types::Uuid>>(Postgres,
         ]
 ));
 
+#[cfg(feature = "ipnet")]
+test_type!(ipnet<sqlx::types::ipnet::IpNet>(Postgres,
+    "'127.0.0.1'::inet"
+        == "127.0.0.1/32"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'8.8.8.8/24'::inet"
+        == "8.8.8.8/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'10.1.1/24'::inet"
+        == "10.1.1.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0'::inet"
+        == "::ffff:1.2.3.0/128"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'2001:4f8:3:ba::/64'::inet"
+        == "2001:4f8:3:ba::/64"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'192.168'::cidr"
+        == "192.168.0.0/24"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+    "'::ffff:1.2.3.0/120'::cidr"
+        == "::ffff:1.2.3.0/120"
+            .parse::<sqlx::types::ipnet::IpNet>()
+            .unwrap(),
+));
+
 #[cfg(feature = "ipnetwork")]
 test_type!(ipnetwork<sqlx::types::ipnetwork::IpNetwork>(Postgres,
     "'127.0.0.1'::inet"
@@ -230,6 +265,15 @@ test_type!(bitvec<sqlx::types::BitVec>(
         bit_vec.push(true);
         bit_vec
     },
+));
+
+#[cfg(feature = "ipnet")]
+test_type!(ipnet_vec<Vec<sqlx::types::ipnet::IpNet>>(Postgres,
+    "'{127.0.0.1,8.8.8.8/24}'::inet[]"
+        == vec![
+           "127.0.0.1/32".parse::<sqlx::types::ipnet::IpNet>().unwrap(),
+           "8.8.8.8/24".parse::<sqlx::types::ipnet::IpNet>().unwrap()
+        ]
 ));
 
 #[cfg(feature = "ipnetwork")]
@@ -530,6 +574,23 @@ test_type!(path<sqlx::postgres::types::PgPath>(Postgres,
     "path('[(1.0, 2.0), (3.0,4.0)]')" == sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
 ));
 
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(polygon<sqlx::postgres::types::PgPolygon>(Postgres,
+    "polygon('((-2,-3),(-1,-3),(-1,-1),(1,1),(1,3),(2,3),(2,-3),(1,-3),(1,0),(-1,0),(-1,-2),(-2,-2))')" ~= sqlx::postgres::types::PgPolygon {  points: vec![
+            sqlx::postgres::types::PgPoint { x: -2., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -1. }, sqlx::postgres::types::PgPoint { x: 1., y: 1. },
+            sqlx::postgres::types::PgPoint { x: 1., y: 3. },   sqlx::postgres::types::PgPoint { x: 2., y: 3. },   sqlx::postgres::types::PgPoint { x: 2., y: -3. },  sqlx::postgres::types::PgPoint { x: 1., y: -3. },
+            sqlx::postgres::types::PgPoint { x: 1., y: 0. },   sqlx::postgres::types::PgPoint { x: -1., y: 0. },  sqlx::postgres::types::PgPoint { x: -1., y: -2. }, sqlx::postgres::types::PgPoint { x: -2., y: -2. },
+    ]},
+));
+
+#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
+test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
+    "circle('<(1.1, -2.2), 3.3>')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('((1.1, -2.2), 3.3)')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('(1.1, -2.2), 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+    "circle('1.1, -2.2, 3.3')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
+));
+
 #[cfg(feature = "rust_decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
@@ -674,6 +735,21 @@ struct RootComposite {
 test_type!(nested_domain_types_2<RootComposite>(Postgres,
     "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1})})
 );
+
+test_type!(test_arc<Arc<i32>>(Postgres, "1::INT4" == Arc::new(1i32)));
+test_type!(test_cow<Cow<'_, i32>>(Postgres, "1::INT4" == Cow::<i32>::Owned(1i32)));
+test_type!(test_box<Box<i32>>(Postgres, "1::INT4" == Box::new(1i32)));
+test_type!(test_rc<Rc<i32>>(Postgres, "1::INT4" == Rc::new(1i32)));
+
+test_type!(test_box_str<Box<str>>(Postgres, "'John'::TEXT" == Box::<str>::from("John")));
+test_type!(test_cow_str<Cow<'_, str>>(Postgres, "'Phil'::TEXT" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(Postgres, "'1234'::TEXT" == Arc::<str>::from("1234")));
+test_type!(test_rc_str<Rc<str>>(Postgres, "'5678'::TEXT" == Rc::<str>::from("5678")));
+
+test_prepared_type!(test_box_slice<Box<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Box::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_cow_slice<Cow<'_, [u8]>>(Postgres, "'\\x01020304'::BYTEA" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_prepared_type!(test_arc_slice<Arc<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Arc::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_rc_slice<Rc<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {
