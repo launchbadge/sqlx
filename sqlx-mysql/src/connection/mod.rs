@@ -5,6 +5,7 @@ use std::future::Future;
 pub(crate) use sqlx_core::connection::*;
 pub(crate) use stream::{MySqlStream, Waiting};
 
+use crate::collation::Collation;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::protocol::response::Status;
@@ -21,6 +22,13 @@ mod stream;
 mod tls;
 
 const MAX_PACKET_SIZE: u32 = 1024;
+
+/// The charset parameter sent in the `Protocol::HandshakeResponse41` packet.
+///
+/// This becomes the default if `set_names = false`,
+/// and also ensures that any error messages returned before `SET NAMES` are encoded correctly.
+#[allow(clippy::cast_possible_truncation)]
+const INITIAL_CHARSET: u8 = Collation::UTF8MB4_GENERAL_CI.0 as u8;
 
 /// A connection to a MySQL database.
 pub struct MySqlConnection {

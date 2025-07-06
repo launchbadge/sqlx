@@ -245,12 +245,12 @@ impl<'q> RawSql<'q> {
     ///
     /// Otherwise, you might want to add `LIMIT 1` to your query.
     #[inline]
-    pub async fn fetch_optional<'e, E, DB>(self, executor: E) -> crate::Result<DB::Row>
+    pub async fn fetch_optional<'e, E, DB>(self, executor: E) -> crate::Result<Option<DB::Row>>
     where
         'q: 'e,
         DB: Database,
         E: Executor<'e, Database = DB>,
     {
-        executor.fetch_one(self).await
+        executor.fetch_optional(self).await
     }
 }

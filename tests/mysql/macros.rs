@@ -555,4 +555,34 @@ async fn test_from_row_json_try_from_attr() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(all(mariadb, not(mariadb = "10_6"), feature = "time"))]
+#[sqlx_macros::test]
+async fn test_uuid_is_compatible_mariadb() -> anyhow::Result<()> {
+    use sqlx::types::time::OffsetDateTime;
+    use sqlx::types::Uuid;
+
+    struct Tweet {
+        id: Uuid,
+        text: String,
+        created_at: OffsetDateTime,
+        owner_id: Option<Uuid>,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    sqlx::query!("INSERT INTO tweet_with_uuid(text) VALUES ('Hello, world!')")
+        .execute(&mut conn)
+        .await?;
+
+    let tweets: Vec<Tweet> = sqlx::query_as!(Tweet, "SELECT * FROM tweet_with_uuid")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(tweets.len(), 1);
+
+    assert_eq!(tweets[0].text, "Hello, world!");
+
+    Ok(())
+}
+
 // we don't emit bind parameter type-checks for MySQL so testing the overrides is redundant
