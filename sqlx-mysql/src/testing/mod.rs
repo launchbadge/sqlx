@@ -54,9 +54,7 @@ impl TestSupport for MySql {
         let mut builder = QueryBuilder::new("drop database if exists ");
 
         for db_name in &delete_db_names {
-            let db_name = format!("_sqlx_test_database_{db_name}");
-
-            builder.push(&db_name);
+            builder.push(db_name);
 
             match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {

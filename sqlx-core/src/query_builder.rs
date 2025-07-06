@@ -533,7 +533,7 @@ where
     }
 
     /// Deconstruct this `QueryBuilder`, returning the built SQL. May not be syntactically correct.
-    pub fn into_sql(self) -> String {
+    pub fn into_string(self) -> String {
         Arc::unwrap_or_clone(self.query)
     }
 
