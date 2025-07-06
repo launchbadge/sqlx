@@ -163,6 +163,10 @@ impl SqlStr {
             Repr::ArcString(s) => s,
         }
     }
+
+    pub const fn from_static(sql: &'static str) -> Self {
+        SqlStr(Repr::Static(sql))
+    }
 }
 
 impl AsRef<str> for SqlStr {

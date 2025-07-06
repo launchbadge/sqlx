@@ -221,7 +221,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             .await?;
 
             let _ = tx
-                .execute(AssertSqlSafe(migration.sql.to_string()))
+                .execute(migration.sql.clone())
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -291,7 +291,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             .execute(&mut *tx)
             .await?;
 
-            tx.execute(AssertSqlSafe(migration.sql.to_string())).await?;
+            tx.execute(migration.sql.clone()).await?;
 
             // language=SQL
             let _ = query(AssertSqlSafe(format!(

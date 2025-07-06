@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
             // and update it once the actual transaction completed.
             let _ = tx
-                .execute(AssertSqlSafe(migration.sql.to_string()))
+                .execute(migration.sql.clone())
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let _ = tx.execute(AssertSqlSafe(migration.sql.to_string())).await?;
+            let _ = tx.execute(migration.sql.clone()).await?;
 
             // language=SQLite
             let _ = query(AssertSqlSafe(format!(

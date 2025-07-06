@@ -71,7 +71,7 @@ impl ToTokens for QuoteMigration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
-                sql: ::std::borrow::Cow::Borrowed(#sql),
+                sql: ::sqlx::SqlStr::from_static(#sql),
                 no_tx: #no_tx,
                 checksum: ::std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
@@ -137,9 +137,9 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
 
     Ok(quote! {
         ::sqlx::migrate::Migrator {
-            migrations: ::std::borrow::Cow::Borrowed(&[
+            migrations: ::std::borrow::Cow::Borrowed(const {&[
                     #(#migrations),*
-            ]),
+            ]}),
             create_schemas: ::std::borrow::Cow::Borrowed(&[#(#create_schemas),*]),
             table_name: ::std::borrow::Cow::Borrowed(#table_name),
             ..::sqlx::migrate::Migrator::DEFAULT

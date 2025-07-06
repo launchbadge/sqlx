@@ -296,7 +296,7 @@ async fn execute_migration(
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(AssertSqlSafe(migration.sql.to_string()))
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
@@ -322,7 +322,7 @@ async fn revert_migration(
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(AssertSqlSafe(migration.sql.to_string()))
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 

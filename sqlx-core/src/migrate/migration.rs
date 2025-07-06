@@ -1,6 +1,8 @@
 use sha2::{Digest, Sha384};
 use std::borrow::Cow;
 
+use crate::sql_str::SqlStr;
+
 use super::MigrationType;
 
 #[derive(Debug, Clone)]
@@ -8,8 +10,7 @@ pub struct Migration {
     pub version: i64,
     pub description: Cow<'static, str>,
     pub migration_type: MigrationType,
-    // We can't use `SqlStr` here because it doesn't play nice with temporaries.
-    pub sql: Cow<'static, str>,
+    pub sql: SqlStr,
     pub checksum: Cow<'static, [u8]>,
     pub no_tx: bool,
 }
@@ -19,10 +20,10 @@ impl Migration {
         version: i64,
         description: Cow<'static, str>,
         migration_type: MigrationType,
-        sql: Cow<'static, str>,
+        sql: SqlStr,
         no_tx: bool,
     ) -> Self {
-        let checksum = checksum(&sql);
+        let checksum = checksum(sql.as_str());
 
         Self::with_checksum(
             version,
@@ -38,7 +39,7 @@ impl Migration {
         version: i64,
         description: Cow<'static, str>,
         migration_type: MigrationType,
-        sql: Cow<'static, str>,
+        sql: SqlStr,
         checksum: Cow<'static, [u8]>,
         no_tx: bool,
     ) -> Self {
