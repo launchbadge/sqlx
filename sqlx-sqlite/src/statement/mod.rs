@@ -27,12 +27,12 @@ pub struct SqliteStatement {
 impl Statement for SqliteStatement {
     type Database = Sqlite;
 
-    fn sql(&self) -> &SqlStr {
-        &self.sql
-    }
-
     fn into_sql(self) -> SqlStr {
         self.sql
+    }
+
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[SqliteTypeInfo], usize>> {

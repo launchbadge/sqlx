@@ -26,12 +26,12 @@ pub(crate) struct MySqlStatementMetadata {
 impl Statement for MySqlStatement {
     type Database = MySql;
 
-    fn sql(&self) -> &SqlStr {
-        &self.sql
-    }
-
     fn into_sql(self) -> SqlStr {
         self.sql
+    }
+
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[MySqlTypeInfo], usize>> {

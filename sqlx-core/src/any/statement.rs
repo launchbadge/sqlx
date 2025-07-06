@@ -24,12 +24,12 @@ pub struct AnyStatement {
 impl Statement for AnyStatement {
     type Database = Any;
 
-    fn sql(&self) -> &SqlStr {
-        &self.sql
-    }
-
     fn into_sql(self) -> SqlStr {
         self.sql
+    }
+
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[AnyTypeInfo], usize>> {

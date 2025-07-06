@@ -21,9 +21,10 @@ pub trait Statement: Send + Sync + Clone {
     type Database: Database;
 
     /// Get the original SQL text used to create this statement.
-    fn sql(&self) -> &SqlStr;
-
     fn into_sql(self) -> SqlStr;
+
+    /// Get the original SQL text used to create this statement.
+    fn sql(&self) -> &SqlStr;
 
     /// Get the expected parameters for this statement.
     ///

@@ -27,12 +27,12 @@ pub(crate) struct PgStatementMetadata {
 impl Statement for PgStatement {
     type Database = Postgres;
 
-    fn sql(&self) -> &SqlStr {
-        &self.sql
-    }
-
     fn into_sql(self) -> SqlStr {
         self.sql
+    }
+
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn parameters(&self) -> Option<Either<&[PgTypeInfo], usize>> {

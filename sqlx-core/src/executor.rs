@@ -210,31 +210,6 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     fn persistent(&self) -> bool;
 }
 
-impl<'q, DB: Database, T> Execute<'q, DB> for (T, Option<<DB as Database>::Arguments<'q>>)
-where
-    T: SqlSafeStr + Send,
-{
-    #[inline]
-    fn sql(self) -> SqlStr {
-        self.0.into_sql_str()
-    }
-
-    #[inline]
-    fn statement(&self) -> Option<&DB::Statement> {
-        None
-    }
-
-    #[inline]
-    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
-        Ok(self.1.take())
-    }
-
-    #[inline]
-    fn persistent(&self) -> bool {
-        true
-    }
-}
-
 impl<'q, DB: Database, T> Execute<'q, DB> for T
 where
     T: SqlSafeStr + Send,
@@ -252,6 +227,31 @@ where
     #[inline]
     fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
         Ok(None)
+    }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        true
+    }
+}
+
+impl<'q, DB: Database, T> Execute<'q, DB> for (T, Option<<DB as Database>::Arguments<'q>>)
+where
+    T: SqlSafeStr + Send,
+{
+    #[inline]
+    fn sql(self) -> SqlStr {
+        self.0.into_sql_str()
+    }
+
+    #[inline]
+    fn statement(&self) -> Option<&DB::Statement> {
+        None
+    }
+
+    #[inline]
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+        Ok(self.1.take())
     }
 
     #[inline]
