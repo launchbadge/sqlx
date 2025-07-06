@@ -11,10 +11,10 @@ pub struct AnyTransactionManager;
 impl TransactionManager for AnyTransactionManager {
     type Database = Any;
 
-    fn begin<'conn>(
-        conn: &'conn mut AnyConnection,
+    fn begin(
+        conn: &mut AnyConnection,
         statement: Option<SqlStr>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + 'conn {
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         conn.backend.begin(statement)
     }
 

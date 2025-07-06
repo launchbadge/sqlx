@@ -22,10 +22,10 @@ pub trait TransactionManager {
     ///
     /// If we are already inside a transaction and `statement.is_some()`, then
     /// `Error::InvalidSavePoint` is returned without running any statements.
-    fn begin<'conn>(
-        conn: &'conn mut <Self::Database as Database>::Connection,
+    fn begin(
+        conn: &mut <Self::Database as Database>::Connection,
         statement: Option<SqlStr>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + 'conn;
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
