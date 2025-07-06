@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -6,7 +5,7 @@ use std::thread;
 
 use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
+use sqlx_core::sql_str::SqlStr;
 use tracing::span::Span;
 
 use sqlx_core::describe::Describe;
@@ -80,7 +79,7 @@ enum Command {
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
-        statement: Option<Cow<'static, str>>,
+        statement: Option<SqlStr>,
     },
     Commit {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -221,7 +220,7 @@ impl ConnectionWorker {
                                     }
                                     continue;
                                 },
-                                Some(statement) => AssertSqlSafe(statement).into_sql_str(),
+                                Some(statement) => statement,
                                 None => begin_ansi_transaction_sql(depth),
                             };
                             let res =
@@ -373,10 +372,7 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> Result<(), Error> {
+    pub(crate) async fn begin(&mut self, statement: Option<SqlStr>) -> Result<(), Error> {
         self.oneshot_cmd_with_ack(|tx| Command::Begin { tx, statement })
             .await?
     }

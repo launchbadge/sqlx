@@ -6,7 +6,6 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::sql_str::SqlStr;
-use std::borrow::Cow;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{
@@ -41,10 +40,7 @@ impl AnyConnectionBackend for PgConnection {
         Connection::ping(self).boxed()
     }
 
-    fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, sqlx_core::Result<()>> {
         PgTransactionManager::begin(self, statement).boxed()
     }
 

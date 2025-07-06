@@ -17,7 +17,6 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::sql_str::SqlStr;
 use sqlx_core::transaction::TransactionManager;
-use std::borrow::Cow;
 use std::{future, pin::pin};
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
@@ -39,10 +38,7 @@ impl AnyConnectionBackend for MySqlConnection {
         Connection::ping(self).boxed()
     }
 
-    fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, sqlx_core::Result<()>> {
         MySqlTransactionManager::begin(self, statement).boxed()
     }
 

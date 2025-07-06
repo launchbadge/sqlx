@@ -1,6 +1,4 @@
-use std::borrow::Cow;
-
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
+use sqlx_core::sql_str::SqlStr;
 
 use crate::connection::Waiting;
 use crate::error::Error;
@@ -16,16 +14,14 @@ pub struct MySqlTransactionManager;
 impl TransactionManager for MySqlTransactionManager {
     type Database = MySql;
 
-    async fn begin(
-        conn: &mut MySqlConnection,
-        statement: Option<Cow<'static, str>>,
-    ) -> Result<(), Error> {
+    async fn begin(conn: &mut MySqlConnection, statement: Option<SqlStr>) -> Result<(), Error> {
         let depth = conn.inner.transaction_depth;
+
         let statement = match statement {
             // custom `BEGIN` statements are not allowed if we're already in a transaction
             // (we need to issue a `SAVEPOINT` instead)
             Some(_) if depth > 0 => return Err(Error::InvalidSavePointStatement),
-            Some(statement) => AssertSqlSafe(statement).into_sql_str(),
+            Some(statement) => statement,
             None => begin_ansi_transaction_sql(depth),
         };
         conn.execute(statement).await?;

@@ -54,7 +54,6 @@
 //! [`Pool::acquire`] or
 //! [`Pool::begin`].
 
-use std::borrow::Cow;
 use std::fmt;
 use std::future::Future;
 use std::pin::{pin, Pin};
@@ -69,6 +68,7 @@ use futures_util::FutureExt;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
+use crate::sql_str::SqlSafeStr;
 use crate::transaction::Transaction;
 
 pub use self::connection::PoolConnection;
@@ -390,11 +390,11 @@ impl<DB: Database> Pool<DB> {
     /// Retrieves a connection and immediately begins a new transaction using `statement`.
     pub async fn begin_with(
         &self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> Result<Transaction<'static, DB>, Error> {
         Transaction::begin(
             MaybePoolConnection::PoolConnection(self.acquire().await?),
-            Some(statement.into()),
+            Some(statement.into_sql_str()),
         )
         .await
     }
@@ -403,12 +403,12 @@ impl<DB: Database> Pool<DB> {
     /// transaction using `statement`.
     pub async fn try_begin_with(
         &self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(
                 MaybePoolConnection::PoolConnection(conn),
-                Some(statement.into()),
+                Some(statement.into_sql_str()),
             )
             .await
             .map(Some),

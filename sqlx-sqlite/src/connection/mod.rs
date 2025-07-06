@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::CStr;
 use std::fmt::Write;
@@ -22,7 +21,7 @@ use sqlx_core::common::StatementCache;
 pub(crate) use sqlx_core::connection::*;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
-use sqlx_core::sql_str::AssertSqlSafe;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 use sqlx_core::transaction::Transaction;
 
 use crate::connection::establish::EstablishParams;
@@ -251,12 +250,12 @@ impl Connection for SqliteConnection {
 
     fn begin_with(
         &mut self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
-        Transaction::begin(self, Some(statement.into()))
+        Transaction::begin(self, Some(statement.into_sql_str()))
     }
 
     fn cached_statements_size(&self) -> usize {

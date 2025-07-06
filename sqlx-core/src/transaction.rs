@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::future::{self, Future};
 use std::ops::{Deref, DerefMut};
@@ -25,7 +24,7 @@ pub trait TransactionManager {
     /// `Error::InvalidSavePoint` is returned without running any statements.
     fn begin<'conn>(
         conn: &'conn mut <Self::Database as Database>::Connection,
-        statement: Option<Cow<'static, str>>,
+        statement: Option<SqlStr>,
     ) -> impl Future<Output = Result<(), Error>> + Send + 'conn;
 
     /// Commit the active transaction or release the most recent savepoint.
@@ -99,7 +98,7 @@ where
     #[doc(hidden)]
     pub fn begin(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
-        statement: Option<Cow<'static, str>>,
+        statement: Option<SqlStr>,
     ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
