@@ -23,7 +23,7 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
 use sqlx_core::column::{ColumnOrigin, TableColumn};
-use sqlx_core::sql_str::{SqlSafeStr, SqlStr};
+use sqlx_core::sql_str::SqlStr;
 use std::{pin::pin, sync::Arc};
 
 impl MySqlConnection {
@@ -325,13 +325,12 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
 
     fn prepare_with<'e>(
         self,
-        sql: impl SqlSafeStr,
+        sql: SqlStr,
         _parameters: &'e [MySqlTypeInfo],
     ) -> BoxFuture<'e, Result<MySqlStatement, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.inner.stream.wait_until_ready().await?;
 
@@ -357,11 +356,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e>(self, sql: impl SqlSafeStr) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.inner.stream.wait_until_ready().await?;
 

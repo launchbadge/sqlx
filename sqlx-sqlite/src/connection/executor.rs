@@ -7,7 +7,7 @@ use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::{Execute, Executor};
-use sqlx_core::sql_str::SqlSafeStr;
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::Either;
 use std::{future, pin::pin};
 
@@ -75,13 +75,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
     fn prepare_with<'e>(
         self,
-        sql: impl SqlSafeStr,
+        sql: SqlStr,
         _parameters: &[SqliteTypeInfo],
     ) -> BoxFuture<'e, Result<SqliteStatement, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move {
             let statement = self.worker.prepare(sql).await?;
 
@@ -90,11 +89,10 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e>(self, sql: impl SqlSafeStr) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move { self.worker.describe(sql).await })
     }
 }

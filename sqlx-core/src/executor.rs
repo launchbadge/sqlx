@@ -151,7 +151,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     #[inline]
     fn prepare<'e>(
         self,
-        query: impl SqlSafeStr,
+        query: SqlStr,
     ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
     where
         'c: 'e,
@@ -166,7 +166,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// this extra information to influence parameter type inference.
     fn prepare_with<'e>(
         self,
-        sql: impl SqlSafeStr,
+        sql: SqlStr,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
     ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
     where
@@ -178,10 +178,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe<'e>(
-        self,
-        sql: impl SqlSafeStr,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e;
 }

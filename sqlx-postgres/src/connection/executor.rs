@@ -17,7 +17,7 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
 use sqlx_core::arguments::Arguments;
-use sqlx_core::sql_str::{SqlSafeStr, SqlStr};
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::Either;
 use std::{pin::pin, sync::Arc};
 
@@ -462,13 +462,12 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
     fn prepare_with<'e>(
         self,
-        sql: impl SqlSafeStr,
+        sql: SqlStr,
         parameters: &'e [PgTypeInfo],
     ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.wait_until_ready().await?;
 
@@ -480,14 +479,10 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn describe<'e>(
-        self,
-        sql: impl SqlSafeStr,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
-        let sql = sql.into_sql_str();
         Box::pin(async move {
             self.wait_until_ready().await?;
 

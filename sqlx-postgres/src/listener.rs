@@ -7,7 +7,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
+use sqlx_core::sql_str::{AssertSqlSafe, SqlStr};
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 use tracing::Instrument;
@@ -423,13 +423,12 @@ impl<'c> Executor<'c> for &'c mut PgListener {
 
     fn prepare_with<'e>(
         self,
-        query: impl SqlSafeStr,
+        query: SqlStr,
         parameters: &'e [PgTypeInfo],
     ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
-        let query = query.into_sql_str();
         async move {
             self.connection()
                 .await?
@@ -440,14 +439,10 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     }
 
     #[doc(hidden)]
-    fn describe<'e>(
-        self,
-        query: impl SqlSafeStr,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, query: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
-        let query = query.into_sql_str();
         async move { self.connection().await?.describe(query).await }.boxed()
     }
 }

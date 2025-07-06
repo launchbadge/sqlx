@@ -2,7 +2,7 @@ use crate::any::{Any, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTy
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::sql_str::SqlSafeStr;
+use crate::sql_str::SqlStr;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -47,22 +47,19 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
 
     fn prepare_with<'e>(
         self,
-        sql: impl SqlSafeStr,
+        sql: SqlStr,
         parameters: &[AnyTypeInfo],
     ) -> BoxFuture<'e, Result<AnyStatement, Error>>
     where
         'c: 'e,
     {
-        self.backend.prepare_with(sql.into_sql_str(), parameters)
+        self.backend.prepare_with(sql, parameters)
     }
 
-    fn describe<'e>(
-        self,
-        sql: impl SqlSafeStr,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
-        self.backend.describe(sql.into_sql_str())
+        self.backend.describe(sql)
     }
 }
