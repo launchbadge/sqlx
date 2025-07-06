@@ -234,18 +234,19 @@ pub async fn connect_tcp<Ws: WithSocket>(
 }
 
 async fn connect_tcp_address(socket_addr: SocketAddr) -> crate::Result<impl Socket> {
-    #[cfg(feature = "_rt-tokio")]
-    if crate::rt::rt_tokio::available() {
-        use tokio::net::TcpStream;
-
-        let stream = TcpStream::connect(socket_addr).await?;
-        stream.set_nodelay(true)?;
-
-        return Ok(stream);
-    }
-
     cfg_if! {
-        if #[cfg(feature = "_rt-async-io")] {
+        if #[cfg(feature = "_rt-tokio")] {
+            if crate::rt::rt_tokio::available() {
+                use tokio::net::TcpStream;
+
+                let stream = TcpStream::connect(socket_addr).await?;
+                stream.set_nodelay(true)?;
+
+                Ok(stream)
+            } else {
+                crate::rt::missing_rt(socket_addr)
+            }
+        } else if #[cfg(feature = "_rt-async-io")] {
             use async_io::Async;
             use std::net::TcpStream;
 
@@ -254,8 +255,35 @@ async fn connect_tcp_address(socket_addr: SocketAddr) -> crate::Result<impl Sock
 
             Ok(stream)
         } else {
-            crate::rt::missing_rt(socket_addr)
+            crate::rt::missing_rt(socket_addr);
+            #[allow(unreachable_code)]
+            Ok(())
         }
+    }
+}
+
+// Work around `impl Socket`` and 'unability to specify test build cargo feature'.
+// `connect_tcp_address` compilation would fail without this impl with
+// 'cannot infer return type' error.
+impl Socket for () {
+    fn try_read(&mut self, _: &mut dyn ReadBuf) -> io::Result<usize> {
+        unreachable!()
+    }
+
+    fn try_write(&mut self, _: &[u8]) -> io::Result<usize> {
+        unreachable!()
+    }
+
+    fn poll_read_ready(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
+    }
+
+    fn poll_write_ready(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
+    }
+
+    fn poll_shutdown(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
     }
 }
 

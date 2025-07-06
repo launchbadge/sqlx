@@ -163,7 +163,7 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
 }
 
 #[track_caller]
-pub fn missing_rt<T>(_unused: T) -> ! {
+pub const fn missing_rt<T>(_unused: T) -> ! {
     if cfg!(feature = "_rt-tokio") {
         panic!("this functionality requires a Tokio context")
     }
