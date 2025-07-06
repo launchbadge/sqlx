@@ -108,15 +108,7 @@ impl QueryLogger {
 
                 let sql = if summary != self.sql.as_str() {
                     summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        self.sql.as_str() /*
-                                          sqlformat::format(
-                                              self.sql,
-                                              &sqlformat::QueryParams::None,
-                                              sqlformat::FormatOptions::default()
-                                          )*/
-                    )
+                    format!("\n\n{}\n", self.sql.as_str())
                 } else {
                     String::new()
                 };
