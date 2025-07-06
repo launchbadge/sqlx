@@ -9,6 +9,7 @@ use crate::HashMap;
 use either::Either;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct AnyStatement {
     #[doc(hidden)]
     pub sql: SqlStr,
@@ -22,15 +23,6 @@ pub struct AnyStatement {
 
 impl Statement for AnyStatement {
     type Database = Any;
-
-    fn to_owned(&self) -> AnyStatement {
-        AnyStatement {
-            sql: self.sql.clone(),
-            column_names: self.column_names.clone(),
-            parameters: self.parameters.clone(),
-            columns: self.columns.clone(),
-        }
-    }
 
     fn sql_cloned(&self) -> SqlStr {
         self.sql.clone()

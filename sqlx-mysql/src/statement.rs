@@ -26,13 +26,6 @@ pub(crate) struct MySqlStatementMetadata {
 impl Statement for MySqlStatement {
     type Database = MySql;
 
-    fn to_owned(&self) -> MySqlStatement {
-        MySqlStatement {
-            sql: self.sql.clone(),
-            metadata: self.metadata.clone(),
-        }
-    }
-
     fn sql_cloned(&self) -> SqlStr {
         self.sql.clone()
     }

@@ -27,15 +27,6 @@ pub struct SqliteStatement {
 impl Statement for SqliteStatement {
     type Database = Sqlite;
 
-    fn to_owned(&self) -> SqliteStatement {
-        SqliteStatement {
-            sql: self.sql.clone(),
-            parameters: self.parameters,
-            columns: Arc::clone(&self.columns),
-            column_names: Arc::clone(&self.column_names),
-        }
-    }
-
     fn sql_cloned(&self) -> SqlStr {
         self.sql.clone()
     }
