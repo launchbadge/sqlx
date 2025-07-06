@@ -138,6 +138,7 @@ impl Clone for SqlStr {
         Self(match &self.0 {
             Repr::Static(s) => Repr::Static(s),
             Repr::Arced(s) => Repr::Arced(s.clone()),
+            // If `.clone()` gets called once, assume it might get called again.
             _ => Repr::Arced(self.as_str().into()),
         })
     }
