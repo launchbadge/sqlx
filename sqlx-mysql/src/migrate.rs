@@ -221,8 +221,6 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             .await?;
 
             let _ = tx
-                // We can't use `SqlStr` in `Migration` because it can't be used in a const
-                // context.
                 .execute(AssertSqlSafe(migration.sql.to_string()))
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
