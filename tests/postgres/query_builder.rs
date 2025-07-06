@@ -3,7 +3,6 @@ use sqlx::query_builder::QueryBuilder;
 use sqlx::Executor;
 use sqlx::Type;
 use sqlx::{Either, Execute};
-use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_test::new;
 
 #[test]
@@ -134,7 +133,7 @@ async fn test_max_number_of_binds() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // Indirectly ensures the macros support this many binds since this is what they use.
-    let describe = conn.describe(AssertSqlSafe(qb.sql().to_string())).await?;
+    let describe = conn.describe(qb.sql()).await?;
 
     match describe
         .parameters

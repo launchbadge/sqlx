@@ -1,7 +1,7 @@
 use anyhow::Context;
 use futures_util::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_core::connection::ConnectOptions;
 use sqlx_mysql::MySqlConnectOptions;
 use sqlx_test::{new, setup_if_needed};
@@ -391,7 +391,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
         .await?
         .last_insert_id();
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = ?".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "created_at");

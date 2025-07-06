@@ -5,7 +5,7 @@ use sqlx::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
     PgPoolOptions, PgRow, PgSeverity, Postgres, PG_COPY_MAX_DATA_LEN,
 };
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
@@ -220,7 +220,7 @@ CREATE TEMPORARY TABLE json_stuff (obj json, obj2 jsonb);
         .await?;
 
     let query = "INSERT INTO json_stuff (obj, obj2) VALUES ($1, $2)";
-    let _ = conn.describe(query).await?;
+    let _ = conn.describe(query.into_sql_str()).await?;
 
     let done = sqlx::query(query)
         .bind(serde_json::json!({ "a": "a" }))
@@ -881,7 +881,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
             .fetch_one(&mut *tx)
             .await?;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = $1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "created_at");
@@ -967,7 +969,8 @@ async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
         .describe(
             "select tweet.id
     from tweet
-    inner join products on products.name = tweet.text",
+    inner join products on products.name = tweet.text"
+                .into_sql_str(),
         )
         .await?;
 
@@ -978,7 +981,8 @@ async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
         .describe(
             "select tweet.id
 from (values (null)) vals(val)
-         left join tweet on false",
+         left join tweet on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -992,7 +996,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    left join tweet tweet2 on false",
+    left join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -1005,7 +1010,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    right join tweet tweet2 on false",
+    right join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -1018,7 +1024,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    full join tweet tweet2 on false",
+    full join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 

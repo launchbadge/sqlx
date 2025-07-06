@@ -14,6 +14,7 @@ use crate::query_as::QueryAs;
 use crate::query_scalar::QueryScalar;
 use crate::sql_str::AssertSqlSafe;
 use crate::sql_str::SqlSafeStr;
+use crate::sql_str::SqlStr;
 use crate::types::Type;
 use crate::Either;
 
@@ -37,7 +38,7 @@ impl<DB: Database> Default for QueryBuilder<'_, DB> {
     fn default() -> Self {
         QueryBuilder {
             init_len: 0,
-            query: String::default().into(),
+            query: Default::default(),
             arguments: Some(Default::default()),
         }
     }
@@ -460,7 +461,7 @@ where
         self.sanity_check();
 
         Query {
-            statement: Either::Left(AssertSqlSafe(self.query.clone()).into_sql_str()),
+            statement: Either::Left(self.sql()),
             arguments: self.arguments.take().map(Ok),
             database: PhantomData,
             persistent: true,
@@ -527,13 +528,18 @@ where
     }
 
     /// Get the current build SQL; **note**: may not be syntactically correct.
-    pub fn sql(&self) -> &str {
-        &self.query
+    pub fn sql(&self) -> SqlStr {
+        AssertSqlSafe(self.query.clone()).into_sql_str()
     }
 
     /// Deconstruct this `QueryBuilder`, returning the built SQL. May not be syntactically correct.
     pub fn into_sql(self) -> String {
         Arc::unwrap_or_clone(self.query)
+    }
+
+    /// Deconstruct this `QueryBuilder`, returning the built SQL. May not be syntactically correct.
+    pub fn into_sql(self) -> SqlStr {
+        AssertSqlSafe(self.query).into_sql_str()
     }
 }
 

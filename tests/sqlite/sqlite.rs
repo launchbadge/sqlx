@@ -2,6 +2,7 @@ use futures_util::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
+use sqlx::SqlSafeStr;
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
@@ -504,7 +505,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let tweet_id: i32 = 2;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = ?1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "text");

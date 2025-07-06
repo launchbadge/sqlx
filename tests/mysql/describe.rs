@@ -1,12 +1,12 @@
 use sqlx::mysql::MySql;
-use sqlx::{Column, Executor, Type, TypeInfo};
+use sqlx::{Column, Executor, SqlSafeStr, Type, TypeInfo};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let d = conn.describe("SELECT * FROM tweet").await?;
+    let d = conn.describe("SELECT * FROM tweet".into_sql_str()).await?;
 
     assert_eq!(d.columns()[0].name(), "id");
     assert_eq!(d.columns()[1].name(), "created_at");
@@ -43,7 +43,9 @@ CREATE TEMPORARY TABLE with_bit_and_tinyint (
     )
     .await?;
 
-    let d = conn.describe("SELECT * FROM with_bit_and_tinyint").await?;
+    let d = conn
+        .describe("SELECT * FROM with_bit_and_tinyint".into_sql_str())
+        .await?;
 
     assert_eq!(d.column(2).name(), "value_bool");
     assert_eq!(d.column(2).type_info().name(), "BOOLEAN");
@@ -62,7 +64,7 @@ async fn uses_alias_name() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     let d = conn
-        .describe("SELECT text AS tweet_text FROM tweet")
+        .describe("SELECT text AS tweet_text FROM tweet".into_sql_str())
         .await?;
 
     assert_eq!(d.columns()[0].name(), "tweet_text");
