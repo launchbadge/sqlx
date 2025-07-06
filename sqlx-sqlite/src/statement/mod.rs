@@ -27,8 +27,8 @@ pub struct SqliteStatement {
 impl Statement for SqliteStatement {
     type Database = Sqlite;
 
-    fn sql_cloned(&self) -> SqlStr {
-        self.sql.clone()
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn into_sql(self) -> SqlStr {

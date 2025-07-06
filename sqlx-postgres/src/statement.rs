@@ -27,8 +27,8 @@ pub(crate) struct PgStatementMetadata {
 impl Statement for PgStatement {
     type Database = Postgres;
 
-    fn sql_cloned(&self) -> SqlStr {
-        self.sql.clone()
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn into_sql(self) -> SqlStr {

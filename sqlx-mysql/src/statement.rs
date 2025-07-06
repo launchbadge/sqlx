@@ -26,8 +26,8 @@ pub(crate) struct MySqlStatementMetadata {
 impl Statement for MySqlStatement {
     type Database = MySql;
 
-    fn sql_cloned(&self) -> SqlStr {
-        self.sql.clone()
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn into_sql(self) -> SqlStr {

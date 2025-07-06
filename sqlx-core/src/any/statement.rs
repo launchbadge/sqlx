@@ -24,8 +24,8 @@ pub struct AnyStatement {
 impl Statement for AnyStatement {
     type Database = Any;
 
-    fn sql_cloned(&self) -> SqlStr {
-        self.sql.clone()
+    fn sql(&self) -> &SqlStr {
+        &self.sql
     }
 
     fn into_sql(self) -> SqlStr {
