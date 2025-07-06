@@ -1,7 +1,7 @@
-use futures_util::future;
+use std::future;
 use std::io::{self, Read, Write};
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use rustls::{
     client::{
@@ -33,7 +33,7 @@ impl<S: Socket> RustlsSocket<S> {
         loop {
             match self.state.complete_io(&mut self.inner) {
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    futures_util::ready!(self.inner.poll_ready(cx))?;
+                    ready!(self.inner.poll_ready(cx))?;
                 }
                 ready => return Poll::Ready(ready.map(|_| ())),
             }
@@ -76,12 +76,12 @@ impl<S: Socket> Socket for RustlsSocket<S> {
             self.close_notify_sent = true;
         }
 
-        futures_util::ready!(self.poll_complete_io(cx))?;
+        ready!(self.poll_complete_io(cx))?;
 
         // Server can close socket as soon as it receives the connection shutdown request.
         // We shouldn't expect it to stick around for the TLS session to close cleanly.
         // https://security.stackexchange.com/a/82034
-        let _ = futures_util::ready!(self.inner.socket.poll_shutdown(cx));
+        let _ = ready!(self.inner.socket.poll_shutdown(cx));
 
         Poll::Ready(Ok(()))
     }
@@ -137,10 +137,7 @@ where
                 .with_no_client_auth()
         }
     } else {
-        #[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
-        let mut cert_store = certs_from_webpki();
-        #[cfg(feature = "_tls-rustls-ring-native-roots")]
-        let mut cert_store = certs_from_native_store();
+        let mut cert_store = import_root_certs();
 
         if let Some(ca) = tls_config.root_cert_path {
             let data = ca.data().await?;
@@ -211,13 +208,13 @@ fn private_key_from_pem(pem: Vec<u8>) -> Result<PrivateKeyDer<'static>, Error> {
     }
 }
 
-#[cfg(any(feature = "_tls-rustls-aws-lc-rs", feature = "_tls-rustls-ring-webpki"))]
-fn certs_from_webpki() -> RootCertStore {
+#[cfg(all(feature = "webpki-roots", not(feature = "rustls-native-certs")))]
+fn import_root_certs() -> RootCertStore {
     RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
 }
 
-#[cfg(feature = "_tls-rustls-ring-native-roots")]
-fn certs_from_native_store() -> RootCertStore {
+#[cfg(feature = "rustls-native-certs")]
+fn import_root_certs() -> RootCertStore {
     let mut root_cert_store = RootCertStore::empty();
 
     let load_results = rustls_native_certs::load_native_certs();
@@ -225,12 +222,18 @@ fn certs_from_native_store() -> RootCertStore {
         log::warn!("Error loading native certificates: {e:?}");
     }
     for cert in load_results.certs {
-        if let Err(e) = root_cert_store.add(cert.into()) {
+        if let Err(e) = root_cert_store.add(cert) {
             log::warn!("rustls failed to parse native certificate: {e:?}");
         }
     }
 
     root_cert_store
+}
+
+// Not currently used but allows for a "tls-rustls-no-roots" feature.
+#[cfg(not(any(feature = "rustls-native-certs", feature = "webpki-roots")))]
+fn import_root_certs() -> RootCertStore {
+    RootCertStore::empty()
 }
 
 #[derive(Debug)]
@@ -306,9 +309,9 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             ocsp_response,
             now,
         ) {
-            Err(TlsError::InvalidCertificate(CertificateError::NotValidForName)) => {
-                Ok(ServerCertVerified::assertion())
-            }
+            Err(TlsError::InvalidCertificate(
+                CertificateError::NotValidForName | CertificateError::NotValidForNameContext { .. },
+            )) => Ok(ServerCertVerified::assertion()),
             res => res,
         }
     }

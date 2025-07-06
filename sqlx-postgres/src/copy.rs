@@ -1,7 +1,7 @@
 use std::borrow::Cow;
+use std::future::Future;
 use std::ops::{Deref, DerefMut};
 
-use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
 use sqlx_core::bytes::{BufMut, Bytes};
@@ -86,7 +86,7 @@ pub trait PgPoolCopyExt {
     fn copy_in_raw<'a>(
         &'a self,
         statement: &'a str,
-    ) -> BoxFuture<'a, Result<PgCopyIn<PoolConnection<Postgres>>>>;
+    ) -> impl Future<Output = Result<PgCopyIn<PoolConnection<Postgres>>>> + Send + 'a;
 
     /// Issue a `COPY TO STDOUT` statement and begin streaming data
     /// from Postgres. This is a more efficient way to export data from Postgres but
@@ -110,22 +110,22 @@ pub trait PgPoolCopyExt {
     fn copy_out_raw<'a>(
         &'a self,
         statement: &'a str,
-    ) -> BoxFuture<'a, Result<BoxStream<'static, Result<Bytes>>>>;
+    ) -> impl Future<Output = Result<BoxStream<'static, Result<Bytes>>>> + Send + 'a;
 }
 
 impl PgPoolCopyExt for Pool<Postgres> {
-    fn copy_in_raw<'a>(
+    async fn copy_in_raw<'a>(
         &'a self,
         statement: &'a str,
-    ) -> BoxFuture<'a, Result<PgCopyIn<PoolConnection<Postgres>>>> {
-        Box::pin(async { PgCopyIn::begin(self.acquire().await?, statement).await })
+    ) -> Result<PgCopyIn<PoolConnection<Postgres>>> {
+        PgCopyIn::begin(self.acquire().await?, statement).await
     }
 
-    fn copy_out_raw<'a>(
+    async fn copy_out_raw<'a>(
         &'a self,
         statement: &'a str,
-    ) -> BoxFuture<'a, Result<BoxStream<'static, Result<Bytes>>>> {
-        Box::pin(async { pg_begin_copy_out(self.acquire().await?, statement).await })
+    ) -> Result<BoxStream<'static, Result<Bytes>>> {
+        pg_begin_copy_out(self.acquire().await?, statement).await
     }
 }
 

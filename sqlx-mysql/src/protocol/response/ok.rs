@@ -50,3 +50,29 @@ fn test_decode_ok_packet() {
     assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
     assert!(p.status.contains(Status::SERVER_SESSION_STATE_CHANGED));
 }
+
+#[test]
+fn test_decode_ok_packet_with_info() {
+    // OK packet with 0xfe header and length >= 9 (with appended info)
+    const DATA: &[u8] = b"\xfe\x01\x00\x02\x00\x00\x00\x05\x09info data";
+
+    let p = OkPacket::decode(DATA.into()).unwrap();
+
+    assert_eq!(p.affected_rows, 1);
+    assert_eq!(p.last_insert_id, 0);
+    assert_eq!(p.warnings, 0);
+    assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
+}
+
+#[test]
+fn test_decode_ok_packet_with_extended_info() {
+    // OK packet with 0xfe header, affected rows, last insert id, and extended info
+    const DATA: &[u8] = b"\xfe\x05\x64\x02\x00\x01\x00\x0e\x14extended information";
+
+    let p = OkPacket::decode(DATA.into()).unwrap();
+
+    assert_eq!(p.affected_rows, 5);
+    assert_eq!(p.last_insert_id, 100);
+    assert_eq!(p.warnings, 1);
+    assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
+}

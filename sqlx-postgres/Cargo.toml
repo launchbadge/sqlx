@@ -7,7 +7,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version.workspace = true
 
 [features]
 any = ["sqlx-core/any"]
@@ -63,7 +63,6 @@ itoa = "1.0.1"
 log = "0.4.18"
 memchr = { version = "2.4.1", default-features = false }
 num-bigint = { version = "0.4.3", optional = true }
-once_cell = "1.9.0"
 smallvec = { version = "1.7.0", features = ["serde"] }
 stringprep = "0.1.2"
 thiserror = "2.0.0"
@@ -83,7 +82,7 @@ workspace = true
 features = ["postgres", "derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]
-etcetera = "0.8.0"
+etcetera = "0.10.0"
 
 [lints]
 workspace = true

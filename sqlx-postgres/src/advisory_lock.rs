@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::Either;
 use crate::PgConnection;
 use hkdf::Hkdf;
-use once_cell::sync::OnceCell;
 use sha2::Sha256;
 use std::ops::{Deref, DerefMut};
+use std::sync::OnceLock;
 
 /// A mutex-like type utilizing [Postgres advisory locks].
 ///
@@ -37,7 +37,7 @@ use std::ops::{Deref, DerefMut};
 pub struct PgAdvisoryLock {
     key: PgAdvisoryLockKey,
     /// The query to execute to release this lock.
-    release_query: OnceCell<String>,
+    release_query: OnceLock<String>,
 }
 
 /// A key type natively used by Postgres advisory locks.
@@ -163,7 +163,7 @@ impl PgAdvisoryLock {
     pub fn with_key(key: PgAdvisoryLockKey) -> Self {
         Self {
             key,
-            release_query: OnceCell::new(),
+            release_query: OnceLock::new(),
         }
     }
 
@@ -362,7 +362,7 @@ impl<'lock, C: AsMut<PgConnection>> PgAdvisoryLockGuard<'lock, C> {
     }
 }
 
-impl<'lock, C: AsMut<PgConnection> + AsRef<PgConnection>> Deref for PgAdvisoryLockGuard<'lock, C> {
+impl<C: AsMut<PgConnection> + AsRef<PgConnection>> Deref for PgAdvisoryLockGuard<'_, C> {
     type Target = PgConnection;
 
     fn deref(&self) -> &Self::Target {
@@ -376,16 +376,14 @@ impl<'lock, C: AsMut<PgConnection> + AsRef<PgConnection>> Deref for PgAdvisoryLo
 /// However, replacing the connection with a different one using, e.g. [`std::mem::replace()`]
 /// is a logic error and will cause a warning to be logged by the PostgreSQL server when this
 /// guard attempts to release the lock.
-impl<'lock, C: AsMut<PgConnection> + AsRef<PgConnection>> DerefMut
-    for PgAdvisoryLockGuard<'lock, C>
-{
+impl<C: AsMut<PgConnection> + AsRef<PgConnection>> DerefMut for PgAdvisoryLockGuard<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.conn.as_mut().expect(NONE_ERR).as_mut()
     }
 }
 
-impl<'lock, C: AsMut<PgConnection> + AsRef<PgConnection>> AsRef<PgConnection>
-    for PgAdvisoryLockGuard<'lock, C>
+impl<C: AsMut<PgConnection> + AsRef<PgConnection>> AsRef<PgConnection>
+    for PgAdvisoryLockGuard<'_, C>
 {
     fn as_ref(&self) -> &PgConnection {
         self.conn.as_ref().expect(NONE_ERR).as_ref()
@@ -398,7 +396,7 @@ impl<'lock, C: AsMut<PgConnection> + AsRef<PgConnection>> AsRef<PgConnection>
 /// However, replacing the connection with a different one using, e.g. [`std::mem::replace()`]
 /// is a logic error and will cause a warning to be logged by the PostgreSQL server when this
 /// guard attempts to release the lock.
-impl<'lock, C: AsMut<PgConnection>> AsMut<PgConnection> for PgAdvisoryLockGuard<'lock, C> {
+impl<C: AsMut<PgConnection>> AsMut<PgConnection> for PgAdvisoryLockGuard<'_, C> {
     fn as_mut(&mut self) -> &mut PgConnection {
         self.conn.as_mut().expect(NONE_ERR).as_mut()
     }
@@ -407,7 +405,7 @@ impl<'lock, C: AsMut<PgConnection>> AsMut<PgConnection> for PgAdvisoryLockGuard<
 /// Queues a `pg_advisory_unlock()` call on the wrapped connection which will be flushed
 /// to the server the next time it is used, or when it is returned to [`PgPool`][crate::PgPool]
 /// in the case of [`PoolConnection<Postgres>`][crate::pool::PoolConnection].
-impl<'lock, C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuard<'lock, C> {
+impl<C: AsMut<PgConnection>> Drop for PgAdvisoryLockGuard<'_, C> {
     fn drop(&mut self) {
         if let Some(mut conn) = self.conn.take() {
             // Queue a simple query message to execute next time the connection is used.

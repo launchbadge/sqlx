@@ -25,9 +25,16 @@ async fn prepare(
     sql: &str,
     parameters: &[PgTypeInfo],
     metadata: Option<Arc<PgStatementMetadata>>,
+    persistent: bool,
+    fetch_column_origin: bool,
 ) -> Result<(StatementId, Arc<PgStatementMetadata>), Error> {
-    let id = conn.inner.next_statement_id;
-    conn.inner.next_statement_id = id.next();
+    let id = if persistent {
+        let id = conn.inner.next_statement_id;
+        conn.inner.next_statement_id = id.next();
+        id
+    } else {
+        StatementId::UNNAMED
+    };
 
     // build a list of type OIDs to send to the database in the PARSE command
     // we have not yet started the query sequence, so we are *safe* to cleanly make
@@ -79,7 +86,9 @@ async fn prepare(
 
         let parameters = conn.handle_parameter_description(parameters).await?;
 
-        let (columns, column_names) = conn.handle_row_description(rows, true).await?;
+        let (columns, column_names) = conn
+            .handle_row_description(rows, true, fetch_column_origin)
+            .await?;
 
         // ensure that if we did fetch custom data, we wait until we are fully ready before
         // continuing
@@ -159,23 +168,31 @@ impl PgConnection {
         self.inner.pending_ready_for_query_count += 1;
     }
 
-    async fn get_or_prepare<'a>(
+    async fn get_or_prepare(
         &mut self,
         sql: &str,
         parameters: &[PgTypeInfo],
-        // should we store the result of this prepare to the cache
-        store_to_cache: bool,
+        persistent: bool,
         // optional metadata that was provided by the user, this means they are reusing
         // a statement object
         metadata: Option<Arc<PgStatementMetadata>>,
+        fetch_column_origin: bool,
     ) -> Result<(StatementId, Arc<PgStatementMetadata>), Error> {
         if let Some(statement) = self.inner.cache_statement.get_mut(sql) {
             return Ok((*statement).clone());
         }
 
-        let statement = prepare(self, sql, parameters, metadata).await?;
+        let statement = prepare(
+            self,
+            sql,
+            parameters,
+            metadata,
+            persistent,
+            fetch_column_origin,
+        )
+        .await?;
 
-        if store_to_cache && self.inner.cache_statement.is_enabled() {
+        if persistent && self.inner.cache_statement.is_enabled() {
             if let Some((id, _)) = self.inner.cache_statement.insert(sql, statement.clone()) {
                 self.inner.stream.write_msg(Close::Statement(id))?;
                 self.write_sync();
@@ -221,7 +238,7 @@ impl PgConnection {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
             let (statement, metadata_) = self
-                .get_or_prepare(query, &arguments.types, persistent, metadata_opt)
+                .get_or_prepare(query, &arguments.types, persistent, metadata_opt, false)
                 .await?;
 
             metadata = metadata_;
@@ -328,7 +345,7 @@ impl PgConnection {
                     BackendMessageFormat::RowDescription => {
                         // indicates that a *new* set of rows are about to be returned
                         let (columns, column_names) = self
-                            .handle_row_description(Some(message.decode()?), false)
+                            .handle_row_description(Some(message.decode()?), false, false)
                             .await?;
 
                         metadata = Arc::new(PgStatementMetadata {
@@ -448,7 +465,9 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, parameters, true, None).await?;
+            let (_, metadata) = self
+                .get_or_prepare(sql, parameters, true, None, true)
+                .await?;
 
             Ok(PgStatement {
                 sql: Cow::Borrowed(sql),
@@ -467,7 +486,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (stmt_id, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
+            let (stmt_id, metadata) = self.get_or_prepare(sql, &[], true, None, true).await?;
 
             let nullable = self.get_nullable_for_columns(stmt_id, &metadata).await?;
 

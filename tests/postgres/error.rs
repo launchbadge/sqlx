@@ -76,6 +76,28 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_fails_with_exclude_violation() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    let mut tx = conn.begin().await?;
+
+    sqlx::query("INSERT INTO circles VALUES (circle('(0,0)'::point, 5.0));")
+        .execute(&mut *tx)
+        .await?;
+
+    let res: Result<_, sqlx::Error> =
+        sqlx::query("INSERT INTO circles VALUES (circle('(0,2.0)'::point, 2.0));")
+            .execute(&mut *tx)
+            .await;
+    let err = res.unwrap_err();
+
+    let err = err.into_database_error().unwrap();
+
+    assert_eq!(err.kind(), ErrorKind::ExclusionViolation);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_fails_with_begin_failed() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
     let res = conn.begin_with("SELECT * FROM tweet").await;

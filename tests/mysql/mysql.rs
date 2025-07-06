@@ -1,5 +1,5 @@
 use anyhow::Context;
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_core::connection::ConnectOptions;
@@ -460,7 +460,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         }));
     }
 
-    futures::future::try_join_all(handles).await?;
+    futures_util::future::try_join_all(handles).await?;
 
     Ok(())
 }
@@ -580,7 +580,7 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     conn.shrink_buffers();
 
     let ret: i64 = sqlx::query_scalar("SELECT ?")
-        .bind(&12345678i64)
+        .bind(12345678i64)
         .fetch_one(&mut conn)
         .await?;
 

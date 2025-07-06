@@ -1,0 +1,10 @@
+[migrate]
+create-schemas = ["payments"]
+table-name = "payments._sqlx_migrations"
+
+[macros.table-overrides.'payments.payment']
+'payment_id' = "crate::PaymentId"
+'account_id' = "accounts::AccountId"
+
+[macros.type-overrides]
+'payments.payment_status' = "crate::PaymentStatus"

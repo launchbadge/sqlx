@@ -74,6 +74,25 @@
 ///
 /// [dotenv]: https://crates.io/crates/dotenv
 /// [dotenvy]: https://crates.io/crates/dotenvy
+///
+/// ## Configuration with `sqlx.toml`
+/// Multiple crate-wide configuration options are now available, including:
+///
+/// * change the name of the `DATABASE_URL` variable for using multiple databases in the same workspace
+///     * In the initial implementation, a separate crate must be created for each database.
+///       Using multiple databases in the same crate may become possible in the future.
+/// * global type overrides (useful for custom types!)
+/// * per-column type overrides
+/// * force use of a specific crate (e.g. `chrono` when both it and `time` are enabled)
+///
+/// See the [configuration guide] and [reference `sqlx.toml`] for details.
+///
+/// See also `examples/postgres/multi-database` and `examples/postgres/preferred-crates`
+/// for example usage.
+///
+/// [configuration guide]: crate::_config::macros::Config
+/// [reference `sqlx.toml`]: crate::_config::_reference
+///
 /// ## Query Arguments
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
@@ -249,7 +268,7 @@
 ///
 /// ##### Force a Different/Custom Type
 /// Selecting a column `foo as "foo: T"` (Postgres / SQLite) or `` foo as `foo: T` `` (MySQL)
-/// overrides the inferred type which is useful when selecting user-defined custom types
+/// overrides the inferred type which is useful when selecting user-defined [custom types][crate::Type#compile-time-verification]
 /// (dynamic type checking is still done so if the types are incompatible this will be an error
 /// at runtime instead of compile-time). Note that this syntax alone doesn't override inferred nullability,
 /// but it is compatible with the forced not-null and forced nullable annotations:
@@ -728,6 +747,7 @@ macro_rules! query_file_scalar_unchecked (
 /// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
 ///
 /// ```rust,ignore
+/// // Consider instead setting
 /// sqlx::migrate!("db/migrations")
 ///     .run(&pool)
 ///     .await?;
@@ -744,6 +764,38 @@ macro_rules! query_file_scalar_unchecked (
 /// was invoked.
 ///
 /// See [MigrationSource][crate::migrate::MigrationSource] for details on structure of the ./migrations directory.
+///
+/// ## Note: Platform-specific Line Endings
+/// Different platforms use different bytes for line endings by default:
+/// * Linux and MacOS use Line Feeds (LF:`\n`)
+/// * Windows uses Carriage Returns _and_ Line Feeds (CRLF:'\r\n')
+///
+/// This may result in un-reproducible hashes across platforms unless taken into account.
+///
+/// One solution is to use a [`.gitattributes` file](https://git-scm.com/docs/gitattributes)
+/// and force `.sql` files to be checked out with Line Feeds:
+///
+/// ```gitattributes
+/// *.sql text eol=lf
+/// ```
+///
+/// Another option is to configure migrations to ignore whitespace.
+/// See the next section for details.
+///
+/// ## Configuration with `sqlx.toml`
+/// Multiple crate-wide configuration options are now available, including:
+///
+/// * creating schemas on database setup
+/// * renaming the `_sqlx_migrations` table or placing it into a new schema
+/// * relocating the migrations directory
+/// * ignoring characters for hashing (such as whitespace and newlines)
+///
+/// See the [configuration guide] and [reference `sqlx.toml`] for details.
+///
+/// `sqlx-cli` can also read these options and use them when setting up or migrating databases.
+///
+/// [configuration guide]: crate::_config::migrate::Config
+/// [reference `sqlx.toml`]: crate::_config::_reference
 ///
 /// ## Triggering Recompilation on Migration Changes
 /// In some cases when making changes to embedded migrations, such as adding a new migration without
@@ -814,6 +866,6 @@ macro_rules! migrate {
     }};
 
     () => {{
-        $crate::sqlx_macros::migrate!("./migrations")
+        $crate::sqlx_macros::migrate!()
     }};
 }
