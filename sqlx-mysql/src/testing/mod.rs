@@ -56,8 +56,6 @@ impl TestSupport for MySql {
         for db_name in &delete_db_names {
             command.clear();
 
-            let db_name = format!("_sqlx_test_database_{db_name}");
-
             writeln!(command, "drop database if exists {db_name};").ok();
             match conn.execute(&*command).await {
                 Ok(_deleted) => {
