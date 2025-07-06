@@ -69,14 +69,14 @@ where
 
             use tokio::runtime::{self, Runtime};
 
-        // We need a single, persistent Tokio runtime since we're caching connections,
-        // otherwise we'll get "IO driver has terminated" errors.
-        static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
-            runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to start Tokio runtime")
-        });
+            // We need a single, persistent Tokio runtime since we're caching connections,
+            // otherwise we'll get "IO driver has terminated" errors.
+            static TOKIO_RT: LazyLock<Runtime> = LazyLock::new(|| {
+                runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to start Tokio runtime")
+            });
 
             TOKIO_RT.block_on(f)
         } else {
