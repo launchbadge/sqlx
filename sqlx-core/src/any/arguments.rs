@@ -28,6 +28,10 @@ impl<'q> Arguments<'q> for AnyArguments<'q> {
     fn len(&self) -> usize {
         self.values.0.len()
     }
+
+    fn merge(&mut self, other: Self) {
+        self.values.0.extend(other.values.0);
+    }
 }
 
 pub struct AnyArgumentBuffer<'q>(#[doc(hidden)] pub Vec<AnyValueKind<'q>>);
