@@ -2,6 +2,10 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
+use futures_core::future::BoxFuture;
+pub(crate) use sqlx_core::migrate::*;
+use sqlx_core::sql_str::AssertSqlSafe;
+
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
@@ -9,8 +13,6 @@ use crate::query::query;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
 use crate::{MySql, MySqlConnectOptions, MySqlConnection};
-use futures_core::future::BoxFuture;
-pub(crate) use sqlx_core::migrate::*;
 
 fn parse_for_maintenance(url: &str) -> Result<(MySqlConnectOptions, String), Error> {
     let mut options = MySqlConnectOptions::from_str(url)?;
@@ -35,7 +37,7 @@ impl MigrateDatabase for MySql {
         let mut conn = options.connect().await?;
 
         let _ = conn
-            .execute(&*format!("CREATE DATABASE `{database}`"))
+            .execute(AssertSqlSafe(format!("CREATE DATABASE `{database}`")))
             .await?;
 
         Ok(())
@@ -60,7 +62,9 @@ impl MigrateDatabase for MySql {
         let mut conn = options.connect().await?;
 
         let _ = conn
-            .execute(&*format!("DROP DATABASE IF EXISTS `{database}`"))
+            .execute(AssertSqlSafe(format!(
+                "DROP DATABASE IF EXISTS `{database}`"
+            )))
             .await?;
 
         Ok(())
@@ -74,8 +78,10 @@ impl Migrate for MySqlConnection {
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            self.execute(&*format!(r#"CREATE SCHEMA IF NOT EXISTS {schema_name};"#))
-                .await?;
+            self.execute(AssertSqlSafe(format!(
+                r#"CREATE SCHEMA IF NOT EXISTS {schema_name};"#
+            )))
+            .await?;
 
             Ok(())
         })
@@ -87,7 +93,7 @@ impl Migrate for MySqlConnection {
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=MySQL
-            self.execute(&*format!(
+            self.execute(AssertSqlSafe(format!(
                 r#"
 CREATE TABLE IF NOT EXISTS {table_name} (
     version BIGINT PRIMARY KEY,
@@ -98,7 +104,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     execution_time BIGINT NOT NULL
 );
                 "#
-            ))
+            )))
             .await?;
 
             Ok(())
@@ -111,9 +117,9 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let row: Option<(i64,)> = query_as(&format!(
+            let row: Option<(i64,)> = query_as(AssertSqlSafe(format!(
                 "SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"
-            ))
+            )))
             .fetch_optional(self)
             .await?;
 
@@ -127,9 +133,9 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let rows: Vec<(i64, Vec<u8>)> = query_as(&format!(
+            let rows: Vec<(i64, Vec<u8>)> = query_as(AssertSqlSafe(format!(
                 "SELECT version, checksum FROM {table_name} ORDER BY version"
-            ))
+            )))
             .fetch_all(self)
             .await?;
 
@@ -202,12 +208,12 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // `success=FALSE` and later modify the flag.
             //
             // language=MySQL
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( ?, ?, FALSE, ?, -1 )
                 "#
-            ))
+            )))
             .bind(migration.version)
             .bind(&*migration.description)
             .bind(&*migration.checksum)
@@ -215,18 +221,18 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             .await?;
 
             let _ = tx
-                .execute(&*migration.sql)
+                .execute(migration.sql.clone())
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
             // language=MySQL
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     UPDATE {table_name}
     SET success = TRUE
     WHERE version = ?
                 "#
-            ))
+            )))
             .bind(migration.version)
             .execute(&mut *tx)
             .await?;
@@ -240,13 +246,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             let elapsed = start.elapsed();
 
             #[allow(clippy::cast_possible_truncation)]
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     UPDATE {table_name}
     SET execution_time = ?
     WHERE version = ?
                 "#
-            ))
+            )))
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
             .execute(self)
@@ -274,24 +280,26 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // `success=FALSE` and later remove the migration altogether.
             //
             // language=MySQL
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     UPDATE {table_name}
     SET success = FALSE
     WHERE version = ?
                 "#
-            ))
+            )))
             .bind(migration.version)
             .execute(&mut *tx)
             .await?;
 
-            tx.execute(&*migration.sql).await?;
+            tx.execute(migration.sql.clone()).await?;
 
             // language=SQL
-            let _ = query(&format!(r#"DELETE FROM {table_name} WHERE version = ?"#))
-                .bind(migration.version)
-                .execute(&mut *tx)
-                .await?;
+            let _ = query(AssertSqlSafe(format!(
+                r#"DELETE FROM {table_name} WHERE version = ?"#
+            )))
+            .bind(migration.version)
+            .execute(&mut *tx)
+            .await?;
 
             tx.commit().await?;
 

@@ -5,7 +5,8 @@ use sqlx::postgres::{
     PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
     PgPoolOptions, PgRow, PgSeverity, Postgres, PG_COPY_MAX_DATA_LEN,
 };
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::{bytes::Bytes, error::BoxDynError};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
@@ -219,7 +220,7 @@ CREATE TEMPORARY TABLE json_stuff (obj json, obj2 jsonb);
         .await?;
 
     let query = "INSERT INTO json_stuff (obj, obj2) VALUES ($1, $2)";
-    let _ = conn.describe(query).await?;
+    let _ = conn.describe(query.into_sql_str()).await?;
 
     let done = sqlx::query(query)
         .bind(serde_json::json!({ "a": "a" }))
@@ -309,7 +310,10 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = conn.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
+        let val: i32 = conn
+            .fetch_one(AssertSqlSafe(format!("SELECT {i}::int4")))
+            .await?
+            .get(0);
 
         assert_eq!(val, i);
     }
@@ -330,7 +334,10 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = pool.fetch_one(&*format!("SELECT {i}::int4")).await?.get(0);
+        let val: i32 = pool
+            .fetch_one(AssertSqlSafe(format!("SELECT {i}::int4")))
+            .await?
+            .get(0);
 
         assert_eq!(val, i);
     }
@@ -803,7 +810,7 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
     let mut conn = PgConnection::connect_with(&options).await?;
 
     for i in 0..5 {
-        let row = sqlx::query(&*format!("SELECT {i}::int4 AS val"))
+        let row = sqlx::query(AssertSqlSafe(format!("SELECT {i}::int4 AS val")))
             .fetch_one(&mut conn)
             .await?;
 
@@ -874,7 +881,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
             .fetch_one(&mut *tx)
             .await?;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = $1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "created_at");
@@ -960,7 +969,8 @@ async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
         .describe(
             "select tweet.id
     from tweet
-    inner join products on products.name = tweet.text",
+    inner join products on products.name = tweet.text"
+                .into_sql_str(),
         )
         .await?;
 
@@ -971,7 +981,8 @@ async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
         .describe(
             "select tweet.id
 from (values (null)) vals(val)
-         left join tweet on false",
+         left join tweet on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -985,7 +996,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    left join tweet tweet2 on false",
+    left join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -998,7 +1010,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    right join tweet tweet2 on false",
+    right join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -1011,7 +1024,8 @@ from (values (null)) vals(val)
         .describe(
             "select tweet1.id, tweet2.id
     from tweet tweet1
-    full join tweet tweet2 on false",
+    full join tweet tweet2 on false"
+                .into_sql_str(),
         )
         .await?;
 
@@ -1120,8 +1134,10 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     {
         let mut txn = notify_conn.begin().await?;
         for i in 0..5 {
-            txn.execute(format!("NOTIFY test_channel2, 'payload {i}'").as_str())
-                .await?;
+            txn.execute(AssertSqlSafe(format!(
+                "NOTIFY test_channel2, 'payload {i}'"
+            )))
+            .await?;
         }
         txn.commit().await?;
     }
@@ -1972,7 +1988,8 @@ async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> 
     conn.execute("SET bytea_output = 'escape';").await?;
     for value in ["", "DEADBEEF"] {
         let query = format!("SELECT '\\x{value}'::bytea");
-        let res: sqlx::Result<Vec<u8>> = conn.fetch_one(query.as_str()).await?.try_get(0usize);
+        let res: sqlx::Result<Vec<u8>> =
+            conn.fetch_one(AssertSqlSafe(query)).await?.try_get(0usize);
         // Deserialization only supports hex format so this should error and definitely not panic.
         res.unwrap_err();
     }

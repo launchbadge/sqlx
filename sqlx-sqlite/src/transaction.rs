@@ -1,7 +1,7 @@
-use std::{borrow::Cow, future::Future};
+use std::future::Future;
 
-use sqlx_core::error::Error;
 use sqlx_core::transaction::TransactionManager;
+use sqlx_core::{error::Error, sql_str::SqlStr};
 
 use crate::{Sqlite, SqliteConnection};
 
@@ -11,10 +11,7 @@ pub struct SqliteTransactionManager;
 impl TransactionManager for SqliteTransactionManager {
     type Database = Sqlite;
 
-    async fn begin(
-        conn: &mut SqliteConnection,
-        statement: Option<Cow<'static, str>>,
-    ) -> Result<(), Error> {
+    async fn begin(conn: &mut SqliteConnection, statement: Option<SqlStr>) -> Result<(), Error> {
         let is_custom_statement = statement.is_some();
         conn.worker.begin(statement).await?;
         if is_custom_statement {

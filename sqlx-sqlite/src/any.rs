@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     Either, Sqlite, SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnectOptions,
     SqliteConnection, SqliteQueryResult, SqliteRow, SqliteTransactionManager, SqliteTypeInfo,
@@ -12,6 +10,7 @@ use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind,
 };
+use sqlx_core::sql_str::SqlStr;
 
 use crate::type_info::DataType;
 use sqlx_core::connection::{ConnectOptions, Connection};
@@ -40,10 +39,7 @@ impl AnyConnectionBackend for SqliteConnection {
         Connection::ping(self).boxed()
     }
 
-    fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, sqlx_core::Result<()>> {
         SqliteTransactionManager::begin(self, statement).boxed()
     }
 
@@ -84,7 +80,7 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
@@ -107,7 +103,7 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
@@ -132,16 +128,17 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            AnyStatement::try_from_statement(sql, &statement, statement.column_names.clone())
+            let column_names = statement.column_names.clone();
+            AnyStatement::try_from_statement(statement, column_names)
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move { Executor::describe(self, sql).await?.try_into_any() })
     }
 }

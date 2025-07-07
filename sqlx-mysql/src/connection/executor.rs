@@ -23,7 +23,8 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
 use sqlx_core::column::{ColumnOrigin, TableColumn};
-use std::{borrow::Cow, pin::pin, sync::Arc};
+use sqlx_core::sql_str::SqlStr;
+use std::{pin::pin, sync::Arc};
 
 impl MySqlConnection {
     async fn prepare_statement(
@@ -102,13 +103,11 @@ impl MySqlConnection {
     #[allow(clippy::needless_lifetimes)]
     pub(crate) async fn run<'e, 'c: 'e, 'q: 'e>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         arguments: Option<MySqlArguments>,
         persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error>
     {
-        let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
-
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
 
@@ -121,7 +120,7 @@ impl MySqlConnection {
             let (mut column_names, format, mut needs_metadata) = if let Some(arguments) = arguments {
                 if persistent && self.inner.cache_statement.is_enabled() {
                     let (id, metadata) = self
-                        .get_or_prepare_statement(sql)
+                        .get_or_prepare_statement(sql.as_str())
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
@@ -145,7 +144,7 @@ impl MySqlConnection {
                     (metadata.column_names, MySqlValueFormat::Binary, false)
                 } else {
                     let (id, metadata) = self
-                        .prepare_statement(sql)
+                        .prepare_statement(sql.as_str())
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
@@ -172,10 +171,11 @@ impl MySqlConnection {
                 }
             } else {
                 // https://dev.mysql.com/doc/internals/en/com-query.html
-                self.inner.stream.send_packet(Query(sql)).await?;
+                self.inner.stream.send_packet(Query(sql.as_str())).await?;
 
                 (Arc::default(), MySqlValueFormat::Text, true)
             };
+        let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
 
             loop {
                 // query response is a meta-packet which may be one of:
@@ -287,11 +287,11 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         'q: 'e,
         E: 'q,
     {
-        let sql = query.sql();
         let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
+        let sql = query.sql();
             let arguments = arguments?;
             let mut s = pin!(self.run(sql, arguments, persistent).await?);
 
@@ -323,11 +323,11 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &'e [MySqlTypeInfo],
-    ) -> BoxFuture<'e, Result<MySqlStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<MySqlStatement, Error>>
     where
         'c: 'e,
     {
@@ -335,9 +335,9 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
             self.inner.stream.wait_until_ready().await?;
 
             let metadata = if self.inner.cache_statement.is_enabled() {
-                self.get_or_prepare_statement(sql).await?.1
+                self.get_or_prepare_statement(sql.as_str()).await?.1
             } else {
-                let (id, metadata) = self.prepare_statement(sql).await?;
+                let (id, metadata) = self.prepare_statement(sql.as_str()).await?;
 
                 self.inner
                     .stream
@@ -348,7 +348,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
             };
 
             Ok(MySqlStatement {
-                sql: Cow::Borrowed(sql),
+                sql,
                 // metadata has internal Arcs for expensive data structures
                 metadata: metadata.clone(),
             })
@@ -356,14 +356,14 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
     where
         'c: 'e,
     {
         Box::pin(async move {
             self.inner.stream.wait_until_ready().await?;
 
-            let (id, metadata) = self.prepare_statement(sql).await?;
+            let (id, metadata) = self.prepare_statement(sql.as_str()).await?;
 
             self.inner
                 .stream

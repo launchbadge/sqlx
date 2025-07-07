@@ -150,7 +150,7 @@ where
             }
         }
 
-        query.into_sql()
+        query.into_string()
     }
 }
 

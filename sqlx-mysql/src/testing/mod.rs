@@ -12,7 +12,7 @@ use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
 use sqlx_core::connection::Connection;
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
-use std::fmt::Write;
+use sqlx_core::sql_str::AssertSqlSafe;
 
 pub(crate) use sqlx_core::testing::*;
 
@@ -51,13 +51,12 @@ impl TestSupport for MySql {
 
         let mut deleted_db_names = Vec::with_capacity(delete_db_names.len());
 
-        let mut command = String::new();
+        let mut builder = QueryBuilder::new("drop database if exists ");
 
         for db_name in &delete_db_names {
-            command.clear();
+            builder.push(db_name);
 
-            writeln!(command, "drop database if exists {db_name};").ok();
-            match conn.execute(&*command).await {
+            match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {
                     deleted_db_names.push(db_name);
                 }
@@ -68,6 +67,8 @@ impl TestSupport for MySql {
                 // Bubble up other errors
                 Err(e) => return Err(e),
             }
+
+            builder.reset();
         }
 
         if deleted_db_names.is_empty() {
@@ -157,7 +158,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(&format!("create database {db_name}")[..])
+    conn.execute(AssertSqlSafe(format!("create database {db_name}")))
         .await?;
 
     eprintln!("created database {db_name}");
@@ -182,7 +183,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
 
 async fn do_cleanup(conn: &mut MySqlConnection, db_name: &str) -> Result<(), Error> {
     let delete_db_command = format!("drop database if exists {db_name};");
-    conn.execute(&*delete_db_command).await?;
+    conn.execute(AssertSqlSafe(delete_db_command)).await?;
     query("delete from _sqlx_test_databases where db_name = ?")
         .bind(db_name)
         .execute(&mut *conn)
@@ -221,9 +222,9 @@ async fn cleanup_old_dbs(conn: &mut MySqlConnection) -> Result<(), Error> {
     // Drop old-style test databases.
     for id in db_ids {
         match conn
-            .execute(&*format!(
+            .execute(AssertSqlSafe(format!(
                 "drop database if exists _sqlx_test_database_{id}"
-            ))
+            )))
             .await
         {
             Ok(_deleted) => (),
