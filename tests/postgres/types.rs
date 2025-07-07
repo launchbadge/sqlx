@@ -697,6 +697,45 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
         ]
 ));
 
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "positive_int")]
+struct PositiveInt(i32);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "percentage")]
+struct Percentage(PositiveInt);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+struct Person {
+    id: i32,
+    age: PositiveInt,
+    percent: Percentage,
+}
+
+test_type!(nested_domain_types_1<Person>(Postgres,
+    "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: PositiveInt(21), percent: Percentage(PositiveInt(50)) })
+);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "leaf_composite")]
+struct LeafComposite {
+    prim: i32,
+}
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "domain")]
+struct Domain(LeafComposite);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "root_composite")]
+struct RootComposite {
+    domain: Domain,
+}
+
+test_type!(nested_domain_types_2<RootComposite>(Postgres,
+    "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1})})
+);
+
 test_type!(test_arc<Arc<i32>>(Postgres, "1::INT4" == Arc::new(1i32)));
 test_type!(test_cow<Cow<'_, i32>>(Postgres, "1::INT4" == Cow::<i32>::Owned(1i32)));
 test_type!(test_box<Box<i32>>(Postgres, "1::INT4" == Box::new(1i32)));
