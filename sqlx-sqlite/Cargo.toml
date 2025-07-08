@@ -61,7 +61,7 @@ serde = { version = "1.0.145", features = ["derive"], optional = true }
 regex = { version = "1.5.5", optional = true }
 
 [dependencies.libsqlite3-sys]
-version = "0.30.1"
+version = "0.35"
 default-features = false
 features = [
     "pkg-config",
