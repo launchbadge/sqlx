@@ -68,3 +68,16 @@ CREATE TABLE circles (
     c circle,
     EXCLUDE USING gist (c WITH &&)
 );
+
+CREATE DOMAIN positive_int AS integer CHECK (VALUE >= 0);
+CREATE DOMAIN percentage AS positive_int CHECK (VALUE <= 100);
+
+CREATE TYPE person as (
+    id int,
+    age positive_int,
+    percent percentage
+);
+
+CREATE TYPE leaf_composite AS (prim integer);
+CREATE DOMAIN domain AS leaf_composite;
+CREATE TYPE root_composite AS (domain domain);

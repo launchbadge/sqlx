@@ -23,6 +23,7 @@ members = [
     "examples/postgres/todos",
     "examples/postgres/transaction",
     "examples/sqlite/todos",
+    "examples/sqlite/extension",
 ]
 
 [workspace.package]
@@ -65,7 +66,7 @@ macros = ["derive", "sqlx-macros/macros"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
 
 # Enable parsing of `sqlx.toml` for configuring macros and migrations.
-sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml"]
+sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml", "sqlx-sqlite?/sqlx-toml"]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
@@ -223,6 +224,9 @@ cast_possible_wrap = 'deny'
 cast_sign_loss = 'deny'
 # See `clippy.toml`
 disallowed_methods = 'deny'
+
+[lints.rust]
+unexpected_cfgs = { level = 'warn', check-cfg = ['cfg(mariadb, values(any()))'] }
 
 #
 # Any

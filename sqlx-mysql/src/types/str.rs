@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::collation::Collation;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -15,6 +16,8 @@ impl Type<MySql> for str {
         MySqlTypeInfo {
             r#type: ColumnType::VarString, // VARCHAR
             flags: ColumnFlags::empty(),
+            // Doesn't matter because we never send this.
+            collation: Collation::UTF8MB4_GENERAL_CI,
             max_size: None,
         }
     }
@@ -31,7 +34,13 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && !ty.flags.contains(ColumnFlags::BINARY)
+        )
+            // Any collation that *isn't* `binary` generally indicates string data.
+            // The actual collation used for storage doesn't matter, 
+            // because the server will transcode to the charset we specify.
+            //
+            // See comment in `src/collation.rs` for details.
+            && ty.collation != Collation::BINARY
     }
 }
 

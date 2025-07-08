@@ -1,5 +1,5 @@
 use sqlx_core::database::Database;
-use std::borrow::Cow;
+use sqlx_core::sql_str::SqlStr;
 
 use crate::error::Error;
 use crate::executor::Executor;
@@ -14,11 +14,9 @@ pub struct PgTransactionManager;
 impl TransactionManager for PgTransactionManager {
     type Database = Postgres;
 
-    async fn begin(
-        conn: &mut PgConnection,
-        statement: Option<Cow<'static, str>>,
-    ) -> Result<(), Error> {
+    async fn begin(conn: &mut PgConnection, statement: Option<SqlStr>) -> Result<(), Error> {
         let depth = conn.inner.transaction_depth;
+
         let statement = match statement {
             // custom `BEGIN` statements are not allowed if we're already in
             // a transaction (we need to issue a `SAVEPOINT` instead)
@@ -28,7 +26,7 @@ impl TransactionManager for PgTransactionManager {
         };
 
         let rollback = Rollback::new(conn);
-        rollback.conn.queue_simple_query(&statement)?;
+        rollback.conn.queue_simple_query(statement.as_str())?;
         rollback.conn.wait_until_ready().await?;
         if !rollback.conn.in_transaction() {
             return Err(Error::BeginFailed);
@@ -41,7 +39,7 @@ impl TransactionManager for PgTransactionManager {
 
     async fn commit(conn: &mut PgConnection) -> Result<(), Error> {
         if conn.inner.transaction_depth > 0 {
-            conn.execute(&*commit_ansi_transaction_sql(conn.inner.transaction_depth))
+            conn.execute(commit_ansi_transaction_sql(conn.inner.transaction_depth))
                 .await?;
 
             conn.inner.transaction_depth -= 1;
@@ -52,10 +50,8 @@ impl TransactionManager for PgTransactionManager {
 
     async fn rollback(conn: &mut PgConnection) -> Result<(), Error> {
         if conn.inner.transaction_depth > 0 {
-            conn.execute(&*rollback_ansi_transaction_sql(
-                conn.inner.transaction_depth,
-            ))
-            .await?;
+            conn.execute(rollback_ansi_transaction_sql(conn.inner.transaction_depth))
+                .await?;
 
             conn.inner.transaction_depth -= 1;
         }
@@ -65,8 +61,10 @@ impl TransactionManager for PgTransactionManager {
 
     fn start_rollback(conn: &mut PgConnection) {
         if conn.inner.transaction_depth > 0 {
-            conn.queue_simple_query(&rollback_ansi_transaction_sql(conn.inner.transaction_depth))
-                .expect("BUG: Rollback query somehow too large for protocol");
+            conn.queue_simple_query(
+                rollback_ansi_transaction_sql(conn.inner.transaction_depth).as_str(),
+            )
+            .expect("BUG: Rollback query somehow too large for protocol");
 
             conn.inner.transaction_depth -= 1;
         }

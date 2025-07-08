@@ -1,9 +1,9 @@
-use std::borrow::Cow;
 use std::future::Future;
 
 use crate::any::{Any, AnyConnection};
 use crate::database::Database;
 use crate::error::Error;
+use crate::sql_str::SqlStr;
 use crate::transaction::TransactionManager;
 
 pub struct AnyTransactionManager;
@@ -11,10 +11,10 @@ pub struct AnyTransactionManager;
 impl TransactionManager for AnyTransactionManager {
     type Database = Any;
 
-    fn begin<'conn>(
-        conn: &'conn mut AnyConnection,
-        statement: Option<Cow<'static, str>>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + 'conn {
+    fn begin(
+        conn: &mut AnyConnection,
+        statement: Option<SqlStr>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         conn.backend.begin(statement)
     }
 

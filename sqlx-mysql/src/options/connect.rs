@@ -3,6 +3,7 @@ use crate::error::Error;
 use crate::executor::Executor;
 use crate::{MySqlConnectOptions, MySqlConnection};
 use log::LevelFilter;
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::Url;
 use std::time::Duration;
 
@@ -63,19 +64,27 @@ impl ConnectOptions for MySqlConnectOptions {
                 sql_mode.join(",")
             ));
         }
+
         if let Some(timezone) = &self.timezone {
             options.push(format!(r#"time_zone='{}'"#, timezone));
         }
+
         if self.set_names {
-            options.push(format!(
-                r#"NAMES {} COLLATE {}"#,
-                conn.inner.stream.charset.as_str(),
-                conn.inner.stream.collation.as_str()
-            ))
+            // As it turns out, we don't _have_ to set a collation if we don't want to.
+            // We can let the server choose the default collation for the charset.
+            let set_names = if let Some(collation) = &self.collation {
+                format!(r#"NAMES {} COLLATE {collation}"#, self.charset,)
+            } else {
+                // Leaves the default collation up to the server,
+                // but ensures statements and results are encoded using the proper charset.
+                format!("NAMES {}", self.charset)
+            };
+
+            options.push(set_names);
         }
 
         if !options.is_empty() {
-            conn.execute(&*format!(r#"SET {};"#, options.join(",")))
+            conn.execute(AssertSqlSafe(format!(r#"SET {};"#, options.join(","))))
                 .await?;
         }
 

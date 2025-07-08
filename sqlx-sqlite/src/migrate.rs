@@ -9,6 +9,7 @@ use crate::query::query;
 use crate::query_as::query_as;
 use crate::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -65,10 +66,11 @@ impl Migrate for SqliteConnection {
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // Check if the schema already exists; if so, don't error.
-            let schema_version: Option<i64> =
-                query_scalar(&format!("PRAGMA {schema_name}.schema_version"))
-                    .fetch_optional(&mut *self)
-                    .await?;
+            let schema_version: Option<i64> = query_scalar(AssertSqlSafe(format!(
+                "PRAGMA {schema_name}.schema_version"
+            )))
+            .fetch_optional(&mut *self)
+            .await?;
 
             if schema_version.is_some() {
                 return Ok(());
@@ -86,7 +88,7 @@ impl Migrate for SqliteConnection {
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=SQLite
-            self.execute(&*format!(
+            self.execute(AssertSqlSafe(format!(
                 r#"
 CREATE TABLE IF NOT EXISTS {table_name} (
     version BIGINT PRIMARY KEY,
@@ -97,7 +99,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     execution_time BIGINT NOT NULL
 );
                 "#
-            ))
+            )))
             .await?;
 
             Ok(())
@@ -110,9 +112,9 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
-            let row: Option<(i64,)> = query_as(&format!(
+            let row: Option<(i64,)> = query_as(AssertSqlSafe(format!(
                 "SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"
-            ))
+            )))
             .fetch_optional(self)
             .await?;
 
@@ -126,9 +128,9 @@ CREATE TABLE IF NOT EXISTS {table_name} (
     ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
-            let rows: Vec<(i64, Vec<u8>)> = query_as(&format!(
+            let rows: Vec<(i64, Vec<u8>)> = query_as(AssertSqlSafe(format!(
                 "SELECT version, checksum FROM {table_name} ORDER BY version"
-            ))
+            )))
             .fetch_all(self)
             .await?;
 
@@ -167,17 +169,17 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
             // and update it once the actual transaction completed.
             let _ = tx
-                .execute(&*migration.sql)
+                .execute(migration.sql.clone())
                 .await
                 .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
             // language=SQL
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( ?1, ?2, TRUE, ?3, -1 )
                 "#
-            ))
+            )))
             .bind(migration.version)
             .bind(&*migration.description)
             .bind(&*migration.checksum)
@@ -194,13 +196,13 @@ CREATE TABLE IF NOT EXISTS {table_name} (
 
             // language=SQL
             #[allow(clippy::cast_possible_truncation)]
-            let _ = query(&format!(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
     UPDATE {table_name}
     SET execution_time = ?1
     WHERE version = ?2
                 "#
-            ))
+            )))
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
             .execute(self)
@@ -221,13 +223,15 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let _ = tx.execute(&*migration.sql).await?;
+            let _ = tx.execute(migration.sql.clone()).await?;
 
             // language=SQLite
-            let _ = query(&format!(r#"DELETE FROM {table_name} WHERE version = ?1"#))
-                .bind(migration.version)
-                .execute(&mut *tx)
-                .await?;
+            let _ = query(AssertSqlSafe(format!(
+                r#"DELETE FROM {table_name} WHERE version = ?1"#
+            )))
+            .bind(migration.version)
+            .execute(&mut *tx)
+            .await?;
 
             tx.commit().await?;
 

@@ -1,10 +1,11 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 
 pub(crate) use sqlx_core::connection::*;
+use sqlx_core::sql_str::SqlSafeStr;
 pub(crate) use stream::{MySqlStream, Waiting};
 
+use crate::collation::Collation;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::protocol::response::Status;
@@ -21,6 +22,13 @@ mod stream;
 mod tls;
 
 const MAX_PACKET_SIZE: u32 = 1024;
+
+/// The charset parameter sent in the `Protocol::HandshakeResponse41` packet.
+///
+/// This becomes the default if `set_names = false`,
+/// and also ensures that any error messages returned before `SET NAMES` are encoded correctly.
+#[allow(clippy::cast_possible_truncation)]
+const INITIAL_CHARSET: u8 = Collation::UTF8MB4_GENERAL_CI.0 as u8;
 
 /// A connection to a MySQL database.
 pub struct MySqlConnection {
@@ -117,12 +125,12 @@ impl Connection for MySqlConnection {
 
     fn begin_with(
         &mut self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
-        Transaction::begin(self, Some(statement.into()))
+        Transaction::begin(self, Some(statement.into_sql_str()))
     }
 
     fn shrink_buffers(&mut self) {

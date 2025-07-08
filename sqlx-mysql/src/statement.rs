@@ -5,14 +5,14 @@ use crate::ext::ustr::UStr;
 use crate::HashMap;
 use crate::{MySql, MySqlArguments, MySqlTypeInfo};
 use either::Either;
-use std::borrow::Cow;
+use sqlx_core::sql_str::SqlStr;
 use std::sync::Arc;
 
 pub(crate) use sqlx_core::statement::*;
 
 #[derive(Debug, Clone)]
-pub struct MySqlStatement<'q> {
-    pub(crate) sql: Cow<'q, str>,
+pub struct MySqlStatement {
+    pub(crate) sql: SqlStr,
     pub(crate) metadata: MySqlStatementMetadata,
 }
 
@@ -23,17 +23,14 @@ pub(crate) struct MySqlStatementMetadata {
     pub(crate) parameters: usize,
 }
 
-impl<'q> Statement<'q> for MySqlStatement<'q> {
+impl Statement for MySqlStatement {
     type Database = MySql;
 
-    fn to_owned(&self) -> MySqlStatement<'static> {
-        MySqlStatement::<'static> {
-            sql: Cow::Owned(self.sql.clone().into_owned()),
-            metadata: self.metadata.clone(),
-        }
+    fn into_sql(self) -> SqlStr {
+        self.sql
     }
 
-    fn sql(&self) -> &str {
+    fn sql(&self) -> &SqlStr {
         &self.sql
     }
 
@@ -48,8 +45,8 @@ impl<'q> Statement<'q> for MySqlStatement<'q> {
     impl_statement_query!(MySqlArguments);
 }
 
-impl ColumnIndex<MySqlStatement<'_>> for &'_ str {
-    fn index(&self, statement: &MySqlStatement<'_>) -> Result<usize, Error> {
+impl ColumnIndex<MySqlStatement> for &'_ str {
+    fn index(&self, statement: &MySqlStatement) -> Result<usize, Error> {
         statement
             .metadata
             .column_names

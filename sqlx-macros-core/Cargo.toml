@@ -29,7 +29,7 @@ derive = []
 macros = []
 migrate = ["sqlx-core/migrate"]
 
-sqlx-toml = ["sqlx-core/sqlx-toml"]
+sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-sqlite?/sqlx-toml"]
 
 # database
 mysql = ["sqlx-mysql"]

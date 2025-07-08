@@ -57,6 +57,7 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
@@ -127,14 +128,26 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
 pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
-    let opts: SqliteConnectOptions = database_url.parse()?;
+    let mut opts: SqliteConnectOptions = database_url.parse()?;
+
+    match sqlx_core::config::Config::try_from_crate_or_default() {
+        Ok(config) => {
+            for extension in config.common.drivers.sqlite.load_extensions.iter() {
+                opts = opts.extension(extension.to_owned());
+            }
+        }
+        Err(sqlx_core::config::ConfigError::NotFound { path: _ }) => {}
+        Err(err) => return Err(Error::ConfigFile(err)),
+    }
+
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;
 
     // Execute any ancillary `PRAGMA`s
-    connection::execute::iter(&mut conn, &opts.pragma_string(), None, false)?.finish()?;
+    connection::execute::iter(&mut conn, AssertSqlSafe(opts.pragma_string()), None, false)?
+        .finish()?;
 
-    connection::describe::describe(&mut conn, query)
+    connection::describe::describe(&mut conn, AssertSqlSafe(query.to_string()).into_sql_str())
 
     // SQLite database is closed immediately when `conn` is dropped
 }

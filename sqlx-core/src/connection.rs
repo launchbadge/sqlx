@@ -1,10 +1,10 @@
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 
+use crate::sql_str::SqlSafeStr;
 use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
-use std::borrow::Cow;
 use std::fmt::Debug;
 use std::future::Future;
 use std::str::FromStr;
@@ -59,12 +59,12 @@ pub trait Connection: Send {
     /// `statement` does not put the connection into a transaction.
     fn begin_with(
         &mut self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
-        Transaction::begin(self, Some(statement.into()))
+        Transaction::begin(self, Some(statement.into_sql_str()))
     }
 
     /// Returns `true` if the connection is currently in a transaction.

@@ -2,6 +2,7 @@ use crate::any::{Any, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTy
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::sql_str::SqlStr;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -23,8 +24,8 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             Ok(arguments) => arguments,
             Err(error) => return stream::once(future::ready(Err(error))).boxed(),
         };
-        self.backend
-            .fetch_many(query.sql(), query.persistent(), arguments)
+        let persistent = query.persistent();
+        self.backend.fetch_many(query.sql(), persistent, arguments)
     }
 
     fn fetch_optional<'e, 'q: 'e, E>(
@@ -39,25 +40,23 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             Ok(arguments) => arguments,
             Err(error) => return future::ready(Err(error)).boxed(),
         };
+        let persistent = query.persistent();
         self.backend
-            .fetch_optional(query.sql(), query.persistent(), arguments)
+            .fetch_optional(query.sql(), persistent, arguments)
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: SqlStr,
         parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'e, Result<AnyStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<AnyStatement, Error>>
     where
         'c: 'e,
     {
         self.backend.prepare_with(sql, parameters)
     }
 
-    fn describe<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {

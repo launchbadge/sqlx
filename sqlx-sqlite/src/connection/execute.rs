@@ -3,12 +3,13 @@ use crate::error::Error;
 use crate::logger::QueryLogger;
 use crate::statement::{StatementHandle, VirtualStatement};
 use crate::{SqliteArguments, SqliteQueryResult, SqliteRow};
+use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::Either;
 
 pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
     statement: &'a mut VirtualStatement,
-    logger: QueryLogger<'a>,
+    logger: QueryLogger,
     args: Option<SqliteArguments<'a>>,
 
     /// since a `VirtualStatement` can encompass multiple actual statements,
@@ -20,12 +21,13 @@ pub struct ExecuteIter<'a> {
 
 pub(crate) fn iter<'a>(
     conn: &'a mut ConnectionState,
-    query: &'a str,
+    query: impl SqlSafeStr,
     args: Option<SqliteArguments<'a>>,
     persistent: bool,
 ) -> Result<ExecuteIter<'a>, Error> {
+    let query = query.into_sql_str();
     // fetch the cached statement or allocate a new one
-    let statement = conn.statements.get(query, persistent)?;
+    let statement = conn.statements.get(query.as_str(), persistent)?;
 
     let logger = QueryLogger::new(query, conn.log_settings.clone());
 

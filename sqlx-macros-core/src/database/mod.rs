@@ -6,6 +6,8 @@ use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::AssertSqlSafe;
+use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::type_checking::TypeChecking;
 
 #[cfg(any(feature = "postgres", feature = "mysql", feature = "_sqlite"))]
@@ -77,7 +79,8 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
                 }
             };
 
-            conn.describe(query).await
+            conn.describe(AssertSqlSafe(query.to_string()).into_sql_str())
+                .await
         })
     }
 }

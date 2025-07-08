@@ -1,5 +1,6 @@
 use crate::error::BoxDynError;
 use crate::migrate::{migration, Migration, MigrationType};
+use crate::sql_str::{AssertSqlSafe, SqlSafeStr};
 use futures_core::future::BoxFuture;
 
 use std::borrow::Cow;
@@ -239,7 +240,7 @@ pub fn resolve_blocking_with_config(
                 version,
                 Cow::Owned(description),
                 migration_type,
-                Cow::Owned(sql),
+                AssertSqlSafe(sql).into_sql_str(),
                 checksum.into(),
                 no_tx,
             ),

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
@@ -20,6 +19,7 @@ use crate::types::Oid;
 use crate::{PgConnectOptions, PgTypeInfo, Postgres};
 
 pub(crate) use sqlx_core::connection::*;
+use sqlx_core::sql_str::SqlSafeStr;
 
 pub use self::stream::PgStream;
 
@@ -193,12 +193,12 @@ impl Connection for PgConnection {
 
     fn begin_with(
         &mut self,
-        statement: impl Into<Cow<'static, str>>,
+        statement: impl SqlSafeStr,
     ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
-        Transaction::begin(self, Some(statement.into()))
+        Transaction::begin(self, Some(statement.into_sql_str()))
     }
 
     fn cached_statements_size(&self) -> usize {
