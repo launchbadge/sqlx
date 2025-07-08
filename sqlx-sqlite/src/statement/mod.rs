@@ -9,6 +9,8 @@ use std::sync::Arc;
 pub(crate) use sqlx_core::statement::*;
 
 mod handle;
+
+#[cfg(feature = "unlock-notify")]
 pub(super) mod unlock_notify;
 mod r#virtual;
 

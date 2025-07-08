@@ -199,22 +199,6 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
         let mut opts_out = SqliteConnectOptions::from_url(&opts.database_url)?;
         opts_out.log_settings = opts.log_settings.clone();
 
-        if let Some(ref path) = opts.enable_config {
-            if path.exists() {
-                let config = match sqlx_core::config::Config::try_from_path(path.to_path_buf()) {
-                    Ok(cfg) => cfg,
-                    Err(sqlx_core::config::ConfigError::NotFound { path: _ }) => {
-                        return Ok(opts_out)
-                    }
-                    Err(err) => return Err(Self::Error::ConfigFile(err)),
-                };
-
-                for extension in config.common.drivers.sqlite.load_extensions.iter() {
-                    opts_out = opts_out.extension(extension.to_owned());
-                }
-            }
-        }
-
         Ok(opts_out)
     }
 }

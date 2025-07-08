@@ -40,7 +40,9 @@ mod handle;
 pub(crate) mod intmap;
 #[cfg(feature = "preupdate-hook")]
 mod preupdate_hook;
-pub(crate) mod serialize;
+
+#[cfg(feature = "deserialize")]
+pub(crate) mod deserialize;
 
 mod worker;
 

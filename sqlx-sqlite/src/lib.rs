@@ -1,38 +1,68 @@
 //! **SQLite** database driver.
 //!
-//! ### Note: linkage is semver-exempt.
+//! ### Note: `libsqlite3-sys` Version
 //! This driver uses the `libsqlite3-sys` crate which links the native library for SQLite 3.
-//! With the "sqlite" feature, we enable the `bundled` feature which builds and links SQLite from
-//! source.
+//! Only one version of `libsqlite3-sys` may appear in the dependency tree of your project.
 //!
-//! We reserve the right to upgrade the version of `libsqlite3-sys` as necessary to pick up new
-//! `3.x.y` versions of SQLite.
+//! As of SQLx 0.9.0, the version of `libsqlite3-sys` is now a range instead of any specific version.
+//! Refer the `Cargo.toml` of the `sqlx-sqlite` crate for the current version range.
 //!
-//! Due to Cargo's requirement that only one version of a crate that links a given native library
-//! exists in the dependency graph at a time, using SQLx alongside another crate linking
-//! `libsqlite3-sys` like `rusqlite` is a semver hazard.
+//! If you are using `rusqlite` or any other crate that indirectly depends on `libsqlite3-sys`,
+//! this should allow Cargo to select a compatible version.
 //!
-//! If you are doing so, we recommend pinning the version of both SQLx and the other crate you're
-//! using to prevent a `cargo update` from breaking things, e.g.:
+//! If Cargo **fails to select a compatible version**, this means the other crate is using
+//! a `libsqlite3-sys` version outside of this range.
+//!
+//! We may increase the *maximum* version of the range at our discretion,
+//! in patch (SemVer-compatible) releases, to allow users to upgrade to newer versions as desired.
+//!
+//! The *minimum* version of the range may be increased over time to drop very old or
+//! insecure versions of SQLite, but this will only occur in major (SemVer-incompatible) releases.
+//!
+//! Note that this means a `cargo update` may increase the `libsqlite3-sys` version,
+//! which could, in rare cases, break your build.
+//!
+//! To prevent this, you can pin the `libsqlite3-sys` version in your own dependencies:
 //!
 //! ```toml
-//! sqlx = { version = "=0.8.1", features = ["sqlite"] }
-//! rusqlite = "=0.32.1"
+//! [dependencies]
+//! # for example, if 0.35.0 breaks the build
+//! libsqlite3-sys = "0.34"
 //! ```
 //!
-//! and then upgrade these crates in lockstep when necessary.
+//! ### Static Linking (Default)
+//! The `sqlite` feature enables the `bundled` feature of `libsqlite3-sys`,
+//! which builds SQLite 3 from included source code and statically links it into the final binary.
+//!
+//! This requires some C build tools to be installed on the system; see
+//! [the `rusqlite` README][rusqlite-readme-building] for details.
+//!
+//! This version of SQLite is generally much newer than system-installed versions of SQLite
+//! (especially for LTS Linux distributions), and can be updated with a `cargo update`,
+//! so this is the recommended option for ease of use and keeping up-to-date.
 //!
 //! ### Dynamic linking
-//! To dynamically link to a system SQLite library, the "sqlite-unbundled" feature can be used
+//! To dynamically link to an existing SQLite library, the `sqlite-unbundled` feature can be used
 //! instead.
 //!
 //! This allows updating SQLite independently of SQLx or using forked versions, but you must have
 //! SQLite installed on the system or provide a path to the library at build time (See
-//! [the `rusqlite` README](https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys)
-//! for details).
+//! [the `rusqlite` README][rusqlite-readme-building] for details).
 //!
-//! It may result in link errors if the SQLite version is too old. Version `3.20.0` or newer is
-//! recommended. It can increase build time due to the use of bindgen.
+//! Note that this _may_ result in link errors if the SQLite version is too old,
+//! or has [certain features disabled at compile-time](https://www.sqlite.org/compile.html).
+//!
+//! SQLite version `3.20.0` (released August 2018) or newer is recommended.
+//!
+//! **Please check your SQLite version and the flags it was built with before opening
+//!   a GitHub issue because of errors in `libsqlite3-sys`.** Thank you.
+//!
+//! [rusqlite-readme-building]: https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys
+//!
+//! ### Optional Features
+//!
+//! The following features
+//!
 
 // SQLite is a C library. All interactions require FFI which is unsafe.
 // All unsafe blocks should have comments pointing to SQLite docs and ensuring that we maintain
@@ -46,8 +76,11 @@ use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use column::SqliteColumn;
-pub use connection::serialize::SqliteOwnedBuf;
+#[cfg(feature = "deserialize")]
+#[cfg_attr(docsrs, doc(cfg(feature = "deserialize")))]
+pub use connection::deserialize::SqliteOwnedBuf;
 #[cfg(feature = "preupdate-hook")]
+#[cfg_attr(docsrs, doc(cfg(feature = "preupdate-hook")))]
 pub use connection::PreupdateHookResult;
 pub use connection::{LockedSqliteHandle, SqliteConnection, SqliteOperation, UpdateHookResult};
 pub use database::Sqlite;
@@ -57,7 +90,6 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
@@ -67,9 +99,11 @@ use crate::connection::establish::EstablishParams;
 
 pub(crate) use sqlx_core::driver_prelude::*;
 
+use sqlx_core::config;
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 
 mod arguments;
 mod column;
@@ -127,18 +161,14 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
-pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
+pub fn describe_blocking(
+    query: &str,
+    database_url: &str,
+    driver_config: &config::drivers::Config,
+) -> Result<Describe<Sqlite>, Error> {
     let mut opts: SqliteConnectOptions = database_url.parse()?;
 
-    match sqlx_core::config::Config::try_from_crate_or_default() {
-        Ok(config) => {
-            for extension in config.common.drivers.sqlite.load_extensions.iter() {
-                opts = opts.extension(extension.to_owned());
-            }
-        }
-        Err(sqlx_core::config::ConfigError::NotFound { path: _ }) => {}
-        Err(err) => return Err(Error::ConfigFile(err)),
-    }
+    opts = opts.apply_driver_config(&driver_config.sqlite)?;
 
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;

@@ -54,8 +54,9 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# Note: written so that it may be copy-pasted to other crates
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types", "_unstable-doc", "sqlite-preupdate-hook"]
+features = ["_unstable-docs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -83,8 +84,13 @@ _unstable-all-types = [
     "bit-vec",
     "bstr"
 ]
+
 # Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
-_unstable-doc = []
+_unstable-docs = [
+    "all-databases",
+    "_unstable-all-types",
+    "sqlx-sqlite/_unstable-docs"
+]
 
 # Base runtime features without TLS
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
@@ -112,7 +118,15 @@ postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
 sqlite = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+
+# Additional SQLite features (note: these do nothing without `sqlite` or `sqlite-unbundled`):
+# Enable `SqliteConnection::deserialize()` and `::serialize()`
+sqlite-deserialize = ["sqlx-sqlite/deserialize"]
+# Enable `SqliteConnectOptions::extension()` and `::extension_with_entrypoint()`.
+# Also required to use `drivers.sqlite.unsafe-load-extensions` from `sqlx.toml`.
+sqlite-load-extension = ["sqlx-sqlite/load-extension", "sqlx-macros?/sqlite-load-extension"]
 sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
+sqlite-unlock-notify = ["sqlx-sqlite/unlock-notify"]
 
 # types
 json = ["sqlx-core/json", "sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]

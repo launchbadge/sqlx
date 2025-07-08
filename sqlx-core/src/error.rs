@@ -30,10 +30,6 @@ pub struct UnexpectedNullError;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// Error occurred while reading configuration file
-    #[error("error reading configuration file: {0}")]
-    ConfigFile(#[source] crate::config::ConfigError),
-
     /// Error occurred while parsing a connection string.
     #[error("error with configuration: {0}")]
     Configuration(#[source] BoxDynError),
@@ -127,6 +123,12 @@ pub enum Error {
 
     #[error("got unexpected connection status after attempting to begin transaction")]
     BeginFailed,
+
+    // Not returned in normal operation.
+    /// Error occurred while reading configuration file
+    #[doc(hidden)]
+    #[error("error reading configuration file: {0}")]
+    ConfigFile(#[from] crate::config::ConfigError),
 }
 
 impl StdError for Box<dyn DatabaseError> {}

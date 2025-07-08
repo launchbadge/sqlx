@@ -229,7 +229,7 @@ where
     let (query_data, offline): (QueryData<DB>, bool) = match data_source {
         QueryDataSource::Cached(dyn_data) => (QueryData::from_dyn_data(dyn_data)?, true),
         QueryDataSource::Live { database_url, .. } => {
-            let describe = DB::describe_blocking(&input.sql, database_url)?;
+            let describe = DB::describe_blocking(&input.sql, database_url, &config.drivers)?;
             (QueryData::from_describe(&input.sql, describe), false)
         }
     };

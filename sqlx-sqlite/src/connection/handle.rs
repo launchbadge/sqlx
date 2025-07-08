@@ -1,17 +1,17 @@
-use std::ffi::CString;
-use std::ptr;
+use std::ffi::{c_int, CStr, CString};
 use std::ptr::NonNull;
+use std::{io, ptr};
 
 use crate::error::Error;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_LOCKED_SHAREDCACHE,
-    SQLITE_OK,
+    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_extended_result_codes, sqlite3_last_insert_rowid,
+    sqlite3_open_v2, SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK,
 };
 
-use crate::{statement::unlock_notify, SqliteError};
+use crate::SqliteError;
 
-/// Managed handle to the raw SQLite3 database handle.
-/// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
+/// Managed SQLite3 database handle.
+/// The database handle will be closed when this is dropped.
 #[derive(Debug)]
 pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
 
@@ -19,17 +19,43 @@ pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
 // one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
 // enabled and [SQLITE_THREADSAFE] was enabled when sqlite was compiled. We refuse to work
 // if these conditions are not upheld.
-
+//
 // <https://www.sqlite.org/c3ref/threadsafe.html>
-
 // <https://www.sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmultithread>
 
 unsafe impl Send for ConnectionHandle {}
 
 impl ConnectionHandle {
-    #[inline]
-    pub(super) unsafe fn new(ptr: *mut sqlite3) -> Self {
-        Self(NonNull::new_unchecked(ptr))
+    pub(crate) fn open(filename: &CStr, flags: c_int) -> Result<Self, Error> {
+        let mut handle = ptr::null_mut();
+
+        // <https://www.sqlite.org/c3ref/open.html>
+        let status = unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, ptr::null()) };
+
+        // SAFETY: the database is still initialized as long as the pointer is not `NULL`.
+        // We need to close it even if there's an error.
+        let mut handle = Self(NonNull::new(handle).ok_or_else(|| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::OutOfMemory,
+                "SQLite is unable to allocate memory to hold the sqlite3 object",
+            ))
+        })?);
+
+        if status != SQLITE_OK {
+            return Err(Error::Database(Box::new(handle.expect_error())));
+        }
+
+        // Enable extended result codes
+        // https://www.sqlite.org/c3ref/extended_result_codes.html
+        unsafe {
+            // This only returns a non-OK code if SQLite is built with `SQLITE_ENABLE_API_ARMOR`
+            // and the database pointer is `NULL` or already closed.
+            //
+            // The invariants of this type guarantee that neither is true.
+            sqlite3_extended_result_codes(handle.as_ptr(), 1);
+        }
+
+        Ok(handle)
     }
 
     #[inline]
@@ -39,6 +65,17 @@ impl ConnectionHandle {
 
     pub(crate) fn as_non_null_ptr(&self) -> NonNull<sqlite3> {
         self.0
+    }
+
+    pub(crate) fn call_with_result(
+        &mut self,
+        call: impl FnOnce(*mut sqlite3) -> c_int,
+    ) -> Result<(), SqliteError> {
+        if call(self.as_ptr()) == SQLITE_OK {
+            Ok(())
+        } else {
+            Err(self.expect_error())
+        }
     }
 
     pub(crate) fn last_insert_rowid(&mut self) -> i64 {
@@ -63,6 +100,7 @@ impl ConnectionHandle {
 
         // SAFETY: we have exclusive access to the database handle
         unsafe {
+            #[cfg_attr(not(feature = "unlock-notify"), expect(clippy::never_loop))]
             loop {
                 let status = sqlite3_exec(
                     self.as_ptr(),
@@ -77,7 +115,10 @@ impl ConnectionHandle {
 
                 match status {
                     SQLITE_OK => return Ok(()),
-                    SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr())?,
+                    #[cfg(feature = "unlock-notify")]
+                    SQLITE_LOCKED_SHAREDCACHE => {
+                        crate::statement::unlock_notify::wait(self.as_ptr())?
+                    }
                     _ => return Err(SqliteError::new(self.as_ptr()).into()),
                 }
             }

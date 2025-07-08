@@ -21,6 +21,8 @@ use std::path::{Path, PathBuf};
 /// See [`common::Config`] for details.
 pub mod common;
 
+pub mod drivers;
+
 /// Configuration for the `query!()` family of macros.
 ///
 /// See [`macros::Config`] for details.
@@ -55,6 +57,11 @@ pub struct Config {
     ///
     /// See [`common::Config`] for details.
     pub common: common::Config,
+
+    /// Configuration for database drivers.
+    ///
+    /// See [`drivers::Config`] for details.
+    pub drivers: drivers::Config,
 
     /// Configuration for the `query!()` family of macros.
     ///
@@ -144,13 +151,12 @@ impl ConfigError {
 /// Internal methods for loading a `Config`.
 #[allow(clippy::result_large_err)]
 impl Config {
-    /// Get the cached config, or read `$CARGO_MANIFEST_DIR/sqlx.toml`.
+    /// Read `$CARGO_MANIFEST_DIR/sqlx.toml` or return `Config::default()` if it does not exist.
     ///
-    /// On success, the config is cached in a `static` and returned by future calls.
-    ///
-    /// Errors if `CARGO_MANIFEST_DIR` is not set, or if the config file could not be read.
-    ///
-    /// If the file does not exist, the cache is populated with `Config::default()`.
+    /// # Errors
+    /// * If `CARGO_MANIFEST_DIR` is not set.
+    /// * If the file exists but could not be read or parsed.
+    /// * If the file exists but the `sqlx-toml` feature is disabled.
     pub fn try_from_crate_or_default() -> Result<Self, ConfigError> {
         Self::read_from(get_crate_path()?).or_else(|e| {
             if let ConfigError::NotFound { .. } = e {
@@ -161,11 +167,12 @@ impl Config {
         })
     }
 
-    /// Get the cached config, or attempt to read it from the path given.
+    /// Attempt to read `Config` from the path given.
     ///
-    /// On success, the config is cached in a `static` and returned by future calls.
-    ///
-    /// Errors if the config file does not exist, or could not be read.
+    /// # Errors
+    /// * If the file does not exist.
+    /// * If the file exists but could not be read or parsed.
+    /// * If the file exists but the `sqlx-toml` feature is disabled.
     pub fn try_from_path(path: PathBuf) -> Result<Self, ConfigError> {
         Self::read_from(path)
     }

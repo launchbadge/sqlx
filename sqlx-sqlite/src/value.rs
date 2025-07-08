@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 use std::str::from_utf8;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use libsqlite3_sys::{
     sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
@@ -104,11 +104,14 @@ pub(crate) struct ValueHandle<'a> {
     value: NonNull<sqlite3_value>,
     type_info: SqliteTypeInfo,
     free_on_drop: bool,
+    blob_mutex: Mutex<()>,
     _sqlite_value_lifetime: PhantomData<&'a ()>,
 }
 
 // SAFE: only protected value objects are stored in SqliteValue
 unsafe impl Send for ValueHandle<'_> {}
+
+// SAFETY: see comment in `blob()`
 unsafe impl Sync for ValueHandle<'_> {}
 
 impl ValueHandle<'static> {
@@ -117,6 +120,7 @@ impl ValueHandle<'static> {
             value,
             type_info,
             free_on_drop: true,
+            blob_mutex: Mutex::new(()),
             _sqlite_value_lifetime: PhantomData,
         }
     }
@@ -128,6 +132,7 @@ impl ValueHandle<'_> {
             value,
             type_info,
             free_on_drop: false,
+            blob_mutex: Mutex::new(()),
             _sqlite_value_lifetime: PhantomData,
         }
     }
@@ -151,6 +156,9 @@ impl ValueHandle<'_> {
     }
 
     fn blob<'b>(&self) -> &'b [u8] {
+        // SAFETY: calling `sqlite3_value_bytes` from multiple threads at once is a data race.
+        let _guard = self.blob_mutex.lock();
+
         let len = unsafe { sqlite3_value_bytes(self.value.as_ptr()) };
 
         // This likely means UB in SQLite itself or our usage of it;
@@ -199,8 +207,11 @@ impl SqliteValue {
     // SAFETY: The sqlite3_value must be non-null and SQLite must not free it. It will be freed on drop.
     pub(crate) unsafe fn new(value: *mut sqlite3_value, type_info: SqliteTypeInfo) -> Self {
         debug_assert!(!value.is_null());
-        let handle =
-            ValueHandle::new_owned(NonNull::new_unchecked(sqlite3_value_dup(value)), type_info);
+        let handle = ValueHandle::new_owned(
+            NonNull::new(sqlite3_value_dup(value))
+                .expect("SQLite failed to allocate memory for duplicated value"),
+            type_info,
+        );
         Self(Arc::new(handle))
     }
 }

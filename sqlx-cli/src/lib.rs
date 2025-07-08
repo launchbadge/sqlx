@@ -177,7 +177,7 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
         } => {
             let config = config.load_config().await?;
             connect_opts.populate_db_url(&config)?;
-            prepare::run(check, all, workspace, connect_opts, args).await?
+            prepare::run(&config, check, all, workspace, connect_opts, args).await?
         }
 
         #[cfg(feature = "completions")]
@@ -188,27 +188,9 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
 }
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
-async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
+async fn connect(config: &Config, opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
     retry_connect_errors(opts, move |url| {
-        // This only handles the default case. For good support of
-        // the new command line options, we need to work out some
-        // way to make the appropriate ConfigOpt available here. I
-        // suspect that that infrastructure would be useful for
-        // other things in the future, as well, but it also seems
-        // like an extensive and intrusive change.
-        //
-        // On the other hand, the compile-time checking macros
-        // can't be configured to use a different config file at
-        // all, so I believe this is okay for the time being.
-        let config = Some(std::path::PathBuf::from("sqlx.toml")).and_then(|p| {
-            if p.exists() {
-                Some(p)
-            } else {
-                None
-            }
-        });
-
-        async move { AnyConnection::connect_with_config(url, config.clone()).await }
+        AnyConnection::connect_with_driver_config(url, &config.drivers)
     })
     .await
 }

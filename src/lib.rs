@@ -175,8 +175,7 @@ pub mod prelude {
     pub use super::Type;
 }
 
-#[cfg(feature = "_unstable-doc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "_unstable-doc")))]
+#[cfg(feature = "_unstable-docs")]
 pub use sqlx_core::config as _config;
 
 // NOTE: APIs exported in this module are SemVer-exempt.

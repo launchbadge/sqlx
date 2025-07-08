@@ -1,5 +1,6 @@
 use crate::{SqliteConnectOptions, SqliteConnection};
 use log::LevelFilter;
+use sqlx_core::config;
 use sqlx_core::connection::ConnectOptions;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
@@ -56,6 +57,13 @@ impl ConnectOptions for SqliteConnectOptions {
     fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.log_slow_statements(level, duration);
         self
+    }
+
+    fn __unstable_apply_driver_config(
+        self,
+        config: &config::drivers::Config,
+    ) -> crate::Result<Self> {
+        self.apply_driver_config(&config.sqlite)
     }
 }
 

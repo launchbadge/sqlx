@@ -130,7 +130,7 @@ pub async fn info(
 ) -> anyhow::Result<()> {
     let migrator = migration_source.resolve(config).await?;
 
-    let mut conn = crate::connect(connect_opts).await?;
+    let mut conn = crate::connect(config, connect_opts).await?;
 
     // FIXME: we shouldn't actually be creating anything here
     for schema_name in &config.migrate.create_schemas {
@@ -229,7 +229,7 @@ pub async fn run(
         }
     }
 
-    let mut conn = crate::connect(connect_opts).await?;
+    let mut conn = crate::connect(config, connect_opts).await?;
 
     for schema_name in &config.migrate.create_schemas {
         conn.create_schema_if_not_exists(schema_name).await?;
@@ -331,7 +331,7 @@ pub async fn revert(
         }
     }
 
-    let mut conn = crate::connect(connect_opts).await?;
+    let mut conn = crate::connect(config, connect_opts).await?;
 
     // FIXME: we should not be creating anything here if it doesn't exist
     for schema_name in &config.migrate.create_schemas {

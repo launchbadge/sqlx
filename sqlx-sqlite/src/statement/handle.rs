@@ -24,8 +24,6 @@ use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
 use std::sync::Arc;
 
-use super::unlock_notify;
-
 #[derive(Debug)]
 pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 
@@ -393,15 +391,17 @@ impl StatementHandle {
     pub(crate) fn step(&mut self) -> Result<bool, SqliteError> {
         // SAFETY: we have exclusive access to the handle
         unsafe {
+            #[cfg_attr(not(feature = "unlock-notify"), expect(clippy::never_loop))]
             loop {
                 match sqlite3_step(self.0.as_ptr()) {
                     SQLITE_ROW => return Ok(true),
                     SQLITE_DONE => return Ok(false),
                     SQLITE_MISUSE => panic!("misuse!"),
+                    #[cfg(feature = "unlock-notify")]
                     SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
-                        unlock_notify::wait(self.db_handle())?;
+                        super::unlock_notify::wait(self.db_handle())?;
                         // Need to reset the handle after the unlock
                         // (https://www.sqlite.org/unlock_notify.html)
                         sqlite3_reset(self.0.as_ptr());

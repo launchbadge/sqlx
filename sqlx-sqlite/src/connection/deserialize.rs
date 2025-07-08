@@ -26,6 +26,7 @@ impl SqliteConnection {
     /// * [`Error::Database`] if the schema does not exist or another error occurs.
     ///
     /// [`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
+    #[cfg_attr(docsrs, doc(cfg(feature = "sqlite-deserialize")))]
     pub async fn serialize(&mut self, schema: Option<&str>) -> Result<SqliteOwnedBuf, Error> {
         let schema = schema.map(SchemaName::try_from).transpose()?;
 
@@ -59,6 +60,7 @@ impl SqliteConnection {
     ///
     /// [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
     /// [deserialize-flags]: https://sqlite.org/c3ref/c_deserialize_freeonclose.html
+    #[cfg_attr(docsrs, doc(cfg(feature = "sqlite-deserialize")))]
     pub async fn deserialize(
         &mut self,
         schema: Option<&str>,

@@ -36,6 +36,8 @@ postgres = ["sqlx-macros-core/postgres"]
 sqlite = ["sqlx-macros-core/sqlite"]
 sqlite-unbundled = ["sqlx-macros-core/sqlite-unbundled"]
 
+sqlite-load-extension = ["sqlx-macros-core/sqlite-load-extension"]
+
 # type
 bigdecimal = ["sqlx-macros-core/bigdecimal"]
 bit-vec = ["sqlx-macros-core/bit-vec"]
