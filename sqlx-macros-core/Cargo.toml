@@ -35,6 +35,9 @@ postgres = ["sqlx-postgres"]
 sqlite = ["_sqlite", "sqlx-sqlite/bundled"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled"]
 
+# Enables `drivers.sqlite.unsafe-load-extensions` in sqlx.toml
+sqlite-load-extension = ["sqlx-sqlite/load-extension"]
+
 # type integrations
 json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
 

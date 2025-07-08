@@ -32,7 +32,7 @@ impl<'q> Encode<'q, Sqlite> for &'q [u8] {
 
 impl<'r> Decode<'r, Sqlite> for &'r [u8] {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.blob())
+        Ok(value.blob_borrowed())
     }
 }
 
@@ -84,7 +84,7 @@ impl<'q> Encode<'q, Sqlite> for Vec<u8> {
 
 impl<'r> Decode<'r, Sqlite> for Vec<u8> {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.blob().to_owned())
+        Ok(value.blob_owned())
     }
 }
 

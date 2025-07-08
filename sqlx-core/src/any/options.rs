@@ -19,7 +19,6 @@ use url::Url;
 pub struct AnyConnectOptions {
     pub database_url: Url,
     pub log_settings: LogSettings,
-    pub enable_config: Option<std::path::PathBuf>,
 }
 impl FromStr for AnyConnectOptions {
     type Err = Error;
@@ -30,7 +29,6 @@ impl FromStr for AnyConnectOptions {
                 .parse::<Url>()
                 .map_err(|e| Error::Configuration(e.into()))?,
             log_settings: LogSettings::default(),
-            enable_config: None,
         })
     }
 }
@@ -42,7 +40,6 @@ impl ConnectOptions for AnyConnectOptions {
         Ok(AnyConnectOptions {
             database_url: url.clone(),
             log_settings: LogSettings::default(),
-            enable_config: None,
         })
     }
 
@@ -67,14 +64,4 @@ impl ConnectOptions for AnyConnectOptions {
     }
 }
 
-impl AnyConnectOptions {
-    /// UNSTABLE: for use with `sqlx-cli`
-    ///
-    /// Allow nested drivers to extract configuration information from
-    /// the sqlx.toml file.
-    #[doc(hidden)]
-    pub fn with_config_file(mut self, path: Option<impl Into<std::path::PathBuf>>) -> Self {
-        self.enable_config = path.map(|p| p.into());
-        self
-    }
-}
+impl AnyConnectOptions {}

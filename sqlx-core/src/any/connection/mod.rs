@@ -5,11 +5,11 @@ use crate::any::{Any, AnyConnectOptions};
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 
+use crate::config;
 use crate::database::Database;
 use crate::sql_str::SqlSafeStr;
-pub use backend::AnyConnectionBackend;
-
 use crate::transaction::Transaction;
+pub use backend::AnyConnectionBackend;
 
 mod backend;
 mod executor;
@@ -37,7 +37,7 @@ impl AnyConnection {
     pub(crate) fn connect(options: &AnyConnectOptions) -> BoxFuture<'_, crate::Result<Self>> {
         Box::pin(async {
             let driver = crate::any::driver::from_url(&options.database_url)?;
-            (driver.connect)(options).await
+            (*driver.connect)(options, None).await
         })
     }
 
@@ -45,32 +45,37 @@ impl AnyConnection {
     ///
     /// Connect to the database, and instruct the nested driver to
     /// read options from the sqlx.toml file as appropriate.
-    #[cfg(feature = "sqlx-toml")]
     #[doc(hidden)]
-    pub fn connect_with_config(
+    pub async fn connect_with_driver_config(
         url: &str,
-        path: Option<std::path::PathBuf>,
-    ) -> BoxFuture<'static, Result<Self, Error>>
+        driver_config: &config::drivers::Config,
+    ) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        let options: Result<AnyConnectOptions, Error> = url.parse();
+        let options: AnyConnectOptions = url.parse()?;
 
-        Box::pin(async move { Self::connect_with(&options?.with_config_file(path)).await })
+        let driver = crate::any::driver::from_url(&options.database_url)?;
+        (*driver.connect)(&options, Some(driver_config)).await
     }
 
-    pub(crate) fn connect_with_db<DB: Database>(
-        options: &AnyConnectOptions,
-    ) -> BoxFuture<'_, crate::Result<Self>>
+    pub(crate) fn connect_with_db<'a, DB: Database>(
+        options: &'a AnyConnectOptions,
+        driver_config: Option<&'a config::drivers::Config>,
+    ) -> BoxFuture<'a, crate::Result<Self>>
     where
         DB::Connection: AnyConnectionBackend,
         <DB::Connection as Connection>::Options:
-            for<'a> TryFrom<&'a AnyConnectOptions, Error = Error>,
+            for<'b> TryFrom<&'b AnyConnectOptions, Error = Error>,
     {
         let res = TryFrom::try_from(options);
 
-        Box::pin(async {
-            let options: <DB::Connection as Connection>::Options = res?;
+        Box::pin(async move {
+            let mut options: <DB::Connection as Connection>::Options = res?;
+
+            if let Some(config) = driver_config {
+                options = options.__unstable_apply_driver_config(config)?;
+            }
 
             Ok(AnyConnection {
                 backend: Box::new(options.connect().await?),

@@ -1,7 +1,4 @@
-use std::collections::hash_map;
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
-
+use sqlx_core::config;
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
@@ -9,6 +6,9 @@ use sqlx_core::executor::Executor;
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::type_checking::TypeChecking;
+use std::collections::hash_map;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 #[cfg(any(feature = "postgres", feature = "mysql", feature = "_sqlite"))]
 mod impls;
@@ -25,7 +25,11 @@ pub trait DatabaseExt: Database + TypeChecking {
         syn::parse_str(Self::ROW_PATH).unwrap()
     }
 
-    fn describe_blocking(query: &str, database_url: &str) -> sqlx_core::Result<Describe<Self>>;
+    fn describe_blocking(
+        query: &str,
+        database_url: &str,
+        driver_config: &config::drivers::Config,
+    ) -> sqlx_core::Result<Describe<Self>>;
 }
 
 #[allow(dead_code)]
@@ -42,7 +46,12 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
         }
     }
 
-    pub fn describe(&self, query: &str, database_url: &str) -> sqlx_core::Result<Describe<DB>>
+    pub fn describe(
+        &self,
+        query: &str,
+        database_url: &str,
+        _driver_config: &config::drivers::Config,
+    ) -> sqlx_core::Result<Describe<DB>>
     where
         for<'a> &'a mut DB::Connection: Executor<'a, Database = DB>,
     {

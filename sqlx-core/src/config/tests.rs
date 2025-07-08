@@ -8,13 +8,32 @@ fn reference_parses_as_config() {
         .unwrap_or_else(|e| panic!("expected reference.toml to parse as Config: {e}"));
 
     assert_common_config(&config.common);
+    assert_drivers_config(&config.drivers);
     assert_macros_config(&config.macros);
     assert_migrate_config(&config.migrate);
 }
 
 fn assert_common_config(config: &config::common::Config) {
     assert_eq!(config.database_url_var.as_deref(), Some("FOO_DATABASE_URL"));
-    assert_eq!(config.drivers.sqlite.load_extensions[1].as_str(), "vsv");
+}
+
+fn assert_drivers_config(config: &config::drivers::Config) {
+    assert_eq!(config.sqlite.unsafe_load_extensions, ["uuid", "vsv"]);
+
+    #[derive(Debug, Eq, PartialEq, serde::Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    struct TestExternalDriverConfig {
+        foo: String,
+        bar: bool,
+    }
+
+    assert_eq!(
+        config.external.try_parse("<external driver name>").unwrap(),
+        Some(TestExternalDriverConfig {
+            foo: "foo".to_string(),
+            bar: true
+        })
+    );
 }
 
 fn assert_macros_config(config: &config::macros::Config) {

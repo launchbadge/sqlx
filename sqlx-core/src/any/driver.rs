@@ -3,9 +3,8 @@ use crate::any::{AnyConnectOptions, AnyConnection};
 use crate::common::DebugFn;
 use crate::connection::Connection;
 use crate::database::Database;
-use crate::Error;
+use crate::{config, Error};
 use futures_core::future::BoxFuture;
-use futures_util::FutureExt;
 use std::fmt::{Debug, Formatter};
 use std::sync::OnceLock;
 use url::Url;
@@ -29,8 +28,12 @@ macro_rules! declare_driver_with_optional_migrate {
 pub struct AnyDriver {
     pub(crate) name: &'static str,
     pub(crate) url_schemes: &'static [&'static str],
-    pub(crate) connect:
-        DebugFn<fn(&AnyConnectOptions) -> BoxFuture<'_, crate::Result<AnyConnection>>>,
+    pub(crate) connect: DebugFn<
+        for<'a> fn(
+            &'a AnyConnectOptions,
+            Option<&'a config::drivers::Config>,
+        ) -> BoxFuture<'a, crate::Result<AnyConnection>>,
+    >,
     pub(crate) migrate_database: Option<AnyMigrateDatabase>,
 }
 
@@ -68,10 +71,10 @@ impl AnyDriver {
     {
         Self {
             migrate_database: Some(AnyMigrateDatabase {
-                create_database: DebugFn(|url| DB::create_database(url).boxed()),
-                database_exists: DebugFn(|url| DB::database_exists(url).boxed()),
-                drop_database: DebugFn(|url| DB::drop_database(url).boxed()),
-                force_drop_database: DebugFn(|url| DB::force_drop_database(url).boxed()),
+                create_database: DebugFn(|url| Box::pin(DB::create_database(url))),
+                database_exists: DebugFn(|url| Box::pin(DB::database_exists(url))),
+                drop_database: DebugFn(|url| Box::pin(DB::drop_database(url))),
+                force_drop_database: DebugFn(|url| Box::pin(DB::force_drop_database(url))),
             }),
             ..Self::without_migrate::<DB>()
         }
@@ -131,6 +134,7 @@ pub fn install_drivers(
         .map_err(|_| "drivers already installed".into())
 }
 
+#[cfg(feature = "migrate")]
 pub(crate) fn from_url_str(url: &str) -> crate::Result<&'static AnyDriver> {
     from_url(&url.parse().map_err(Error::config)?)
 }

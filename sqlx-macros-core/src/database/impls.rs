@@ -17,21 +17,23 @@ macro_rules! impl_describe_blocking {
         fn describe_blocking(
             query: &str,
             database_url: &str,
+            driver_config: &sqlx_core::config::drivers::Config,
         ) -> sqlx_core::Result<sqlx_core::describe::Describe<Self>> {
             use $crate::database::CachingDescribeBlocking;
 
             // This can't be a provided method because the `static` can't reference `Self`.
             static CACHE: CachingDescribeBlocking<$database> = CachingDescribeBlocking::new();
 
-            CACHE.describe(query, database_url)
+            CACHE.describe(query, database_url, driver_config)
         }
     };
     ($database:path, $describe:path) => {
         fn describe_blocking(
             query: &str,
             database_url: &str,
+            driver_config: &sqlx_core::config::drivers::Config,
         ) -> sqlx_core::Result<sqlx_core::describe::Describe<Self>> {
-            $describe(query, database_url)
+            $describe(query, database_url, driver_config)
         }
     };
 }

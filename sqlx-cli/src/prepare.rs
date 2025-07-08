@@ -5,14 +5,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::metadata::{manifest_dir, Metadata};
+use crate::opt::ConnectOpts;
+use crate::Config;
 use anyhow::{bail, Context};
 use console::style;
 use sqlx::Connection;
 
-use crate::metadata::{manifest_dir, Metadata};
-use crate::opt::ConnectOpts;
-
-pub struct PrepareCtx {
+pub struct PrepareCtx<'a> {
+    pub config: &'a Config,
     pub workspace: bool,
     pub all: bool,
     pub cargo: OsString,
@@ -21,7 +22,7 @@ pub struct PrepareCtx {
     pub connect_opts: ConnectOpts,
 }
 
-impl PrepareCtx {
+impl PrepareCtx<'_> {
     /// Path to the directory where cached queries should be placed.
     fn prepare_dir(&self) -> anyhow::Result<PathBuf> {
         if self.workspace {
@@ -33,6 +34,7 @@ impl PrepareCtx {
 }
 
 pub async fn run(
+    config: &Config,
     check: bool,
     all: bool,
     workspace: bool,
@@ -50,6 +52,7 @@ hint: This command only works in the manifest directory of a Cargo package or wo
 
     let metadata: Metadata = Metadata::from_current_directory(&cargo)?;
     let ctx = PrepareCtx {
+        config,
         workspace,
         all,
         cargo,
@@ -65,9 +68,9 @@ hint: This command only works in the manifest directory of a Cargo package or wo
     }
 }
 
-async fn prepare(ctx: &PrepareCtx) -> anyhow::Result<()> {
+async fn prepare(ctx: &PrepareCtx<'_>) -> anyhow::Result<()> {
     if ctx.connect_opts.database_url.is_some() {
-        check_backend(&ctx.connect_opts).await?;
+        check_backend(ctx.config, &ctx.connect_opts).await?;
     }
 
     let prepare_dir = ctx.prepare_dir()?;
@@ -93,9 +96,9 @@ async fn prepare(ctx: &PrepareCtx) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn prepare_check(ctx: &PrepareCtx) -> anyhow::Result<()> {
+async fn prepare_check(ctx: &PrepareCtx<'_>) -> anyhow::Result<()> {
     if ctx.connect_opts.database_url.is_some() {
-        check_backend(&ctx.connect_opts).await?;
+        check_backend(ctx.config, &ctx.connect_opts).await?;
     }
 
     // Re-generate and store the queries in a separate directory from both the prepared
@@ -359,8 +362,8 @@ fn load_json_file(path: impl AsRef<Path>) -> anyhow::Result<serde_json::Value> {
     Ok(serde_json::from_slice(&file_bytes)?)
 }
 
-async fn check_backend(opts: &ConnectOpts) -> anyhow::Result<()> {
-    crate::connect(opts).await?.close().await?;
+async fn check_backend(config: &Config, opts: &ConnectOpts) -> anyhow::Result<()> {
+    crate::connect(config, opts).await?.close().await?;
     Ok(())
 }
 

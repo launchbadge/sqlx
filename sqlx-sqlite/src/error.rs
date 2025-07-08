@@ -7,7 +7,7 @@ use std::{borrow::Cow, str};
 use libsqlite3_sys::{
     sqlite3, sqlite3_errmsg, sqlite3_errstr, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
     SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL, SQLITE_CONSTRAINT_PRIMARYKEY,
-    SQLITE_CONSTRAINT_UNIQUE, SQLITE_ERROR,
+    SQLITE_CONSTRAINT_UNIQUE, SQLITE_ERROR, SQLITE_NOMEM,
 };
 
 pub(crate) use sqlx_core::error::*;
@@ -49,11 +49,13 @@ impl SqliteError {
     }
 
     /// For errors during extension load, the error message is supplied via a separate pointer
+    #[allow(dead_code)]
     pub(crate) fn with_message(mut self, error_msg: String) -> Self {
         self.message = error_msg.into();
         self
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_code(code: c_int) -> Self {
         let message = unsafe {
             let errstr = sqlite3_errstr(code);
@@ -72,11 +74,17 @@ impl SqliteError {
         SqliteError { code, message }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn generic(message: impl Into<Cow<'static, str>>) -> Self {
         Self {
             code: SQLITE_ERROR,
             message: message.into(),
         }
+    }
+
+    /// Return `SQLITE_NOMEM`.
+    pub(crate) fn nomem() -> Self {
+        Self::from_code(SQLITE_NOMEM)
     }
 }
 
