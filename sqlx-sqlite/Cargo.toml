@@ -75,6 +75,11 @@ workspace = true
 [dev-dependencies]
 sqlx = { workspace = true, default-features = false, features = ["macros", "runtime-tokio", "tls-none", "sqlite"] }
 
+[build-dependencies]
+# FIXME: https://github.com/rusqlite/rusqlite/issues/1716
+# force `prettyplease` to a minimum version that supports C-string literals
+prettyplease = "0.2.18"
+
 [lints]
 workspace = true
 
