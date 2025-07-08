@@ -15,6 +15,12 @@
 # If not specified, defaults to `DATABASE_URL`
 database-url-var = "FOO_DATABASE_URL"
 
+[common.drivers.sqlite]
+# Load extensions into SQLite when running macros or migrations
+#
+# Defaults to an empty list, which has no effect.
+load-extensions = ["uuid", "vsv"]
+
 ###############################################################################################
 
 # Configuration for the `query!()` family of macros.

@@ -3706,6 +3706,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-sqlite-extension"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "sqlx-example-sqlite-todos"
 version = "0.1.0"
 dependencies = [

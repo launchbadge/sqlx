@@ -14,6 +14,7 @@ fn reference_parses_as_config() {
 
 fn assert_common_config(config: &config::common::Config) {
     assert_eq!(config.database_url_var.as_deref(), Some("FOO_DATABASE_URL"));
+    assert_eq!(config.drivers.sqlite.load_extensions[1].as_str(), "vsv");
 }
 
 fn assert_macros_config(config: &config::macros::Config) {
