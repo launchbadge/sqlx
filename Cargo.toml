@@ -210,6 +210,9 @@ cast_sign_loss = 'deny'
 # See `clippy.toml`
 disallowed_methods = 'deny'
 
+[lints.rust]
+unexpected_cfgs = { level = 'warn', check-cfg = ['cfg(mariadb, values(any()))'] }
+
 #
 # Any
 #

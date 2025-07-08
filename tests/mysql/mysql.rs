@@ -605,3 +605,34 @@ async fn select_statement_count(conn: &mut MySqlConnection) -> Result<i64, sqlx:
     .fetch_one(conn)
     .await
 }
+
+#[sqlx_macros::test]
+async fn issue_3200() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    sqlx::raw_sql(
+        "\
+        CREATE TABLE IF NOT EXISTS users
+        (
+            `id`                     BIGINT AUTO_INCREMENT,
+            `username`               VARCHAR(128) NOT NULL,
+            PRIMARY KEY (id)
+        );
+    ",
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let result = sqlx::raw_sql(
+        "\
+        SET @myvar := 'test@test.com';
+        select id from users where username = @myvar;
+    ",
+    )
+    .fetch_optional(&mut conn)
+    .await?;
+
+    assert!(result.is_none(), "{result:?}");
+
+    Ok(())
+}

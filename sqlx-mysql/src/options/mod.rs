@@ -301,16 +301,24 @@ impl MySqlConnectOptions {
     ///
     /// The default character set is `utf8mb4`. This is supported from MySQL 5.5.3.
     /// If you need to connect to an older version, we recommend you to change this to `utf8`.
+    ///
+    /// Implies [`.set_names(true)`][Self::set_names()].
     pub fn charset(mut self, charset: &str) -> Self {
+        self.set_names = true;
         charset.clone_into(&mut self.charset);
         self
     }
 
     /// Sets the collation for the connection.
     ///
-    /// The default collation is derived from the `charset`. Normally, you should only have to set
-    /// the `charset`.
+    /// The default collation is derived on the server from the `charset`, if set.
+    /// Normally, you should only have to set the `charset`.
+    ///
+    /// If setting this, it is recommended to also set [`charset`][Self::charset()].
+    ///
+    /// Implies [`.set_names(true)`][Self::set_names()].
     pub fn collation(mut self, collation: &str) -> Self {
+        self.set_names = true;
         self.collation = Some(collation.to_owned());
         self
     }
@@ -381,8 +389,9 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// If enabled, `SET NAMES '{charset}' COLLATE '{collation}'` is passed with the values of
-    /// [`.charset()`] and [`.collation()`] after connecting to the database.
+    /// If enabled, [`.charset()`] and [`.collation()`] are set with the appropriate command.
+    ///
+    /// If only `.charset()`
     ///
     /// This ensures the connection uses the specified character set and collation.
     ///
@@ -399,6 +408,8 @@ impl MySqlConnectOptions {
     ///
     /// Instead of disabling this, you may also consider setting [`.charset()`] to a charset that
     /// is supported by your MySQL or MariaDB server version and compatible with UTF-8.
+    ///
+    /// [`.charset`]: Self::charset()
     pub fn set_names(mut self, flag_val: bool) -> Self {
         self.set_names = flag_val;
         self

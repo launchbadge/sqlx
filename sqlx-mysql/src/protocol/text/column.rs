@@ -1,12 +1,12 @@
 use std::str;
 
-use bitflags::bitflags;
-use bytes::{Buf, Bytes};
-
+use crate::collation::Collation;
 use crate::error::Error;
 use crate::io::MySqlBufExt;
 use crate::io::ProtocolDecode;
 use crate::protocol::Capabilities;
+use bitflags::bitflags;
+use bytes::{Buf, Bytes};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
 
@@ -110,8 +110,7 @@ pub(crate) struct ColumnDefinition {
     table: Bytes,
     alias: Bytes,
     name: Bytes,
-    #[allow(unused)]
-    pub(crate) collation: u16,
+    pub(crate) collation: Collation,
     pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
@@ -162,7 +161,7 @@ impl ProtocolDecode<'_, Capabilities> for ColumnDefinition {
             table,
             alias,
             name,
-            collation,
+            collation: Collation(collation),
             max_size,
             r#type: ColumnType::try_from_u16(type_id)?,
             flags: ColumnFlags::from_bits_truncate(flags),
