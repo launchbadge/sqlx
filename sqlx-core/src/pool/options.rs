@@ -77,6 +77,7 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) max_connections: u32,
     pub(crate) acquire_time_level: LevelFilter,
     pub(crate) acquire_slow_level: LevelFilter,
+    pub(crate) return_con_refused: bool,
     pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
@@ -101,6 +102,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             acquire_time_level: self.acquire_time_level,
             acquire_slow_threshold: self.acquire_slow_threshold,
             acquire_slow_level: self.acquire_slow_level,
+            return_con_refused: self.return_con_refused,
             acquire_timeout: self.acquire_timeout,
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
@@ -154,6 +156,7 @@ impl<DB: Database> PoolOptions<DB> {
             acquire_time_level: LevelFilter::Off,
             // Default to warning, because an acquire timeout will be an error
             acquire_slow_level: LevelFilter::Warn,
+            return_con_refused: false,
             // Fast enough to catch problems (e.g. a full pool); slow enough
             // to not flag typical time to add a new connection to a pool.
             acquire_slow_threshold: Duration::from_secs(2),
@@ -226,6 +229,13 @@ impl<DB: Database> PoolOptions<DB> {
     /// for faster connection acquires via [`Pool::acquire()`].
     pub fn acquire_slow_level(mut self, level: LevelFilter) -> Self {
         self.acquire_slow_level = level;
+        self
+    }
+
+    /// immediately return connection refused errors instead of hanging
+    /// until returning PoolTimedOut
+    pub fn return_con_refused(mut self, value: bool) -> Self {
+        self.return_con_refused = value;
         self
     }
 
