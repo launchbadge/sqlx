@@ -7,7 +7,7 @@ use crate::protocol::Capabilities;
 #[derive(Debug)]
 pub struct SslRequest {
     pub max_packet_size: u32,
-    pub collation: u8,
+    pub charset: u8,
 }
 
 impl ProtocolEncode<'_, Capabilities> for SslRequest {
@@ -16,7 +16,7 @@ impl ProtocolEncode<'_, Capabilities> for SslRequest {
         #[allow(clippy::cast_possible_truncation)]
         buf.extend(&(context.bits() as u32).to_le_bytes());
         buf.extend(&self.max_packet_size.to_le_bytes());
-        buf.push(self.collation);
+        buf.push(self.charset);
 
         // reserved: string<19>
         buf.extend(&[0_u8; 19]);

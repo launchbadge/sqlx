@@ -6,7 +6,7 @@ use crate::{
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
@@ -15,8 +15,8 @@ use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::transaction::TransactionManager;
-use std::borrow::Cow;
 use std::{future, pin::pin};
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
@@ -27,30 +27,27 @@ impl AnyConnectionBackend for MySqlConnection {
     }
 
     fn close(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close(*self)
+        Connection::close(*self).boxed()
     }
 
     fn close_hard(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close_hard(*self)
+        Connection::close_hard(*self).boxed()
     }
 
     fn ping(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::ping(self)
+        Connection::ping(self).boxed()
     }
 
-    fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        MySqlTransactionManager::begin(self, statement)
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        MySqlTransactionManager::begin(self, statement).boxed()
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        MySqlTransactionManager::commit(self)
+        MySqlTransactionManager::commit(self).boxed()
     }
 
     fn rollback(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        MySqlTransactionManager::rollback(self)
+        MySqlTransactionManager::rollback(self).boxed()
     }
 
     fn start_rollback(&mut self) {
@@ -66,7 +63,7 @@ impl AnyConnectionBackend for MySqlConnection {
     }
 
     fn flush(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::flush(self)
+        Connection::flush(self).boxed()
     }
 
     fn should_flush(&self) -> bool {
@@ -82,7 +79,7 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
@@ -108,7 +105,7 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
@@ -135,20 +132,17 @@ impl AnyConnectionBackend for MySqlConnection {
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            AnyStatement::try_from_statement(
-                sql,
-                &statement,
-                statement.metadata.column_names.clone(),
-            )
+            let column_names = statement.metadata.column_names.clone();
+            AnyStatement::try_from_statement(statement, column_names)
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
             describe.try_into_any()

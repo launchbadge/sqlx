@@ -1,13 +1,13 @@
 use std::collections::hash_map;
 use std::collections::HashMap;
-use std::sync::Mutex;
-
-use once_cell::sync::Lazy;
+use std::sync::{LazyLock, Mutex};
 
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
+use sqlx_core::sql_str::AssertSqlSafe;
+use sqlx_core::sql_str::SqlSafeStr;
 use sqlx_core::type_checking::TypeChecking;
 
 #[cfg(any(feature = "postgres", feature = "mysql", feature = "_sqlite"))]
@@ -30,14 +30,15 @@ pub trait DatabaseExt: Database + TypeChecking {
 
 #[allow(dead_code)]
 pub struct CachingDescribeBlocking<DB: DatabaseExt> {
-    connections: Lazy<Mutex<HashMap<String, DB::Connection>>>,
+    connections: LazyLock<Mutex<HashMap<String, DB::Connection>>>,
 }
 
 #[allow(dead_code)]
 impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
+    #[allow(clippy::new_without_default, reason = "internal API")]
     pub const fn new() -> Self {
         CachingDescribeBlocking {
-            connections: Lazy::new(|| Mutex::new(HashMap::new())),
+            connections: LazyLock::new(|| Mutex::new(HashMap::new())),
         }
     }
 
@@ -54,11 +55,32 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
             let conn = match cache.entry(database_url.to_string()) {
                 hash_map::Entry::Occupied(hit) => hit.into_mut(),
                 hash_map::Entry::Vacant(miss) => {
-                    miss.insert(DB::Connection::connect(database_url).await?)
+                    let conn = miss.insert(DB::Connection::connect(database_url).await?);
+
+                    #[cfg(feature = "postgres")]
+                    if DB::NAME == sqlx_postgres::Postgres::NAME {
+                        conn.execute(
+                            "
+                            DO $$
+                            BEGIN
+                                IF EXISTS (
+                                    SELECT 1
+                                    FROM pg_settings
+                                    WHERE name = 'plan_cache_mode'
+                                ) THEN
+                                    SET SESSION plan_cache_mode = 'force_generic_plan';
+                                END IF;
+                            END $$;
+                        ",
+                        )
+                        .await?;
+                    }
+                    conn
                 }
             };
 
-            conn.describe(query).await
+            conn.describe(AssertSqlSafe(query.to_string()).into_sql_str())
+                .await
         })
     }
 }

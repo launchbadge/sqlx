@@ -3,15 +3,15 @@ use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::{PgArguments, Postgres};
-use std::borrow::Cow;
 use std::sync::Arc;
 
+use sqlx_core::sql_str::SqlStr;
 pub(crate) use sqlx_core::statement::Statement;
 use sqlx_core::{Either, HashMap};
 
 #[derive(Debug, Clone)]
-pub struct PgStatement<'q> {
-    pub(crate) sql: Cow<'q, str>,
+pub struct PgStatement {
+    pub(crate) sql: SqlStr,
     pub(crate) metadata: Arc<PgStatementMetadata>,
 }
 
@@ -24,17 +24,14 @@ pub(crate) struct PgStatementMetadata {
     pub(crate) parameters: Vec<PgTypeInfo>,
 }
 
-impl<'q> Statement<'q> for PgStatement<'q> {
+impl Statement for PgStatement {
     type Database = Postgres;
 
-    fn to_owned(&self) -> PgStatement<'static> {
-        PgStatement::<'static> {
-            sql: Cow::Owned(self.sql.clone().into_owned()),
-            metadata: self.metadata.clone(),
-        }
+    fn into_sql(self) -> SqlStr {
+        self.sql
     }
 
-    fn sql(&self) -> &str {
+    fn sql(&self) -> &SqlStr {
         &self.sql
     }
 
@@ -49,8 +46,8 @@ impl<'q> Statement<'q> for PgStatement<'q> {
     impl_statement_query!(PgArguments);
 }
 
-impl ColumnIndex<PgStatement<'_>> for &'_ str {
-    fn index(&self, statement: &PgStatement<'_>) -> Result<usize, Error> {
+impl ColumnIndex<PgStatement> for &'_ str {
+    fn index(&self, statement: &PgStatement) -> Result<usize, Error> {
         statement
             .metadata
             .column_names

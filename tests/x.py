@@ -197,7 +197,7 @@ for runtime in ["async-std", "tokio"]:
                 run(
                     f"cargo test --no-default-features --features any,postgres,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test postgres {version}_client_ssl no-password",
-                    database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt",
+                    database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=%2Ftests%2Fcerts%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt",
                     service=f"postgres_{version}_client_ssl",
                     tag=f"postgres_{version}_client_ssl_no_password" if runtime == "async-std" else f"postgres_{version}_client_ssl_no_password_{runtime}",
                 )
@@ -222,7 +222,7 @@ for runtime in ["async-std", "tokio"]:
                 run(
                     f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mysql {version}_client_ssl no-password",
-                    database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
+                    database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
                     service=f"mysql_{version}_client_ssl",
                     tag=f"mysql_{version}_client_ssl_no_password" if runtime == "async-std" else f"mysql_{version}_client_ssl_no_password_{runtime}",
                 )
@@ -244,7 +244,7 @@ for runtime in ["async-std", "tokio"]:
                 run(
                     f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mariadb {version}_client_ssl no-password",
-                    database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
+                    database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
                     service=f"mariadb_{version}_client_ssl",
                     tag=f"mariadb_{version}_client_ssl_no_password" if runtime == "async-std" else f"mariadb_{version}_client_ssl_no_password_{runtime}",
                 )

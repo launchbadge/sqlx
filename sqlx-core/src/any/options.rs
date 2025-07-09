@@ -1,8 +1,8 @@
 use crate::any::AnyConnection;
 use crate::connection::{ConnectOptions, LogSettings};
 use crate::error::Error;
-use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::future::Future;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
@@ -19,6 +19,7 @@ use url::Url;
 pub struct AnyConnectOptions {
     pub database_url: Url,
     pub log_settings: LogSettings,
+    pub enable_config: Option<std::path::PathBuf>,
 }
 impl FromStr for AnyConnectOptions {
     type Err = Error;
@@ -29,6 +30,7 @@ impl FromStr for AnyConnectOptions {
                 .parse::<Url>()
                 .map_err(|e| Error::Configuration(e.into()))?,
             log_settings: LogSettings::default(),
+            enable_config: None,
         })
     }
 }
@@ -40,6 +42,7 @@ impl ConnectOptions for AnyConnectOptions {
         Ok(AnyConnectOptions {
             database_url: url.clone(),
             log_settings: LogSettings::default(),
+            enable_config: None,
         })
     }
 
@@ -48,7 +51,7 @@ impl ConnectOptions for AnyConnectOptions {
     }
 
     #[inline]
-    fn connect(&self) -> BoxFuture<'_, Result<AnyConnection, Error>> {
+    fn connect(&self) -> impl Future<Output = Result<AnyConnection, Error>> + Send + '_ {
         AnyConnection::connect(self)
     }
 
@@ -60,6 +63,18 @@ impl ConnectOptions for AnyConnectOptions {
     fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.slow_statements_level = level;
         self.log_settings.slow_statements_duration = duration;
+        self
+    }
+}
+
+impl AnyConnectOptions {
+    /// UNSTABLE: for use with `sqlx-cli`
+    ///
+    /// Allow nested drivers to extract configuration information from
+    /// the sqlx.toml file.
+    #[doc(hidden)]
+    pub fn with_config_file(mut self, path: Option<impl Into<std::path::PathBuf>>) -> Self {
+        self.enable_config = path.map(|p| p.into());
         self
     }
 }

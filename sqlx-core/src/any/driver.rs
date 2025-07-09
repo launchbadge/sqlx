@@ -5,11 +5,12 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::Error;
 use futures_core::future::BoxFuture;
-use once_cell::sync::OnceCell;
+use futures_util::FutureExt;
 use std::fmt::{Debug, Formatter};
+use std::sync::OnceLock;
 use url::Url;
 
-static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();
+static DRIVERS: OnceLock<&'static [AnyDriver]> = OnceLock::new();
 
 #[macro_export]
 macro_rules! declare_driver_with_optional_migrate {
@@ -67,10 +68,10 @@ impl AnyDriver {
     {
         Self {
             migrate_database: Some(AnyMigrateDatabase {
-                create_database: DebugFn(DB::create_database),
-                database_exists: DebugFn(DB::database_exists),
-                drop_database: DebugFn(DB::drop_database),
-                force_drop_database: DebugFn(DB::force_drop_database),
+                create_database: DebugFn(|url| DB::create_database(url).boxed()),
+                database_exists: DebugFn(|url| DB::database_exists(url).boxed()),
+                drop_database: DebugFn(|url| DB::drop_database(url).boxed()),
+                force_drop_database: DebugFn(|url| DB::force_drop_database(url).boxed()),
             }),
             ..Self::without_migrate::<DB>()
         }

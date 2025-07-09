@@ -309,7 +309,7 @@ jobs:
           --no-default-features
           --features any,postgres,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
-          DATABASE_URL: postgres://postgres@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt
+          DATABASE_URL: postgres://postgres@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
           RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}_client_ssl
@@ -411,7 +411,7 @@ jobs:
           --no-default-features
           --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
-          DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
+          DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
           RUSTFLAGS: --cfg mysql_${{ matrix.mysql }}
 
   mariadb:
@@ -419,7 +419,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        mariadb: [ verylatest, 11_4, 10_11, 10_4 ]
+        mariadb: [ verylatest, 11_8, 11_4, 10_11, 10_6 ]
         runtime: [ async-std, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
@@ -446,7 +446,7 @@ jobs:
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+          RUSTFLAGS: --cfg mariadb="${{ matrix.mariadb }}"
 
       # Run the `test-attr` test again to cover cleanup.
       - run: >
@@ -457,7 +457,7 @@ jobs:
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+          RUSTFLAGS: --cfg mariadb="${{ matrix.mariadb }}"
 
       # Remove test artifacts
       - run: cargo clean -p sqlx
@@ -471,7 +471,7 @@ jobs:
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: -D warnings --cfg mariadb_${{ matrix.mariadb }}
+          RUSTFLAGS: -D warnings --cfg mariadb="${{ matrix.mariadb }}"
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
       - run: >
@@ -483,7 +483,7 @@ jobs:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+          RUSTFLAGS: --cfg mariadb="${{ matrix.mariadb }}"
 
       # client SSL authentication
 
@@ -499,5 +499,5 @@ jobs:
           --no-default-features
           --features any,mysql,macros,migrate,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
-          DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
-          RUSTFLAGS: --cfg mariadb_${{ matrix.mariadb }}
+          DATABASE_URL: mysql://root@localhost:3306/sqlx?sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt
+          RUSTFLAGS: --cfg mariadb="${{ matrix.mariadb }}"

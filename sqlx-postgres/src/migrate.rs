@@ -7,6 +7,7 @@ use futures_core::future::BoxFuture;
 pub(crate) use sqlx_core::migrate::MigrateError;
 pub(crate) use sqlx_core::migrate::{AppliedMigration, Migration};
 pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase};
+use sqlx_core::sql_str::AssertSqlSafe;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -39,84 +40,94 @@ fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error>
 }
 
 impl MigrateDatabase for Postgres {
-    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
+    async fn create_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            let _ = conn
-                .execute(&*format!(
-                    "CREATE DATABASE \"{}\"",
-                    database.replace('"', "\"\"")
-                ))
-                .await?;
+        let _ = conn
+            .execute(AssertSqlSafe(format!(
+                "CREATE DATABASE \"{}\"",
+                database.replace('"', "\"\"")
+            )))
+            .await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
+    async fn database_exists(url: &str) -> Result<bool, Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            let exists: bool =
-                query_scalar("select exists(SELECT 1 from pg_database WHERE datname = $1)")
-                    .bind(database)
-                    .fetch_one(&mut conn)
-                    .await?;
-
-            Ok(exists)
-        })
-    }
-
-    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let _ = conn
-                .execute(&*format!(
-                    "DROP DATABASE IF EXISTS \"{}\"",
-                    database.replace('"', "\"\"")
-                ))
-                .await?;
-
-            Ok(())
-        })
-    }
-
-    fn force_drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            let (options, database) = parse_for_maintenance(url)?;
-            let mut conn = options.connect().await?;
-
-            let row: (String,) = query_as("SELECT current_setting('server_version_num')")
+        let exists: bool =
+            query_scalar("select exists(SELECT 1 from pg_database WHERE datname = $1)")
+                .bind(database)
                 .fetch_one(&mut conn)
                 .await?;
 
-            let version = row.0.parse::<i32>().unwrap();
+        Ok(exists)
+    }
 
-            let pid_type = if version >= 90200 { "pid" } else { "procpid" };
+    async fn drop_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
 
-            conn.execute(&*format!(
-                "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
-                 WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
-            ))
+        let _ = conn
+            .execute(AssertSqlSafe(format!(
+                "DROP DATABASE IF EXISTS \"{}\"",
+                database.replace('"', "\"\"")
+            )))
             .await?;
 
-            Self::drop_database(url).await
-        })
+        Ok(())
+    }
+
+    async fn force_drop_database(url: &str) -> Result<(), Error> {
+        let (options, database) = parse_for_maintenance(url)?;
+        let mut conn = options.connect().await?;
+
+        let row: (String,) = query_as("SELECT current_setting('server_version_num')")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let version = row.0.parse::<i32>().unwrap();
+
+        let pid_type = if version >= 90200 { "pid" } else { "procpid" };
+
+        conn.execute(AssertSqlSafe(format!(
+            "SELECT pg_terminate_backend(pg_stat_activity.{pid_type}) FROM pg_stat_activity \
+                 WHERE pg_stat_activity.datname = '{database}' AND {pid_type} <> pg_backend_pid()"
+        )))
+        .await?;
+
+        Self::drop_database(url).await
     }
 }
 
 impl Migrate for PgConnection {
-    fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
+    fn create_schema_if_not_exists<'e>(
+        &'e mut self,
+        schema_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            self.execute(
+            self.execute(AssertSqlSafe(format!(
+                r#"CREATE SCHEMA IF NOT EXISTS {schema_name};"#
+            )))
+            .await?;
+
+            Ok(())
+        })
+    }
+
+    fn ensure_migrations_table<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<(), MigrateError>> {
+        Box::pin(async move {
+            // language=SQL
+            self.execute(AssertSqlSafe(format!(
                 r#"
-CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+CREATE TABLE IF NOT EXISTS {table_name} (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
     installed_on TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -124,20 +135,23 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     checksum BYTEA NOT NULL,
     execution_time BIGINT NOT NULL
 );
-                "#,
-            )
+                "#
+            )))
             .await?;
 
             Ok(())
         })
     }
 
-    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+    fn dirty_version<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let row: Option<(i64,)> = query_as(
-                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
-            )
+            let row: Option<(i64,)> = query_as(AssertSqlSafe(format!(
+                "SELECT version FROM {table_name} WHERE success = false ORDER BY version LIMIT 1"
+            )))
             .fetch_optional(self)
             .await?;
 
@@ -145,15 +159,17 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn list_applied_migrations(
-        &mut self,
-    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+    fn list_applied_migrations<'e>(
+        &'e mut self,
+        table_name: &'e str,
+    ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let rows: Vec<(i64, Vec<u8>)> =
-                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
-                    .fetch_all(self)
-                    .await?;
+            let rows: Vec<(i64, Vec<u8>)> = query_as(AssertSqlSafe(format!(
+                "SELECT version, checksum FROM {table_name} ORDER BY version"
+            )))
+            .fetch_all(self)
+            .await?;
 
             let migrations = rows
                 .into_iter()
@@ -203,16 +219,17 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn apply<'e: 'm, 'm>(
+    fn apply<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let start = Instant::now();
 
             // execute migration queries
             if migration.no_tx {
-                execute_migration(self, migration).await?;
+                execute_migration(self, table_name, migration).await?;
             } else {
                 // Use a single transaction for the actual migration script and the essential bookeeping so we never
                 // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
@@ -220,7 +237,7 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
                 // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
                 // and update it once the actual transaction completed.
                 let mut tx = self.begin().await?;
-                execute_migration(&mut tx, migration).await?;
+                execute_migration(&mut tx, table_name, migration).await?;
                 tx.commit().await?;
             }
 
@@ -231,13 +248,13 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             // language=SQL
             #[allow(clippy::cast_possible_truncation)]
-            let _ = query(
+            let _ = query(AssertSqlSafe(format!(
                 r#"
-    UPDATE _sqlx_migrations
+    UPDATE {table_name}
     SET execution_time = $1
     WHERE version = $2
-                "#,
-            )
+                "#
+            )))
             .bind(elapsed.as_nanos() as i64)
             .bind(migration.version)
             .execute(self)
@@ -247,21 +264,22 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn revert<'e: 'm, 'm>(
+    fn revert<'e>(
         &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        table_name: &'e str,
+        migration: &'e Migration,
+    ) -> BoxFuture<'e, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let start = Instant::now();
 
             // execute migration queries
             if migration.no_tx {
-                revert_migration(self, migration).await?;
+                revert_migration(self, table_name, migration).await?;
             } else {
                 // Use a single transaction for the actual migration script and the essential bookeeping so we never
                 // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
                 let mut tx = self.begin().await?;
-                revert_migration(&mut tx, migration).await?;
+                revert_migration(&mut tx, table_name, migration).await?;
                 tx.commit().await?;
             }
 
@@ -274,20 +292,21 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
 async fn execute_migration(
     conn: &mut PgConnection,
+    table_name: &str,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(&*migration.sql)
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
     // language=SQL
-    let _ = query(
+    let _ = query(AssertSqlSafe(format!(
         r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+    INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
     VALUES ( $1, $2, TRUE, $3, -1 )
-                "#,
-    )
+                "#
+    )))
     .bind(migration.version)
     .bind(&*migration.description)
     .bind(&*migration.checksum)
@@ -299,18 +318,21 @@ async fn execute_migration(
 
 async fn revert_migration(
     conn: &mut PgConnection,
+    table_name: &str,
     migration: &Migration,
 ) -> Result<(), MigrateError> {
     let _ = conn
-        .execute(&*migration.sql)
+        .execute(migration.sql.clone())
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
     // language=SQL
-    let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
-        .bind(migration.version)
-        .execute(conn)
-        .await?;
+    let _ = query(AssertSqlSafe(format!(
+        r#"DELETE FROM {table_name} WHERE version = $1"#
+    )))
+    .bind(migration.version)
+    .execute(conn)
+    .await?;
 
     Ok(())
 }

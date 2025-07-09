@@ -1,8 +1,11 @@
 extern crate time_ as time;
 
+use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::Bound;
+use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use sqlx::postgres::types::{Oid, PgCiText, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -693,6 +696,60 @@ test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
             sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
         ]
 ));
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "positive_int")]
+struct PositiveInt(i32);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "percentage")]
+struct Percentage(PositiveInt);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+struct Person {
+    id: i32,
+    age: PositiveInt,
+    percent: Percentage,
+}
+
+test_type!(nested_domain_types_1<Person>(Postgres,
+    "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: PositiveInt(21), percent: Percentage(PositiveInt(50)) })
+);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "leaf_composite")]
+struct LeafComposite {
+    prim: i32,
+}
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "domain")]
+struct Domain(LeafComposite);
+
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(type_name = "root_composite")]
+struct RootComposite {
+    domain: Domain,
+}
+
+test_type!(nested_domain_types_2<RootComposite>(Postgres,
+    "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1})})
+);
+
+test_type!(test_arc<Arc<i32>>(Postgres, "1::INT4" == Arc::new(1i32)));
+test_type!(test_cow<Cow<'_, i32>>(Postgres, "1::INT4" == Cow::<i32>::Owned(1i32)));
+test_type!(test_box<Box<i32>>(Postgres, "1::INT4" == Box::new(1i32)));
+test_type!(test_rc<Rc<i32>>(Postgres, "1::INT4" == Rc::new(1i32)));
+
+test_type!(test_box_str<Box<str>>(Postgres, "'John'::TEXT" == Box::<str>::from("John")));
+test_type!(test_cow_str<Cow<'_, str>>(Postgres, "'Phil'::TEXT" == Cow::<'static, str>::from("Phil")));
+test_type!(test_arc_str<Arc<str>>(Postgres, "'1234'::TEXT" == Arc::<str>::from("1234")));
+test_type!(test_rc_str<Rc<str>>(Postgres, "'5678'::TEXT" == Rc::<str>::from("5678")));
+
+test_prepared_type!(test_box_slice<Box<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Box::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_cow_slice<Cow<'_, [u8]>>(Postgres, "'\\x01020304'::BYTEA" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
+test_prepared_type!(test_arc_slice<Arc<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Arc::<[u8]>::from([1,2,3,4])));
+test_prepared_type!(test_rc_slice<Rc<[u8]>>(Postgres, "'\\x01020304'::BYTEA" == Rc::<[u8]>::from([1,2,3,4])));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {

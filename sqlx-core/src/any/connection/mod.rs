@@ -1,11 +1,12 @@
 use futures_core::future::BoxFuture;
-use std::borrow::Cow;
+use std::future::Future;
 
 use crate::any::{Any, AnyConnectOptions};
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 
 use crate::database::Database;
+use crate::sql_str::SqlSafeStr;
 pub use backend::AnyConnectionBackend;
 
 use crate::transaction::Transaction;
@@ -40,6 +41,24 @@ impl AnyConnection {
         })
     }
 
+    /// UNSTABLE: for use with `sqlx-cli`
+    ///
+    /// Connect to the database, and instruct the nested driver to
+    /// read options from the sqlx.toml file as appropriate.
+    #[cfg(feature = "sqlx-toml")]
+    #[doc(hidden)]
+    pub fn connect_with_config(
+        url: &str,
+        path: Option<std::path::PathBuf>,
+    ) -> BoxFuture<'static, Result<Self, Error>>
+    where
+        Self: Sized,
+    {
+        let options: Result<AnyConnectOptions, Error> = url.parse();
+
+        Box::pin(async move { Self::connect_with(&options?.with_config_file(path)).await })
+    }
+
     pub(crate) fn connect_with_db<DB: Database>(
         options: &AnyConnectOptions,
     ) -> BoxFuture<'_, crate::Result<Self>>
@@ -72,19 +91,21 @@ impl Connection for AnyConnection {
 
     type Options = AnyConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
+    fn close(self) -> impl Future<Output = Result<(), Error>> + Send + 'static {
         self.backend.close()
     }
 
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+    fn close_hard(self) -> impl Future<Output = Result<(), Error>> + Send + 'static {
         self.backend.close()
     }
 
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    fn ping(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         self.backend.ping()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin(
+        &mut self,
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
@@ -93,19 +114,19 @@ impl Connection for AnyConnection {
 
     fn begin_with(
         &mut self,
-        statement: impl Into<Cow<'static, str>>,
-    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+        statement: impl SqlSafeStr,
+    ) -> impl Future<Output = Result<Transaction<'_, Self::Database>, Error>> + Send + '_
     where
         Self: Sized,
     {
-        Transaction::begin(self, Some(statement.into()))
+        Transaction::begin(self, Some(statement.into_sql_str()))
     }
 
     fn cached_statements_size(&self) -> usize {
         self.backend.cached_statements_size()
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, crate::Result<()>> {
+    fn clear_cached_statements(&mut self) -> impl Future<Output = crate::Result<()>> + Send + '_ {
         self.backend.clear_cached_statements()
     }
 
@@ -114,7 +135,7 @@ impl Connection for AnyConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
         self.backend.flush()
     }
 

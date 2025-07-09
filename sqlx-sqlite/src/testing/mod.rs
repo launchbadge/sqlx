@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::pool::PoolOptions;
 use crate::testing::{FixtureSnapshot, TestArgs, TestContext, TestSupport};
 use crate::{Sqlite, SqliteConnectOptions};
-use futures_core::future::BoxFuture;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 
 pub(crate) use sqlx_core::testing::*;
@@ -10,24 +10,23 @@ pub(crate) use sqlx_core::testing::*;
 const BASE_PATH: &str = "target/sqlx/test-dbs";
 
 impl TestSupport for Sqlite {
-    fn test_context(args: &TestArgs) -> BoxFuture<'_, Result<TestContext<Self>, Error>> {
-        Box::pin(async move { test_context(args).await })
+    fn test_context(
+        args: &TestArgs,
+    ) -> impl Future<Output = Result<TestContext<Self>, Error>> + Send + '_ {
+        test_context(args)
     }
 
-    fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move { Ok(crate::fs::remove_file(db_name).await?) })
+    async fn cleanup_test(db_name: &str) -> Result<(), Error> {
+        crate::fs::remove_file(db_name).await?;
+        Ok(())
     }
 
-    fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
-        Box::pin(async move {
-            crate::fs::remove_dir_all(BASE_PATH).await?;
-            Ok(None)
-        })
+    async fn cleanup_test_dbs() -> Result<Option<usize>, Error> {
+        crate::fs::remove_dir_all(BASE_PATH).await?;
+        Ok(None)
     }
 
-    fn snapshot(
-        _conn: &mut Self::Connection,
-    ) -> BoxFuture<'_, Result<FixtureSnapshot<Self>, Error>> {
+    async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {
         todo!()
     }
 

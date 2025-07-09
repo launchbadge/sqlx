@@ -111,7 +111,7 @@ macro_rules! impl_acquire {
                 self,
             ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, $crate::error::Error>>
             {
-                Box::pin(futures_util::future::ok(self))
+                Box::pin(std::future::ready(Ok(self)))
             }
 
             #[inline]

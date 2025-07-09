@@ -9,7 +9,7 @@ use crossbeam_queue::ArrayQueue;
 use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
 use std::cmp;
-use std::future::Future;
+use std::future::{self, Future};
 use std::pin::pin;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
@@ -18,7 +18,6 @@ use std::task::Poll;
 use crate::logger::private_level_filter_to_trace_level;
 use crate::pool::options::PoolConnectionMetadata;
 use crate::private_tracing_dynamic_event;
-use futures_util::future::{self};
 use futures_util::FutureExt;
 use std::time::{Duration, Instant};
 use tracing::Level;
@@ -302,7 +301,7 @@ impl<DB: Database> PoolInner<DB> {
             private_tracing_dynamic_event!(
                 target: "sqlx::pool::acquire",
                 level,
-                aquired_after_secs = acquired_after.as_secs_f64(),
+                acquired_after_secs = acquired_after.as_secs_f64(),
                 slow_acquire_threshold_secs = self.options.acquire_slow_threshold.as_secs_f64(),
                 "acquired connection, but time to acquire exceeded slow threshold"
             );
@@ -310,7 +309,7 @@ impl<DB: Database> PoolInner<DB> {
             private_tracing_dynamic_event!(
                 target: "sqlx::pool::acquire",
                 level,
-                aquired_after_secs = acquired_after.as_secs_f64(),
+                acquired_after_secs = acquired_after.as_secs_f64(),
                 "acquired connection"
             );
         }

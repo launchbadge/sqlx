@@ -85,3 +85,4 @@ def project(name, database=None, driver=None):
 project("mysql/todos", driver="mysql_8", database="todos")
 project("postgres/todos", driver="postgres_12", database="todos")
 project("sqlite/todos", driver="sqlite", database="todos.db")
+project("sqlite/extension", driver="sqlite", database="extension.db")

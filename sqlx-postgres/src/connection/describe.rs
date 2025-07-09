@@ -1,3 +1,4 @@
+use crate::connection::TableColumns;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::io::StatementId;
@@ -11,7 +12,9 @@ use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
 use smallvec::SmallVec;
+use sqlx_core::column::{ColumnOrigin, TableColumn};
 use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::Arc;
 
 /// Describes the type of the `pg_type.typtype` column
@@ -100,7 +103,8 @@ impl PgConnection {
     pub(super) async fn handle_row_description(
         &mut self,
         desc: Option<RowDescription>,
-        should_fetch: bool,
+        fetch_type_info: bool,
+        fetch_column_description: bool,
     ) -> Result<(Vec<PgColumn>, HashMap<UStr, usize>), Error> {
         let mut columns = Vec::new();
         let mut column_names = HashMap::new();
@@ -119,8 +123,17 @@ impl PgConnection {
             let name = UStr::from(field.name);
 
             let type_info = self
-                .maybe_fetch_type_info_by_oid(field.data_type_id, should_fetch)
+                .maybe_fetch_type_info_by_oid(field.data_type_id, fetch_type_info)
                 .await?;
+
+            let origin = if let (Some(relation_oid), Some(attribute_no)) =
+                (field.relation_id, field.relation_attribute_no)
+            {
+                self.maybe_fetch_column_origin(relation_oid, attribute_no, fetch_column_description)
+                    .await?
+            } else {
+                ColumnOrigin::Expression
+            };
 
             let column = PgColumn {
                 ordinal: index,
@@ -128,6 +141,7 @@ impl PgConnection {
                 type_info,
                 relation_id: field.relation_id,
                 relation_attribute_no: field.relation_attribute_no,
+                origin,
             };
 
             columns.push(column);
@@ -188,6 +202,69 @@ impl PgConnection {
             // fallback work correctly for complex user-defined types for the TEXT protocol
             Ok(PgTypeInfo(PgType::DeclareWithOid(oid)))
         }
+    }
+
+    async fn maybe_fetch_column_origin(
+        &mut self,
+        relation_id: Oid,
+        attribute_no: i16,
+        should_fetch: bool,
+    ) -> Result<ColumnOrigin, Error> {
+        if let Some(origin) = self
+            .inner
+            .cache_table_to_column_names
+            .get(&relation_id)
+            .and_then(|table_columns| {
+                let column_name = table_columns.columns.get(&attribute_no).cloned()?;
+
+                Some(ColumnOrigin::Table(TableColumn {
+                    table: table_columns.table_name.clone(),
+                    name: column_name,
+                }))
+            })
+        {
+            return Ok(origin);
+        }
+
+        if !should_fetch {
+            return Ok(ColumnOrigin::Unknown);
+        }
+
+        // Looking up the table name _may_ end up being redundant,
+        // but the round-trip to the server is by far the most expensive part anyway.
+        let Some((table_name, column_name)): Option<(String, String)> = query_as(
+            // language=PostgreSQL
+            "SELECT $1::oid::regclass::text, attname \
+                 FROM pg_catalog.pg_attribute \
+                 WHERE attrelid = $1 AND attnum = $2",
+        )
+        .bind(relation_id)
+        .bind(attribute_no)
+        .fetch_optional(&mut *self)
+        .await?
+        else {
+            // The column/table doesn't exist anymore for whatever reason.
+            return Ok(ColumnOrigin::Unknown);
+        };
+
+        let table_columns = self
+            .inner
+            .cache_table_to_column_names
+            .entry(relation_id)
+            .or_insert_with(|| TableColumns {
+                table_name: table_name.into(),
+                columns: Default::default(),
+            });
+
+        let column_name = table_columns
+            .columns
+            .entry(attribute_no)
+            .or_insert(column_name.into());
+
+        Ok(ColumnOrigin::Table(TableColumn {
+            table: table_columns.table_name.clone(),
+            name: Arc::clone(column_name),
+        }))
     }
 
     async fn fetch_type_by_oid(&mut self, oid: Oid) -> Result<PgTypeInfo, Error> {
@@ -543,7 +620,7 @@ WHERE rngtypid = $1
         }
 
         let (Json(explains),): (Json<SmallVec<[Explain; 1]>>,) =
-            query_as(&explain).fetch_one(self).await?;
+            query_as(AssertSqlSafe(explain)).fetch_one(self).await?;
 
         let mut nullables = Vec::new();
 

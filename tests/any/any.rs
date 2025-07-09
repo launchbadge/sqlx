@@ -1,5 +1,6 @@
 use sqlx::any::AnyRow;
 use sqlx::{Any, Connection, Executor, Row};
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -46,7 +47,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_does_not_stop_stream_after_decoding_error() -> anyhow::Result<()> {
-    use futures::stream::StreamExt;
+    use futures_util::stream::StreamExt;
 
     sqlx::any::install_default_drivers();
 
@@ -106,7 +107,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
 
         // now try and use the connection
         let val: i32 = conn
-            .fetch_one(&*format!("SELECT {i}"))
+            .fetch_one(AssertSqlSafe(format!("SELECT {i}")))
             .await?
             .get_unchecked(0);
 
@@ -132,7 +133,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 
         // now try and use the connection
         let val: i32 = pool
-            .fetch_one(&*format!("SELECT {i}"))
+            .fetch_one(AssertSqlSafe(format!("SELECT {i}")))
             .await?
             .get_unchecked(0);
 

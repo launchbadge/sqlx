@@ -27,7 +27,7 @@ pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 mod common;
-mod database;
+pub mod database;
 
 #[cfg(feature = "derive")]
 pub mod derives;
@@ -57,12 +57,13 @@ where
 {
     #[cfg(feature = "_rt-tokio")]
     {
-        use once_cell::sync::Lazy;
+        use std::sync::LazyLock;
+
         use tokio::runtime::{self, Runtime};
 
         // We need a single, persistent Tokio runtime since we're caching connections,
         // otherwise we'll get "IO driver has terminated" errors.
-        static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
+        static TOKIO_RT: LazyLock<Runtime> = LazyLock::new(|| {
             runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()

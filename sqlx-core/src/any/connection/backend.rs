@@ -1,9 +1,9 @@
 use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::describe::Describe;
+use crate::sql_str::SqlStr;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use std::borrow::Cow;
 use std::fmt::Debug;
 
 pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
@@ -33,7 +33,7 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     ///
     /// If we are already inside a transaction and `statement.is_some()`, then
     /// `Error::InvalidSavePoint` is returned without running any statements.
-    fn begin(&mut self, statement: Option<Cow<'static, str>>) -> BoxFuture<'_, crate::Result<()>>;
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, crate::Result<()>>;
 
     fn commit(&mut self) -> BoxFuture<'_, crate::Result<()>>;
 
@@ -96,23 +96,23 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, crate::Result<AnyStatement<'q>>>;
+    ) -> BoxFuture<'c, crate::Result<AnyStatement>>;
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, crate::Result<Describe<Any>>>;
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, crate::Result<Describe<Any>>>;
 }

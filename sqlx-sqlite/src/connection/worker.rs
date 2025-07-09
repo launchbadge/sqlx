@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -6,6 +5,7 @@ use std::thread;
 
 use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
+use sqlx_core::sql_str::SqlStr;
 use tracing::span::Span;
 
 use sqlx_core::describe::Describe;
@@ -53,15 +53,15 @@ impl WorkerSharedState {
 
 enum Command {
     Prepare {
-        query: Box<str>,
-        tx: oneshot::Sender<Result<SqliteStatement<'static>, Error>>,
+        query: SqlStr,
+        tx: oneshot::Sender<Result<SqliteStatement, Error>>,
     },
     Describe {
-        query: Box<str>,
+        query: SqlStr,
         tx: oneshot::Sender<Result<Describe<Sqlite>, Error>>,
     },
     Execute {
-        query: Box<str>,
+        query: SqlStr,
         arguments: Option<SqliteArguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
@@ -79,7 +79,7 @@ enum Command {
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
-        statement: Option<Cow<'static, str>>,
+        statement: Option<SqlStr>,
     },
     Commit {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -145,7 +145,7 @@ impl ConnectionWorker {
                     let _guard = span.enter();
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, &query)).ok();
+                            tx.send(prepare(&mut conn, query)).ok();
 
                             // This may issue an unnecessary write on failure,
                             // but it doesn't matter in the grand scheme of things.
@@ -155,7 +155,7 @@ impl ConnectionWorker {
                             );
                         }
                         Command::Describe { query, tx } => {
-                            tx.send(describe(&mut conn, &query)).ok();
+                            tx.send(describe(&mut conn, query)).ok();
                         }
                         Command::Execute {
                             query,
@@ -164,7 +164,7 @@ impl ConnectionWorker {
                             tx,
                             limit
                         } => {
-                            let iter = match execute::iter(&mut conn, &query, arguments, persistent)
+                            let iter = match execute::iter(&mut conn, query, arguments, persistent)
                             {
                                 Ok(iter) => iter,
                                 Err(e) => {
@@ -225,7 +225,7 @@ impl ConnectionWorker {
                             };
                             let res =
                                 conn.handle
-                                    .exec(statement)
+                                    .exec(statement.as_str())
                                     .map(|_| {
                                         shared.transaction_depth.fetch_add(1, Ordering::Release);
                                     });
@@ -238,7 +238,7 @@ impl ConnectionWorker {
                                 // immediately otherwise it would remain started forever.
                                 if let Err(error) = conn
                                     .handle
-                                    .exec(rollback_ansi_transaction_sql(depth + 1))
+                                    .exec(rollback_ansi_transaction_sql(depth + 1).as_str())
                                     .map(|_| {
                                         shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
@@ -256,7 +256,7 @@ impl ConnectionWorker {
 
                             let res = if depth > 0 {
                                 conn.handle
-                                    .exec(commit_ansi_transaction_sql(depth))
+                                    .exec(commit_ansi_transaction_sql(depth).as_str())
                                     .map(|_| {
                                         shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
@@ -282,7 +282,7 @@ impl ConnectionWorker {
 
                             let res = if depth > 0 {
                                 conn.handle
-                                    .exec(rollback_ansi_transaction_sql(depth))
+                                    .exec(rollback_ansi_transaction_sql(depth).as_str())
                                     .map(|_| {
                                         shared.transaction_depth.fetch_sub(1, Ordering::Release);
                                     })
@@ -335,25 +335,19 @@ impl ConnectionWorker {
         establish_rx.await.map_err(|_| Error::WorkerCrashed)?
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<SqliteStatement<'static>, Error> {
-        self.oneshot_cmd(|tx| Command::Prepare {
-            query: query.into(),
-            tx,
-        })
-        .await?
+    pub(crate) async fn prepare(&mut self, query: SqlStr) -> Result<SqliteStatement, Error> {
+        self.oneshot_cmd(|tx| Command::Prepare { query, tx })
+            .await?
     }
 
-    pub(crate) async fn describe(&mut self, query: &str) -> Result<Describe<Sqlite>, Error> {
-        self.oneshot_cmd(|tx| Command::Describe {
-            query: query.into(),
-            tx,
-        })
-        .await?
+    pub(crate) async fn describe(&mut self, query: SqlStr) -> Result<Describe<Sqlite>, Error> {
+        self.oneshot_cmd(|tx| Command::Describe { query, tx })
+            .await?
     }
 
     pub(crate) async fn execute(
         &mut self,
-        query: &str,
+        query: SqlStr,
         args: Option<SqliteArguments<'_>>,
         chan_size: usize,
         persistent: bool,
@@ -364,7 +358,7 @@ impl ConnectionWorker {
         self.command_tx
             .send_async((
                 Command::Execute {
-                    query: query.into(),
+                    query,
                     arguments: args.map(SqliteArguments::into_static),
                     persistent,
                     tx,
@@ -378,10 +372,7 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> Result<(), Error> {
+    pub(crate) async fn begin(&mut self, statement: Option<SqlStr>) -> Result<(), Error> {
         self.oneshot_cmd_with_ack(|tx| Command::Begin { tx, statement })
             .await?
     }
@@ -495,9 +486,9 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'static>, Error> {
+fn prepare(conn: &mut ConnectionState, query: SqlStr) -> Result<SqliteStatement, Error> {
     // prepare statement object (or checkout from cache)
-    let statement = conn.statements.get(query, true)?;
+    let statement = conn.statements.get(query.as_str(), true)?;
 
     let mut parameters = 0;
     let mut columns = None;
@@ -514,7 +505,7 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'s
     }
 
     Ok(SqliteStatement {
-        sql: Cow::Owned(query.to_string()),
+        sql: query,
         columns: columns.unwrap_or_default(),
         column_names: column_names.unwrap_or_default(),
         parameters,

@@ -1,13 +1,15 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
+use sqlx::SqlSafeStr;
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_sqlite::LockedSqliteHandle;
 use sqlx_test::new;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -503,7 +505,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let tweet_id: i32 = 2;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = ?1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "text");
@@ -967,6 +971,24 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
 
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
+}
+
+#[sqlx_macros::test]
+async fn issue_3150() {
+    // Same bounds as `tokio::spawn()`
+    async fn fake_spawn<F>(future: F) -> F::Output
+    where
+        F: Future + Send + 'static,
+    {
+        future.await
+    }
+
+    fake_spawn(async {
+        let mut db = SqliteConnection::connect(":memory:").await.unwrap();
+        sqlx::raw_sql("").execute(&mut db).await.unwrap();
+        db.close().await.unwrap();
+    })
+    .await;
 }
 
 #[cfg(feature = "sqlite-preupdate-hook")]

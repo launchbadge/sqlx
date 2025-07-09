@@ -30,6 +30,10 @@ pub struct UnexpectedNullError;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
+    /// Error occurred while reading configuration file
+    #[error("error reading configuration file: {0}")]
+    ConfigFile(#[source] crate::config::ConfigError),
+
     /// Error occurred while parsing a connection string.
     #[error("error with configuration: {0}")]
     Configuration(#[source] BoxDynError),
@@ -197,6 +201,8 @@ pub enum ErrorKind {
     NotNullViolation,
     /// Check constraint violation.
     CheckViolation,
+    /// Exclusion constraint violation.
+    ExclusionViolation,
     /// An unmapped error.
     Other,
 }

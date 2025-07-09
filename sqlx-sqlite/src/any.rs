@@ -1,17 +1,16 @@
-use std::borrow::Cow;
-
 use crate::{
     Either, Sqlite, SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnectOptions,
     SqliteConnection, SqliteQueryResult, SqliteRow, SqliteTransactionManager, SqliteTypeInfo,
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind,
 };
+use sqlx_core::sql_str::SqlStr;
 
 use crate::type_info::DataType;
 use sqlx_core::connection::{ConnectOptions, Connection};
@@ -29,30 +28,27 @@ impl AnyConnectionBackend for SqliteConnection {
     }
 
     fn close(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close(*self)
+        Connection::close(*self).boxed()
     }
 
     fn close_hard(self: Box<Self>) -> BoxFuture<'static, sqlx_core::Result<()>> {
-        Connection::close_hard(*self)
+        Connection::close_hard(*self).boxed()
     }
 
     fn ping(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::ping(self)
+        Connection::ping(self).boxed()
     }
 
-    fn begin(
-        &mut self,
-        statement: Option<Cow<'static, str>>,
-    ) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::begin(self, statement)
+    fn begin(&mut self, statement: Option<SqlStr>) -> BoxFuture<'_, sqlx_core::Result<()>> {
+        SqliteTransactionManager::begin(self, statement).boxed()
     }
 
     fn commit(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::commit(self)
+        SqliteTransactionManager::commit(self).boxed()
     }
 
     fn rollback(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        SqliteTransactionManager::rollback(self)
+        SqliteTransactionManager::rollback(self).boxed()
     }
 
     fn start_rollback(&mut self) {
@@ -68,7 +64,7 @@ impl AnyConnectionBackend for SqliteConnection {
     }
 
     fn flush(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>> {
-        Connection::flush(self)
+        Connection::flush(self).boxed()
     }
 
     fn should_flush(&self) -> bool {
@@ -84,7 +80,7 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn fetch_many<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
@@ -107,7 +103,7 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn fetch_optional<'q>(
         &'q mut self,
-        query: &'q str,
+        query: SqlStr,
         persistent: bool,
         arguments: Option<AnyArguments<'q>>,
     ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
@@ -132,16 +128,17 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
-        sql: &'q str,
+        sql: SqlStr,
         _parameters: &[AnyTypeInfo],
-    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement<'q>>> {
+    ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            AnyStatement::try_from_statement(sql, &statement, statement.column_names.clone())
+            let column_names = statement.column_names.clone();
+            AnyStatement::try_from_statement(statement, column_names)
         })
     }
 
-    fn describe<'q>(&'q mut self, sql: &'q str) -> BoxFuture<'q, sqlx_core::Result<Describe<Any>>> {
+    fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move { Executor::describe(self, sql).await?.try_into_any() })
     }
 }
@@ -201,6 +198,23 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     fn try_from(opts: &'a AnyConnectOptions) -> Result<Self, Self::Error> {
         let mut opts_out = SqliteConnectOptions::from_url(&opts.database_url)?;
         opts_out.log_settings = opts.log_settings.clone();
+
+        if let Some(ref path) = opts.enable_config {
+            if path.exists() {
+                let config = match sqlx_core::config::Config::try_from_path(path.to_path_buf()) {
+                    Ok(cfg) => cfg,
+                    Err(sqlx_core::config::ConfigError::NotFound { path: _ }) => {
+                        return Ok(opts_out)
+                    }
+                    Err(err) => return Err(Self::Error::ConfigFile(err)),
+                };
+
+                for extension in config.common.drivers.sqlite.load_extensions.iter() {
+                    opts_out = opts_out.extension(extension.to_owned());
+                }
+            }
+        }
+
         Ok(opts_out)
     }
 }
