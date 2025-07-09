@@ -68,11 +68,12 @@ impl PgConnectOptions {
 
         let database = var("PGDATABASE").ok();
 
+        let ssl_mode = var("PGSSLMODE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or_default();
+
         PgConnectOptions {
-            port,
-            host,
-            socket: None,
-            username,
             password: var("PGPASSWORD").ok(),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
@@ -81,15 +82,40 @@ impl PgConnectOptions {
             // `-----BEGIN CERTIFICATE-----` and so will not attempt to parse
             // a PEM-encoded private key.
             ssl_client_key: var("PGSSLKEY").ok().map(CertificateInput::from),
-            ssl_mode: var("PGSSLMODE")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or_default(),
-            statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
+            options: var("PGOPTIONS").ok(),
+            ..Self::new_without_environment(host, port, username, ssl_mode)
+        }
+    }
+
+    /// Create a minimal set of connection options _without_ applying any environment.
+    ///
+    /// To be used in situations the environment is not controlled enough to be relied upon.
+    /// Does not respect any `PG*` environment variables.
+    ///
+    /// See the type level-documentation for details.
+    pub fn new_without_environment(
+        host: String,
+        port: u16,
+        username: String,
+        ssl_mode: PgSslMode,
+    ) -> Self {
+        PgConnectOptions {
+            host,
+            port,
+            socket: None,
+            username,
+            password: None,
+            database: None,
+            ssl_mode,
+            ssl_root_cert: None,
+            ssl_client_cert: None,
+            ssl_client_key: None,
+            statement_cache_capacity: 100,
+            application_name: None,
             extra_float_digits: Some("2".into()),
             log_settings: Default::default(),
-            options: var("PGOPTIONS").ok(),
+            options: None,
         }
     }
 
