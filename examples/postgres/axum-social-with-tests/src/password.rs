@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use argon2::password_hash::rand_core::OsRng;
 use tokio::task;
 
 use argon2::password_hash::SaltString;
@@ -6,7 +7,7 @@ use argon2::{password_hash, Argon2, PasswordHash, PasswordHasher, PasswordVerifi
 
 pub async fn hash(password: String) -> anyhow::Result<String> {
     task::spawn_blocking(move || {
-        let salt = SaltString::generate(rand::thread_rng());
+        let salt = SaltString::generate(&mut OsRng);
         Ok(Argon2::default()
             .hash_password(password.as_bytes(), &salt)
             .map_err(|e| anyhow!(e).context("failed to hash password"))?
