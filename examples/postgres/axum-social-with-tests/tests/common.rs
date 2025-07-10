@@ -36,7 +36,12 @@ pub async fn response_json(resp: &mut Response) -> serde_json::Value {
         "application/json"
     );
 
-    let bytes = resp.collect().await.unwrap().to_bytes();
+    let bytes = resp
+        .collect()
+        .await
+        .expect("error reading response body")
+        .to_bytes();
+
     serde_json::from_slice(&bytes).expect("failed to read response body as json")
 }
 
