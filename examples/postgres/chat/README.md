@@ -20,5 +20,5 @@ This example demonstrates how to use PostgreSQL channels to create a very simple
 Run the project
 
 ```
-cargo run -p sqlx-examples-postgres-chat
+cargo run -p sqlx-example-postgres-chat
 ```
