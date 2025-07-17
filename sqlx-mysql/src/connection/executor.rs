@@ -108,10 +108,14 @@ impl MySqlConnection {
         persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error>
     {
+        let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
+
         self.inner.stream.wait_until_ready().await?;
         self.inner.stream.waiting.push_back(Waiting::Result);
 
         Ok(try_stream! {
+        let sql = logger.sql().as_str();
+
             // make a slot for the shared column data
             // as long as a reference to a row is not held past one iteration, this enables us
             // to re-use this memory freely between result sets
@@ -120,7 +124,7 @@ impl MySqlConnection {
             let (mut column_names, format, mut needs_metadata) = if let Some(arguments) = arguments {
                 if persistent && self.inner.cache_statement.is_enabled() {
                     let (id, metadata) = self
-                        .get_or_prepare_statement(sql.as_str())
+                        .get_or_prepare_statement(sql)
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
@@ -144,7 +148,7 @@ impl MySqlConnection {
                     (metadata.column_names, MySqlValueFormat::Binary, false)
                 } else {
                     let (id, metadata) = self
-                        .prepare_statement(sql.as_str())
+                        .prepare_statement(sql)
                         .await?;
 
                     if arguments.types.len() != metadata.parameters {
@@ -171,11 +175,10 @@ impl MySqlConnection {
                 }
             } else {
                 // https://dev.mysql.com/doc/internals/en/com-query.html
-                self.inner.stream.send_packet(Query(sql.as_str())).await?;
+                self.inner.stream.send_packet(Query(sql)).await?;
 
                 (Arc::default(), MySqlValueFormat::Text, true)
             };
-        let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
 
             loop {
                 // query response is a meta-packet which may be one of:

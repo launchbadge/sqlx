@@ -215,6 +215,9 @@ impl PgConnection {
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
+        let mut logger = QueryLogger::new(query, self.inner.log_settings.clone());
+        let sql = logger.sql().as_str();
+
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
@@ -237,13 +240,7 @@ impl PgConnection {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
             let (statement, metadata_) = self
-                .get_or_prepare(
-                    query.as_str(),
-                    &arguments.types,
-                    persistent,
-                    metadata_opt,
-                    false,
-                )
+                .get_or_prepare(sql, &arguments.types, persistent, metadata_opt, false)
                 .await?;
 
             metadata = metadata_;
@@ -296,7 +293,7 @@ impl PgConnection {
             PgValueFormat::Binary
         } else {
             // Query will trigger a ReadyForQuery
-            self.inner.stream.write_msg(Query(query.as_str()))?;
+            self.inner.stream.write_msg(Query(sql))?;
             self.inner.pending_ready_for_query_count += 1;
 
             // metadata starts out as "nothing"
@@ -307,7 +304,6 @@ impl PgConnection {
         };
 
         self.inner.stream.flush().await?;
-        let mut logger = QueryLogger::new(query, self.inner.log_settings.clone());
 
         Ok(try_stream! {
             loop {
