@@ -13,8 +13,8 @@ use libsqlite3_sys::{
     sqlite3_column_name, sqlite3_column_origin_name, sqlite3_column_table_name,
     sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset,
     sqlite3_sql, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata,
-    sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW,
-    SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_value, SQLITE_DONE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT,
+    SQLITE_UTF8,
 };
 use sqlx_core::column::{ColumnOrigin, TableColumn};
 use std::os::raw::{c_char, c_int};
@@ -23,8 +23,6 @@ use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
 use std::sync::Arc;
-
-use super::unlock_notify;
 
 #[derive(Debug)]
 pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
@@ -393,15 +391,17 @@ impl StatementHandle {
     pub(crate) fn step(&mut self) -> Result<bool, SqliteError> {
         // SAFETY: we have exclusive access to the handle
         unsafe {
+            #[cfg_attr(not(feature = "unlock-notify"), expect(clippy::never_loop))]
             loop {
                 match sqlite3_step(self.0.as_ptr()) {
                     SQLITE_ROW => return Ok(true),
                     SQLITE_DONE => return Ok(false),
                     SQLITE_MISUSE => panic!("misuse!"),
-                    SQLITE_LOCKED_SHAREDCACHE => {
+                    #[cfg(feature = "unlock-notify")]
+                    libsqlite3_sys::SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
-                        unlock_notify::wait(self.db_handle())?;
+                        super::unlock_notify::wait(self.db_handle())?;
                         // Need to reset the handle after the unlock
                         // (https://www.sqlite.org/unlock_notify.html)
                         sqlite3_reset(self.0.as_ptr());

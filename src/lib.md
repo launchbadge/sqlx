@@ -20,7 +20,7 @@ which is useful for libraries building on top of it,
 **the use of nearly any async function in the API will panic without at least one runtime feature enabled**.
 
 The chief exception is the SQLite driver, which is runtime-agnostic, including its integration with the query macros.
-However, [`SqlitePool`][crate::sqlite::SqlitePool] _does_ require runtime support for timeouts and spawning
+However, [`SqlitePool`] _does_ require runtime support for timeouts and spawning
 internal management tasks.
 
 ### TLS Support

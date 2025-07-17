@@ -28,7 +28,7 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
 
 impl<'r> Decode<'r, Sqlite> for &'r str {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.text()
+        Ok(value.text_borrowed()?)
     }
 }
 
@@ -76,7 +76,7 @@ impl<'q> Encode<'q, Sqlite> for String {
 
 impl<'r> Decode<'r, Sqlite> for String {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.text().map(ToOwned::to_owned)
+        Ok(value.text_owned()?)
     }
 }
 

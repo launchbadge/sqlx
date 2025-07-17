@@ -32,7 +32,7 @@ impl<'r> Decode<'r, Sqlite> for u8 {
         // which leads to bugs, e.g.:
         // https://github.com/launchbadge/sqlx/issues/3179
         // Similar bug in Postgres: https://github.com/launchbadge/sqlx/issues/3161
-        Ok(value.int64().try_into()?)
+        Ok(value.int64()?.try_into()?)
     }
 }
 
@@ -59,7 +59,7 @@ impl<'q> Encode<'q, Sqlite> for u16 {
 
 impl<'r> Decode<'r, Sqlite> for u16 {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.int64().try_into()?)
+        Ok(value.int64()?.try_into()?)
     }
 }
 
@@ -86,7 +86,7 @@ impl<'q> Encode<'q, Sqlite> for u32 {
 
 impl<'r> Decode<'r, Sqlite> for u32 {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.int64().try_into()?)
+        Ok(value.int64()?.try_into()?)
     }
 }
 
@@ -102,6 +102,6 @@ impl Type<Sqlite> for u64 {
 
 impl<'r> Decode<'r, Sqlite> for u64 {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(value.int64().try_into()?)
+        Ok(value.int64()?.try_into()?)
     }
 }

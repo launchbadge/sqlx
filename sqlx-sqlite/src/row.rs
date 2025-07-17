@@ -40,7 +40,7 @@ impl SqliteRow {
             values.push(unsafe {
                 let raw = statement.column_value(i);
 
-                SqliteValue::new(raw, columns[i].type_info.clone())
+                SqliteValue::dup(raw, Some(columns[i].type_info.clone()))
             });
         }
 
