@@ -1,5 +1,5 @@
 use argon2::{password_hash, Argon2, PasswordHasher, PasswordVerifier};
-use password_hash::{rand_core::OsRng, PasswordHashString};
+use password_hash::{PasswordHashString, Salt, SaltString};
 use rand::distr::{Alphanumeric, SampleString};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -141,7 +141,12 @@ impl AccountsManager {
         // We transfer ownership to the blocking task and back to ensure Tokio doesn't spawn
         // excess threads.
         let (_guard, res) = tokio::task::spawn_blocking(move || {
-            let salt = password_hash::SaltString::generate(&mut OsRng);
+            // `SaltString::generate()` is only compatible with `rand 0.6`, which is very out-of-date now.
+            // This shows how to generate a salt using nearly any `rand` version.
+            let salt: [u8; Salt::RECOMMENDED_LENGTH] = rand::random();
+
+            let salt = SaltString::encode_b64(&salt)
+                .expect("should not fail; we generated a salt of recommended length");
             (
                 guard,
                 Argon2::default()
