@@ -1,5 +1,5 @@
 use anyhow::Context;
-use axum::Router;
+use axum::{extract::FromRef, Router};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 
@@ -12,11 +12,16 @@ pub use self::error::Error;
 
 pub type Result<T, E = Error> = ::std::result::Result<T, E>;
 
+#[derive(Clone, FromRef)]
+pub struct AppState {
+    db: PgPool,
+}
+
 pub fn app(db: PgPool) -> Router {
     Router::new()
         .merge(user::router())
         .merge(post::router())
-        .with_state(db)
+        .with_state(AppState { db })
 }
 
 pub async fn serve(db: PgPool) -> anyhow::Result<()> {

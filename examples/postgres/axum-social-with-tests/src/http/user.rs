@@ -12,9 +12,11 @@ use validator::Validate;
 
 use crate::http::{Error, Result};
 
+use super::AppState;
+
 pub type UserId = Uuid;
 
-pub fn router() -> Router<PgPool> {
+pub fn router() -> Router<AppState> {
     Router::new().route("/v1/user", post(create_user))
 }
 

@@ -15,9 +15,11 @@ use crate::http::Result;
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
+use super::AppState;
+
 mod comment;
 
-pub fn router() -> Router<PgPool> {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/v1/post", get(get_posts).post(create_post))
         .merge(comment::router())

@@ -10,12 +10,12 @@ use crate::http::user::UserAuth;
 use sqlx::PgPool;
 use validator::Validate;
 
-use crate::http::Result;
+use crate::http::{AppState, Result};
 
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
-pub fn router() -> Router<PgPool> {
+pub fn router() -> Router<AppState> {
     Router::new().route(
         "/v1/post/{postId}/comment",
         get(get_post_comments).post(create_post_comment),
