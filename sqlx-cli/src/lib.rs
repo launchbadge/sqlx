@@ -1,3 +1,23 @@
+//! # SQLx CLI
+//!
+//! Command-line utility for the [SQLx](https://github.com/launchbadge/sqlx) ecosystem.
+//!
+//! This crate provides the core logic for the `sqlx` command-line interface, enabling database management,
+//! migrations, and offline query preparation for Rust projects using SQLx.
+//!
+//! ### Note: Semver Exempt API
+//! The API of this crate is not meant for general use and does *not* follow Semantic Versioning.
+//! The only crate that follows Semantic Versioning in the project is the `sqlx` crate itself.
+//! If you are building a custom SQLx driver, you should pin an exact version for `sqlx-cli` to
+//! avoid breakages:
+//!
+//! ```toml
+//! sqlx-cli = { version = "=0.9.0" }
+//! ```
+//!
+//! And then make releases in lockstep with `sqlx-cli`. We recommend all driver crates, in-tree
+//! or otherwise, use the same version numbers as `sqlx-cli` to avoid confusion.
+
 use std::future::Future;
 use std::io;
 use std::time::Duration;
@@ -9,15 +29,15 @@ use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
-mod database;
-mod metadata;
+pub mod database;
+pub mod metadata;
 // mod migration;
 // mod migrator;
 #[cfg(feature = "completions")]
-mod completions;
-mod migrate;
-mod opt;
-mod prepare;
+pub mod completions;
+pub mod migrate;
+pub mod opt;
+pub mod prepare;
 
 pub use crate::opt::Opt;
 
