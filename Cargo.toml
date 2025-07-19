@@ -54,8 +54,9 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# Note: written so that it may be copy-pasted to other crates
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types", "_unstable-doc", "sqlite-preupdate-hook"]
+features = ["_unstable-docs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -83,8 +84,13 @@ _unstable-all-types = [
     "bit-vec",
     "bstr"
 ]
+
 # Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
-_unstable-doc = []
+_unstable-docs = [
+    "all-databases",
+    "_unstable-all-types",
+    "sqlx-sqlite/_unstable-docs"
+]
 
 # Base runtime features without TLS
 runtime-async-global-executor = ["_rt-async-global-executor", "sqlx-core/_rt-async-global-executor", "sqlx-macros?/_rt-async-global-executor"]
@@ -114,9 +120,31 @@ _sqlite = []
 any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/any"]
 postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
-sqlite = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
+sqlite = ["sqlite-bundled", "sqlite-deserialize", "sqlite-load-extension", "sqlite-unlock-notify"]
+
+# SQLite base features
+sqlite-bundled = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+
+# SQLite features using conditionally compiled APIs
+# Note: these assume `sqlite-bundled` or `sqlite-unbundled` is also enabled
+#
+# Enable `SqliteConnection::deserialize()` and `::serialize()`
+# Cannot be used with `-DSQLITE_OMIT_DESERIALIZE`; requires `-DSQLITE_ENABLE_DESERIALIZE` on SQLite < 3.36.0
+sqlite-deserialize = ["sqlx-sqlite/deserialize"]
+
+# Enable `SqliteConnectOptions::extension()` and `::extension_with_entrypoint()`.
+# Also required to use `drivers.sqlite.unsafe-load-extensions` from `sqlx.toml`.
+# Cannot be used with `-DSQLITE_OMIT_LOAD_EXTENSION`
+sqlite-load-extension = ["sqlx-sqlite/load-extension", "sqlx-macros?/sqlite-load-extension"]
+
+# Enables `sqlite3_preupdate_hook`
+# Requires `-DSQLITE_ENABLE_PREUPDATE_HOOK` (set automatically with `sqlite-bundled`)
 sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
+
+# Enable internal handling of `SQLITE_LOCKED_SHAREDCACHE`
+# Requires `-DSQLITE_ENABLE_UNLOCK_NOTIFY` (set automatically with `sqlite-bundled`)
+sqlite-unlock-notify = ["sqlx-sqlite/unlock-notify"]
 
 # types
 json = ["sqlx-core/json", "sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
@@ -225,8 +253,14 @@ cast_sign_loss = 'deny'
 # See `clippy.toml`
 disallowed_methods = 'deny'
 
-[lints.rust]
-unexpected_cfgs = { level = 'warn', check-cfg = ['cfg(mariadb, values(any()))'] }
+
+[lints.rust.unexpected_cfgs]
+level = 'warn'
+check-cfg = [
+    'cfg(mariadb, values(any()))',
+    'cfg(sqlite_ipaddr)',
+    'cfg(sqlite_test_sqlcipher)',
+]
 
 #
 # Any

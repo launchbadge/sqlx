@@ -31,7 +31,6 @@ where
     BoxDynError: From<<T as FromStr>::Err>,
 {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        let s: &str = Decode::<Sqlite>::decode(value)?;
-        Ok(Self(s.parse()?))
+        Ok(Self(value.with_temp_text(|text| text.parse::<T>())??))
     }
 }

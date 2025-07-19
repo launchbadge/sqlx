@@ -3571,7 +3571,6 @@ dependencies = [
  "memchr",
  "native-tls",
  "percent-encoding",
- "regex",
  "rust_decimal",
  "rustls",
  "rustls-native-certs",

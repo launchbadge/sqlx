@@ -214,7 +214,12 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_with_extension() -> anyhow::Result<()> {
     use std::str::FromStr;
 
-    let opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?.extension("ipaddr");
+    let mut opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?;
+
+    // SAFETY: the `sqlite_ipaddr` cfg is only enabled when we want to test this.
+    unsafe {
+        opts = opts.extension("ipaddr");
+    }
 
     let mut conn = SqliteConnection::connect_with(&opts).await?;
     conn.execute("SELECT ipmasklen('192.168.16.12/24');")

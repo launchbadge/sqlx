@@ -15,11 +15,44 @@
 # If not specified, defaults to `DATABASE_URL`
 database-url-var = "FOO_DATABASE_URL"
 
-[common.drivers.sqlite]
+###############################################################################################
+
+# Configuration of SQLx database drivers (**applies to macros and sqlx-cli only**)
+[drivers]
+
+# Configure MySQL databases in macros and sqlx-cli.
+[drivers.mysql]
+# No fields implemented yet. This key is only used to validate parsing.
+
+# Configure Postgres databases in macros and sqlx-cli.
+[drivers.postgres]
+# No fields implemented yet. This key is only used to validate parsing.
+
+# Configure Postgres databases in macros and sqlx-cli.
+[drivers.sqlite]
 # Load extensions into SQLite when running macros or migrations
 #
 # Defaults to an empty list, which has no effect.
-load-extensions = ["uuid", "vsv"]
+#
+# Must be specified separately at run-time using `SqliteConnectOptions::extension()` or `::extension_with_entrypoint()`.
+#
+# Safety
+# This causes arbitrary DLLs on the filesystem to be loaded at runtime,
+# which can easily result in undefined behavior, memory corruption,
+# or exploitable vulnerabilities if misused.
+#
+# It is not possible to provide a truly safe version of this API.
+#
+# Use this field with care, and only load extensions that you trust.
+unsafe-load-extensions = ["uuid", "vsv"]
+
+# Configure external drivers in macros and sqlx-cli.
+#
+# These keys are only validated when the external driver tries to parse them,
+# unlike config for built-in drivers which is validated directly.
+[drivers.external."<external driver name>"]
+foo = 'foo'
+bar = true
 
 ###############################################################################################
 

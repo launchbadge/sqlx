@@ -28,6 +28,6 @@ impl<'q> Encode<'q, Sqlite> for bool {
 
 impl<'r> Decode<'r, Sqlite> for bool {
     fn decode(value: SqliteValueRef<'r>) -> Result<bool, BoxDynError> {
-        Ok(value.int64() != 0)
+        Ok(value.int64()? != 0)
     }
 }

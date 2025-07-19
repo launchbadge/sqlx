@@ -87,6 +87,10 @@ impl QueryLogger {
         self.rows_affected += n;
     }
 
+    pub fn sql(&self) -> &SqlStr {
+        &self.sql
+    }
+
     pub fn finish(&self) {
         let elapsed = self.start.elapsed();
 

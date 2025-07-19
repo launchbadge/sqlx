@@ -1,10 +1,9 @@
 use super::SqliteOperation;
-use crate::type_info::DataType;
-use crate::{SqliteError, SqliteTypeInfo, SqliteValueRef};
+use crate::{SqliteError, SqliteValueRef};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_preupdate_count, sqlite3_preupdate_depth, sqlite3_preupdate_new,
-    sqlite3_preupdate_old, sqlite3_value, sqlite3_value_type, SQLITE_OK,
+    sqlite3_preupdate_old, sqlite3_value, SQLITE_OK,
 };
 use std::ffi::CStr;
 use std::marker::PhantomData;
@@ -122,9 +121,7 @@ impl<'a> PreupdateHookResult<'a> {
         if ret != SQLITE_OK {
             return Err(PreupdateError::Database(SqliteError::new(self.db)));
         }
-        let data_type = DataType::from_code(sqlite3_value_type(p_value));
-        // SAFETY: SQLite will free the sqlite3_value when the callback returns
-        Ok(SqliteValueRef::borrowed(p_value, SqliteTypeInfo(data_type)))
+        Ok(SqliteValueRef::borrowed(p_value))
     }
 }
 

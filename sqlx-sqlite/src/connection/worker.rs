@@ -21,7 +21,8 @@ use crate::connection::execute;
 use crate::connection::ConnectionState;
 use crate::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
 
-use super::serialize::{deserialize, serialize, SchemaName, SqliteOwnedBuf};
+#[cfg(feature = "deserialize")]
+use crate::connection::deserialize::{deserialize, serialize, SchemaName, SqliteOwnedBuf};
 
 // Each SQLite connection has a dedicated thread.
 
@@ -67,10 +68,12 @@ enum Command {
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
         limit: Option<usize>,
     },
+    #[cfg(feature = "deserialize")]
     Serialize {
         schema: Option<SchemaName>,
         tx: oneshot::Sender<Result<SqliteOwnedBuf, Error>>,
     },
+    #[cfg(feature = "deserialize")]
     Deserialize {
         schema: Option<SchemaName>,
         data: SqliteOwnedBuf,
@@ -302,9 +305,11 @@ impl ConnectionWorker {
                                 }
                             }
                         }
+                        #[cfg(feature = "deserialize")]
                         Command::Serialize { schema, tx } => {
                             tx.send(serialize(&mut conn, schema)).ok();
                         }
+                        #[cfg(feature = "deserialize")]
                         Command::Deserialize { schema, data, read_only, tx } => {
                             tx.send(deserialize(&mut conn, schema, data, read_only)).ok();
                         }
@@ -397,6 +402,7 @@ impl ConnectionWorker {
         self.oneshot_cmd(|tx| Command::Ping { tx }).await
     }
 
+    #[cfg(feature = "deserialize")]
     pub(crate) async fn deserialize(
         &mut self,
         schema: Option<SchemaName>,
@@ -412,6 +418,7 @@ impl ConnectionWorker {
         .await?
     }
 
+    #[cfg(feature = "deserialize")]
     pub(crate) async fn serialize(
         &mut self,
         schema: Option<SchemaName>,

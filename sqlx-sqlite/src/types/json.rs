@@ -30,6 +30,7 @@ where
     T: 'r + Deserialize<'r>,
 {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Self::decode_from_string(Decode::<Sqlite>::decode(value)?)
+        // Saves a pass over the data by making `serde_json` check UTF-8.
+        Self::decode_from_bytes(Decode::<Sqlite>::decode(value)?)
     }
 }
