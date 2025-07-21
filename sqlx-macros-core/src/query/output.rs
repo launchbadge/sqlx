@@ -141,6 +141,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
     out_ty: &Type,
     bind_args: &Ident,
     columns: &[RustColumn],
+    crate_name: &Ident
 ) -> TokenStream {
     let instantiations = columns.iter().enumerate().map(
         |(
@@ -193,8 +194,8 @@ pub fn quote_query_as<DB: DatabaseExt>(
     };
 
     quote! {
-        ::sqlx::__query_with_result::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
-            use ::sqlx::Row as _;
+        ::#crate_name::__query_with_result::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
+            use ::#crate_name::Row as _;
 
             #(#instantiations)*
 
@@ -209,6 +210,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     warnings: &mut Warnings,
     bind_args: &Ident,
     describe: &Describe<DB>,
+    crate_name: &Ident,
 ) -> crate::Result<TokenStream> {
     let columns = describe.columns();
 
@@ -238,7 +240,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     let query = &input.sql;
 
     Ok(quote! {
-        ::sqlx::__query_scalar_with_result::<#db, #ty, _>(#query, #bind_args)
+        ::#crate_name::__query_scalar_with_result::<#db, #ty, _>(#query, #bind_args)
     })
 }
 

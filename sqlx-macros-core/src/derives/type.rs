@@ -11,7 +11,7 @@ use syn::{
     FieldsUnnamed, Variant,
 };
 
-pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
+pub fn expand_derive_type(input: &DeriveInput, crate_name: &Ident) -> syn::Result<TokenStream> {
     let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
         // Newtype structs:
@@ -21,7 +21,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
             ..
         }) => {
             if unnamed.len() == 1 {
-                expand_derive_has_sql_type_transparent(input, unnamed.first().unwrap())
+                expand_derive_has_sql_type_transparent(input, unnamed.first().unwrap(), crate_name)
             } else {
                 Err(syn::Error::new_spanned(
                     input,
@@ -34,7 +34,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
         Data::Struct(DataStruct {
             fields: Fields::Named(FieldsNamed { named, .. }),
             ..
-        }) => expand_derive_has_sql_type_struct(input, named),
+        }) => expand_derive_has_sql_type_struct(input, named, crate_name),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
             ..
@@ -45,9 +45,9 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
 
         Data::Enum(DataEnum { variants, .. }) => match attrs.repr {
             // Enums that encode to/from integers (weak enums)
-            Some(_) => expand_derive_has_sql_type_weak_enum(input, variants),
+            Some(_) => expand_derive_has_sql_type_weak_enum(input, variants, crate_name),
             // Enums that decode to/from strings (strong enums)
-            None => expand_derive_has_sql_type_strong_enum(input, variants),
+            None => expand_derive_has_sql_type_strong_enum(input, variants, crate_name),
         },
         Data::Union(_) => Err(syn::Error::new_spanned(input, "unions are not supported")),
     }
@@ -56,6 +56,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
 fn expand_derive_has_sql_type_transparent(
     input: &DeriveInput,
     field: &Field,
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let attr = check_transparent_attributes(input, field)?;
 
@@ -71,28 +72,28 @@ fn expand_derive_has_sql_type_transparent(
 
         generics
             .params
-            .insert(0, parse_quote!(DB: ::sqlx::Database));
+            .insert(0, parse_quote!(DB: ::#crate_name::Database));
         generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#ty: ::sqlx::Type<DB>));
+            .push(parse_quote!(#ty: ::#crate_name::Type<DB>));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         array_generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#ty: ::sqlx::postgres::PgHasArrayType));
+            .push(parse_quote!(#ty: ::#crate_name::postgres::PgHasArrayType));
         let (array_impl_generics, _, array_where_clause) = array_generics.split_for_impl();
 
         let mut tokens = quote!(
             #[automatically_derived]
-            impl #impl_generics ::sqlx::Type< DB > for #ident #ty_generics #where_clause {
+            impl #impl_generics ::#crate_name::Type< DB > for #ident #ty_generics #where_clause {
                 fn type_info() -> DB::TypeInfo {
-                    <#ty as ::sqlx::Type<DB>>::type_info()
+                    <#ty as ::#crate_name::Type<DB>>::type_info()
                 }
 
                 fn compatible(ty: &DB::TypeInfo) -> ::std::primitive::bool {
-                    <#ty as ::sqlx::Type<DB>>::compatible(ty)
+                    <#ty as ::#crate_name::Type<DB>>::compatible(ty)
                 }
             }
         );
@@ -100,10 +101,10 @@ fn expand_derive_has_sql_type_transparent(
         if cfg!(feature = "postgres") && !attr.no_pg_array {
             tokens.extend(quote!(
                 #[automatically_derived]
-                impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics
+                impl #array_impl_generics ::#crate_name::postgres::PgHasArrayType for #ident #ty_generics
                 #array_where_clause {
-                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
-                        <#ty as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+                    fn array_type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                        <#ty as ::#crate_name::postgres::PgHasArrayType>::array_type_info()
                     }
                 }
             ));
@@ -119,9 +120,9 @@ fn expand_derive_has_sql_type_transparent(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx::Type<::sqlx::postgres::Postgres> for #ident #ty_generics {
-                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
-                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::#crate_name::Type<::#crate_name::postgres::Postgres> for #ident #ty_generics {
+                fn type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                    ::#crate_name::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -133,22 +134,23 @@ fn expand_derive_has_sql_type_transparent(
 fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     let attrs = check_weak_enum_attributes(input, variants)?;
     let repr = attrs.repr.unwrap();
     let ident = &input.ident;
     let mut ts = quote!(
         #[automatically_derived]
-        impl<DB: ::sqlx::Database> ::sqlx::Type<DB> for #ident
+        impl<DB: ::#crate_name::Database> ::#crate_name::Type<DB> for #ident
         where
-            #repr: ::sqlx::Type<DB>,
+            #repr: ::#crate_name::Type<DB>,
         {
             fn type_info() -> DB::TypeInfo {
-                <#repr as ::sqlx::Type<DB>>::type_info()
+                <#repr as ::#crate_name::Type<DB>>::type_info()
             }
 
             fn compatible(ty: &DB::TypeInfo) -> bool {
-                <#repr as ::sqlx::Type<DB>>::compatible(ty)
+                <#repr as ::#crate_name::Type<DB>>::compatible(ty)
             }
         }
     );
@@ -156,9 +158,9 @@ fn expand_derive_has_sql_type_weak_enum(
     if cfg!(feature = "postgres") && !attrs.no_pg_array {
         ts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx::postgres::PgHasArrayType for #ident  {
-                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
-                    <#repr as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+            impl ::#crate_name::postgres::PgHasArrayType for #ident  {
+                fn array_type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                    <#repr as ::#crate_name::postgres::PgHasArrayType>::array_type_info()
                 }
             }
         ));
@@ -170,6 +172,7 @@ fn expand_derive_has_sql_type_weak_enum(
 fn expand_derive_has_sql_type_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     let attributes = check_strong_enum_attributes(input, variants)?;
 
@@ -179,9 +182,9 @@ fn expand_derive_has_sql_type_strong_enum(
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx::Type<::sqlx::MySql> for #ident {
-                fn type_info() -> ::sqlx::mysql::MySqlTypeInfo {
-                    ::sqlx::mysql::MySqlTypeInfo::__enum()
+            impl ::#crate_name::Type<::#crate_name::MySql> for #ident {
+                fn type_info() -> ::#crate_name::mysql::MySqlTypeInfo {
+                    ::#crate_name::mysql::MySqlTypeInfo::__enum()
                 }
             }
         ));
@@ -192,9 +195,9 @@ fn expand_derive_has_sql_type_strong_enum(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx::Type<::sqlx::Postgres> for #ident {
-                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
-                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::#crate_name::Type<::#crate_name::Postgres> for #ident {
+                fn type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                    ::#crate_name::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -202,9 +205,9 @@ fn expand_derive_has_sql_type_strong_enum(
         if !attributes.no_pg_array {
             tts.extend(quote!(
                 #[automatically_derived]
-                impl ::sqlx::postgres::PgHasArrayType for #ident  {
-                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
-                        ::sqlx::postgres::PgTypeInfo::array_of(#ty_name)
+                impl ::#crate_name::postgres::PgHasArrayType for #ident  {
+                    fn array_type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                        ::#crate_name::postgres::PgTypeInfo::array_of(#ty_name)
                     }
                 }
             ));
@@ -214,13 +217,13 @@ fn expand_derive_has_sql_type_strong_enum(
     if cfg!(feature = "_sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl sqlx::Type<::sqlx::Sqlite> for #ident {
-                fn type_info() -> ::sqlx::sqlite::SqliteTypeInfo {
-                    <::std::primitive::str as ::sqlx::Type<sqlx::Sqlite>>::type_info()
+            impl ::#crate_name::Type<::#crate_name::Sqlite> for #ident {
+                fn type_info() -> ::#crate_name::sqlite::SqliteTypeInfo {
+                    <::std::primitive::str as ::#crate_name::Type<::#crate_name::Sqlite>>::type_info()
                 }
 
-                fn compatible(ty: &::sqlx::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
-                    <&::std::primitive::str as ::sqlx::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
+                fn compatible(ty: &::#crate_name::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
+                    <&::std::primitive::str as ::#crate_name::types::Type<::#crate_name::sqlite::Sqlite>>::compatible(ty)
                 }
             }
         ));
@@ -232,6 +235,7 @@ fn expand_derive_has_sql_type_strong_enum(
 fn expand_derive_has_sql_type_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     let attributes = check_struct_attributes(input, fields)?;
 
@@ -243,9 +247,9 @@ fn expand_derive_has_sql_type_struct(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl ::sqlx::Type<::sqlx::Postgres> for #ident {
-                fn type_info() -> ::sqlx::postgres::PgTypeInfo {
-                    ::sqlx::postgres::PgTypeInfo::with_name(#ty_name)
+            impl ::#crate_name::Type<::#crate_name::Postgres> for #ident {
+                fn type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                    ::#crate_name::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -253,9 +257,9 @@ fn expand_derive_has_sql_type_struct(
         if !attributes.no_pg_array {
             tts.extend(quote!(
                 #[automatically_derived]
-                impl ::sqlx::postgres::PgHasArrayType for #ident  {
-                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
-                        ::sqlx::postgres::PgTypeInfo::array_of(#ty_name)
+                impl ::#crate_name::postgres::PgHasArrayType for #ident  {
+                    fn array_type_info() -> ::#crate_name::postgres::PgTypeInfo {
+                        ::#crate_name::postgres::PgTypeInfo::array_of(#ty_name)
                     }
                 }
             ));

@@ -4,7 +4,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
 
 use proc_macro2::TokenStream;
-use syn::Type;
+use syn::{Ident, Type};
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
@@ -27,7 +27,7 @@ mod output;
 pub struct QueryDriver {
     db_name: &'static str,
     url_schemes: &'static [&'static str],
-    expand: fn(&Config, QueryMacroInput, QueryDataSource) -> crate::Result<TokenStream>,
+    expand: fn(&Config, QueryMacroInput, QueryDataSource, Ident) -> crate::Result<TokenStream>,
 }
 
 impl QueryDriver {
@@ -141,6 +141,7 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
+    crate_name: Ident,
 ) -> crate::Result<TokenStream> {
     let manifest_dir = env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
 
@@ -197,7 +198,7 @@ pub fn expand_input<'a>(
 
     for driver in drivers {
         if data_source.matches_driver(driver) {
-            return (driver.expand)(&metadata.config, input, data_source);
+            return (driver.expand)(&metadata.config, input, data_source, crate_name);
         }
     }
 
@@ -222,6 +223,7 @@ fn expand_with<DB: DatabaseExt>(
     config: &Config,
     input: QueryMacroInput,
     data_source: QueryDataSource,
+    crate_name: Ident
 ) -> crate::Result<TokenStream>
 where
     Describe<DB>: DescribeExt,
@@ -234,7 +236,7 @@ where
         }
     };
 
-    expand_with_data(config, input, query_data, offline)
+    expand_with_data(config, input, query_data, offline, crate_name)
 }
 
 // marker trait for `Describe` that lets us conditionally require it to be `Serialize + Deserialize`
@@ -256,6 +258,7 @@ fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
     offline: bool,
+    crate_name: Ident,
 ) -> crate::Result<TokenStream>
 where
     Describe<DB>: DescribeExt,
@@ -278,7 +281,7 @@ where
 
     let mut warnings = Warnings::default();
 
-    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe)?;
+    let args_tokens = args::quote_args(&input, config, &mut warnings, &data.describe, &crate_name)?;
 
     let query_args = format_ident!("query_args");
 
@@ -292,7 +295,7 @@ where
         let sql = &input.sql;
 
         quote! {
-            ::sqlx::__query_with_result::<#db_path, _>(#sql, #query_args)
+            ::#crate_name::__query_with_result::<#db_path, _>(#sql, #query_args)
         }
     } else {
         match input.record_type {
@@ -328,6 +331,7 @@ where
                     &record_name,
                     &query_args,
                     &columns,
+                    &crate_name
                 ));
 
                 record_tokens
@@ -335,7 +339,7 @@ where
             RecordType::Given(ref out_ty) => {
                 let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
-                output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
+                output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns, &crate_name)
             }
             RecordType::Scalar => output::quote_query_scalar::<DB>(
                 &input,
@@ -343,6 +347,7 @@ where
                 &mut warnings,
                 &query_args,
                 &data.describe,
+                &crate_name
             )?,
         }
     };
@@ -352,14 +357,14 @@ where
     if warnings.ambiguous_datetime {
         // Warns if the date-time crate is inferred but both `chrono` and `time` are enabled
         warnings_out.extend(quote! {
-            ::sqlx::warn_on_ambiguous_inferred_date_time_crate();
+            ::#crate_name::warn_on_ambiguous_inferred_date_time_crate();
         });
     }
 
     if warnings.ambiguous_numeric {
         // Warns if the numeric crate is inferred but both `bigdecimal` and `rust_decimal` are enabled
         warnings_out.extend(quote! {
-            ::sqlx::warn_on_ambiguous_inferred_numeric_crate();
+            ::#crate_name::warn_on_ambiguous_inferred_numeric_crate();
         });
     }
 
@@ -367,7 +372,7 @@ where
         {
             #[allow(clippy::all)]
             {
-                use ::sqlx::Arguments as _;
+                use ::#crate_name::Arguments as _;
 
                 #warnings_out
 

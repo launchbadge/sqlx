@@ -8,27 +8,26 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Stmt, TypeParamBound, Variant,
+    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Stmt, TypeParamBound, Variant
 };
 
-pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
+pub fn expand_derive_decode(input: &DeriveInput, crate_name: &Ident) -> syn::Result<TokenStream> {
     let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
         }) if unnamed.len() == 1 => {
-            expand_derive_decode_transparent(input, unnamed.first().unwrap())
+            expand_derive_decode_transparent(input, unnamed.first().unwrap(), crate_name)
         }
         Data::Enum(DataEnum { variants, .. }) => match attrs.repr {
-            Some(_) => expand_derive_decode_weak_enum(input, variants),
-            None => expand_derive_decode_strong_enum(input, variants),
+            Some(_) => expand_derive_decode_weak_enum(input, variants, crate_name),
+            None => expand_derive_decode_strong_enum(input, variants, crate_name),
         },
         Data::Struct(DataStruct {
             fields: Fields::Named(FieldsNamed { named, .. }),
             ..
-        }) => expand_derive_decode_struct(input, named),
+        }) => expand_derive_decode_struct(input, named, crate_name),
         Data::Union(_) => Err(syn::Error::new_spanned(input, "unions are not supported")),
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(..),
@@ -50,6 +49,7 @@ pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
 fn expand_derive_decode_transparent(
     input: &DeriveInput,
     field: &Field,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     check_transparent_attributes(input, field)?;
 
@@ -64,26 +64,26 @@ fn expand_derive_decode_transparent(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, parse_quote!(DB: ::sqlx::Database));
+        .insert(0, parse_quote!(DB: ::#crate_name::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, DB>));
+        .push(parse_quote!(#ty: ::#crate_name::decode::Decode<'r, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
+        impl #impl_generics ::#crate_name::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
             fn decode(
-                value: <DB as ::sqlx::database::Database>::ValueRef<'r>,
+                value: <DB as ::#crate_name::database::Database>::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                <#ty as ::sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
+                <#ty as ::#crate_name::decode::Decode<'r, DB>>::decode(value).map(Self)
             }
         }
     );
@@ -94,6 +94,7 @@ fn expand_derive_decode_transparent(
 fn expand_derive_decode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
@@ -113,23 +114,23 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'r, DB: ::sqlx::Database> ::sqlx::decode::Decode<'r, DB> for #ident
+        impl<'r, DB: ::#crate_name::Database> ::#crate_name::decode::Decode<'r, DB> for #ident
         where
-            #repr: ::sqlx::decode::Decode<'r, DB>,
+            #repr: ::#crate_name::decode::Decode<'r, DB>,
         {
             fn decode(
-                value: <DB as ::sqlx::database::Database>::ValueRef<'r>,
+                value: <DB as ::#crate_name::database::Database>::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                let value = <#repr as ::sqlx::decode::Decode<'r, DB>>::decode(value)?;
+                let value = <#repr as ::#crate_name::decode::Decode<'r, DB>>::decode(value)?;
 
                 match value {
                     #(#arms)*
-                    _ => ::std::result::Result::Err(::std::boxed::Box::new(::sqlx::Error::Decode(
+                    _ => ::std::result::Result::Err(::std::boxed::Box::new(::#crate_name::Error::Decode(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     )))
                 }
@@ -141,6 +142,7 @@ fn expand_derive_decode_weak_enum(
 fn expand_derive_decode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     let cattr = check_strong_enum_attributes(input, variants)?;
 
@@ -176,9 +178,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::mysql::MySql> for #ident {
+            impl<'r> ::#crate_name::decode::Decode<'r, ::#crate_name::mysql::MySql> for #ident {
                 fn decode(
-                    value: ::sqlx::mysql::MySqlValueRef<'r>,
+                    value: ::#crate_name::mysql::MySqlValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -188,9 +190,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::#crate_name::decode::Decode<
                         'r,
-                        ::sqlx::mysql::MySql,
+                        ::#crate_name::mysql::MySql,
                     >>::decode(value)?;
 
                     #values
@@ -202,9 +204,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "postgres") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::postgres::Postgres> for #ident {
+            impl<'r> ::#crate_name::decode::Decode<'r, ::#crate_name::postgres::Postgres> for #ident {
                 fn decode(
-                    value: ::sqlx::postgres::PgValueRef<'r>,
+                    value: ::#crate_name::postgres::PgValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -214,9 +216,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::#crate_name::decode::Decode<
                         'r,
-                        ::sqlx::postgres::Postgres,
+                        ::#crate_name::postgres::Postgres,
                     >>::decode(value)?;
 
                     #values
@@ -228,9 +230,9 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "_sqlite") {
         tts.extend(quote!(
             #[automatically_derived]
-            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite> for #ident {
+            impl<'r> ::#crate_name::decode::Decode<'r, ::#crate_name::sqlite::Sqlite> for #ident {
                 fn decode(
-                    value: ::sqlx::sqlite::SqliteValueRef<'r>,
+                    value: ::#crate_name::sqlite::SqliteValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -240,9 +242,9 @@ fn expand_derive_decode_strong_enum(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<
+                    let value = <&'r ::std::primitive::str as ::#crate_name::decode::Decode<
                         'r,
-                        ::sqlx::sqlite::Sqlite,
+                        ::#crate_name::sqlite::Sqlite,
                     >>::decode(value)?;
 
                     #values
@@ -257,6 +259,7 @@ fn expand_derive_decode_strong_enum(
 fn expand_derive_decode_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
+    crate_name: &Ident
 ) -> syn::Result<TokenStream> {
     check_struct_attributes(input, fields)?;
 
@@ -272,8 +275,8 @@ fn expand_derive_decode_struct(
         // add db type for impl generics & where clause
         for type_param in &mut generics.type_params_mut() {
             type_param.bounds.extend::<[TypeParamBound; 2]>([
-                parse_quote!(for<'decode> ::sqlx::decode::Decode<'decode, ::sqlx::Postgres>),
-                parse_quote!(::sqlx::types::Type<::sqlx::Postgres>),
+                parse_quote!(for<'decode> ::#crate_name::decode::Decode<'decode, ::#crate_name::Postgres>),
+                parse_quote!(::#crate_name::types::Type<::#crate_name::Postgres>),
             ]);
         }
 
@@ -294,11 +297,11 @@ fn expand_derive_decode_struct(
 
         tts.extend(quote!(
             #[automatically_derived]
-            impl #impl_generics ::sqlx::decode::Decode<'r, ::sqlx::Postgres> for #ident #ty_generics
+            impl #impl_generics ::#crate_name::decode::Decode<'r, ::#crate_name::Postgres> for #ident #ty_generics
             #where_clause
             {
                 fn decode(
-                    value: ::sqlx::postgres::PgValueRef<'r>,
+                    value: ::#crate_name::postgres::PgValueRef<'r>,
                 ) -> ::std::result::Result<
                     Self,
                     ::std::boxed::Box<
@@ -308,7 +311,7 @@ fn expand_derive_decode_struct(
                             + ::std::marker::Sync,
                     >,
                 > {
-                    let mut decoder = ::sqlx::postgres::types::PgRecordDecoder::new(value)?;
+                    let mut decoder = ::#crate_name::postgres::types::PgRecordDecoder::new(value)?;
 
                     #(#reads)*
 
