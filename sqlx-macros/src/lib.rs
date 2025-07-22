@@ -4,18 +4,15 @@ use quote::quote;
 
 use sqlx_macros_core::*;
 
-/// Constant used in all macros to define the root crate.
+/// Constant used in all macros to define the macros namespace.
 /// This accommodates 3rd party drivers by allowing them to specify a different
 /// root crate that paths used with proc macros resolve to.
 #[cfg(not(test))]
 const CRATE_NAME: &str = "sqlx";
-// Allows for easier testing of the configurable root crate feature
+// Allows for easier testing of the configurable macros namespace feature
 // of current proc macros without duplicating them.
 #[cfg(test)]
-const CRATE_NAME: &str = match option_env!("SQLX_ROOT_CRATE") {
-    Some(c) => c,
-    None => "sqlx",
-};
+const CRATE_NAME: &str = env!("SQLX_NAMESPACE");
 
 #[cfg(feature = "macros")]
 #[proc_macro]
@@ -110,5 +107,33 @@ pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
                 quote!(::std::compile_error!(#msg)).into()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "migrate")]
+    fn test_macros_namespace_migrate() {
+        /// Import as different namespace.
+        ///
+        /// This must be set as `SQLX_NAMESPACE` environment variable to test that
+        /// changing the namespace still results in the proc macros behaving well.
+        extern crate sqlx as external;
+
+        let _ = external::migrate!("../tests/migrate/migrations_simple");
+    }
+
+    #[test]
+    #[cfg(feature = "derive")]
+    fn test_macros_namespace_derive() {
+        /// Import as different namespace.
+        ///
+        /// This must be set as `SQLX_NAMESPACE` environment variable to test that
+        /// changing the namespace still results in the proc macros behaving well.
+        extern crate sqlx as external;
+        
+        #[derive(Debug, external::Type, external::Encode, external::Decode, external::FromRow)]
+        struct Test {}
     }
 }
