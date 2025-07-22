@@ -64,7 +64,11 @@ syn = { version = "2.0.52", default-features = false, features = [
 quote = { version = "1.0.26", default-features = false }
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["derive", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["derive", "macros", "migrate", "postgres"] }
+
+[[test]]
+name = "macros_namespace"
+path = "tests/macros_namespace.rs"
 
 [lints]
 workspace = true

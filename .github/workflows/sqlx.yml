@@ -107,18 +107,22 @@ jobs:
           
       - name: Test sqlx-macros custom namespace
         run: >
-          SQLX_NAMESPACE="external" 
           cargo test
           -p sqlx-macros
           --all-features
+        env:
+          SQLX_NAMESPACE: "external" 
+          RUSTFLAGS: "--cfg sqlx_macros_namespace"
       
       # Should fail compilation since the env var is not set
-      # and the testing `_macros-namespace` feature is enabled.
+      # and the testing `sqlx_macros_namespace` cfg is enabled.
       - name: Test sqlx-macros without namespace
         run: >
           cargo test
           -p sqlx-macros
           --all-features || true
+        env:
+          RUSTFLAGS: "--cfg sqlx_macros_namespace"
 
       # Note: use `--lib` to not run integration tests that require a DB
       - name: Test sqlx
