@@ -223,7 +223,7 @@ fn expand_with<DB: DatabaseExt>(
     config: &Config,
     input: QueryMacroInput,
     data_source: QueryDataSource,
-    crate_name: Ident
+    crate_name: Ident,
 ) -> crate::Result<TokenStream>
 where
     Describe<DB>: DescribeExt,
@@ -331,7 +331,7 @@ where
                     &record_name,
                     &query_args,
                     &columns,
-                    &crate_name
+                    &crate_name,
                 ));
 
                 record_tokens
@@ -347,7 +347,7 @@ where
                 &mut warnings,
                 &query_args,
                 &data.describe,
-                &crate_name
+                &crate_name,
             )?,
         }
     };

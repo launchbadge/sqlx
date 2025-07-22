@@ -8,7 +8,8 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Lifetime, LifetimeParam, Stmt, TypeParamBound, Variant
+    parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Ident, Lifetime, LifetimeParam, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput, crate_name: &Ident) -> syn::Result<TokenStream> {
@@ -143,7 +144,7 @@ fn expand_derive_encode_weak_enum(
 fn expand_derive_encode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let cattr = check_strong_enum_attributes(input, variants)?;
 
@@ -198,7 +199,7 @@ fn expand_derive_encode_strong_enum(
 fn expand_derive_encode_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     check_struct_attributes(input, fields)?;
 

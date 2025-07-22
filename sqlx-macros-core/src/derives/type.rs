@@ -134,7 +134,7 @@ fn expand_derive_has_sql_type_transparent(
 fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let attrs = check_weak_enum_attributes(input, variants)?;
     let repr = attrs.repr.unwrap();
@@ -172,7 +172,7 @@ fn expand_derive_has_sql_type_weak_enum(
 fn expand_derive_has_sql_type_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let attributes = check_strong_enum_attributes(input, variants)?;
 
@@ -235,7 +235,7 @@ fn expand_derive_has_sql_type_strong_enum(
 fn expand_derive_has_sql_type_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let attributes = check_struct_attributes(input, fields)?;
 

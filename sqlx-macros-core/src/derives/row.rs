@@ -1,7 +1,8 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Lifetime, Stmt
+    parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Expr, Field,
+    Fields, FieldsNamed, FieldsUnnamed, Ident, Lifetime, Stmt,
 };
 
 use super::{
@@ -53,7 +54,9 @@ fn expand_derive_from_row_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: ::#crate_name::Row));
+    generics
+        .params
+        .insert(0, parse_quote!(R: ::#crate_name::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -137,7 +140,7 @@ fn expand_derive_from_row_struct(
                 (false, Some(try_from), None) => {
                     predicates
                         .push(parse_quote!(#try_from: ::#crate_name::decode::Decode<#lifetime, R::Database>));
-                    predicates.push(parse_quote!(#try_from: ::#crate_name::types::Type<R::Database>)); 
+                    predicates.push(parse_quote!(#try_from: ::#crate_name::types::Type<R::Database>));
 
                     parse_quote!(
                         __row.try_get(#id_s)
@@ -245,7 +248,7 @@ fn expand_derive_from_row_struct(
 fn expand_derive_from_row_struct_unnamed(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-    crate_name: Ident
+    crate_name: Ident,
 ) -> syn::Result<TokenStream> {
     let ident = &input.ident;
 
@@ -260,7 +263,9 @@ fn expand_derive_from_row_struct_unnamed(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: ::#crate_name::Row));
+    generics
+        .params
+        .insert(0, parse_quote!(R: ::#crate_name::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));

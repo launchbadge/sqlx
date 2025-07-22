@@ -141,7 +141,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
     out_ty: &Type,
     bind_args: &Ident,
     columns: &[RustColumn],
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> TokenStream {
     let instantiations = columns.iter().enumerate().map(
         |(

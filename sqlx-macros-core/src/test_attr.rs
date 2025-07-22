@@ -26,7 +26,11 @@ enum MigrationsOpt {
 
 type AttributeArgs = syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>;
 
-pub fn expand(args: TokenStream, input: syn::ItemFn, crate_name: Ident) -> crate::Result<TokenStream> {
+pub fn expand(
+    args: TokenStream,
+    input: syn::ItemFn,
+    crate_name: Ident,
+) -> crate::Result<TokenStream> {
     let parser = AttributeArgs::parse_terminated;
     let args = parser.parse2(args)?;
 
@@ -76,7 +80,11 @@ fn expand_simple(input: syn::ItemFn, crate_name: Ident) -> TokenStream {
 }
 
 #[cfg(feature = "migrate")]
-fn expand_advanced(args: AttributeArgs, input: syn::ItemFn, crate_name: Ident) -> crate::Result<TokenStream> {
+fn expand_advanced(
+    args: AttributeArgs,
+    input: syn::ItemFn,
+    crate_name: Ident,
+) -> crate::Result<TokenStream> {
     let config = sqlx_core::config::Config::try_from_crate_or_default()?;
 
     let ret = &input.sig.output;
@@ -154,7 +162,8 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn, crate_name: Ident) -
             let resolved_path = crate::common::resolve_path(path, proc_macro2::Span::call_site())?;
 
             if resolved_path.is_dir() {
-                let migrator = crate::migrate::expand_with_path(&config, &resolved_path, &crate_name)?;
+                let migrator =
+                    crate::migrate::expand_with_path(&config, &resolved_path, &crate_name)?;
                 quote! { args.migrator(&#migrator); }
             } else {
                 quote! {}

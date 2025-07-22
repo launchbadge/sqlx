@@ -8,7 +8,8 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Stmt, TypeParamBound, Variant
+    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Ident, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_decode(input: &DeriveInput, crate_name: &Ident) -> syn::Result<TokenStream> {
@@ -49,7 +50,7 @@ pub fn expand_derive_decode(input: &DeriveInput, crate_name: &Ident) -> syn::Res
 fn expand_derive_decode_transparent(
     input: &DeriveInput,
     field: &Field,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     check_transparent_attributes(input, field)?;
 
@@ -142,7 +143,7 @@ fn expand_derive_decode_weak_enum(
 fn expand_derive_decode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     let cattr = check_strong_enum_attributes(input, variants)?;
 
@@ -259,7 +260,7 @@ fn expand_derive_decode_strong_enum(
 fn expand_derive_decode_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> syn::Result<TokenStream> {
     check_struct_attributes(input, fields)?;
 

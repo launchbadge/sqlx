@@ -17,7 +17,7 @@ pub fn quote_args<DB: DatabaseExt>(
     config: &Config,
     warnings: &mut Warnings,
     info: &Describe<DB>,
-    crate_name: &Ident
+    crate_name: &Ident,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
 

@@ -132,7 +132,7 @@ mod tests {
         /// This must be set as `SQLX_NAMESPACE` environment variable to test that
         /// changing the namespace still results in the proc macros behaving well.
         extern crate sqlx as external;
-        
+
         #[derive(Debug, external::Type, external::Encode, external::Decode, external::FromRow)]
         struct Test {}
     }
