@@ -3729,6 +3729,7 @@ version = "0.9.0-alpha.1"
 dependencies = [
  "proc-macro2",
  "quote",
+ "sqlx",
  "sqlx-core",
  "sqlx-macros-core",
  "syn 2.0.96",
