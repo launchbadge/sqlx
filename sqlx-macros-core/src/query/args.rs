@@ -65,7 +65,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
-                        #[allow(clippy::missing_panics_doc, clippy::unreachable)]
+                        #[allow(clippy::missing_panics_doc, clippy::unreachable, unused_mut)]
                         if false {
                             use ::#crate_name::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
