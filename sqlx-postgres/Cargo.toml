@@ -37,7 +37,7 @@ crc = "3.0.0"
 hkdf = "0.12.0"
 hmac = { version = "0.12.0", default-features = false, features = ["reset"]}
 md-5 = { version = "0.10.0", default-features = false }
-rand = { version = "0.8.4", default-features = false, features = ["std", "std_rng"] }
+rand = { version = "0.9.0", default-features = false, features = ["std", "std_rng", "thread_rng"] }
 sha2 = { version = "0.10.0", default-features = false }
 
 # Type Integrations (versions inherited from `[workspace.dependencies]`)
