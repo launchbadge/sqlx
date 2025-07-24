@@ -95,11 +95,6 @@ impl PgLTree {
         Self::default()
     }
 
-    /// creates ltree from a [`Vec<PgLTreeLabel>`]
-    pub fn from(labels: Vec<PgLTreeLabel>) -> Self {
-        Self { labels }
-    }
-
     /// creates ltree from an iterator with checking labels
     // TODO: this should just be removed but I didn't want to bury it in a massive diff
     #[deprecated = "renamed to `try_from_iter()`"]
@@ -135,6 +130,12 @@ impl PgLTree {
     /// pop a label from ltree
     pub fn pop(&mut self) -> Option<PgLTreeLabel> {
         self.labels.pop()
+    }
+}
+
+impl From<Vec<PgLTreeLabel>> for PgLTree {
+    fn from(labels: Vec<PgLTreeLabel>) -> Self {
+        Self { labels }
     }
 }
 
