@@ -221,9 +221,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - env:
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: -D warnings --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
         run: >
           cargo build 
           --no-default-features
@@ -243,9 +241,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
       # Run the `test-attr` test again to cover cleanup.
       - run: >
@@ -256,9 +252,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
       - if: matrix.tls != 'none'
         run: >
@@ -268,9 +262,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
           SQLX_OFFLINE_DIR: .sqlx
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
       # Remove test artifacts
       - run: cargo clean -p sqlx
@@ -284,9 +276,7 @@ jobs:
         env:
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: -D warnings --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
       # Test macros in offline mode (still needs DATABASE_URL to run)
       - run: >
@@ -298,9 +288,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
       # client SSL authentication
 
@@ -316,9 +304,7 @@ jobs:
           --features any,postgres,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt
-          # FIXME: needed to disable `ltree` tests in Postgres 9.6
-          # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}_client_ssl
+          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
   mysql:
     name: MySQL
