@@ -97,7 +97,17 @@ impl<DB: Database> PoolInner<DB> {
         self.mark_closed();
 
         async move {
-            let _permits = self.semaphore.acquire(self.options.max_connections).await;
+            // For child pools, we need to acquire permits we actually have rather than
+            // max_connections
+            let permits_to_acquire = if self.options.parent_pool.is_some() {
+                // Child pools start with 0 permits, so we acquire based on current size
+                self.size()
+            } else {
+                // Parent pools can acquire all max_connections permits
+                self.options.max_connections
+            };
+
+            let _permits = self.semaphore.acquire(permits_to_acquire).await;
 
             while let Some(idle) = self.idle_conns.pop() {
                 let _ = idle.live.raw.close().await;
