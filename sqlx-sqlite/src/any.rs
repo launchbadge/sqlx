@@ -20,6 +20,7 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
 use std::pin::pin;
+use std::sync::Arc;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Sqlite);
 
@@ -217,8 +218,8 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments {
             AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
             AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
             AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
-            AnyValueKind::Text(t) => SqliteArgumentValue::Text(t.to_string()),
-            AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b.to_vec()),
+            AnyValueKind::Text(t) => SqliteArgumentValue::Text(Arc::new(t.to_string())),
+            AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(Arc::new(b.to_vec())),
             // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
             _ => unreachable!("BUG: missing mapping for {val:?}"),
         })

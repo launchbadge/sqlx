@@ -4,6 +4,7 @@ use crate::statement::StatementHandle;
 use crate::Sqlite;
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
+use std::sync::Arc;
 
 pub(crate) use sqlx_core::arguments::*;
 use sqlx_core::error::BoxDynError;
@@ -11,8 +12,9 @@ use sqlx_core::error::BoxDynError;
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue {
     Null,
-    Text(String),
-    Blob(Vec<u8>),
+    Text(Arc<String>),
+    TextSlice(Arc<str>),
+    Blob(Arc<Vec<u8>>),
     Double(f64),
     Int(i32),
     Int64(i64),
@@ -129,6 +131,7 @@ impl SqliteArgumentValue {
 
         let status = match self {
             Text(v) => handle.bind_text(i, v),
+            TextSlice(v) => handle.bind_text(i, v),
             Blob(v) => handle.bind_blob(i, v),
             Int(v) => handle.bind_int(i, *v),
             Int64(v) => handle.bind_int64(i, *v),
