@@ -205,6 +205,7 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     }
 }
 
+// Infallible alternative to AnyArguments::convert_into()
 fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments {
     let values = args
         .values
