@@ -63,7 +63,7 @@ enum Command {
     },
     Execute {
         query: SqlStr,
-        arguments: Option<SqliteArguments<'static>>,
+        arguments: Option<SqliteArguments>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
         limit: Option<usize>,
@@ -353,7 +353,7 @@ impl ConnectionWorker {
     pub(crate) async fn execute(
         &mut self,
         query: SqlStr,
-        args: Option<SqliteArguments<'_>>,
+        args: Option<SqliteArguments>,
         chan_size: usize,
         persistent: bool,
         limit: Option<usize>,
@@ -364,7 +364,7 @@ impl ConnectionWorker {
             .send_async((
                 Command::Execute {
                     query,
-                    arguments: args.map(SqliteArguments::into_static),
+                    arguments: args,
                     persistent,
                     tx,
                     limit,

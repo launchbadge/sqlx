@@ -16,10 +16,7 @@ impl Type<Sqlite> for u8 {
 }
 
 impl<'q> Encode<'q, Sqlite> for u8 {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Int(*self as i32));
 
         Ok(IsNull::No)
@@ -47,10 +44,7 @@ impl Type<Sqlite> for u16 {
 }
 
 impl<'q> Encode<'q, Sqlite> for u16 {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Int(*self as i32));
 
         Ok(IsNull::No)
@@ -74,10 +68,7 @@ impl Type<Sqlite> for u32 {
 }
 
 impl<'q> Encode<'q, Sqlite> for u32 {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Int64(*self as i64));
 
         Ok(IsNull::No)
