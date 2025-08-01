@@ -1,3 +1,4 @@
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -20,7 +21,7 @@ impl Type<Sqlite> for Uuid {
 }
 
 impl Encode<'_, Sqlite> for Uuid {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.as_bytes().to_vec()));
 
         Ok(IsNull::No)
@@ -41,7 +42,7 @@ impl Type<Sqlite> for Hyphenated {
 }
 
 impl Encode<'_, Sqlite> for Hyphenated {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(self.to_string()));
 
         Ok(IsNull::No)
@@ -64,7 +65,7 @@ impl Type<Sqlite> for Simple {
 }
 
 impl Encode<'_, Sqlite> for Simple {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Text(self.to_string()));
 
         Ok(IsNull::No)

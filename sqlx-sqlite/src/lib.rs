@@ -74,7 +74,7 @@ extern crate sqlx_core;
 
 use std::sync::atomic::AtomicBool;
 
-pub use arguments::{SqliteArgumentValue, SqliteArguments};
+pub use arguments::{SqliteArgumentValue, SqliteArguments, SqliteArgumentsBuffer};
 pub use column::SqliteColumn;
 #[cfg(feature = "deserialize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "deserialize")))]

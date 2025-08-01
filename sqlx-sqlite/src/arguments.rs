@@ -20,22 +20,25 @@ pub enum SqliteArgumentValue {
 
 #[derive(Default, Debug, Clone)]
 pub struct SqliteArguments {
-    pub(crate) values: Vec<SqliteArgumentValue>,
+    pub(crate) values: SqliteArgumentsBuffer,
 }
+
+#[derive(Default, Debug, Clone)]
+pub struct SqliteArgumentsBuffer(Vec<SqliteArgumentValue>);
 
 impl<'q> SqliteArguments {
     pub(crate) fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Sqlite>,
     {
-        let value_length_before_encoding = self.values.len();
+        let value_length_before_encoding = self.values.0.len();
 
         match value.encode(&mut self.values) {
-            Ok(IsNull::Yes) => self.values.push(SqliteArgumentValue::Null),
+            Ok(IsNull::Yes) => self.values.0.push(SqliteArgumentValue::Null),
             Ok(IsNull::No) => {}
             Err(error) => {
                 // reset the value buffer to its previous value if encoding failed so we don't leave a half-encoded value behind
-                self.values.truncate(value_length_before_encoding);
+                self.values.0.truncate(value_length_before_encoding);
                 return Err(error);
             }
         };
@@ -48,7 +51,7 @@ impl<'q> Arguments<'q> for SqliteArguments {
     type Database = Sqlite;
 
     fn reserve(&mut self, len: usize, _size_hint: usize) {
-        self.values.reserve(len);
+        self.values.0.reserve(len);
     }
 
     fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
@@ -59,7 +62,7 @@ impl<'q> Arguments<'q> for SqliteArguments {
     }
 
     fn len(&self) -> usize {
-        self.values.len()
+        self.values.0.len()
     }
 }
 
@@ -92,7 +95,7 @@ impl SqliteArguments {
                 arg_i
             };
 
-            if n > self.values.len() {
+            if n > self.values.0.len() {
                 // SQLite treats unbound variables as NULL
                 // we reproduce this here
                 // If you are reading this and think this should be an error, open an issue and we can
@@ -102,10 +105,21 @@ impl SqliteArguments {
                 break;
             }
 
-            self.values[n - 1].bind(handle, param_i)?;
+            self.values.0[n - 1].bind(handle, param_i)?;
         }
 
         Ok(arg_i - offset)
+    }
+}
+
+impl SqliteArgumentsBuffer {
+    #[allow(dead_code)] // clippy incorrectly reports this as unused
+    pub(crate) fn new(values: Vec<SqliteArgumentValue>) -> SqliteArgumentsBuffer {
+        Self(values)
+    }
+
+    pub(crate) fn push(&mut self, value: SqliteArgumentValue) {
+        self.0.push(value);
     }
 }
 

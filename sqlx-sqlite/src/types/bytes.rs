@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -20,7 +21,7 @@ impl Type<Sqlite> for [u8] {
 }
 
 impl Encode<'_, Sqlite> for &'_ [u8] {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.to_vec()));
 
         Ok(IsNull::No)
@@ -34,13 +35,13 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
 }
 
 impl Encode<'_, Sqlite> for Box<[u8]> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.into_vec()));
 
         Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.clone().into_vec()));
 
         Ok(IsNull::No)
@@ -58,13 +59,13 @@ impl Type<Sqlite> for Vec<u8> {
 }
 
 impl Encode<'_, Sqlite> for Vec<u8> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self));
 
         Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.clone()));
 
         Ok(IsNull::No)
@@ -78,13 +79,13 @@ impl<'r> Decode<'r, Sqlite> for Vec<u8> {
 }
 
 impl Encode<'_, Sqlite> for Cow<'_, [u8]> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.to_vec()));
 
         Ok(IsNull::No)
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.to_vec()));
 
         Ok(IsNull::No)
@@ -92,13 +93,13 @@ impl Encode<'_, Sqlite> for Cow<'_, [u8]> {
 }
 
 impl Encode<'_, Sqlite> for Arc<[u8]> {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }
 
 impl Encode<'_, Sqlite> for Rc<[u8]> {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }
