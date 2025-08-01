@@ -45,7 +45,7 @@ impl Statement for SqliteStatement {
         &self.columns
     }
 
-    impl_statement_query!(SqliteArguments<'_>);
+    impl_statement_query!(SqliteArguments);
 }
 
 impl ColumnIndex<SqliteStatement> for &'_ str {
