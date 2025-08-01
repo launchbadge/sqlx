@@ -12,6 +12,7 @@ use sqlx_core::any::{
 };
 use sqlx_core::sql_str::SqlStr;
 
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::type_info::DataType;
 use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::database::Database;
@@ -204,25 +205,27 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
 }
 
 fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments {
+    let values = args
+        .values
+        .0
+        .into_iter()
+        .map(|val| match val {
+            AnyValueKind::Null(_) => SqliteArgumentValue::Null,
+            AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
+            AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
+            AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
+            AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
+            AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
+            AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
+            AnyValueKind::Text(t) => SqliteArgumentValue::Text(t.to_string()),
+            AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b.to_vec()),
+            // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
+            _ => unreachable!("BUG: missing mapping for {val:?}"),
+        })
+        .collect();
+
     SqliteArguments {
-        values: args
-            .values
-            .0
-            .into_iter()
-            .map(|val| match val {
-                AnyValueKind::Null(_) => SqliteArgumentValue::Null,
-                AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
-                AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
-                AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
-                AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
-                AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
-                AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
-                AnyValueKind::Text(t) => SqliteArgumentValue::Text(t.to_string()),
-                AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b.to_vec()),
-                // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
-                _ => unreachable!("BUG: missing mapping for {val:?}"),
-            })
-            .collect(),
+        values: SqliteArgumentsBuffer::new(values),
     }
 }
 
