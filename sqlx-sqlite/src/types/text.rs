@@ -16,7 +16,7 @@ impl<T> Type<Sqlite> for Text<T> {
     }
 }
 
-impl<'q, T> Encode<'q, Sqlite> for Text<T>
+impl<T> Encode<'_, Sqlite> for Text<T>
 where
     T: Display,
 {

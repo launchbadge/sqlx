@@ -19,7 +19,7 @@ impl Type<Sqlite> for [u8] {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for &'q [u8] {
+impl Encode<'_, Sqlite> for &'_ [u8] {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.to_vec()));
 
@@ -57,7 +57,7 @@ impl Type<Sqlite> for Vec<u8> {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Vec<u8> {
+impl Encode<'_, Sqlite> for Vec<u8> {
     fn encode(self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self));
 
@@ -77,7 +77,7 @@ impl<'r> Decode<'r, Sqlite> for Vec<u8> {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
+impl Encode<'_, Sqlite> for Cow<'_, [u8]> {
     fn encode(self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Blob(self.to_vec()));
 
@@ -91,13 +91,13 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, [u8]> {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Arc<[u8]> {
+impl Encode<'_, Sqlite> for Arc<[u8]> {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Rc<[u8]> {
+impl Encode<'_, Sqlite> for Rc<[u8]> {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         <Vec<u8> as Encode<'_, Sqlite>>::encode(self.to_vec(), args)
     }
