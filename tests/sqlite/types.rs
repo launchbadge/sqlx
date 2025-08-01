@@ -1,7 +1,7 @@
 extern crate time_ as time;
 
 use sqlx::sqlite::{Sqlite, SqliteRow};
-use sqlx::{FromRow, Type};
+use sqlx::Type;
 use sqlx_core::executor::Executor;
 use sqlx_core::row::Row;
 use sqlx_core::types::Text;
@@ -172,19 +172,6 @@ mod bstr {
     test_type!(bstring<BString>(Sqlite,
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
         "x'0001020304'" == BString::from(&b"\x00\x01\x02\x03\x04"[..])
-    ));
-}
-
-#[cfg(feature = "git2")]
-mod git2 {
-    use super::*;
-    use sqlx::types::git2::Oid;
-
-    test_type!(oid<Oid>(
-        Sqlite,
-        "x'0000000000000000000000000000000000000000'" == Oid::zero(),
-        "x'000102030405060708090a0b0c0d0e0f10111213'"
-            == Oid::from_str("000102030405060708090a0b0c0d0e0f10111213").unwrap()
     ));
 }
 
