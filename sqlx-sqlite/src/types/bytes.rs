@@ -22,7 +22,7 @@ impl Type<Sqlite> for [u8] {
 
 impl Encode<'_, Sqlite> for &'_ [u8] {
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.to_vec()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.to_vec())));
 
         Ok(IsNull::No)
     }
@@ -36,13 +36,13 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
 
 impl Encode<'_, Sqlite> for Box<[u8]> {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.into_vec()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.into_vec())));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.clone().into_vec()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.clone().into_vec())));
 
         Ok(IsNull::No)
     }
@@ -60,13 +60,13 @@ impl Type<Sqlite> for Vec<u8> {
 
 impl Encode<'_, Sqlite> for Vec<u8> {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self)));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.clone()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.clone())));
 
         Ok(IsNull::No)
     }
@@ -80,13 +80,13 @@ impl<'r> Decode<'r, Sqlite> for Vec<u8> {
 
 impl Encode<'_, Sqlite> for Cow<'_, [u8]> {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.to_vec()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.into())));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(self.to_vec()));
+        args.push(SqliteArgumentValue::Blob(Arc::new(self.to_vec())));
 
         Ok(IsNull::No)
     }

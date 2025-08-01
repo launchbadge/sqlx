@@ -18,7 +18,7 @@ impl Type<Sqlite> for str {
 
 impl Encode<'_, Sqlite> for &'_ str {
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.to_string()));
+        args.push(SqliteArgumentValue::Text(Arc::new(self.to_string())));
 
         Ok(IsNull::No)
     }
@@ -32,13 +32,13 @@ impl<'r> Decode<'r, Sqlite> for &'r str {
 
 impl Encode<'_, Sqlite> for Box<str> {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.into_string()));
+        args.push(SqliteArgumentValue::Text(Arc::new(String::from(self))));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.to_string()));
+        args.push(SqliteArgumentValue::Text(Arc::new(self.to_string())));
 
         Ok(IsNull::No)
     }
@@ -52,13 +52,13 @@ impl Type<Sqlite> for String {
 
 impl Encode<'_, Sqlite> for String {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self));
+        args.push(SqliteArgumentValue::Text(Arc::new(self)));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.clone()));
+        args.push(SqliteArgumentValue::Text(Arc::new(self.clone())));
 
         Ok(IsNull::No)
     }
@@ -72,13 +72,13 @@ impl<'r> Decode<'r, Sqlite> for String {
 
 impl Encode<'_, Sqlite> for Cow<'_, str> {
     fn encode(self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.into()));
+        args.push(SqliteArgumentValue::Text(Arc::new(self.into())));
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(self.to_string()));
+        args.push(SqliteArgumentValue::Text(Arc::new(self.to_string())));
 
         Ok(IsNull::No)
     }
