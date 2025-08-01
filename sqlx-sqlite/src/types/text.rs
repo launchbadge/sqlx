@@ -16,11 +16,11 @@ impl<T> Type<Sqlite> for Text<T> {
     }
 }
 
-impl<'q, T> Encode<'q, Sqlite> for Text<T>
+impl<T> Encode<'_, Sqlite> for Text<T>
 where
     T: Display,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.0.to_string(), buf)
     }
 }

@@ -15,11 +15,8 @@ impl Type<Sqlite> for bool {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for bool {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
+impl Encode<'_, Sqlite> for bool {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue>) -> Result<IsNull, BoxDynError> {
         args.push(SqliteArgumentValue::Int((*self).into()));
 
         Ok(IsNull::No)

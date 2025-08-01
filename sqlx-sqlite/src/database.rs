@@ -26,8 +26,8 @@ impl Database for Sqlite {
     type Value = SqliteValue;
     type ValueRef<'r> = SqliteValueRef<'r>;
 
-    type Arguments<'q> = SqliteArguments<'q>;
-    type ArgumentBuffer<'q> = Vec<SqliteArgumentValue<'q>>;
+    type Arguments<'q> = SqliteArguments;
+    type ArgumentBuffer<'q> = Vec<SqliteArgumentValue>;
 
     type Statement = SqliteStatement;
 

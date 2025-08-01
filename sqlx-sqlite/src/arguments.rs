@@ -4,27 +4,26 @@ use crate::statement::StatementHandle;
 use crate::Sqlite;
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
-use std::borrow::Cow;
 
 pub(crate) use sqlx_core::arguments::*;
 use sqlx_core::error::BoxDynError;
 
 #[derive(Debug, Clone)]
-pub enum SqliteArgumentValue<'q> {
+pub enum SqliteArgumentValue {
     Null,
-    Text(Cow<'q, str>),
-    Blob(Cow<'q, [u8]>),
+    Text(String),
+    Blob(Vec<u8>),
     Double(f64),
     Int(i32),
     Int64(i64),
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct SqliteArguments<'q> {
-    pub(crate) values: Vec<SqliteArgumentValue<'q>>,
+pub struct SqliteArguments {
+    pub(crate) values: Vec<SqliteArgumentValue>,
 }
 
-impl<'q> SqliteArguments<'q> {
+impl<'q> SqliteArguments {
     pub(crate) fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
         T: Encode<'q, Sqlite>,
@@ -43,19 +42,9 @@ impl<'q> SqliteArguments<'q> {
 
         Ok(())
     }
-
-    pub(crate) fn into_static(self) -> SqliteArguments<'static> {
-        SqliteArguments {
-            values: self
-                .values
-                .into_iter()
-                .map(SqliteArgumentValue::into_static)
-                .collect(),
-        }
-    }
 }
 
-impl<'q> Arguments<'q> for SqliteArguments<'q> {
+impl<'q> Arguments<'q> for SqliteArguments {
     type Database = Sqlite;
 
     fn reserve(&mut self, len: usize, _size_hint: usize) {
@@ -74,7 +63,7 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
     }
 }
 
-impl SqliteArguments<'_> {
+impl SqliteArguments {
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
         let mut arg_i = offset;
         // for handle in &statement.handles {
@@ -120,20 +109,7 @@ impl SqliteArguments<'_> {
     }
 }
 
-impl SqliteArgumentValue<'_> {
-    fn into_static(self) -> SqliteArgumentValue<'static> {
-        use SqliteArgumentValue::*;
-
-        match self {
-            Null => Null,
-            Text(text) => Text(text.into_owned().into()),
-            Blob(blob) => Blob(blob.into_owned().into()),
-            Int(v) => Int(v),
-            Int64(v) => Int64(v),
-            Double(v) => Double(v),
-        }
-    }
-
+impl SqliteArgumentValue {
     fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
         use SqliteArgumentValue::*;
 

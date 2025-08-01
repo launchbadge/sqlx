@@ -203,8 +203,7 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     }
 }
 
-/// Instead of `AnyArguments::convert_into()`, we can do a direct mapping and preserve the lifetime.
-fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
+fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments {
     SqliteArguments {
         values: args
             .values
@@ -218,8 +217,8 @@ fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
                 AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
                 AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
                 AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
-                AnyValueKind::Text(t) => SqliteArgumentValue::Text(t),
-                AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b),
+                AnyValueKind::Text(t) => SqliteArgumentValue::Text(t.to_string()),
+                AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b.to_vec()),
                 // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
                 _ => unreachable!("BUG: missing mapping for {val:?}"),
             })
