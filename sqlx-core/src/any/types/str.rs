@@ -16,7 +16,7 @@ impl Type<Any> for str {
 }
 
 impl<'a> Encode<'a, Any> for &'a str {
-    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer<'a>) -> Result<IsNull, BoxDynError>
+    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer) -> Result<IsNull, BoxDynError>
     where
         Self: Sized,
     {
@@ -26,7 +26,7 @@ impl<'a> Encode<'a, Any> for &'a str {
 
     fn encode_by_ref(
         &self,
-        buf: &mut <Any as Database>::ArgumentBuffer<'a>,
+        buf: &mut <Any as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         (*self).encode(buf)
     }
@@ -47,18 +47,15 @@ impl Type<Any> for String {
     }
 }
 
-impl<'q> Encode<'q, Any> for String {
-    fn encode(
-        self,
-        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
-    ) -> Result<IsNull, BoxDynError> {
+impl Encode<'_, Any> for String {
+    fn encode(self, buf: &mut <Any as Database>::ArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Text(Arc::new(self)));
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(
         &self,
-        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+        buf: &mut <Any as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Text(Arc::new(self.clone())));
         Ok(IsNull::No)
