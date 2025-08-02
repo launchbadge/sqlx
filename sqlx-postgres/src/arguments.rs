@@ -138,7 +138,7 @@ impl PgArguments {
     }
 }
 
-impl<'q> Arguments<'q> for PgArguments {
+impl Arguments for PgArguments {
     type Database = Postgres;
 
     fn reserve(&mut self, additional: usize, size: usize) {
@@ -146,9 +146,9 @@ impl<'q> Arguments<'q> for PgArguments {
         self.buffer.reserve(size);
     }
 
-    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
+    fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'q, Self::Database> + Type<Self::Database>,
+        T: Encode<'t, Self::Database> + Type<Self::Database>,
     {
         self.add(value)
     }

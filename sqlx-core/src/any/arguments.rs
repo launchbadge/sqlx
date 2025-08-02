@@ -12,16 +12,16 @@ pub struct AnyArguments {
     pub values: AnyArgumentBuffer,
 }
 
-impl<'q> Arguments<'q> for AnyArguments {
+impl Arguments for AnyArguments {
     type Database = Any;
 
     fn reserve(&mut self, additional: usize, _size: usize) {
         self.values.0.reserve(additional);
     }
 
-    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
+    fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>,
+        T: Encode<'t, Self::Database> + Type<Self::Database>,
     {
         let _: IsNull = value.encode(&mut self.values)?;
         Ok(())
@@ -37,7 +37,7 @@ pub struct AnyArgumentBuffer(#[doc(hidden)] pub Vec<AnyValueKind>);
 
 impl AnyArguments {
     #[doc(hidden)]
-    pub fn convert_into<'a, A: Arguments<'a>>(self) -> Result<A, BoxDynError>
+    pub fn convert_into<'a, A: Arguments>(self) -> Result<A, BoxDynError>
     where
         Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
         Option<bool>: Type<A::Database> + Encode<'a, A::Database>,
