@@ -13,8 +13,8 @@ impl Type<Any> for f32 {
     }
 }
 
-impl<'q> Encode<'q, Any> for f32 {
-    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> Result<IsNull, BoxDynError> {
+impl Encode<'_, Any> for f32 {
+    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Real(*self));
         Ok(IsNull::No)
     }
@@ -23,7 +23,7 @@ impl<'q> Encode<'q, Any> for f32 {
 impl<'r> Decode<'r, Any> for f32 {
     fn decode(value: AnyValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.kind {
-            AnyValueKind::Real(r) => Ok(r),
+            AnyValueKind::Real(r) => Ok(*r),
             other => other.unexpected(),
         }
     }
@@ -51,8 +51,8 @@ impl<'r> Decode<'r, Any> for f64 {
     fn decode(value: <Any as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.kind {
             // Widening is safe
-            AnyValueKind::Real(r) => Ok(r as f64),
-            AnyValueKind::Double(d) => Ok(d),
+            AnyValueKind::Real(r) => Ok(*r as f64),
+            AnyValueKind::Double(d) => Ok(*d),
             other => other.unexpected(),
         }
     }
