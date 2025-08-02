@@ -166,7 +166,7 @@ where
 {
     fn encode_by_ref(
         &self,
-        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+        buf: &mut <DB as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }

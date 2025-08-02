@@ -2142,6 +2142,8 @@ create temporary table person(
     assert_eq!(people, p_query);
     Ok(())
 }
+
+#[allow(unused)]
 async fn test_pg_copy_chunked() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
