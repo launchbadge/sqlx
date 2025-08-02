@@ -4,7 +4,7 @@ use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::IntoArguments;
 use crate::database::{Database, HasStatementCache};
-use crate::encode::Encode;
+use crate::encode_owned::IntoEncode;
 use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
@@ -49,7 +49,7 @@ impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as Database>::Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + IntoEncode<DB> + Type<DB>>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }

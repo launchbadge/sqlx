@@ -33,6 +33,8 @@ impl Encode<'_, Postgres> for NaiveTime {
     }
 }
 
+impl_into_encode_for_db!(Postgres, NaiveTime);
+
 impl<'r> Decode<'r, Postgres> for NaiveTime {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {

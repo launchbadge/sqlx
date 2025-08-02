@@ -2,6 +2,7 @@ use crate::any::value::AnyValueKind;
 use crate::any::{Any, AnyTypeInfoKind};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
+use crate::encode_owned::IntoEncode;
 use crate::error::BoxDynError;
 use crate::types::Type;
 use std::sync::Arc;
@@ -21,9 +22,9 @@ impl Arguments for AnyArguments {
 
     fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'t, Self::Database> + Type<Self::Database>,
+        T: IntoEncode<Self::Database> + Type<Self::Database>,
     {
-        let _: IsNull = value.encode(&mut self.values)?;
+        let _: IsNull = value.into_encode().encode(&mut self.values)?;
         Ok(())
     }
 
@@ -37,26 +38,28 @@ pub struct AnyArgumentBuffer(#[doc(hidden)] pub Vec<AnyValueKind>);
 
 impl AnyArguments {
     #[doc(hidden)]
-    pub fn convert_into<'a, A: Arguments>(self) -> Result<A, BoxDynError>
+    pub fn convert_into<A: Arguments>(self) -> Result<A, BoxDynError>
     where
-        Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<bool>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<i16>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<i64>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<f32>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<f64>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<String>: Type<A::Database> + Encode<'a, A::Database>,
-        Option<Vec<u8>>: Type<A::Database> + Encode<'a, A::Database>,
-        bool: Type<A::Database> + Encode<'a, A::Database>,
-        i16: Type<A::Database> + Encode<'a, A::Database>,
-        i32: Type<A::Database> + Encode<'a, A::Database>,
-        i64: Type<A::Database> + Encode<'a, A::Database>,
-        f32: Type<A::Database> + Encode<'a, A::Database>,
-        f64: Type<A::Database> + Encode<'a, A::Database>,
-        Arc<String>: Type<A::Database> + Encode<'a, A::Database>,
-        Arc<str>: Type<A::Database> + Encode<'a, A::Database>,
-        Arc<Vec<u8>>: Type<A::Database> + Encode<'a, A::Database>,
+        Option<i32>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<bool>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<i16>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<i32>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<i64>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<f32>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<f64>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<String>: IntoEncode<A::Database> + Type<A::Database>,
+        Option<Vec<u8>>: IntoEncode<A::Database> + Type<A::Database>,
+        bool: IntoEncode<A::Database> + Type<A::Database>,
+        i16: IntoEncode<A::Database> + Type<A::Database>,
+        i32: IntoEncode<A::Database> + Type<A::Database>,
+        i64: IntoEncode<A::Database> + Type<A::Database>,
+        f32: IntoEncode<A::Database> + Type<A::Database>,
+        f64: IntoEncode<A::Database> + Type<A::Database>,
+        String: IntoEncode<A::Database> + Type<A::Database>,
+        Vec<u8>: IntoEncode<A::Database> + Type<A::Database>,
+        Arc<String>: IntoEncode<A::Database> + Type<A::Database>,
+        Arc<str>: IntoEncode<A::Database> + Type<A::Database>,
+        Arc<Vec<u8>>: IntoEncode<A::Database> + Type<A::Database>,
     {
         let mut out = A::default();
 

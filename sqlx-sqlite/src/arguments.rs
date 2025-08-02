@@ -7,7 +7,9 @@ use libsqlite3_sys::SQLITE_OK;
 use std::sync::Arc;
 
 pub(crate) use sqlx_core::arguments::*;
+use sqlx_core::encode_owned::IntoEncode;
 use sqlx_core::error::BoxDynError;
+use sqlx_core::types::Type;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue {
@@ -58,9 +60,9 @@ impl Arguments for SqliteArguments {
 
     fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'t, Self::Database>,
+        T: IntoEncode<Self::Database> + Type<Self::Database>,
     {
-        self.add(value)
+        self.add(value.into_encode())
     }
 
     fn len(&self) -> usize {

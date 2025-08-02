@@ -29,6 +29,8 @@ impl Encode<'_, MySql> for DateTime<Utc> {
     }
 }
 
+impl_into_encode_for_db!(MySql, DateTime<Utc>);
+
 /// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl<'r> Decode<'r, MySql> for DateTime<Utc> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
@@ -89,6 +91,8 @@ impl Encode<'_, MySql> for NaiveTime {
         naive_time_encoded_len(self) as usize + 1 // plus length byte
     }
 }
+
+impl_into_encode_for_db!(MySql, NaiveTime);
 
 /// Decode from a `TIME` value.
 ///
@@ -181,6 +185,8 @@ impl Encode<'_, MySql> for NaiveDate {
     }
 }
 
+impl_into_encode_for_db!(MySql, NaiveDate);
+
 impl<'r> Decode<'r, MySql> for NaiveDate {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
@@ -227,6 +233,8 @@ impl Encode<'_, MySql> for NaiveDateTime {
         naive_dt_encoded_len(self) as usize + 1 // plus length byte
     }
 }
+
+impl_into_encode_for_db!(MySql, NaiveDateTime);
 
 impl<'r> Decode<'r, MySql> for NaiveDateTime {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {

@@ -83,3 +83,6 @@ impl Decode<'_, Sqlite> for Simple {
         Ok(uuid?.simple())
     }
 }
+
+impl_into_encode_for_db!(Sqlite, Hyphenated);
+impl_into_encode_for_db!(Sqlite, Simple);

@@ -33,6 +33,8 @@ impl Encode<'_, Postgres> for MacAddress {
     }
 }
 
+impl_into_encode_for_db!(Postgres, MacAddress);
+
 impl Decode<'_, Postgres> for MacAddress {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = match value.format() {

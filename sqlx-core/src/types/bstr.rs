@@ -3,6 +3,7 @@ use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
+use crate::impl_into_encode;
 use crate::types::Type;
 
 #[doc(no_inline)]
@@ -57,3 +58,5 @@ where
         <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
     }
 }
+
+impl_into_encode!(BString);

@@ -172,9 +172,9 @@ impl_encode_for_smartpointer!(Arc<T>);
 impl_encode_for_smartpointer!(Box<T>);
 impl_encode_for_smartpointer!(Rc<T>);
 
-impl<'q, T, DB: Database> Encode<'q, DB> for Cow<'q, T>
+impl<T, DB: Database> Encode<'_, DB> for Cow<'_, T>
 where
-    T: Encode<'q, DB>,
+    T: for<'e> Encode<'e, DB>,
     T: ToOwned,
 {
     #[inline]
@@ -213,4 +213,13 @@ macro_rules! forward_encode_impl {
             }
         }
     };
+}
+
+impl<'q, DB: Database> Encode<'q, DB> for Box<dyn Encode<'q, DB>> {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer,
+    ) -> Result<IsNull, BoxDynError> {
+        self.as_ref().encode_by_ref(buf)
+    }
 }

@@ -193,6 +193,8 @@ impl Encode<'_, Postgres> for BigDecimal {
     }
 }
 
+impl_into_encode_for_db!(Postgres, BigDecimal);
+
 /// ### Note: `NaN`
 /// `BigDecimal` has a greater range than `NUMERIC` (see the corresponding `Encode` impl for details)
 /// but cannot represent `NaN`, so decoding may return an error.

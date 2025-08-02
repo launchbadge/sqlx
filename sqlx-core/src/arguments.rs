@@ -1,7 +1,7 @@
 //! Types and traits for passing arguments to SQL queries.
 
 use crate::database::Database;
-use crate::encode::Encode;
+use crate::encode_owned::IntoEncode;
 use crate::error::BoxDynError;
 use crate::types::Type;
 use std::fmt::{self, Write};
@@ -17,9 +17,9 @@ pub trait Arguments: Send + Sized + Default {
     fn reserve(&mut self, additional: usize, size: usize);
 
     /// Add the value to the end of the arguments.
-    fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'t, Self::Database> + Type<Self::Database>;
+        T: IntoEncode<Self::Database> + Type<Self::Database>;
 
     /// The number of arguments that were already added.
     fn len(&self) -> usize;

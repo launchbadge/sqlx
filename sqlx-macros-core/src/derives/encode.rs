@@ -217,6 +217,9 @@ fn expand_derive_encode_struct(
             ]);
         }
 
+        let generics2 = generics.clone();
+        let (impl_generics_2, _, _) = generics2.split_for_impl();
+
         generics.params.push(parse_quote!('q));
 
         let (impl_generics, _, _) = generics.split_for_impl();
@@ -259,6 +262,27 @@ fn expand_derive_encode_struct(
                 fn size_hint(&self) -> ::std::primitive::usize {
                     #column_count * (4 + 4) // oid (int) and length (int) for each column
                         + #(#sizes)+* // sum of the size hints for each column
+                }
+            }
+        ));
+
+        tts.extend(quote!(
+            #[automatically_derived]
+            impl #impl_generics_2 ::sqlx::encode_owned::IntoEncode<::sqlx::Postgres> for #ident #ty_generics
+            where
+                #ident: for<'e> ::sqlx::encode::Encode<'e, ::sqlx::Postgres>,
+                Self: std::fmt::Debug + Send + Sync + 'static,
+                Self: ::sqlx::types::Type<::sqlx::Postgres>,
+            {
+                fn into_encode<'s>(self) -> impl ::sqlx::encode::Encode<'s, ::sqlx::Postgres> + ::sqlx::types::Type<::sqlx::Postgres> + 's
+                where
+                    Self: 's,
+                {
+                    self
+                }
+
+                fn into_encode_owned(self) -> impl ::sqlx::encode_owned::EncodeOwned<::sqlx::Postgres> + 'static {
+                    ::sqlx::encode_owned::EncodeClone::from(self)
                 }
             }
         ));

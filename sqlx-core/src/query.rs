@@ -6,7 +6,7 @@ use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasStatementCache};
-use crate::encode::Encode;
+use crate::encode_owned::IntoEncode;
 use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::sql_str::{SqlSafeStr, SqlStr};
@@ -73,7 +73,7 @@ where
     }
 }
 
-impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments> {
+impl<DB: Database> Query<'_, DB, <DB as Database>::Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that
@@ -84,7 +84,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments> {
     /// flavors will perform type coercion (Postgres will return a database error).
     ///
     /// If encoding the value fails, the error is stored and later surfaced when executing the query.
-    pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
+    pub fn bind<T: IntoEncode<DB> + Type<DB>>(mut self, value: T) -> Self {
         let Ok(arguments) = self.get_arguments() else {
             return self;
         };
@@ -101,7 +101,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments> {
     }
 
     /// Like [`Query::try_bind`] but immediately returns an error if encoding the value failed.
-    pub fn try_bind<T: 'q + Encode<'q, DB> + Type<DB>>(
+    pub fn try_bind<'t, T: 't + IntoEncode<DB> + Type<DB>>(
         &mut self,
         value: T,
     ) -> Result<(), BoxDynError> {

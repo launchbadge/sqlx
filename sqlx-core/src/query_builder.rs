@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::Database;
-use crate::encode::Encode;
+use crate::encode_owned::IntoEncode;
 use crate::from_row::FromRow;
 use crate::query::Query;
 use crate::query_as::QueryAs;
@@ -152,9 +152,9 @@ where
     ///
     /// [`SQLITE_LIMIT_VARIABLE_NUMBER`]: https://www.sqlite.org/limits.html#max_variable_number
     /// [postgres-limit-issue]: https://github.com/launchbadge/sqlx/issues/671#issuecomment-687043510
-    pub fn push_bind<'t, T>(&mut self, value: T) -> &mut Self
+    pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: Encode<'t, DB> + Type<DB>,
+        T: IntoEncode<DB> + Type<DB>,
     {
         self.sanity_check();
 
@@ -165,6 +165,7 @@ where
         arguments.add(value).expect("Failed to add argument");
 
         let query: &mut String = Arc::get_mut(&mut self.query).expect(ERROR);
+
         arguments
             .format_placeholder(query)
             .expect("error in format_placeholder");
@@ -586,9 +587,9 @@ where
     /// Push the separator if applicable, then append a bind argument.
     ///
     /// See [`QueryBuilder::push_bind()`] for details.
-    pub fn push_bind<'t, T>(&mut self, value: T) -> &mut Self
+    pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: Encode<'t, DB> + Type<DB>,
+        T: IntoEncode<DB> + Type<DB>,
     {
         if self.push_separator {
             self.query_builder.push(&self.separator);
@@ -604,9 +605,9 @@ where
     /// without a separator.
     ///
     /// Simply calls [`QueryBuilder::push_bind()`] directly.
-    pub fn push_bind_unseparated<'t, T>(&mut self, value: T) -> &mut Self
+    pub fn push_bind_unseparated<T>(&mut self, value: T) -> &mut Self
     where
-        T: Encode<'t, DB> + Type<DB>,
+        T: IntoEncode<DB> + Type<DB>,
     {
         self.query_builder.push_bind(value);
         self

@@ -1,15 +1,15 @@
-use std::fmt::{self, Write};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
-
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::types::Type;
 use crate::{PgConnection, PgTypeInfo, Postgres};
+use std::fmt::{self, Write};
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 use crate::type_info::PgArrayOf;
 pub(crate) use sqlx_core::arguments::Arguments;
+use sqlx_core::encode_owned::IntoEncode;
 use sqlx_core::error::BoxDynError;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
@@ -148,9 +148,9 @@ impl Arguments for PgArguments {
 
     fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'t, Self::Database> + Type<Self::Database>,
+        T: IntoEncode<Self::Database> + Type<Self::Database>,
     {
-        self.add(value)
+        self.add(value.into_encode())
     }
 
     fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {

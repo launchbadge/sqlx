@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,9 @@ pub use serde_json::Value as JsonValue;
 use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
+use crate::encode_owned::{EncodeClone, EncodeOwned, IntoEncode};
 use crate::error::BoxDynError;
+use crate::impl_into_encode;
 use crate::types::Type;
 
 /// Json for json and jsonb fields
@@ -172,6 +175,25 @@ where
     }
 }
 
+impl<DB, T> IntoEncode<DB> for Json<T>
+where
+    DB: Database,
+    Self: for<'e> Encode<'e, DB>,
+    Self: Debug + Send + Sync + 'static,
+    Self: Type<DB>,
+{
+    fn into_encode<'s>(self) -> impl Encode<'s, DB> + Type<DB> + 's
+    where
+        Self: 's,
+    {
+        self
+    }
+
+    fn into_encode_owned(self) -> impl EncodeOwned<DB> + 'static {
+        EncodeClone::from(self)
+    }
+}
+
 impl<'r, DB> Decode<'r, DB> for JsonValue
 where
     Json<Self>: Decode<'r, DB>,
@@ -207,3 +229,5 @@ where
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }
+
+impl_into_encode!(JsonValue);

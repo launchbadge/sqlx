@@ -1,9 +1,11 @@
+use std::ops::Deref;
+
 use crate::encode::{Encode, IsNull};
 use crate::types::Type;
 use crate::{MySql, MySqlTypeInfo};
 pub(crate) use sqlx_core::arguments::*;
+use sqlx_core::encode_owned::IntoEncode;
 use sqlx_core::error::BoxDynError;
-use std::ops::Deref;
 
 /// Implementation of [`Arguments`] for MySQL.
 #[derive(Debug, Default, Clone)]
@@ -45,11 +47,11 @@ impl Arguments for MySqlArguments {
         self.values.reserve(size);
     }
 
-    fn add<'t, T>(&mut self, value: T) -> Result<(), BoxDynError>
+    fn add<T>(&mut self, value: T) -> Result<(), BoxDynError>
     where
-        T: Encode<'t, Self::Database> + Type<Self::Database>,
+        T: IntoEncode<Self::Database> + Type<Self::Database>,
     {
-        self.add(value)
+        MySqlArguments::add(self, value.into_encode())
     }
 
     fn len(&self) -> usize {

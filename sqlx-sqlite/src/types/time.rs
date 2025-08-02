@@ -317,3 +317,8 @@ mod formats {
         ]
     };
 }
+
+impl_into_encode_for_db!(Sqlite, Date);
+impl_into_encode_for_db!(Sqlite, OffsetDateTime);
+impl_into_encode_for_db!(Sqlite, PrimitiveDateTime);
+impl_into_encode_for_db!(Sqlite, Time);

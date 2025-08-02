@@ -449,6 +449,8 @@ impl Encode<'_, MySql> for MySqlTime {
     }
 }
 
+impl_into_encode_for_db!(MySql, MySqlTime);
+
 /// Convert [`MySqlTime`] from [`std::time::Duration`].
 ///
 /// ### Note: Precision Truncation

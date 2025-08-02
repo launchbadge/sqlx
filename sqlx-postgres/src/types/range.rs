@@ -1,15 +1,15 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 
-use bitflags::bitflags;
-use sqlx_core::bytes::Buf;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::type_info::PgTypeKind;
 use crate::types::Type;
 use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use bitflags::bitflags;
+use sqlx_core::bytes::Buf;
+use sqlx_core::encode_owned::{EncodeClone, EncodeOwned, IntoEncode};
 
 // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/include/utils/rangetypes.h#L35-L44
 bitflags! {
@@ -321,6 +321,26 @@ where
 
         // ranges are themselves never null
         Ok(IsNull::No)
+    }
+}
+
+impl<T> IntoEncode<Postgres> for PgRange<T>
+where
+    T: for<'e> Encode<'e, Postgres>,
+    PgRange<T>: Clone,
+    PgRange<T>: for<'e> Encode<'e, Postgres>,
+    T: Debug + Send + Sync + 'static,
+    Self: Type<Postgres>,
+{
+    fn into_encode<'s>(self) -> impl Encode<'s, Postgres> + Type<Postgres> + 's
+    where
+        Self: 's,
+    {
+        self
+    }
+
+    fn into_encode_owned(self) -> impl EncodeOwned<Postgres> + 'static {
+        EncodeClone::from(self.clone())
     }
 }
 

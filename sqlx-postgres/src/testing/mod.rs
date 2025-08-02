@@ -55,8 +55,10 @@ impl TestSupport for Postgres {
 
         let mut builder = QueryBuilder::new("drop database if exists ");
 
-        for db_name in &delete_db_names {
-            builder.push(db_name);
+        let delete_db_names_len = delete_db_names.len();
+
+        for db_name in delete_db_names {
+            builder.push(&db_name);
 
             match builder.build().execute(&mut conn).await {
                 Ok(_deleted) => {
@@ -79,7 +81,7 @@ impl TestSupport for Postgres {
             .await?;
 
         let _ = conn.close().await;
-        Ok(Some(delete_db_names.len()))
+        Ok(Some(delete_db_names_len))
     }
 
     async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {

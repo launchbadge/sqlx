@@ -218,3 +218,6 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
         Err(format!("invalid time: {value}").into())
     }
 }
+
+impl_into_encode_for_db!(Sqlite, DateTime<Utc>);
+impl_into_encode_for_db!(Sqlite, NaiveDateTime);
