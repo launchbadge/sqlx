@@ -2,7 +2,7 @@ use sha2::{Digest, Sha384};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use crate::sql_str::SqlStr;
+use crate::sql_str::{SqlStr, SqlSafeStr};
 
 use super::{MigrateError, MigrationType};
 
@@ -85,10 +85,10 @@ impl Migration {
             no_tx,
         } = self;
 
-        let mut new_sql = String::with_capacity(sql.len());
+        let mut new_sql = String::with_capacity(sql.as_str().len());
         let mut substitution_enabled = false;
 
-        for (i, line) in sql.lines().enumerate() {
+        for (i, line) in sql.as_str().lines().enumerate() {
             if i != 0 {
                 new_sql.push('\n')
             }
@@ -121,7 +121,7 @@ impl Migration {
             version: *version,
             description: description.clone(),
             migration_type: *migration_type,
-            sql: Cow::Owned(new_sql),
+            sql: crate::sql_str::AssertSqlSafe(new_sql).into_sql_str(),
             checksum: checksum.clone(),
             no_tx: *no_tx,
         })
@@ -183,7 +183,7 @@ mod test {
             1,
             Cow::Owned("test a simple parameter substitution".to_string()),
             crate::migrate::MigrationType::Simple,
-            Cow::Owned(CREATE_USER.to_string()),
+            crate::sql_str::AssertSqlSafe(CREATE_USER.to_string()).into_sql_str(),
             true,
         );
         let result = migration.process_parameters(&HashMap::from([(
@@ -206,7 +206,7 @@ mod test {
             1,
             std::borrow::Cow::Owned("test a simple parameter substitution".to_string()),
             crate::migrate::MigrationType::Simple,
-            Cow::Owned(CREATE_TABLE.to_string()),
+            crate::sql_str::AssertSqlSafe(CREATE_TABLE.to_string()).into_sql_str(),
             true,
         );
         let result = migration.process_parameters(&HashMap::from([(
@@ -233,7 +233,7 @@ mod test {
             1,
             Cow::Owned("test a simple parameter substitution".to_string()),
             crate::migrate::MigrationType::Simple,
-            Cow::Owned(CREATE_TABLE.to_string()),
+            crate::sql_str::AssertSqlSafe(CREATE_TABLE.to_string()).into_sql_str(),
             true,
         );
         let Err(MigrateError::MissingParameter(..)) =
@@ -269,7 +269,7 @@ mod test {
             1,
             Cow::Owned("test a simple parameter substitution".to_string()),
             crate::migrate::MigrationType::Simple,
-            Cow::Owned(CREATE_TABLE.to_string()),
+            crate::sql_str::AssertSqlSafe(CREATE_TABLE.to_string()).into_sql_str(),
             true,
         );
         let result = migration.process_parameters(&HashMap::with_capacity(0))?;
