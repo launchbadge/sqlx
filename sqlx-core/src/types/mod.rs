@@ -17,6 +17,8 @@
 //! To represent nullable SQL types, `Option<T>` is supported where `T` implements `Type`.
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
 
+use std::{borrow::Cow, rc::Rc, sync::Arc};
+
 use crate::database::Database;
 use crate::type_info::TypeInfo;
 
@@ -99,8 +101,11 @@ pub use bstr::{BStr, BString};
 ///
 /// ## Compile-time verification
 ///
-/// With compile-time verification, the use of type overrides is currently required to make
-/// use of any user-defined types.
+/// Type definitions are *not* verified against the database at compile-time.
+/// The [`query!()`](macro.query.html) macros have no implicit knowledge of user-defined types.
+///
+/// When using custom types in query parameters or output columns with `query!()`,
+/// the use of [type overrides](macro.query.html#type-overrides-bind-parameters-postgres-only) is required.
 ///
 /// ```rust,ignore
 /// struct MyUser { id: UserId, name: String }
@@ -246,5 +251,40 @@ impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
         ty.is_null() || <T as Type<DB>>::compatible(ty)
+    }
+}
+
+macro_rules! impl_type_for_smartpointer {
+    ($smart_pointer:ty) => {
+        impl<T, DB: Database> Type<DB> for $smart_pointer
+        where
+            T: Type<DB> + ?Sized,
+        {
+            fn type_info() -> DB::TypeInfo {
+                <T as Type<DB>>::type_info()
+            }
+
+            fn compatible(ty: &DB::TypeInfo) -> bool {
+                <T as Type<DB>>::compatible(ty)
+            }
+        }
+    };
+}
+
+impl_type_for_smartpointer!(Arc<T>);
+impl_type_for_smartpointer!(Box<T>);
+impl_type_for_smartpointer!(Rc<T>);
+
+impl<T, DB: Database> Type<DB> for Cow<'_, T>
+where
+    // `ToOwned` is required here to satisfy `Cow`
+    T: Type<DB> + ToOwned + ?Sized,
+{
+    fn type_info() -> DB::TypeInfo {
+        <T as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <T as Type<DB>>::compatible(ty)
     }
 }

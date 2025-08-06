@@ -1,0 +1,7 @@
+[migrate]
+# Ignore common whitespace characters (beware syntatically significant whitespace!)
+# Space, tab, CR, LF, zero-width non-breaking space (U+FEFF)
+#
+# U+FEFF is added by some editors as a magic number at the beginning of a text file indicating it is UTF-8 encoded,
+# where it is known as a byte-order mark (BOM): https://en.wikipedia.org/wiki/Byte_order_mark
+ignored-chars = [" ", "\t", "\r", "\n", "\uFEFF"]

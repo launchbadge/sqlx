@@ -29,7 +29,7 @@ impl Database for Sqlite {
     type Arguments<'q> = SqliteArguments<'q>;
     type ArgumentBuffer<'q> = Vec<SqliteArgumentValue<'q>>;
 
-    type Statement<'q> = SqliteStatement<'q>;
+    type Statement = SqliteStatement;
 
     const NAME: &'static str = "SQLite";
 

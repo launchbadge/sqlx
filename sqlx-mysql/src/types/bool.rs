@@ -1,3 +1,4 @@
+use crate::collation::Collation;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -9,9 +10,10 @@ use crate::{
 
 impl Type<MySql> for bool {
     fn type_info() -> MySqlTypeInfo {
-        // MySQL has no actual `BOOLEAN` type, the type is an alias of `TINYINT(1)`
+        // MySQL has no actual `BOOLEAN` type, the type is an alias of `[UNSIGNED] TINYINT(1)`
         MySqlTypeInfo {
             flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
+            collation: Collation::BINARY,
             max_size: Some(1),
             r#type: ColumnType::Tiny,
         }

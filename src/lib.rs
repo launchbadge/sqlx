@@ -13,6 +13,7 @@ pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
 pub use sqlx_core::column::ColumnIndex;
+pub use sqlx_core::column::ColumnOrigin;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
@@ -29,8 +30,9 @@ pub use sqlx_core::query_scalar::query_scalar_with_result as __query_scalar_with
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::raw_sql::{raw_sql, RawSql};
 pub use sqlx_core::row::Row;
+pub use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
 pub use sqlx_core::statement::Statement;
-pub use sqlx_core::transaction::{Transaction, TransactionManager};
+pub use sqlx_core::transaction::Transaction;
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
@@ -100,7 +102,7 @@ mod macros;
 #[doc(hidden)]
 pub mod ty_match;
 
-#[cfg(feature = "macros")]
+#[cfg(any(feature = "derive", feature = "macros"))]
 #[doc(hidden)]
 pub mod spec_error;
 
@@ -172,3 +174,36 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
+
+#[cfg(feature = "_unstable-docs")]
+pub use sqlx_core::config as _config;
+
+// NOTE: APIs exported in this module are SemVer-exempt.
+#[doc(hidden)]
+pub mod _unstable {
+    pub use sqlx_core::config;
+}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "chrono", feature = "time"),
+    deprecated = "SQLx has both `chrono` and `time` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping date/time types. \
+        The `query!()` macros prefer types from `time` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.date_time"
+)]
+pub fn warn_on_ambiguous_inferred_date_time_crate() {}
+
+#[doc(hidden)]
+#[cfg_attr(
+    all(feature = "bigdecimal", feature = "rust_decimal"),
+    deprecated = "SQLx has both `bigdecimal` and `rust_decimal` features enabled, \
+        which presents an ambiguity when the `query!()` macros are mapping `NUMERIC`. \
+        The `query!()` macros prefer `bigdecimal::BigDecimal` by default, \
+        but this behavior should not be relied upon; \
+        to resolve the ambiguity, we recommend specifying the preferred crate in a `sqlx.toml` file: \
+        https://docs.rs/sqlx/latest/sqlx/config/macros/PreferredCrates.html#field.numeric"
+)]
+pub fn warn_on_ambiguous_inferred_numeric_crate() {}

@@ -30,7 +30,7 @@ impl Database for Postgres {
     type Arguments<'q> = PgArguments;
     type ArgumentBuffer<'q> = PgArgumentBuffer;
 
-    type Statement<'q> = PgStatement<'q>;
+    type Statement = PgStatement;
 
     const NAME: &'static str = "PostgreSQL";
 

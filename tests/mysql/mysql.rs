@@ -1,7 +1,7 @@
 use anyhow::Context;
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_core::connection::ConnectOptions;
 use sqlx_mysql::MySqlConnectOptions;
 use sqlx_test::{new, setup_if_needed};
@@ -391,7 +391,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
         .await?
         .last_insert_id();
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = ?".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "created_at");
@@ -460,7 +462,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
         }));
     }
 
-    futures::future::try_join_all(handles).await?;
+    futures_util::future::try_join_all(handles).await?;
 
     Ok(())
 }
@@ -580,7 +582,7 @@ async fn test_shrink_buffers() -> anyhow::Result<()> {
     conn.shrink_buffers();
 
     let ret: i64 = sqlx::query_scalar("SELECT ?")
-        .bind(&12345678i64)
+        .bind(12345678i64)
         .fetch_one(&mut conn)
         .await?;
 
@@ -602,4 +604,35 @@ async fn select_statement_count(conn: &mut MySqlConnection) -> Result<i64, sqlx:
     )
     .fetch_one(conn)
     .await
+}
+
+#[sqlx_macros::test]
+async fn issue_3200() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    sqlx::raw_sql(
+        "\
+        CREATE TABLE IF NOT EXISTS users
+        (
+            `id`                     BIGINT AUTO_INCREMENT,
+            `username`               VARCHAR(128) NOT NULL,
+            PRIMARY KEY (id)
+        );
+    ",
+    )
+    .execute(&mut conn)
+    .await?;
+
+    let result = sqlx::raw_sql(
+        "\
+        SET @myvar := 'test@test.com';
+        select id from users where username = @myvar;
+    ",
+    )
+    .fetch_optional(&mut conn)
+    .await?;
+
+    assert!(result.is_none(), "{result:?}");
+
+    Ok(())
 }

@@ -11,6 +11,7 @@ use crate::error::{BoxDynError, Error};
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
 use crate::query::{query, query_statement, query_statement_with, query_with_result, Query};
+use crate::sql_str::{SqlSafeStr, SqlStr};
 use crate::types::Type;
 
 /// A single SQL query as a prepared statement, mapping results using [`FromRow`].
@@ -27,12 +28,12 @@ where
     A: 'q + IntoArguments<'q, DB>,
 {
     #[inline]
-    fn sql(&self) -> &'q str {
+    fn sql(self) -> SqlStr {
         self.inner.sql()
     }
 
     #[inline]
-    fn statement(&self) -> Option<&DB::Statement<'q>> {
+    fn statement(&self) -> Option<&DB::Statement> {
         self.inner.statement()
     }
 
@@ -57,7 +58,7 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>> {
     }
 }
 
-impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
+impl<DB, O, A> QueryAs<'_, DB, O, A>
 where
     DB: Database + HasStatementCache,
 {
@@ -94,11 +95,9 @@ where
         O: 'e,
         A: 'e,
     {
-        // FIXME: this should have used `executor.fetch()` but that's a breaking change
-        // because this technically allows multiple statements in one query string.
-        #[allow(deprecated)]
-        self.fetch_many(executor)
-            .try_filter_map(|step| async move { Ok(step.right()) })
+        executor
+            .fetch(self.inner)
+            .map(|row| O::from_row(&row?))
             .boxed()
     }
 
@@ -339,7 +338,9 @@ where
 ///
 /// ```
 #[inline]
-pub fn query_as<'q, DB, O>(sql: &'q str) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>>
+pub fn query_as<'q, DB, O>(
+    sql: impl SqlSafeStr,
+) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'q>>
 where
     DB: Database,
     O: for<'r> FromRow<'r, DB::Row>,
@@ -357,7 +358,7 @@ where
 ///
 /// For details about type mapping from [`FromRow`], see [`query_as()`].
 #[inline]
-pub fn query_as_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, DB, O, A>
+pub fn query_as_with<'q, DB, O, A>(sql: impl SqlSafeStr, arguments: A) -> QueryAs<'q, DB, O, A>
 where
     DB: Database,
     A: IntoArguments<'q, DB>,
@@ -369,7 +370,7 @@ where
 /// Same as [`query_as_with`] but takes arguments as a Result
 #[inline]
 pub fn query_as_with_result<'q, DB, O, A>(
-    sql: &'q str,
+    sql: impl SqlSafeStr,
     arguments: Result<A, BoxDynError>,
 ) -> QueryAs<'q, DB, O, A>
 where
@@ -384,9 +385,9 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
-pub fn query_statement_as<'q, DB, O>(
-    statement: &'q DB::Statement<'q>,
-) -> QueryAs<'q, DB, O, <DB as Database>::Arguments<'_>>
+pub fn query_statement_as<DB, O>(
+    statement: &DB::Statement,
+) -> QueryAs<'_, DB, O, <DB as Database>::Arguments<'_>>
 where
     DB: Database,
     O: for<'r> FromRow<'r, DB::Row>,
@@ -399,7 +400,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete type.
 pub fn query_statement_as_with<'q, DB, O, A>(
-    statement: &'q DB::Statement<'q>,
+    statement: &'q DB::Statement,
     arguments: A,
 ) -> QueryAs<'q, DB, O, A>
 where

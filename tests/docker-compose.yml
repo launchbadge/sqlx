@@ -58,15 +58,43 @@ services:
             MYSQL_DATABASE: sqlx
             MYSQL_ALLOW_EMPTY_PASSWORD: 1
 
-    #
-    # MariaDB 10.11, 10.6, 10.5, 10.4
+    # MariaDB
+    # Testing will be dropped when Community Support ends.
     # https://mariadb.org/about/#maintenance-policy
-    #
 
+    # EOL: 2028/06/04 (sooner than 11.4 for some reason)
+    mariadb_11_8:
+        image: mariadb:11.8
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
+        ports:
+            - 3306
+        environment:
+            MARIADB_ROOT_PASSWORD: password
+            MARIADB_DATABASE: sqlx
+
+    mariadb_11_8_client_ssl:
+        build:
+            context: .
+            dockerfile: mysql/Dockerfile
+            args:
+                IMAGE: mariadb:11.8
+        volumes:
+            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
+        ports:
+            - 3306
+        environment:
+            MARIADB_DATABASE: sqlx
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+
+    # EOL: 2029/05/29
     mariadb_11_4:
         image: mariadb:11.4
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -81,16 +109,19 @@ services:
                 IMAGE: mariadb:11.4
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
             MARIADB_DATABASE: sqlx
             MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
 
+    # EOL: 2028/02/16
     mariadb_10_11:
         image: mariadb:10.11
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -105,16 +136,20 @@ services:
                 IMAGE: mariadb:10.11
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
             MARIADB_DATABASE: sqlx
             MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
 
+    # EOL: 2026/07/06
     mariadb_10_6:
         image: mariadb:10.6
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            # UUID support was not added until 10.10
+            # - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -129,54 +164,8 @@ services:
                 IMAGE: mariadb:10.6
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        ports:
-            - 3306
-        environment:
-            MARIADB_DATABASE: sqlx
-            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
-
-    mariadb_10_5:
-        image: mariadb:10.5
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        ports:
-            - 3306
-        environment:
-            MARIADB_ROOT_PASSWORD: password
-            MARIADB_DATABASE: sqlx
-
-    mariadb_10_5_client_ssl:
-        build:
-            context: .
-            dockerfile: mysql/Dockerfile
-            args:
-                IMAGE: mariadb:10.5
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        ports:
-            - 3306
-        environment:
-            MARIADB_DATABASE: sqlx
-            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
-
-    mariadb_10_4:
-        image: mariadb:10.4
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
-        ports:
-            - 3306
-        environment:
-            MARIADB_ROOT_PASSWORD: password
-            MARIADB_DATABASE: sqlx
-
-    mariadb_10_4_client_ssl:
-        build:
-            context: .
-            dockerfile: mysql/Dockerfile
-            args:
-                IMAGE: mariadb:10.4
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            # UUID support was not added until 10.10
+            # - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -189,6 +178,7 @@ services:
         image: quay.io/mariadb-foundation/mariadb-devel:verylatest
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -203,6 +193,7 @@ services:
                 IMAGE: quay.io/mariadb-foundation/mariadb-devel:verylatest
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql:z"
+            - "./mysql/setup-mariadb.sql:/docker-entrypoint-initdb.d/setup-mariadb.sql:z"
         ports:
             - 3306
         environment:
@@ -241,7 +232,7 @@ services:
             args:
                 VERSION: 17
         ports:
-            - 5432
+            - 5432:5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_HOST_AUTH_METHOD: trust
@@ -385,7 +376,7 @@ services:
             args:
                 VERSION: 13
         ports:
-            - 5432
+            - 5432:5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_HOST_AUTH_METHOD: trust

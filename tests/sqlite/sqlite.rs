@@ -1,13 +1,15 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteOperation, SqlitePoolOptions};
+use sqlx::SqlSafeStr;
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_sqlite::LockedSqliteHandle;
 use sqlx_test::new;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -212,7 +214,12 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_with_extension() -> anyhow::Result<()> {
     use std::str::FromStr;
 
-    let opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?.extension("ipaddr");
+    let mut opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?;
+
+    // SAFETY: the `sqlite_ipaddr` cfg is only enabled when we want to test this.
+    unsafe {
+        opts = opts.extension("ipaddr");
+    }
 
     let mut conn = SqliteConnection::connect_with(&opts).await?;
     conn.execute("SELECT ipmasklen('192.168.16.12/24');")
@@ -503,7 +510,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let tweet_id: i32 = 2;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = ?1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "text");
@@ -639,7 +648,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // Random seed:
     let seed: [u8; 32] = rand::random();
-    println!("RNG seed: {}", hex::encode(&seed));
+    println!("RNG seed: {}", hex::encode(seed));
 
     // Pre-determined seed:
     // let mut seed: [u8; 32] = [0u8; 32];
@@ -734,7 +743,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_progress_handler(1, move || {
         assert_eq!(state, "test");
         false
@@ -802,7 +811,7 @@ async fn test_query_with_update_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_update_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Insert);
@@ -858,7 +867,7 @@ async fn test_query_with_commit_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_commit_hook(move || {
         CALLED.store(true, Ordering::Relaxed);
         assert_eq!(state, "test");
@@ -920,7 +929,7 @@ async fn test_query_with_rollback_hook() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     static CALLED: AtomicBool = AtomicBool::new(false);
     conn.lock_handle().await?.set_rollback_hook(move || {
         assert_eq!(state, "test");
@@ -969,6 +978,24 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn issue_3150() {
+    // Same bounds as `tokio::spawn()`
+    async fn fake_spawn<F>(future: F) -> F::Output
+    where
+        F: Future + Send + 'static,
+    {
+        future.await
+    }
+
+    fake_spawn(async {
+        let mut db = SqliteConnection::connect(":memory:").await.unwrap();
+        sqlx::raw_sql("").execute(&mut db).await.unwrap();
+        db.close().await.unwrap();
+    })
+    .await;
+}
+
 #[cfg(feature = "sqlite-preupdate-hook")]
 #[sqlx_macros::test]
 async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
@@ -977,7 +1004,7 @@ async fn test_query_with_preupdate_hook_insert() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         move |result| {
             assert_eq!(state, "test");
@@ -1030,7 +1057,7 @@ async fn test_query_with_preupdate_hook_delete() -> anyhow::Result<()> {
         .await?;
     static CALLED: AtomicBool = AtomicBool::new(false);
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook(move |result| {
         assert_eq!(state, "test");
         assert_eq!(result.operation, SqliteOperation::Delete);
@@ -1077,7 +1104,7 @@ async fn test_query_with_preupdate_hook_update() -> anyhow::Result<()> {
     static CALLED: AtomicBool = AtomicBool::new(false);
     let sqlite_value_stored: Arc<std::sync::Mutex<Option<_>>> = Default::default();
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_preupdate_hook({
         let sqlite_value_stored = sqlite_value_stored.clone();
         move |result| {

@@ -8,6 +8,7 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
+use crate::sql_str::SqlStr;
 
 impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
@@ -48,21 +49,21 @@ where
         Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        sql: &'q str,
+        sql: SqlStr,
         parameters: &'e [<Self::Database as Database>::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement<'q>, Error>> {
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Statement, Error>>
+    where
+        'p: 'e,
+    {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
+    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.describe(sql).await })

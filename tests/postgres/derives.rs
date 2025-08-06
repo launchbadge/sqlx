@@ -1,6 +1,7 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::postgres::types::PgRange;
 use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_postgres::PgHasArrayType;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
@@ -259,7 +260,7 @@ SELECT id, mood FROM people WHERE id = $1
     let stmt = format!("SELECT id, mood FROM people WHERE id = {people_id}");
     dbg!(&stmt);
 
-    let mut cursor = conn.fetch(&*stmt);
+    let mut cursor = conn.fetch(AssertSqlSafe(stmt));
 
     let row = cursor.try_next().await?.unwrap();
     let rec = PeopleRow::from_row(&row)?;

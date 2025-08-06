@@ -1,8 +1,9 @@
-use crate::column::ColumnIndex;
+use crate::column::{Column, ColumnIndex};
 use crate::database::Database;
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
 
+use crate::type_checking::TypeChecking;
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 use crate::value::ValueRef;
@@ -175,4 +176,33 @@ pub trait Row: Unpin + Send + Sync + 'static {
     fn try_get_raw<I>(&self, index: I) -> Result<<Self::Database as Database>::ValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>;
+}
+
+pub fn debug_row<R>(row: &R, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+where
+    R: Row,
+    usize: ColumnIndex<R>,
+    <R as Row>::Database: TypeChecking,
+{
+    write!(f, "{} ", std::any::type_name::<R>())?;
+
+    let mut debug_map = f.debug_map();
+
+    for column in row.columns().iter() {
+        match row.try_get_raw(column.ordinal()) {
+            Ok(value) => {
+                debug_map.entry(
+                    &column.name(),
+                    &<R as Row>::Database::fmt_value_debug(
+                        &<<R as Row>::Database as Database>::ValueRef::to_owned(&value),
+                    ),
+                );
+            }
+            Err(error) => {
+                debug_map.entry(&column.name(), &format!("decode error: {error:?}"));
+            }
+        }
+    }
+
+    debug_map.finish()
 }

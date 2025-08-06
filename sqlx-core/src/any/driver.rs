@@ -3,13 +3,13 @@ use crate::any::{AnyConnectOptions, AnyConnection};
 use crate::common::DebugFn;
 use crate::connection::Connection;
 use crate::database::Database;
-use crate::Error;
+use crate::{config, Error};
 use futures_core::future::BoxFuture;
-use once_cell::sync::OnceCell;
 use std::fmt::{Debug, Formatter};
+use std::sync::OnceLock;
 use url::Url;
 
-static DRIVERS: OnceCell<&'static [AnyDriver]> = OnceCell::new();
+static DRIVERS: OnceLock<&'static [AnyDriver]> = OnceLock::new();
 
 #[macro_export]
 macro_rules! declare_driver_with_optional_migrate {
@@ -28,8 +28,12 @@ macro_rules! declare_driver_with_optional_migrate {
 pub struct AnyDriver {
     pub(crate) name: &'static str,
     pub(crate) url_schemes: &'static [&'static str],
-    pub(crate) connect:
-        DebugFn<fn(&AnyConnectOptions) -> BoxFuture<'_, crate::Result<AnyConnection>>>,
+    pub(crate) connect: DebugFn<
+        for<'a> fn(
+            &'a AnyConnectOptions,
+            Option<&'a config::drivers::Config>,
+        ) -> BoxFuture<'a, crate::Result<AnyConnection>>,
+    >,
     pub(crate) migrate_database: Option<AnyMigrateDatabase>,
 }
 
@@ -67,10 +71,10 @@ impl AnyDriver {
     {
         Self {
             migrate_database: Some(AnyMigrateDatabase {
-                create_database: DebugFn(DB::create_database),
-                database_exists: DebugFn(DB::database_exists),
-                drop_database: DebugFn(DB::drop_database),
-                force_drop_database: DebugFn(DB::force_drop_database),
+                create_database: DebugFn(|url| Box::pin(DB::create_database(url))),
+                database_exists: DebugFn(|url| Box::pin(DB::database_exists(url))),
+                drop_database: DebugFn(|url| Box::pin(DB::drop_database(url))),
+                force_drop_database: DebugFn(|url| Box::pin(DB::force_drop_database(url))),
             }),
             ..Self::without_migrate::<DB>()
         }
@@ -130,6 +134,7 @@ pub fn install_drivers(
         .map_err(|_| "drivers already installed".into())
 }
 
+#[cfg(feature = "migrate")]
 pub(crate) fn from_url_str(url: &str) -> crate::Result<&'static AnyDriver> {
     from_url(&url.parse().map_err(Error::config)?)
 }

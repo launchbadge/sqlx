@@ -1,10 +1,10 @@
+use std::future::Future;
 use std::io;
 use std::time::Duration;
 
-use anyhow::Result;
-use futures::{Future, TryFutureExt};
+use futures_util::TryFutureExt;
 
-use sqlx::{AnyConnection, Connection};
+use sqlx::AnyConnection;
 use tokio::{select, signal};
 
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
@@ -21,6 +21,8 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
+pub use sqlx::_unstable::config::{self, Config};
+
 /// Check arguments for `--no-dotenv` _before_ Clap parsing, and apply `.env` if not set.
 pub fn maybe_apply_dotenv() {
     if std::env::args().any(|arg| arg == "--no-dotenv") {
@@ -30,7 +32,7 @@ pub fn maybe_apply_dotenv() {
     dotenvy::dotenv().ok();
 }
 
-pub async fn run(opt: Opt) -> Result<()> {
+pub async fn run(opt: Opt) -> anyhow::Result<()> {
     // This `select!` is here so that when the process receives a `SIGINT` (CTRL + C),
     // the futures currently running on this task get dropped before the program exits.
     // This is currently necessary for the consumers of the `dialoguer` crate to restore
@@ -50,26 +52,26 @@ pub async fn run(opt: Opt) -> Result<()> {
     }
 }
 
-async fn do_run(opt: Opt) -> Result<()> {
+async fn do_run(opt: Opt) -> anyhow::Result<()> {
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
-            MigrateCommand::Add {
-                source,
-                description,
-                reversible,
-                sequential,
-                timestamp,
-            } => migrate::add(&source, &description, reversible, sequential, timestamp).await?,
+            MigrateCommand::Add(opts) => migrate::add(opts).await?,
             MigrateCommand::Run {
                 source,
+                config,
                 dry_run,
                 ignore_missing,
-                connect_opts,
+                mut connect_opts,
                 target_version,
                 params_from_env,
                 params,
             } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+
                 migrate::run(
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -82,14 +84,20 @@ async fn do_run(opt: Opt) -> Result<()> {
             }
             MigrateCommand::Revert {
                 source,
+                config,
                 dry_run,
                 ignore_missing,
-                connect_opts,
+                mut connect_opts,
                 target_version,
                 params_from_env,
                 params,
             } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+
                 migrate::revert(
+                    &config,
                     &source,
                     &connect_opts,
                     dry_run,
@@ -102,37 +110,83 @@ async fn do_run(opt: Opt) -> Result<()> {
             }
             MigrateCommand::Info {
                 source,
-                connect_opts,
-            } => migrate::info(&source, &connect_opts).await?,
-            MigrateCommand::BuildScript { source, force } => migrate::build_script(&source, force)?,
+                config,
+                mut connect_opts,
+            } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+
+                migrate::info(&config, &source, &connect_opts).await?
+            }
+            MigrateCommand::BuildScript {
+                source,
+                config,
+                force,
+            } => {
+                let config = config.load_config().await?;
+
+                migrate::build_script(&config, &source, force)?
+            }
         },
 
         Command::Database(database) => match database.command {
-            DatabaseCommand::Create { connect_opts } => database::create(&connect_opts).await?,
+            DatabaseCommand::Create {
+                config,
+                mut connect_opts,
+            } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+                database::create(&connect_opts).await?
+            }
             DatabaseCommand::Drop {
                 confirmation,
-                connect_opts,
+                config,
+                mut connect_opts,
                 force,
-            } => database::drop(&connect_opts, !confirmation.yes, force).await?,
+            } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+                database::drop(&connect_opts, !confirmation.yes, force).await?
+            }
             DatabaseCommand::Reset {
                 confirmation,
                 source,
-                connect_opts,
+                config,
+                mut connect_opts,
                 force,
-            } => database::reset(&source, &connect_opts, !confirmation.yes, force).await?,
+            } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+                database::reset(&config, &source, &connect_opts, !confirmation.yes, force).await?
+            }
             DatabaseCommand::Setup {
                 source,
-                connect_opts,
-            } => database::setup(&source, &connect_opts).await?,
+                config,
+                mut connect_opts,
+            } => {
+                let config = config.load_config().await?;
+
+                connect_opts.populate_db_url(&config)?;
+                database::setup(&config, &source, &connect_opts).await?
+            }
         },
 
         Command::Prepare {
             check,
             all,
             workspace,
-            connect_opts,
+            mut connect_opts,
             args,
-        } => prepare::run(check, all, workspace, connect_opts, args).await?,
+            config,
+        } => {
+            let config = config.load_config().await?;
+            connect_opts.populate_db_url(&config)?;
+            prepare::run(&config, check, all, workspace, connect_opts, args).await?
+        }
 
         #[cfg(feature = "completions")]
         Command::Completions { shell } => completions::run(shell),
@@ -142,8 +196,11 @@ async fn do_run(opt: Opt) -> Result<()> {
 }
 
 /// Attempt to connect to the database server, retrying up to `ops.connect_timeout`.
-async fn connect(opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
-    retry_connect_errors(opts, AnyConnection::connect).await
+async fn connect(config: &Config, opts: &ConnectOpts) -> anyhow::Result<AnyConnection> {
+    retry_connect_errors(opts, move |url| {
+        AnyConnection::connect_with_driver_config(url, &config.drivers)
+    })
+    .await
 }
 
 /// Attempt an operation that may return errors like `ConnectionRefused`,
@@ -158,9 +215,7 @@ where
     F: FnMut(&'a str) -> Fut,
     Fut: Future<Output = sqlx::Result<T>> + 'a,
 {
-    sqlx::any::install_default_drivers();
-
-    let db_url = opts.required_db_url()?;
+    let db_url = opts.expect_db_url()?;
 
     backoff::future::retry(
         backoff::ExponentialBackoffBuilder::new()

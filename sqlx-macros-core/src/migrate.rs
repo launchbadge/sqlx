@@ -4,11 +4,13 @@ extern crate proc_macro;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
+use sqlx_core::config::Config;
+use sqlx_core::migrate::{Migration, MigrationType};
 use syn::LitStr;
 
-use sqlx_core::migrate::{Migration, MigrationType};
+pub const DEFAULT_PATH: &str = "./migrations";
 
 pub struct QuoteMigrationType(MigrationType);
 
@@ -70,7 +72,7 @@ impl ToTokens for QuoteMigration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
-                sql: ::std::borrow::Cow::Borrowed(#sql),
+                sql: ::sqlx::SqlStr::from_static(#sql),
                 no_tx: #no_tx,
                 checksum: ::std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
@@ -80,6 +82,25 @@ impl ToTokens for QuoteMigration {
 
         tokens.append_all(ts);
     }
+}
+
+pub fn default_path(config: &Config) -> &str {
+    config
+        .migrate
+        .migrations_dir
+        .as_deref()
+        .unwrap_or(DEFAULT_PATH)
+}
+
+pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
+    let config = Config::try_from_crate_or_default()?;
+
+    let path = match path_arg {
+        Some(path_arg) => crate::common::resolve_path(path_arg.value(), path_arg.span())?,
+        None => { crate::common::resolve_path(default_path(&config), Span::call_site()) }?,
+    };
+
+    expand_with_path(&config, &path)
 }
 
 pub fn expand_migrator_from_lit_dir(
@@ -98,7 +119,20 @@ pub(crate) fn expand_migrator_from_dir(
     expand_migrator(&path, parameters)
 }
 
+pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStream> {
+    expand_migrator_with_config(config, path, None)
+}
+
 pub(crate) fn expand_migrator(
+    path: &Path,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
+    let config = Config::try_from_crate_or_default()?;
+    expand_migrator_with_config(&config, path, parameters)
+}
+
+pub(crate) fn expand_migrator_with_config(
+    config: &Config,
     path: &Path,
     parameters: Option<HashMap<String, String>>,
 ) -> crate::Result<TokenStream> {
@@ -109,8 +143,10 @@ pub(crate) fn expand_migrator(
         )
     })?;
 
+    let resolve_config = config.migrate.to_resolve_config();
+
     // Use the same code path to resolve migrations at compile time and runtime.
-    let migrations = sqlx_core::migrate::resolve_blocking(&path)?
+    let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
         .into_iter()
         .map(|(migration, path)| {
             if let Some(ref params) = parameters {
@@ -120,6 +156,12 @@ pub(crate) fn expand_migrator(
             }
             QuoteMigration { migration, path }
         });
+
+    let table_name = config.migrate.table_name();
+
+    let create_schemas = config.migrate.create_schemas.iter().map(|schema_name| {
+        quote! { ::std::borrow::Cow::Borrowed(#schema_name) }
+    });
 
     #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
     {
@@ -135,9 +177,11 @@ pub(crate) fn expand_migrator(
 
     Ok(quote! {
         ::sqlx::migrate::Migrator {
-            migrations: ::std::borrow::Cow::Borrowed(&[
+            migrations: ::std::borrow::Cow::Borrowed(const {&[
                     #(#migrations),*
-            ]),
+            ]}),
+            create_schemas: ::std::borrow::Cow::Borrowed(&[#(#create_schemas),*]),
+            table_name: ::std::borrow::Cow::Borrowed(#table_name),
             ..::sqlx::migrate::Migrator::DEFAULT
         }
     })

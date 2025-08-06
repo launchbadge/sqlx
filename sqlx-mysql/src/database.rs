@@ -28,7 +28,7 @@ impl Database for MySql {
     type Arguments<'q> = MySqlArguments;
     type ArgumentBuffer<'q> = Vec<u8>;
 
-    type Statement<'q> = MySqlStatement<'q>;
+    type Statement = MySqlStatement;
 
     const NAME: &'static str = "MySQL";
 

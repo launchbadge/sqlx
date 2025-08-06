@@ -165,15 +165,7 @@ be removed in the future.
 
 -   `runtime-async-std`: Use the `async-std` runtime without enabling a TLS backend.
 
--   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend (SOFT-DEPRECATED).
-
--   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend (SOFT-DEPRECATED).
-
 -   `runtime-tokio`: Use the `tokio` runtime without enabling a TLS backend.
-
--   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend (SOFT-DEPRECATED).
-
--   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend (SOFT-DEPRECATED).
 
     - Actix-web is fully compatible with Tokio and so a separate runtime feature is no longer needed.
 
@@ -334,7 +326,7 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 
 ```rust
 // provides `try_next`
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 // provides `try_get`
 use sqlx::Row;
 

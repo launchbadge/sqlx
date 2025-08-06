@@ -72,6 +72,7 @@ pub mod net;
 pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
+pub mod sql_str;
 
 pub mod raw_sql;
 pub mod row;
@@ -90,6 +91,8 @@ pub mod any;
 // Implements test support with automatic DB management.
 #[cfg(feature = "migrate")]
 pub mod testing;
+
+pub mod config;
 
 pub use error::{Error, Result};
 

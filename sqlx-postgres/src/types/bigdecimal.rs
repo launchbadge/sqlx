@@ -213,7 +213,8 @@ fn sign_to_pg(sign: Sign) -> PgNumericSign {
 }
 
 #[cfg(test)]
-mod bigdecimal_to_pgnumeric {
+#[allow(clippy::zero_prefixed_literal)] // Used for clarity
+mod tests {
     use super::{BigDecimal, PgNumeric, PgNumericSign};
     use std::convert::TryFrom;
 

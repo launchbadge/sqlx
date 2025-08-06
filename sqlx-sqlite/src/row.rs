@@ -5,7 +5,7 @@ use std::sync::Arc;
 use sqlx_core::column::ColumnIndex;
 use sqlx_core::error::Error;
 use sqlx_core::ext::ustr::UStr;
-use sqlx_core::row::Row;
+use sqlx_core::row::{debug_row, Row};
 use sqlx_core::HashMap;
 
 use crate::statement::StatementHandle;
@@ -40,7 +40,7 @@ impl SqliteRow {
             values.push(unsafe {
                 let raw = statement.column_value(i);
 
-                SqliteValue::new(raw, columns[i].type_info.clone())
+                SqliteValue::dup(raw, Some(columns[i].type_info.clone()))
             });
         }
 
@@ -74,6 +74,12 @@ impl ColumnIndex<SqliteRow> for &'_ str {
             .get(*self)
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .copied()
+    }
+}
+
+impl std::fmt::Debug for SqliteRow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_row(self, f)
     }
 }
 

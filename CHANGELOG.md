@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.0-alpha.1 - 2025-05-19
+
+Accumulated changes since the beginning of the alpha cycle. Effectively a draft CHANGELOG for the 0.9.0 release.
+
+This section will be replaced in subsequent alpha releases. See the Git history of this file for previous alphas.
+
+### Breaking
+
+* [[#3821]]: Groundwork for 0.9.0-alpha.1 [[@abonander]]
+  * Increased MSRV to 1.86 and set rust-version 
+  * Deleted deprecated combination runtime+TLS features (e.g. `runtime-tokio-native-tls`)
+  * Deleted re-export of unstable `TransactionManager` trait in `sqlx`.
+    * Not technically a breaking change because it's `#[doc(hidden)]`, 
+      but [it _will_ break SeaORM][seaorm-2600] if not proactively fixed.
+* [[#3383]]: feat: create `sqlx.toml` format [[@abonander]]
+  * SQLx and `sqlx-cli` now support per-crate configuration files (`sqlx.toml`)
+  * New functionality includes, but is not limited to:
+    * Rename `DATABASE_URL` for a crate (for multi-database workspaces) 
+    * Set global type overrides for the macros (supporting custom types)
+    * Rename or relocate the `_sqlx_migrations` table (for multiple crates using the same database)
+    * Set characters to ignore when hashing migrations (e.g. ignore whitespace)
+  * More to be implemented in future releases.
+  * Enable feature `sqlx-toml` to use.
+    * `sqlx-cli` has it enabled by default, but `sqlx` does **not**.
+    * Default features of library crates can be hard to completely turn off because of [feature unification], 
+      so it's better to keep the default feature set as limited as possible. 
+      [This is something we learned the hard way.][preferred-crates]
+  * Guide: see `sqlx::_config` module in documentation.
+  * Reference: [[Link](sqlx-core/src/config/reference.toml)]
+  * Examples (written for Postgres but can be adapted to other databases; PRs welcome!):
+    * Multiple databases using `DATABASE_URL` renaming and global type overrides: [[Link](examples/postgres/multi-database)]
+    * Multi-tenant database using `_sqlx_migrations` renaming and multiple schemas: [[Link](examples/postgres/multi-tenant)]
+    * Force use of `chrono` when `time` is enabled (e.g. when using `tower-sessions-sqlx-store`): [[Link][preferred-crates]]
+      * Forcing `bigdecimal` when `rust_decimal` is enabled is also shown, but problems with `chrono`/`time` are more common.
+  * **Breaking changes**:
+    * Significant changes to the `Migrate` trait
+    * `sqlx::migrate::resolve_blocking()` is now `#[doc(hidden)]` and thus SemVer-exempt.
+
+[seaorm-2600]: https://github.com/SeaQL/sea-orm/issues/2600
+[feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
+[preferred-crates]: examples/postgres/preferred-crates
+
+[#3821]: https://github.com/launchbadge/sqlx/pull/3821
+[#3383]: https://github.com/launchbadge/sqlx/pull/3383
+
+## 0.8.6 - 2025-05-19
+
+9 pull requests were merged this release cycle.
+
+### Added
+* [[#3849]]: Add color and wrapping to cli help text [[@joshka]]
+
+### Changed
+* [[#3830]]: build: drop unused `tempfile` dependency [[@paolobarbolini]]
+* [[#3845]]: chore: clean up no longer used imports [[@tisonkun]]
+* [[#3863]]: Use unnamed statement in pg when not persistent [[@ThomWright]]
+* [[#3866]]: chore(doc): clarify compile-time verification and case conversion behavior [[@duhby]]
+
+### Fixed
+* [[#3840]]: Fix docs.rs build of sqlx-sqlite [[@gferon]]
+* [[#3848]]: fix(macros): don't mutate environment variables [[@joeydewaal]]
+* [[#3855]]: fix `attrubute` typo in doc [[@kujeger]]
+* [[#3856]]: fix(macros): slightly improve unsupported type error message [[@dyc3]]
+
+[#3830]: https://github.com/launchbadge/sqlx/pull/3830
+[#3840]: https://github.com/launchbadge/sqlx/pull/3840
+[#3845]: https://github.com/launchbadge/sqlx/pull/3845
+[#3848]: https://github.com/launchbadge/sqlx/pull/3848
+[#3849]: https://github.com/launchbadge/sqlx/pull/3849
+[#3855]: https://github.com/launchbadge/sqlx/pull/3855
+[#3856]: https://github.com/launchbadge/sqlx/pull/3856
+[#3863]: https://github.com/launchbadge/sqlx/pull/3863
+[#3866]: https://github.com/launchbadge/sqlx/pull/3866
+
 ## 0.8.5 - 2025-04-14
 
 Hotfix release to address two new issues:
@@ -30,9 +104,6 @@ The `0.8.4` release will be yanked as of publishing this one.
 ## 0.8.4 - 2025-04-13
 
 50 pull requests were merged this release cycle.
-
-As of this release, development of `0.9.0` has begun on `main`. 
-Barring urgent hotfixes, this is expected to be the last release of `0.8.x`.
 
 ### Added
 * [[#3603]]: Added missing special casing for encoding embedded arrays of custom types [[@nico-incubiq]]
@@ -2874,3 +2945,9 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@TeCHiScy]: https://github.com/TeCHiScy
 [@mpyw]: https://github.com/mpyw
 [@bonsairobo]: https://github.com/bonsairobo
+[@gferon]: https://github.com/gferon
+[@joshka]: https://github.com/joshka
+[@kujeger]: https://github.com/kujeger
+[@dyc3]: https://github.com/dyc3
+[@ThomWright]: https://github.com/ThomWright
+[@duhby]: https://github.com/duhby

@@ -1,7 +1,6 @@
 use bytes::buf::Buf;
 use bytes::Bytes;
 
-use crate::collation::{CharSet, Collation};
 use crate::common::StatementCache;
 use crate::connection::{tls, MySqlConnectionInner, MySqlStream, MAX_PACKET_SIZE};
 use crate::error::Error;
@@ -37,20 +36,10 @@ impl MySqlConnection {
 
 struct DoHandshake<'a> {
     options: &'a MySqlConnectOptions,
-    charset: CharSet,
-    collation: Collation,
 }
 
 impl<'a> DoHandshake<'a> {
     fn new(options: &'a MySqlConnectOptions) -> Result<Self, Error> {
-        let charset: CharSet = options.charset.parse()?;
-        let collation: Collation = options
-            .collation
-            .as_deref()
-            .map(|collation| collation.parse())
-            .transpose()?
-            .unwrap_or_else(|| charset.default_collation());
-
         if options.enable_cleartext_plugin
             && matches!(
                 options.ssl_mode,
@@ -60,21 +49,13 @@ impl<'a> DoHandshake<'a> {
             log::warn!("Security warning: sending cleartext passwords without requiring SSL");
         }
 
-        Ok(Self {
-            options,
-            charset,
-            collation,
-        })
+        Ok(Self { options })
     }
 
     async fn do_handshake<S: Socket>(self, socket: S) -> Result<MySqlStream, Error> {
-        let DoHandshake {
-            options,
-            charset,
-            collation,
-        } = self;
+        let DoHandshake { options } = self;
 
-        let mut stream = MySqlStream::with_socket(charset, collation, options, socket);
+        let mut stream = MySqlStream::with_socket(options, socket);
 
         // https://dev.mysql.com/doc/internals/en/connection-phase.html
         // https://mariadb.com/kb/en/connection/
@@ -125,7 +106,7 @@ impl<'a> DoHandshake<'a> {
         };
 
         stream.write_packet(HandshakeResponse {
-            collation: stream.collation as u8,
+            charset: super::INITIAL_CHARSET,
             max_packet_size: MAX_PACKET_SIZE,
             username: &options.username,
             database: options.database.as_deref(),
@@ -186,7 +167,7 @@ impl<'a> DoHandshake<'a> {
     }
 }
 
-impl<'a> WithSocket for DoHandshake<'a> {
+impl WithSocket for DoHandshake<'_> {
     type Output = Result<MySqlStream, Error>;
 
     async fn with_socket<S: Socket>(self, socket: S) -> Self::Output {

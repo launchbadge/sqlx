@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures_util::TryStreamExt;
 use sqlx::postgres::PgListener;
 use sqlx::{Executor, PgPool};
 use std::pin::pin;
@@ -98,9 +98,9 @@ from (
      ) notifies(chan, payload)
     "#,
     )
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
+    .bind(COUNTER.fetch_add(1, Ordering::SeqCst))
+    .bind(COUNTER.fetch_add(1, Ordering::SeqCst))
+    .bind(COUNTER.fetch_add(1, Ordering::SeqCst))
     .execute(pool)
     .await;
 

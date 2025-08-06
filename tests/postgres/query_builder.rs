@@ -54,18 +54,20 @@ fn test_build() {
     qb.push(" WHERE id = ").push_bind(42i32);
     let query = qb.build();
 
+    assert!(Execute::persistent(&query));
     assert_eq!(query.sql(), "SELECT * FROM users WHERE id = $1");
-    assert_eq!(Execute::persistent(&query), true);
 }
 
 #[test]
 fn test_reset() {
     let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
 
-    let _query = qb
-        .push("SELECT * FROM users WHERE id = ")
-        .push_bind(42i32)
-        .build();
+    {
+        let _query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+    }
 
     qb.reset();
 
@@ -97,8 +99,10 @@ fn test_query_builder_with_args() {
         .push_bind(42i32)
         .build();
 
+    let args = query.take_arguments().unwrap().unwrap();
+
     let mut qb: QueryBuilder<'_, Postgres> =
-        QueryBuilder::with_arguments(query.sql(), query.take_arguments().unwrap().unwrap());
+        QueryBuilder::with_arguments(query.sql().as_str(), args);
     let query = qb.push(" OR membership_level = ").push_bind(3i32).build();
 
     assert_eq!(

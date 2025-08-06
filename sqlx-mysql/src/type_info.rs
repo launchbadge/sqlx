@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 
-pub(crate) use sqlx_core::type_info::*;
-
+use crate::collation::Collation;
 use crate::protocol::text::{ColumnDefinition, ColumnFlags, ColumnType};
+pub(crate) use sqlx_core::type_info::*;
 
 /// Type information for a MySql type.
 #[derive(Debug, Clone)]
@@ -10,6 +10,7 @@ use crate::protocol::text::{ColumnDefinition, ColumnFlags, ColumnType};
 pub struct MySqlTypeInfo {
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
+    pub(crate) collation: Collation,
 
     // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
     #[cfg_attr(feature = "offline", serde(default))]
@@ -21,6 +22,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: ty,
             flags: ColumnFlags::BINARY,
+            collation: Collation::BINARY,
             max_size: None,
         }
     }
@@ -38,6 +40,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: ColumnType::String,
             flags: ColumnFlags::ENUM,
+            collation: Collation::UTF8MB4_GENERAL_CI,
             max_size: None,
         }
     }
@@ -60,6 +63,7 @@ impl MySqlTypeInfo {
         Self {
             r#type: column.r#type,
             flags: column.flags,
+            collation: column.collation,
             max_size: Some(column.max_size),
         }
     }

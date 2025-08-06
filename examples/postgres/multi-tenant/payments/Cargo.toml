@@ -1,0 +1,23 @@
+[package]
+name = "sqlx-example-postgres-multi-tenant-payments"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+rust_decimal = "1.36.0"
+
+time = "0.3.37"
+uuid = "1.12.1"
+
+[dependencies.sqlx]
+# version = "0.9.0"
+workspace = true
+features = ["postgres", "time", "uuid", "rust_decimal", "sqlx-toml", "migrate"]
+
+[dependencies.accounts]
+path = "../accounts"
+package = "sqlx-example-postgres-multi-tenant-accounts"
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio"] }

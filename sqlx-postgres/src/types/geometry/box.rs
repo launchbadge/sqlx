@@ -56,7 +56,7 @@ impl<'r> Decode<'r, Postgres> for PgBox {
     }
 }
 
-impl<'q> Encode<'q, Postgres> for PgBox {
+impl Encode<'_, Postgres> for PgBox {
     fn produces(&self) -> Option<PgTypeInfo> {
         Some(PgTypeInfo::with_name("box"))
     }

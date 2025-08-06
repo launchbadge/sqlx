@@ -1,8 +1,8 @@
 use sqlx::error::DatabaseError;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteError};
-use sqlx::ConnectOptions;
 use sqlx::TypeInfo;
 use sqlx::{sqlite::Sqlite, Column, Executor};
+use sqlx::{ConnectOptions, SqlSafeStr};
 use sqlx_test::new;
 use std::env;
 
@@ -10,7 +10,7 @@ use std::env;
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let info = conn.describe("SELECT * FROM tweet").await?;
+    let info = conn.describe("SELECT * FROM tweet".into_sql_str()).await?;
     let columns = info.columns();
 
     assert_eq!(columns[0].name(), "id");
@@ -41,13 +41,15 @@ async fn it_describes_variables() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // without any context, we resolve to NULL
-    let info = conn.describe("SELECT ?1").await?;
+    let info = conn.describe("SELECT ?1".into_sql_str()).await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "NULL");
     assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
 
     // context can be provided by using CAST(_ as _)
-    let info = conn.describe("SELECT CAST(?1 AS REAL)").await?;
+    let info = conn
+        .describe("SELECT CAST(?1 AS REAL)".into_sql_str())
+        .await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "REAL");
     assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
@@ -60,7 +62,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef', null")
+        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef', null".into_sql_str())
         .await?;
 
     let columns = d.columns();
@@ -107,7 +109,7 @@ async fn it_describes_temporary_table() -> anyhow::Result<()> {
     .await?;
 
     let d = conn
-        .describe("SELECT * FROM empty_all_types_and_nulls")
+        .describe("SELECT * FROM empty_all_types_and_nulls".into_sql_str())
         .await?;
     assert_eq!(d.columns().len(), 8);
 
@@ -146,7 +148,7 @@ async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
         .await?;
 
     let d = conn
-        .describe("SELECT COUNT(*), a + 1, name, 5.12, 'Hello' FROM _temp_empty")
+        .describe("SELECT COUNT(*), a + 1, name, 5.12, 'Hello' FROM _temp_empty".into_sql_str())
         .await?;
 
     assert_eq!(d.columns()[0].type_info().name(), "INTEGER");
@@ -175,7 +177,7 @@ async fn it_describes_expression_from_empty_table_with_star() -> anyhow::Result<
         .await?;
 
     let d = conn
-        .describe("SELECT *, 5, 'Hello' FROM _temp_empty")
+        .describe("SELECT *, 5, 'Hello' FROM _temp_empty".into_sql_str())
         .await?;
 
     assert_eq!(d.columns()[0].type_info().name(), "TEXT");
@@ -191,13 +193,16 @@ async fn it_describes_insert() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 0);
 
     let d = conn
-        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello'); SELECT last_insert_rowid();")
+        .describe(
+            "INSERT INTO tweet (id, text) VALUES (2, 'Hello'); SELECT last_insert_rowid();"
+                .into_sql_str(),
+        )
         .await?;
 
     assert_eq!(d.columns().len(), 1);
@@ -217,7 +222,7 @@ async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
     let mut conn = options.connect().await?;
 
     let d = conn
-        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 0);
@@ -230,7 +235,7 @@ async fn it_describes_insert_with_returning() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello') RETURNING *")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello') RETURNING *".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 4);
@@ -240,7 +245,9 @@ async fn it_describes_insert_with_returning() -> anyhow::Result<()> {
     assert_eq!(d.nullable(1), Some(false));
 
     let d = conn
-        .describe("INSERT INTO accounts (name, is_active) VALUES ('a', true) RETURNING id")
+        .describe(
+            "INSERT INTO accounts (name, is_active) VALUES ('a', true) RETURNING id".into_sql_str(),
+        )
         .await?;
 
     assert_eq!(d.columns().len(), 1);
@@ -254,7 +261,7 @@ async fn it_describes_insert_with_returning() -> anyhow::Result<()> {
 async fn it_describes_bound_columns_non_null() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     let d = conn
-        .describe("INSERT INTO tweet (id, text) VALUES ($1, $2) returning *")
+        .describe("INSERT INTO tweet (id, text) VALUES ($1, $2) returning *".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 4);
@@ -271,7 +278,7 @@ async fn it_describes_update_with_returning() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("UPDATE accounts SET is_active=true WHERE name=?1 RETURNING id")
+        .describe("UPDATE accounts SET is_active=true WHERE name=?1 RETURNING id".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 1);
@@ -279,7 +286,7 @@ async fn it_describes_update_with_returning() -> anyhow::Result<()> {
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING *")
+        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING *".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 3);
@@ -291,7 +298,7 @@ async fn it_describes_update_with_returning() -> anyhow::Result<()> {
     //assert_eq!(d.nullable(2), Some(false)); //query analysis is allowed to notice that it is always set to true by the update
 
     let d = conn
-        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING id")
+        .describe("UPDATE accounts SET is_active=true WHERE id=?1 RETURNING id".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 1);
@@ -306,7 +313,7 @@ async fn it_describes_delete_with_returning() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("DELETE FROM accounts WHERE name=?1 RETURNING id")
+        .describe("DELETE FROM accounts WHERE name=?1 RETURNING id".into_sql_str())
         .await?;
 
     assert_eq!(d.columns().len(), 1);
@@ -320,7 +327,10 @@ async fn it_describes_delete_with_returning() -> anyhow::Result<()> {
 async fn it_describes_bad_statement() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let err = conn.describe("SELECT 1 FROM not_found").await.unwrap_err();
+    let err = conn
+        .describe("SELECT 1 FROM not_found".into_sql_str())
+        .await
+        .unwrap_err();
     let err = err
         .as_database_error()
         .unwrap()
@@ -336,13 +346,18 @@ async fn it_describes_bad_statement() -> anyhow::Result<()> {
 async fn it_describes_left_join() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let d = conn.describe("select accounts.id from accounts").await?;
+    let d = conn
+        .describe("select accounts.id from accounts".into_sql_str())
+        .await?;
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select tweet.id from accounts left join tweet on owner_id = accounts.id")
+        .describe(
+            "select tweet.id from accounts left join tweet on owner_id = accounts.id"
+                .into_sql_str(),
+        )
         .await?;
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
@@ -350,7 +365,8 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 
     let d = conn
         .describe(
-            "select tweet.id, accounts.id from accounts left join tweet on owner_id = accounts.id",
+            "select tweet.id, accounts.id from accounts left join tweet on owner_id = accounts.id"
+                .into_sql_str(),
         )
         .await?;
 
@@ -362,7 +378,8 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 
     let d = conn
         .describe(
-            "select tweet.id, accounts.id from accounts inner join tweet on owner_id = accounts.id",
+            "select tweet.id, accounts.id from accounts inner join tweet on owner_id = accounts.id"
+                .into_sql_str(),
         )
         .await?;
 
@@ -374,7 +391,8 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 
     let d = conn
         .describe(
-            "select tweet.id, accounts.id from accounts left join tweet on tweet.id = accounts.id",
+            "select tweet.id, accounts.id from accounts left join tweet on tweet.id = accounts.id"
+                .into_sql_str(),
         )
         .await?;
 
@@ -391,18 +409,20 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 async fn it_describes_group_by() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let d = conn.describe("select id from accounts group by id").await?;
+    let d = conn
+        .describe("select id from accounts group by id".into_sql_str())
+        .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("SELECT name from accounts GROUP BY 1 LIMIT -1 OFFSET 1")
+        .describe("SELECT name from accounts GROUP BY 1 LIMIT -1 OFFSET 1".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("SELECT sum(id), sum(is_sent) from tweet GROUP BY owner_id")
+        .describe("SELECT sum(id), sum(is_sent) from tweet GROUP BY owner_id".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
@@ -416,16 +436,20 @@ async fn it_describes_group_by() -> anyhow::Result<()> {
 async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let d = conn.describe("select count(1) from accounts").await?;
+    let d = conn
+        .describe("select count(1) from accounts".into_sql_str())
+        .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
-    let d = conn.describe("SELECT sum(is_sent) from tweet").await?;
+    let d = conn
+        .describe("SELECT sum(is_sent) from tweet".into_sql_str())
+        .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("SELECT coalesce(sum(is_sent),0) from tweet")
+        .describe("SELECT coalesce(sum(is_sent),0) from tweet".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
@@ -437,9 +461,9 @@ async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
 async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     async fn assert_literal_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
-        let info = conn.describe(query).await?;
+        let info = conn.describe(query.into_sql_str()).await?;
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
         assert_eq!(info.nullable(0), Some(false), "{query}");
@@ -473,9 +497,9 @@ async fn it_describes_literal_subquery() -> anyhow::Result<()> {
 
 async fn assert_tweet_described(
     conn: &mut sqlx::SqliteConnection,
-    query: &str,
+    query: &'static str,
 ) -> anyhow::Result<()> {
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     let columns = info.columns();
 
     assert_eq!(columns[0].name(), "id", "{query}");
@@ -533,9 +557,9 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 
     async fn assert_literal_order_by_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
-        let info = conn.describe(query).await?;
+        let info = conn.describe(query.into_sql_str()).await?;
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
         assert_eq!(info.nullable(0), Some(false), "{query}");
@@ -571,9 +595,9 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 async fn it_describes_union() -> anyhow::Result<()> {
     async fn assert_union_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
     ) -> anyhow::Result<()> {
-        let info = conn.describe(query).await?;
+        let info = conn.describe(query.into_sql_str()).await?;
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
         assert_eq!(info.nullable(0), Some(false), "{query}");
@@ -638,7 +662,8 @@ async fn it_describes_having_group_by() -> anyhow::Result<()> {
           ) single_reply_count
         FROM accounts
         WHERE id = ?1
-        "#,
+        "#
+            .into_sql_str(),
         )
         .await?;
 
@@ -653,11 +678,11 @@ async fn it_describes_having_group_by() -> anyhow::Result<()> {
 async fn it_describes_strange_queries() -> anyhow::Result<()> {
     async fn assert_single_column_described(
         conn: &mut sqlx::SqliteConnection,
-        query: &str,
+        query: &'static str,
         typename: &str,
         nullable: bool,
     ) -> anyhow::Result<()> {
-        let info = conn.describe(query).await?;
+        let info = conn.describe(query.into_sql_str()).await?;
         assert_eq!(info.column(0).type_info().name(), typename, "{query}");
         assert_eq!(info.nullable(0), Some(nullable), "{query}");
 
@@ -759,22 +784,22 @@ async fn it_describes_func_date() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let query = "SELECT date();";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(false), "{query}");
 
     let query = "SELECT date('now');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT date('now', 'start of month');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT date(:datebind);";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
     Ok(())
@@ -785,22 +810,22 @@ async fn it_describes_func_time() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let query = "SELECT time();";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(false), "{query}");
 
     let query = "SELECT time('now');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT time('now', 'start of month');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT time(:datebind);";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
     Ok(())
@@ -811,22 +836,22 @@ async fn it_describes_func_datetime() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let query = "SELECT datetime();";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(false), "{query}");
 
     let query = "SELECT datetime('now');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT datetime('now', 'start of month');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT datetime(:datebind);";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
     Ok(())
@@ -837,22 +862,22 @@ async fn it_describes_func_julianday() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let query = "SELECT julianday();";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "REAL", "{query}");
     assert_eq!(info.nullable(0), Some(false), "{query}");
 
     let query = "SELECT julianday('now');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "REAL", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT julianday('now', 'start of month');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "REAL", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT julianday(:datebind);";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "REAL", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
     Ok(())
@@ -863,17 +888,17 @@ async fn it_describes_func_strftime() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let query = "SELECT strftime('%s','now');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT strftime('%s', 'now', 'start of month');";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}"); //can't prove that it's not-null yet
 
     let query = "SELECT strftime('%s',:datebind);";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
     Ok(())
@@ -897,7 +922,7 @@ async fn it_describes_with_recursive() -> anyhow::Result<()> {
          FROM schedule
          GROUP BY begin_date
         ";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
 
@@ -915,7 +940,7 @@ async fn it_describes_with_recursive() -> anyhow::Result<()> {
          FROM schedule
          GROUP BY begin_date
         ";
-    let info = conn.describe(query).await?;
+    let info = conn.describe(query.into_sql_str()).await?;
     assert_eq!(info.column(0).type_info().name(), "TEXT", "{query}");
     assert_eq!(info.nullable(0), Some(true), "{query}");
 
@@ -927,97 +952,99 @@ async fn it_describes_analytical_function() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("select row_number() over () from accounts")
+        .describe("select row_number() over () from accounts".into_sql_str())
         .await?;
     dbg!(&d);
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
-    let d = conn.describe("select rank() over () from accounts").await?;
+    let d = conn
+        .describe("select rank() over () from accounts".into_sql_str())
+        .await?;
     dbg!(&d);
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select dense_rank() over () from accounts")
+        .describe("select dense_rank() over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select percent_rank() over () from accounts")
+        .describe("select percent_rank() over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "REAL");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select cume_dist() over () from accounts")
+        .describe("select cume_dist() over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "REAL");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select ntile(1) over () from accounts")
+        .describe("select ntile(1) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select lag(id) over () from accounts")
+        .describe("select lag(id) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select lag(name) over () from accounts")
+        .describe("select lag(name) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select lead(id) over () from accounts")
+        .describe("select lead(id) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select lead(name) over () from accounts")
+        .describe("select lead(name) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select first_value(id) over () from accounts")
+        .describe("select first_value(id) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select first_value(name) over () from accounts")
+        .describe("select first_value(name) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select last_value(id) over () from accounts")
+        .describe("select last_value(id) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     let d = conn
-        .describe("select first_value(name) over () from accounts")
+        .describe("select first_value(name) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     //assert_eq!(d.nullable(0), Some(false)); //this should be null, but it's hard to prove that it will be
 
     let d = conn
-        .describe("select nth_value(id,10) over () from accounts")
+        .describe("select nth_value(id,10) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
     let d = conn
-        .describe("select nth_value(name,10) over () from accounts")
+        .describe("select nth_value(name,10) over () from accounts".into_sql_str())
         .await?;
     assert_eq!(d.column(0).type_info().name(), "TEXT");
     assert_eq!(d.nullable(0), Some(true));

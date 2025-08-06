@@ -1,12 +1,12 @@
-use std::str::from_utf8;
+use std::str;
 
-use bitflags::bitflags;
-use bytes::{Buf, Bytes};
-
+use crate::collation::Collation;
 use crate::error::Error;
 use crate::io::MySqlBufExt;
 use crate::io::ProtocolDecode;
 use crate::protocol::Capabilities;
+use bitflags::bitflags;
+use bytes::{Buf, Bytes};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html
 
@@ -104,16 +104,13 @@ pub enum ColumnType {
 pub(crate) struct ColumnDefinition {
     #[allow(unused)]
     catalog: Bytes,
-    #[allow(unused)]
     schema: Bytes,
     #[allow(unused)]
     table_alias: Bytes,
-    #[allow(unused)]
     table: Bytes,
     alias: Bytes,
     name: Bytes,
-    #[allow(unused)]
-    pub(crate) collation: u16,
+    pub(crate) collation: Collation,
     pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
@@ -125,12 +122,20 @@ impl ColumnDefinition {
     // NOTE: strings in-protocol are transmitted according to the client character set
     //       as this is UTF-8, all these strings should be UTF-8
 
+    pub(crate) fn schema(&self) -> Result<&str, Error> {
+        str::from_utf8(&self.schema).map_err(Error::protocol)
+    }
+
+    pub(crate) fn table(&self) -> Result<&str, Error> {
+        str::from_utf8(&self.table).map_err(Error::protocol)
+    }
+
     pub(crate) fn name(&self) -> Result<&str, Error> {
-        from_utf8(&self.name).map_err(Error::protocol)
+        str::from_utf8(&self.name).map_err(Error::protocol)
     }
 
     pub(crate) fn alias(&self) -> Result<&str, Error> {
-        from_utf8(&self.alias).map_err(Error::protocol)
+        str::from_utf8(&self.alias).map_err(Error::protocol)
     }
 }
 
@@ -156,7 +161,7 @@ impl ProtocolDecode<'_, Capabilities> for ColumnDefinition {
             table,
             alias,
             name,
-            collation,
+            collation: Collation(collation),
             max_size,
             r#type: ColumnType::try_from_u16(type_id)?,
             flags: ColumnFlags::from_bits_truncate(flags),

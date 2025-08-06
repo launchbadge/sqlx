@@ -45,4 +45,7 @@ pub enum MigrateError {
 
     #[error("Invalid parameter syntax {0}")]
     InvalidParameterSyntax(String),
+
+    #[error("database driver does not support creation of schemas at migrate time: {0}")]
+    CreateSchemasNotSupported(String),
 }

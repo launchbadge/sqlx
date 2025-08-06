@@ -7,6 +7,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::acquire::Acquire;
+use sqlx_core::sql_str::{AssertSqlSafe, SqlStr};
 use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 use tracing::Instrument;
@@ -116,7 +117,7 @@ impl PgListener {
     pub async fn listen(&mut self, channel: &str) -> Result<(), Error> {
         self.connection()
             .await?
-            .execute(&*format!(r#"LISTEN "{}""#, ident(channel)))
+            .execute(AssertSqlSafe(format!(r#"LISTEN "{}""#, ident(channel))))
             .await?;
 
         self.channels.push(channel.to_owned());
@@ -133,7 +134,10 @@ impl PgListener {
         self.channels.extend(channels.into_iter().map(|s| s.into()));
 
         let query = build_listen_all_query(&self.channels[beg..]);
-        self.connection().await?.execute(&*query).await?;
+        self.connection()
+            .await?
+            .execute(AssertSqlSafe(query))
+            .await?;
 
         Ok(())
     }
@@ -145,7 +149,7 @@ impl PgListener {
         // UNLISTEN (we've disconnected anyways)
         if let Some(connection) = self.connection.as_mut() {
             connection
-                .execute(&*format!(r#"UNLISTEN "{}""#, ident(channel)))
+                .execute(AssertSqlSafe(format!(r#"UNLISTEN "{}""#, ident(channel))))
                 .await?;
         }
 
@@ -176,7 +180,7 @@ impl PgListener {
             connection.inner.stream.notifications = self.buffer_tx.take();
 
             connection
-                .execute(&*build_listen_all_query(&self.channels))
+                .execute(AssertSqlSafe(build_listen_all_query(&self.channels)))
                 .await?;
 
             self.connection = Some(connection);
@@ -417,11 +421,11 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         async move { self.connection().await?.fetch_optional(query).await }.boxed()
     }
 
-    fn prepare_with<'e, 'q: 'e>(
+    fn prepare_with<'e>(
         self,
-        query: &'q str,
+        query: SqlStr,
         parameters: &'e [PgTypeInfo],
-    ) -> BoxFuture<'e, Result<PgStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<PgStatement, Error>>
     where
         'c: 'e,
     {
@@ -435,10 +439,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        self,
-        query: &'q str,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    fn describe<'e>(self, query: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
@@ -506,12 +507,12 @@ fn build_listen_all_query(channels: impl IntoIterator<Item = impl AsRef<str>>) -
 
 #[test]
 fn test_build_listen_all_query_with_single_channel() {
-    let output = build_listen_all_query(&["test"]);
+    let output = build_listen_all_query(["test"]);
     assert_eq!(output.as_str(), r#"LISTEN "test";"#);
 }
 
 #[test]
 fn test_build_listen_all_query_with_multiple_channels() {
-    let output = build_listen_all_query(&["channel.0", "channel.1"]);
+    let output = build_listen_all_query(["channel.0", "channel.1"]);
     assert_eq!(output.as_str(), r#"LISTEN "channel.0";LISTEN "channel.1";"#);
 }

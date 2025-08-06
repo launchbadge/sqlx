@@ -5,14 +5,18 @@ use crate::error::Error;
 use crate::statement::VirtualStatement;
 use crate::type_info::DataType;
 use crate::{Sqlite, SqliteColumn};
+use sqlx_core::sql_str::SqlStr;
 use sqlx_core::Either;
 use std::convert::identity;
 
-pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe<Sqlite>, Error> {
+pub(crate) fn describe(
+    conn: &mut ConnectionState,
+    query: SqlStr,
+) -> Result<Describe<Sqlite>, Error> {
     // describing a statement from SQLite can be involved
     // each SQLx statement is comprised of multiple SQL statements
 
-    let mut statement = VirtualStatement::new(query, false)?;
+    let mut statement = VirtualStatement::new(query.as_str(), false)?;
 
     let mut columns = Vec::new();
     let mut nullable = Vec::new();
@@ -50,6 +54,8 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
         for col in 0..num {
             let name = stmt.handle.column_name(col).to_owned();
 
+            let origin = stmt.handle.column_origin(col);
+
             let type_info = if let Some(ty) = stmt.handle.column_decltype(col) {
                 ty
             } else {
@@ -82,6 +88,7 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
                 name: name.into(),
                 type_info,
                 ordinal: col,
+                origin,
             });
         }
     }
