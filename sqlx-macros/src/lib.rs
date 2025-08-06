@@ -66,9 +66,9 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
 #[cfg(feature = "migrate")]
 #[proc_macro]
 pub fn migrate(input: TokenStream) -> TokenStream {
+    use quote::quote;
     use std::collections::HashMap;
     use syn::{parse_macro_input, Expr, ExprArray, ExprLit, ExprPath, ExprTuple, Lit, LitStr};
-    use quote::quote;
 
     // Extract directory path, handling both direct literals and grouped literals
     fn extract_dir(expr: Option<Expr>) -> LitStr {

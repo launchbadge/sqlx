@@ -2,7 +2,6 @@ use crate::config::migrate::{DefaultMigrationType, DefaultVersioning};
 use crate::config::Config;
 use anyhow::Context;
 use chrono::Utc;
-use std::error::Error;
 use clap::{
     builder::{styling::AnsiColor, Styles},
     Args, Parser,
@@ -11,6 +10,7 @@ use clap::{
 use clap_complete::Shell;
 use sqlx::migrate::{MigrateError, Migrator, ResolveWith};
 use std::env;
+use std::error::Error;
 use std::ops::{Deref, Not};
 use std::path::PathBuf;
 

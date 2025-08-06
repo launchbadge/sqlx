@@ -2,7 +2,7 @@ use sha2::{Digest, Sha384};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use crate::sql_str::{SqlStr, SqlSafeStr};
+use crate::sql_str::{SqlSafeStr, SqlStr};
 
 use super::{MigrateError, MigrationType};
 

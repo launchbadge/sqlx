@@ -293,10 +293,17 @@ pub async fn run(
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
                 } else if params_from_env {
-                    conn.apply(&migration.process_parameters(&env_params)?)
-                        .await?
+                    conn.apply(
+                        config.migrate.table_name(),
+                        &migration.process_parameters(&env_params)?,
+                    )
+                    .await?
                 } else if !params.is_empty() {
-                    conn.apply(&migration.process_parameters(&params)?).await?
+                    conn.apply(
+                        config.migrate.table_name(),
+                        &migration.process_parameters(&params)?,
+                    )
+                    .await?
                 } else {
                     conn.apply(config.migrate.table_name(), migration).await?
                 };
@@ -408,10 +415,17 @@ pub async fn revert(
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
             } else if params_from_env {
-                conn.revert(&migration.process_parameters(&env_params)?)
-                    .await?
+                conn.revert(
+                    config.migrate.table_name(),
+                    &migration.process_parameters(&env_params)?,
+                )
+                .await?
             } else if !params.is_empty() {
-                conn.revert(&migration.process_parameters(&params)?).await?
+                conn.revert(
+                    config.migrate.table_name(),
+                    &migration.process_parameters(&params)?,
+                )
+                .await?
             } else {
                 conn.revert(config.migrate.table_name(), migration).await?
             };

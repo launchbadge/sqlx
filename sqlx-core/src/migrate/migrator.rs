@@ -259,10 +259,14 @@ impl Migrator {
                 }
                 None => {
                     if self.template_parameters_from_env {
-                        conn.apply(&self.table_name, &migration.process_parameters(env_params.as_ref().unwrap())?)
-                            .await?;
+                        conn.apply(
+                            &self.table_name,
+                            &migration.process_parameters(env_params.as_ref().unwrap())?,
+                        )
+                        .await?;
                     } else if let Some(params) = self.template_params.as_ref() {
-                        conn.apply(&self.table_name, &migration.process_parameters(params)?).await?;
+                        conn.apply(&self.table_name, &migration.process_parameters(params)?)
+                            .await?;
                     } else {
                         conn.apply(&self.table_name, migration).await?;
                     }
@@ -339,10 +343,14 @@ impl Migrator {
             .filter(|m| m.version > target)
         {
             if self.template_parameters_from_env {
-                conn.revert(&self.table_name, &migration.process_parameters(env_params.as_ref().unwrap())?)
-                    .await?;
+                conn.revert(
+                    &self.table_name,
+                    &migration.process_parameters(env_params.as_ref().unwrap())?,
+                )
+                .await?;
             } else if let Some(params) = self.template_params.as_ref() {
-                conn.revert(&self.table_name, &migration.process_parameters(params)?).await?;
+                conn.revert(&self.table_name, &migration.process_parameters(params)?)
+                    .await?;
             } else {
                 conn.revert(&self.table_name, migration).await?;
             }
