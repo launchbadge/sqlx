@@ -4,9 +4,9 @@ use crate::{
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{stream, FutureExt, StreamExt, TryFutureExt};
 use sqlx_core::sql_str::SqlStr;
-use std::{future, pin::pin};
+use std::future;
 
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
@@ -103,30 +103,6 @@ impl AnyConnectionBackend for PgConnection {
                     },
                 ),
         )
-    }
-
-    fn fetch_optional(
-        &mut self,
-        query: SqlStr,
-        persistent: bool,
-        arguments: Option<AnyArguments>,
-    ) -> BoxFuture<sqlx_core::Result<Option<AnyRow>>> {
-        let persistent = persistent && arguments.is_some();
-        let arguments = arguments
-            .map(AnyArguments::convert_into)
-            .transpose()
-            .map_err(sqlx_core::Error::Encode);
-
-        Box::pin(async move {
-            let arguments = arguments?;
-            let mut stream = pin!(self.run(query, arguments, persistent, None).await?);
-
-            if let Some(Either::Right(row)) = stream.try_next().await? {
-                return Ok(Some(AnyRow::try_from(&row)?));
-            }
-
-            Ok(None)
-        })
     }
 
     fn prepare_with<'c, 'q: 'c>(

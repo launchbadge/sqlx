@@ -6,7 +6,7 @@ use crate::{
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{stream, FutureExt, StreamExt, TryFutureExt};
 use sqlx_core::any::{
     Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
@@ -17,7 +17,7 @@ use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::sql_str::SqlStr;
 use sqlx_core::transaction::TransactionManager;
-use std::{future, pin::pin};
+use std::future;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = MySql);
 
@@ -101,32 +101,6 @@ impl AnyConnectionBackend for MySqlConnection {
                     })
                 }),
         )
-    }
-
-    fn fetch_optional(
-        &mut self,
-        query: SqlStr,
-        persistent: bool,
-        arguments: Option<AnyArguments>,
-    ) -> BoxFuture<'_, sqlx_core::Result<Option<AnyRow>>> {
-        let persistent = persistent && arguments.is_some();
-        let arguments = arguments
-            .map(AnyArguments::convert_into)
-            .transpose()
-            .map_err(sqlx_core::Error::Encode);
-
-        Box::pin(async move {
-            let arguments = arguments?;
-            let mut stream = pin!(self.run(query, arguments, persistent).await?);
-
-            while let Some(result) = stream.try_next().await? {
-                if let Either::Right(row) = result {
-                    return Ok(Some(AnyRow::try_from(&row)?));
-                }
-            }
-
-            Ok(None)
-        })
     }
 
     fn prepare_with<'c, 'q: 'c>(
