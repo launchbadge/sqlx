@@ -213,6 +213,7 @@ fn validate_applied_migrations(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     config: &Config,
     migration_source: &MigrationSourceOpt,
@@ -337,6 +338,7 @@ pub async fn run(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn revert(
     config: &Config,
     migration_source: &MigrationSourceOpt,
