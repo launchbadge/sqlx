@@ -45,7 +45,7 @@ impl Statement for SqliteStatement {
         &self.columns
     }
 
-    impl_statement_query!(SqliteArguments<'_>);
+    impl_statement_query!(SqliteArguments);
 }
 
 impl ColumnIndex<SqliteStatement> for &'_ str {
@@ -57,20 +57,3 @@ impl ColumnIndex<SqliteStatement> for &'_ str {
             .copied()
     }
 }
-
-// #[cfg(feature = "any")]
-// impl<'q> From<SqliteStatement<'q>> for crate::any::AnyStatement<'q> {
-//     #[inline]
-//     fn from(statement: SqliteStatement<'q>) -> Self {
-//         crate::any::AnyStatement::<'q> {
-//             columns: statement
-//                 .columns
-//                 .iter()
-//                 .map(|col| col.clone().into())
-//                 .collect(),
-//             column_names: statement.column_names,
-//             parameters: Some(Either::Right(statement.parameters)),
-//             sql: statement.sql,
-//         }
-//     }
-// }
