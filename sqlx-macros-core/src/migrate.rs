@@ -1,6 +1,7 @@
 #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
 extern crate proc_macro;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use proc_macro2::{Span, TokenStream};
@@ -102,7 +103,39 @@ pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
     expand_with_path(&config, &path)
 }
 
+pub fn expand_migrator_from_lit_dir(
+    dir: LitStr,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
+    expand_migrator_from_dir(&dir.value(), dir.span(), parameters)
+}
+
+pub(crate) fn expand_migrator_from_dir(
+    dir: &str,
+    err_span: proc_macro2::Span,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
+    let path = crate::common::resolve_path(dir, err_span)?;
+    expand_migrator(&path, parameters)
+}
+
 pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStream> {
+    expand_migrator_with_config(config, path, None)
+}
+
+pub(crate) fn expand_migrator(
+    path: &Path,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
+    let config = Config::try_from_crate_or_default()?;
+    expand_migrator_with_config(&config, path, parameters)
+}
+
+pub(crate) fn expand_migrator_with_config(
+    config: &Config,
+    path: &Path,
+    parameters: Option<HashMap<String, String>>,
+) -> crate::Result<TokenStream> {
     let path = path.canonicalize().map_err(|e| {
         format!(
             "error canonicalizing migration directory {}: {e}",
@@ -115,7 +148,14 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
     // Use the same code path to resolve migrations at compile time and runtime.
     let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
         .into_iter()
-        .map(|(migration, path)| QuoteMigration { migration, path });
+        .map(|(migration, path)| {
+            if let Some(ref params) = parameters {
+                if let Err(e) = migration.process_parameters(params) {
+                    panic!("Error processing parameters: {e}");
+                }
+            }
+            QuoteMigration { migration, path }
+        });
 
     let table_name = config.migrate.table_name();
 

@@ -861,10 +861,15 @@ macro_rules! query_file_scalar_unchecked (
 #[cfg(feature = "migrate")]
 #[macro_export]
 macro_rules! migrate {
+    ($directory:literal, parameters = $parameters:expr) => {
+        $crate::sqlx_macros::migrate!(($directory, $parameters))
+    };
+    (parameters = $parameters:expr) => {
+        $crate::sqlx_macros::migrate!(("./migrations", $parameters))
+    };
     ($dir:literal) => {{
         $crate::sqlx_macros::migrate!($dir)
     }};
-
     () => {{
         $crate::sqlx_macros::migrate!()
     }};

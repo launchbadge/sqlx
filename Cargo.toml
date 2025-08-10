@@ -185,6 +185,7 @@ uuid = "1.1.2"
 
 # Common utility crates
 dotenvy = { version = "0.15.7", default-features = false }
+subst = "0.3.7"
 
 # Runtimes
 [workspace.dependencies.async-std]
