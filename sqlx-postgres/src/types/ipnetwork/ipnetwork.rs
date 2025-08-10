@@ -69,6 +69,8 @@ impl Encode<'_, Postgres> for IpNetwork {
     }
 }
 
+impl_into_encode_for_db!(Postgres, IpNetwork);
+
 impl Decode<'_, Postgres> for IpNetwork {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = match value.format() {

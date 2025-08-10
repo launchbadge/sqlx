@@ -63,3 +63,5 @@ impl<'de> Deserialize<'de> for Oid {
         u32::deserialize(deserializer).map(Self)
     }
 }
+
+impl_into_encode!(Oid);

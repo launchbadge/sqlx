@@ -106,3 +106,6 @@ impl Decode<'_, MySql> for Simple {
             .map(|u| u.simple())
     }
 }
+
+impl_into_encode_for_db!(MySql, Hyphenated);
+impl_into_encode_for_db!(MySql, Simple);

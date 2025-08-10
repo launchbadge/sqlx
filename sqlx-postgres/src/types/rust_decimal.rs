@@ -179,6 +179,8 @@ impl Encode<'_, Postgres> for Decimal {
     }
 }
 
+impl_into_encode_for_db!(Postgres, Decimal);
+
 #[doc=include_str!("rust_decimal-range.md")]
 impl Decode<'_, Postgres> for Decimal {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {

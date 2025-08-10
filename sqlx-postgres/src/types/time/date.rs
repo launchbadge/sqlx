@@ -34,6 +34,8 @@ impl Encode<'_, Postgres> for Date {
     }
 }
 
+impl_into_encode_for_db!(Postgres, Date);
+
 impl<'r> Decode<'r, Postgres> for Date {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {

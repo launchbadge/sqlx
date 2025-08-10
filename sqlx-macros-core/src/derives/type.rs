@@ -95,6 +95,25 @@ fn expand_derive_has_sql_type_transparent(
                     <#ty as ::sqlx::Type<DB>>::compatible(ty)
                 }
             }
+
+            #[automatically_derived]
+            impl #impl_generics ::sqlx::encode_owned::IntoEncode<DB> for #ident #ty_generics
+            where
+                #ident: for<'e> ::sqlx::encode::Encode<'e, DB>,
+                Self: std::fmt::Debug + Send + Sync + 'static,
+                Self: ::sqlx::types::Type<DB>,
+            {
+                fn into_encode<'s>(self) -> impl ::sqlx::encode::Encode<'s, DB> + ::sqlx::types::Type<DB> + 's
+                where
+                    Self: 's,
+                {
+                    self
+                }
+
+                fn into_encode_owned(self) -> impl ::sqlx::encode_owned::EncodeOwned<DB> + 'static {
+                    ::sqlx::encode_owned::EncodeClone::from(self)
+                }
+            }
         );
 
         if cfg!(feature = "postgres") && !attr.no_pg_array {

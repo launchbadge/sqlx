@@ -69,7 +69,7 @@ use crate::value::{Value, ValueRef};
 ///
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database (e.g., MySQL, PostgreSQL).
-pub trait Database: 'static + Sized + Send + Debug {
+pub trait Database: 'static + Sized + Send + Sync + Debug {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connection<Database = Self>;
 
@@ -96,9 +96,9 @@ pub trait Database: 'static + Sized + Send + Debug {
     type ValueRef<'r>: ValueRef<'r, Database = Self>;
 
     /// The concrete `Arguments` implementation for this database.
-    type Arguments<'q>: Arguments<'q, Database = Self>;
+    type Arguments: Arguments<Database = Self>;
     /// The concrete type used as a buffer for arguments while encoding.
-    type ArgumentBuffer<'q>;
+    type ArgumentBuffer;
 
     /// The concrete `Statement` implementation for this database.
     type Statement: Statement<Database = Self>;

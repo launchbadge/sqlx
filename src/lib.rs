@@ -142,6 +142,10 @@ pub mod encode {
 
 pub use self::encode::Encode;
 
+pub mod encode_owned {
+    pub use sqlx_core::encode_owned::{EncodeClone, EncodeOwned, IntoEncode};
+}
+
 /// Provides [`Decode`] for decoding values from the database.
 pub mod decode {
     pub use sqlx_core::decode::Decode;

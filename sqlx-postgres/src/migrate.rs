@@ -308,8 +308,8 @@ async fn execute_migration(
                 "#
     )))
     .bind(migration.version)
-    .bind(&*migration.description)
-    .bind(&*migration.checksum)
+    .bind(&migration.description)
+    .bind(&migration.checksum)
     .execute(conn)
     .await?;
 

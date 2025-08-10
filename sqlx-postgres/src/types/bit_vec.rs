@@ -45,6 +45,8 @@ impl Encode<'_, Postgres> for BitVec {
     }
 }
 
+impl_into_encode_for_db!(Postgres, BitVec);
+
 impl Decode<'_, Postgres> for BitVec {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.format() {

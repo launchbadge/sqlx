@@ -104,3 +104,5 @@ impl Decode<'_, Postgres> for PgCiText {
         Ok(PgCiText(value.as_str()?.to_owned()))
     }
 }
+
+impl_into_encode_for_db!(Postgres, PgCiText);

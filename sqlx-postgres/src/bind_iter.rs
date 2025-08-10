@@ -1,14 +1,17 @@
 use crate::{type_info::PgType, PgArgumentBuffer, PgHasArrayType, PgTypeInfo, Postgres};
-use core::cell::Cell;
+use sqlx_core::encode_owned::{EncodeClone, EncodeOwned, IntoEncode};
 use sqlx_core::{
     database::Database,
     encode::{Encode, IsNull},
     error::BoxDynError,
     types::Type,
 };
+use std::fmt::Debug;
+use std::sync::RwLock;
 
 // not exported but pub because it is used in the extension trait
-pub struct PgBindIter<I>(Cell<Option<I>>);
+#[derive(Debug)]
+pub struct PgBindIter<I>(RwLock<Option<I>>);
 
 /// Iterator extension trait enabling iterators to encode arrays in Postgres.
 ///
@@ -58,7 +61,7 @@ pub trait PgBindIterExt: Iterator + Sized {
 
 impl<I: Iterator + Sized> PgBindIterExt for I {
     fn bind_iter(self) -> PgBindIter<I> {
-        PgBindIter(Cell::new(Some(self)))
+        PgBindIter(RwLock::new(Some(self)))
     }
 }
 
@@ -72,6 +75,32 @@ where
     }
     fn compatible(ty: &PgTypeInfo) -> bool {
         <I as Iterator>::Item::array_compatible(ty)
+    }
+}
+
+impl<I> PgBindIter<I>
+where
+    I: Iterator,
+    I::Item: ToOwned,
+    <I::Item as ToOwned>::Owned: Debug + 'static,
+{
+    fn into_owned(
+        self,
+    ) -> PgBindIter<impl Iterator<Item = <<I as Iterator>::Item as ToOwned>::Owned> + Debug + 'static>
+    {
+        let taken = self.0.write().unwrap().take();
+        drop(self);
+
+        let items = match taken {
+            None => None,
+            Some(it) => {
+                let items = it.map(|i| i.to_owned()).collect::<Vec<_>>().into_iter();
+
+                Some(items)
+            }
+        };
+
+        PgBindIter(RwLock::new(items))
     }
 }
 
@@ -132,6 +161,16 @@ where
 
         Ok(IsNull::No)
     }
+
+    fn take_inner_once(&self) -> Result<I, BoxDynError> {
+        let mut guard = self.0.write().map_err(|_| "Failed to lock PgBindIter")?;
+        let taken = guard.take();
+        drop(guard);
+
+        let value = taken.ok_or("PgBindIter is only used once")?;
+
+        Ok(value)
+    }
 }
 
 impl<'q, I> Encode<'q, Postgres> for PgBindIter<I>
@@ -140,15 +179,32 @@ where
     <I as Iterator>::Item: Type<Postgres> + Encode<'q, Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError> {
-        Self::encode_inner(self.0.take().expect("PgBindIter is only used once"), buf)
+        let taken = self.take_inner_once()?;
+
+        Self::encode_inner(taken, buf)
     }
-    fn encode(self, buf: &mut PgArgumentBuffer) -> Result<IsNull, BoxDynError>
+}
+
+impl<I> IntoEncode<Postgres> for PgBindIter<I>
+where
+    Self: Type<Postgres>,
+    I: Iterator,
+    I::Item: ToOwned,
+    <I::Item as ToOwned>::Owned: Debug + Send + Sync + Type<Postgres> + 'static,
+    for<'e> <I as Iterator>::Item: Type<Postgres> + Encode<'e, Postgres>,
+    <I::Item as ToOwned>::Owned: Encode<'static, Postgres>,
+    <<I as Iterator>::Item as ToOwned>::Owned: PgHasArrayType,
+{
+    fn into_encode<'s>(self) -> impl Encode<'s, Postgres> + Type<Postgres> + 's
     where
-        Self: Sized,
+        Self: 's,
     {
-        Self::encode_inner(
-            self.0.into_inner().expect("PgBindIter is only used once"),
-            buf,
-        )
+        self
+    }
+
+    fn into_encode_owned(self) -> impl EncodeOwned<Postgres> + 'static {
+        let owned = self.into_owned();
+
+        EncodeClone::from(owned)
     }
 }

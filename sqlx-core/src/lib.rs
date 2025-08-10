@@ -63,6 +63,8 @@ pub mod statement;
 pub mod common;
 pub mod database;
 pub mod describe;
+#[macro_use]
+pub mod encode_owned;
 pub mod executor;
 pub mod from_row;
 pub mod fs;

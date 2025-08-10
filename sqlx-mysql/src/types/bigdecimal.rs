@@ -26,6 +26,8 @@ impl Encode<'_, MySql> for BigDecimal {
     }
 }
 
+impl_into_encode_for_db!(MySql, BigDecimal);
+
 impl Decode<'_, MySql> for BigDecimal {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_str()?.parse()?)

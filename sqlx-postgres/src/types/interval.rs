@@ -67,6 +67,8 @@ impl Encode<'_, Postgres> for PgInterval {
     }
 }
 
+impl_into_encode_for_db!(Postgres, PgInterval);
+
 // We then implement Encode + Type for std Duration, chrono Duration, and time Duration
 // This is to enable ease-of-use for encoding when its simple
 

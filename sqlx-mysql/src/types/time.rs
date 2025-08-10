@@ -31,6 +31,8 @@ impl Encode<'_, MySql> for OffsetDateTime {
     }
 }
 
+impl_into_encode_for_db!(MySql, OffsetDateTime);
+
 impl<'r> Decode<'r, MySql> for OffsetDateTime {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let primitive: PrimitiveDateTime = Decode::<MySql>::decode(value)?;
@@ -66,6 +68,8 @@ impl Encode<'_, MySql> for Time {
         time_encoded_len(self) as usize + 1 // plus length byte
     }
 }
+
+impl_into_encode_for_db!(MySql, Time);
 
 impl<'r> Decode<'r, MySql> for Time {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
@@ -159,6 +163,8 @@ impl Encode<'_, MySql> for Date {
     }
 }
 
+impl_into_encode_for_db!(MySql, Date);
+
 impl<'r> Decode<'r, MySql> for Date {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
@@ -185,6 +191,8 @@ impl Type<MySql> for PrimitiveDateTime {
         MySqlTypeInfo::binary(ColumnType::Datetime)
     }
 }
+
+impl_into_encode_for_db!(MySql, PrimitiveDateTime);
 
 impl Encode<'_, MySql> for PrimitiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {

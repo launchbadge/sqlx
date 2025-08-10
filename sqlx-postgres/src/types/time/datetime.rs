@@ -51,6 +51,8 @@ impl Encode<'_, Postgres> for PrimitiveDateTime {
     }
 }
 
+impl_into_encode_for_db!(Postgres, PrimitiveDateTime);
+
 impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
@@ -100,6 +102,8 @@ impl Encode<'_, Postgres> for OffsetDateTime {
         mem::size_of::<i64>()
     }
 }
+
+impl_into_encode_for_db!(Postgres, OffsetDateTime);
 
 impl<'r> Decode<'r, Postgres> for OffsetDateTime {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {

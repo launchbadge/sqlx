@@ -219,6 +219,8 @@ impl Encode<'_, Postgres> for PgHstore {
     }
 }
 
+impl_into_encode_for_db!(Postgres, PgHstore);
+
 fn read_length(buf: &mut &[u8]) -> Result<i32, String> {
     if buf.len() < mem::size_of::<i32>() {
         return Err(format!(
