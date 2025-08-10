@@ -3,12 +3,13 @@ use criterion::Criterion;
 use criterion::{criterion_group, criterion_main};
 
 use sqlx::sqlite::{Sqlite, SqliteConnection};
+use sqlx::SqlSafeStr;
 use sqlx::Executor;
 use sqlx_test::new;
 
 // Here we have an async function to benchmark
 async fn do_describe_trivial(db: &std::cell::RefCell<SqliteConnection>) {
-    db.borrow_mut().describe("select 1").await.unwrap();
+    db.borrow_mut().describe("select 1".into_sql_str()).await.unwrap();
 }
 
 async fn do_describe_recursive(db: &std::cell::RefCell<SqliteConnection>) {
@@ -27,7 +28,7 @@ async fn do_describe_recursive(db: &std::cell::RefCell<SqliteConnection>) {
             begin_date
             FROM schedule
             GROUP BY begin_date
-            "#,
+            "#.into_sql_str(),
         )
         .await
         .unwrap();
@@ -35,14 +36,14 @@ async fn do_describe_recursive(db: &std::cell::RefCell<SqliteConnection>) {
 
 async fn do_describe_insert(db: &std::cell::RefCell<SqliteConnection>) {
     db.borrow_mut()
-        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello') RETURNING *")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello') RETURNING *".into_sql_str())
         .await
         .unwrap();
 }
 
 async fn do_describe_insert_fks(db: &std::cell::RefCell<SqliteConnection>) {
     db.borrow_mut()
-        .describe("insert into statements (text) values ('a') returning id")
+        .describe("insert into statements (text) values ('a') returning id".into_sql_str())
         .await
         .unwrap();
 }
