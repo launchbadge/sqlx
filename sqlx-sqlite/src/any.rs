@@ -12,13 +12,14 @@ use sqlx_core::any::{
 };
 use sqlx_core::sql_str::SqlStr;
 
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::type_info::DataType;
 use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
-use std::pin::pin;
+use std::sync::Arc;
 
 sqlx_core::declare_driver_with_optional_migrate!(DRIVER = Sqlite);
 
@@ -78,48 +79,28 @@ impl AnyConnectionBackend for SqliteConnection {
         Ok(self)
     }
 
-    fn fetch_many<'q>(
-        &'q mut self,
+    fn fetch_many(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxStream<'q, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
-        let persistent = persistent && arguments.is_some();
-        let args = arguments.map(map_arguments);
-
-        Box::pin(
-            self.worker
-                .execute(query, args, self.row_channel_size, persistent, None)
-                .map_ok(flume::Receiver::into_stream)
-                .try_flatten_stream()
-                .map(
-                    move |res: sqlx_core::Result<Either<SqliteQueryResult, SqliteRow>>| match res? {
-                        Either::Left(result) => Ok(Either::Left(map_result(result))),
-                        Either::Right(row) => Ok(Either::Right(AnyRow::try_from(&row)?)),
-                    },
-                ),
-        )
+        arguments: Option<AnyArguments>,
+    ) -> BoxStream<'_, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
+        self.fetch_with_limit(query, persistent, arguments, None)
     }
 
-    fn fetch_optional<'q>(
-        &'q mut self,
+    fn fetch_optional(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxFuture<'q, sqlx_core::Result<Option<AnyRow>>> {
-        let persistent = persistent && arguments.is_some();
-        let args = arguments.map(map_arguments);
+        arguments: Option<AnyArguments>,
+    ) -> BoxFuture<'_, sqlx_core::Result<Option<AnyRow>>> {
+        let mut stream = self.fetch_with_limit(query, persistent, arguments, Some(1));
 
         Box::pin(async move {
-            let mut stream = pin!(
-                self.worker
-                    .execute(query, args, self.row_channel_size, persistent, Some(1))
-                    .map_ok(flume::Receiver::into_stream)
-                    .await?
-            );
-
-            if let Some(Either::Right(row)) = stream.try_next().await? {
-                return Ok(Some(AnyRow::try_from(&row)?));
+            while let Some(result) = stream.try_next().await? {
+                if let Either::Right(row) = result {
+                    return Ok(Some(row));
+                }
             }
 
             Ok(None)
@@ -140,6 +121,32 @@ impl AnyConnectionBackend for SqliteConnection {
 
     fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move { Executor::describe(self, sql).await?.try_into_any() })
+    }
+}
+
+impl SqliteConnection {
+    fn fetch_with_limit(
+        &mut self,
+        query: SqlStr,
+        persistent: bool,
+        arguments: Option<AnyArguments>,
+        limit: Option<usize>,
+    ) -> BoxStream<'_, sqlx_core::Result<Either<AnyQueryResult, AnyRow>>> {
+        let persistent = persistent && arguments.is_some();
+        let args = arguments.map(map_arguments);
+
+        Box::pin(
+            self.worker
+                .execute(query, args, self.row_channel_size, persistent, limit)
+                .map_ok(flume::Receiver::into_stream)
+                .try_flatten_stream()
+                .map(
+                    move |res: sqlx_core::Result<Either<SqliteQueryResult, SqliteRow>>| match res? {
+                        Either::Left(result) => Ok(Either::Left(map_result(result))),
+                        Either::Right(row) => Ok(Either::Right(AnyRow::try_from(&row)?)),
+                    },
+                ),
+        )
     }
 }
 
@@ -203,27 +210,29 @@ impl<'a> TryFrom<&'a AnyConnectOptions> for SqliteConnectOptions {
     }
 }
 
-/// Instead of `AnyArguments::convert_into()`, we can do a direct mapping and preserve the lifetime.
-fn map_arguments(args: AnyArguments<'_>) -> SqliteArguments<'_> {
+// Infallible alternative to AnyArguments::convert_into()
+fn map_arguments(args: AnyArguments) -> SqliteArguments {
+    let values = args
+        .values
+        .0
+        .into_iter()
+        .map(|val| match val {
+            AnyValueKind::Null(_) => SqliteArgumentValue::Null,
+            AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
+            AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
+            AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
+            AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
+            AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
+            AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
+            AnyValueKind::Text(t) => SqliteArgumentValue::Text(Arc::new(t.to_string())),
+            AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(Arc::new(b.to_vec())),
+            // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
+            _ => unreachable!("BUG: missing mapping for {val:?}"),
+        })
+        .collect();
+
     SqliteArguments {
-        values: args
-            .values
-            .0
-            .into_iter()
-            .map(|val| match val {
-                AnyValueKind::Null(_) => SqliteArgumentValue::Null,
-                AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
-                AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
-                AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
-                AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
-                AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
-                AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
-                AnyValueKind::Text(t) => SqliteArgumentValue::Text(t),
-                AnyValueKind::Blob(b) => SqliteArgumentValue::Blob(b),
-                // AnyValueKind is `#[non_exhaustive]` but we should have covered everything
-                _ => unreachable!("BUG: missing mapping for {val:?}"),
-            })
-            .collect(),
+        values: SqliteArgumentsBuffer::new(values),
     }
 }
 
