@@ -10,7 +10,7 @@ pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
     statement: &'a mut VirtualStatement,
     logger: QueryLogger,
-    args: Option<SqliteArguments<'a>>,
+    args: Option<SqliteArguments>,
 
     /// since a `VirtualStatement` can encompass multiple actual statements,
     /// this keeps track of the number of arguments so far
@@ -19,12 +19,12 @@ pub struct ExecuteIter<'a> {
     goto_next: bool,
 }
 
-pub(crate) fn iter<'a>(
-    conn: &'a mut ConnectionState,
+pub(crate) fn iter(
+    conn: &mut ConnectionState,
     query: impl SqlSafeStr,
-    args: Option<SqliteArguments<'a>>,
+    args: Option<SqliteArguments>,
     persistent: bool,
-) -> Result<ExecuteIter<'a>, Error> {
+) -> Result<ExecuteIter<'_>, Error> {
     let query = query.into_sql_str();
     // fetch the cached statement or allocate a new one
     let statement = conn.statements.get(query.as_str(), persistent)?;
@@ -43,7 +43,7 @@ pub(crate) fn iter<'a>(
 
 fn bind(
     statement: &mut StatementHandle,
-    arguments: &Option<SqliteArguments<'_>>,
+    arguments: &Option<SqliteArguments>,
     offset: usize,
 ) -> Result<usize, Error> {
     let mut n = 0;
@@ -56,7 +56,7 @@ fn bind(
 }
 
 impl ExecuteIter<'_> {
-    pub fn finish(&mut self) -> Result<(), Error> {
+    pub fn finish(self) -> Result<(), Error> {
         for res in self {
             let _ = res?;
         }
