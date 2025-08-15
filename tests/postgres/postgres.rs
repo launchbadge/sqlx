@@ -2143,7 +2143,7 @@ create temporary table person(
     Ok(())
 }
 
-#[allow(unused)]
+#[sqlx_macros::test]
 async fn test_pg_copy_chunked() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
