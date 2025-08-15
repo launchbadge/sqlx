@@ -177,7 +177,7 @@ bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
 ipnet = "2.3.0"
-ipnetwork = "0.20.0"
+ipnetwork = "0.21.1"
 mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
 time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
