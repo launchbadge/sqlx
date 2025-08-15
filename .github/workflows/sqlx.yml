@@ -11,6 +11,7 @@ jobs:
   format:
     name: Format
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - run: rustup component add rustfmt
@@ -23,6 +24,7 @@ jobs:
       matrix:
         runtime: [ async-std, tokio ]
         tls: [ native-tls, rustls, none ]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +56,7 @@ jobs:
   check-minimal-versions:
     name: Check build using minimal versions
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Setup Rust
@@ -66,6 +69,7 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -121,6 +125,7 @@ jobs:
         runtime: [ async-std, tokio ]
         linking: [ sqlite, sqlite-unbundled ]
     needs: check
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -206,6 +211,7 @@ jobs:
         runtime: [ async-std, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -323,6 +329,7 @@ jobs:
         runtime: [ async-std, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -423,6 +430,7 @@ jobs:
         runtime: [ async-std, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
