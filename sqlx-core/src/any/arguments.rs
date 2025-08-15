@@ -42,7 +42,7 @@ impl Default for AnyArguments<'_> {
 
 impl<'q> AnyArguments<'q> {
     #[doc(hidden)]
-    pub fn convert_to<'a, A: Arguments<'a>>(&'a self) -> Result<A, BoxDynError>
+    pub fn convert_into<'a, A: Arguments<'a>>(self) -> Result<A, BoxDynError>
     where
         'q: 'a,
         Option<i32>: Type<A::Database> + Encode<'a, A::Database>,
@@ -60,12 +60,12 @@ impl<'q> AnyArguments<'q> {
         i64: Type<A::Database> + Encode<'a, A::Database>,
         f32: Type<A::Database> + Encode<'a, A::Database>,
         f64: Type<A::Database> + Encode<'a, A::Database>,
-        &'a str: Type<A::Database> + Encode<'a, A::Database>,
-        &'a [u8]: Type<A::Database> + Encode<'a, A::Database>,
+        String: Type<A::Database> + Encode<'a, A::Database>,
+        Vec<u8>: Type<A::Database> + Encode<'a, A::Database>,
     {
         let mut out = A::default();
 
-        for arg in &self.values.0 {
+        for arg in self.values.0 {
             match arg {
                 AnyValueKind::Null(AnyTypeInfoKind::Null) => out.add(Option::<i32>::None),
                 AnyValueKind::Null(AnyTypeInfoKind::Bool) => out.add(Option::<bool>::None),
@@ -82,8 +82,8 @@ impl<'q> AnyArguments<'q> {
                 AnyValueKind::BigInt(i) => out.add(i),
                 AnyValueKind::Real(r) => out.add(r),
                 AnyValueKind::Double(d) => out.add(d),
-                AnyValueKind::Text(t) => out.add(&**t),
-                AnyValueKind::Blob(b) => out.add(&**b),
+                AnyValueKind::Text(t) => out.add(String::from(t)),
+                AnyValueKind::Blob(b) => out.add(Vec::from(b)),
             }?
         }
         Ok(out)
