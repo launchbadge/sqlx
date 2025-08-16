@@ -96,7 +96,7 @@ impl PgLTree {
     }
 
     /// creates ltree from a [`Vec<PgLTreeLabel>`]
-    pub fn from(labels: Vec<PgLTreeLabel>) -> Self {
+    pub fn from_labels(labels: Vec<PgLTreeLabel>) -> Self {
         Self { labels }
     }
 
@@ -135,6 +135,12 @@ impl PgLTree {
     /// pop a label from ltree
     pub fn pop(&mut self) -> Option<PgLTreeLabel> {
         self.labels.pop()
+    }
+}
+
+impl From<Vec<PgLTreeLabel>> for PgLTree {
+    fn from(labels: Vec<PgLTreeLabel>) -> Self {
+        Self { labels }
     }
 }
 
