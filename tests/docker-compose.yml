@@ -1,5 +1,3 @@
-version: "3"
-
 services:
     #
     # MySQL 8.x, 5.7.x

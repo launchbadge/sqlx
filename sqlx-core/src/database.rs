@@ -12,7 +12,7 @@
 //! | [MariaDB] | 10.1+ | [`mysql`] |
 //! | [Microsoft SQL Server] | 2019 | [`mssql`] (Pending a full rewrite) |
 //! | [MySQL] | 5.6, 5.7, 8.0 | [`mysql`] |
-//! | [PostgreSQL] | 9.5+ | [`postgres`] |
+//! | [PostgreSQL] | 13+ | [`postgres`] |
 //! | [SQLite] | 3.20.1+ | [`sqlite`] |
 //!
 //! [MariaDB]: https://mariadb.com/

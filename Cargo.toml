@@ -244,6 +244,7 @@ disallowed_methods = 'deny'
 level = 'warn'
 check-cfg = [
     'cfg(mariadb, values(any()))',
+    'cfg(postgres, values(any()))',
     'cfg(sqlite_ipaddr)',
     'cfg(sqlite_test_sqlcipher)',
 ]
@@ -433,7 +434,6 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-migrate"
 path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
-
 
 [[test]]
 name = "postgres-query-builder"
