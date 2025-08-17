@@ -1,9 +1,10 @@
+use sqlx_core::impl_into_encode_for_db;
 use sqlx_mysql::MySql;
 use sqlx_test::new;
 
 #[sqlx::test]
 async fn test_derive_strong_enum() -> anyhow::Result<()> {
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "PascalCase")]
     enum PascalCaseEnum {
         FooFoo,
@@ -11,7 +12,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, PascalCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "camelCase")]
     enum CamelCaseEnum {
         FooFoo,
@@ -19,7 +22,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, CamelCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "snake_case")]
     enum SnakeCaseEnum {
         FooFoo,
@@ -27,7 +32,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, SnakeCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]
     enum ScreamingSnakeCaseEnum {
         FooFoo,
@@ -35,7 +42,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, ScreamingSnakeCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "kebab-case")]
     enum KebabCaseEnum {
         FooFoo,
@@ -43,7 +52,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, KebabCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "lowercase")]
     enum LowerCaseEnum {
         FooFoo,
@@ -51,7 +62,9 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, LowerCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     #[sqlx(rename_all = "UPPERCASE")]
     enum UpperCaseEnum {
         FooFoo,
@@ -59,12 +72,16 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
         BazBaz,
     }
 
-    #[derive(sqlx::Type, PartialEq, Eq, Debug)]
+    impl_into_encode_for_db!(MySql, UpperCaseEnum);
+
+    #[derive(sqlx::Type, Clone, PartialEq, Eq, Debug)]
     enum DefaultCaseEnum {
         FooFoo,
         BarBar,
         BazBaz,
     }
+
+    impl_into_encode_for_db!(MySql, DefaultCaseEnum);
 
     #[derive(sqlx::FromRow, PartialEq, Eq, Debug)]
     struct StrongEnumRow {
@@ -145,7 +162,7 @@ async fn test_derive_strong_enum() -> anyhow::Result<()> {
 
 #[sqlx::test]
 async fn test_derive_weak_enum() -> anyhow::Result<()> {
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(i8)]
     enum WeakEnumI8 {
         Foo = i8::MIN,
@@ -153,7 +170,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = i8::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumI8);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(i16)]
     enum WeakEnumI16 {
         Foo = i16::MIN,
@@ -161,7 +180,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = i16::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumI16);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(i32)]
     enum WeakEnumI32 {
         Foo = i32::MIN,
@@ -169,7 +190,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = i32::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumI32);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(i64)]
     enum WeakEnumI64 {
         Foo = i64::MIN,
@@ -177,7 +200,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = i64::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumI64);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(u8)]
     enum WeakEnumU8 {
         Foo = 0,
@@ -185,7 +210,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = u8::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumU8);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(u16)]
     enum WeakEnumU16 {
         Foo = 0,
@@ -193,7 +220,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = u16::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumU16);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(u32)]
     enum WeakEnumU32 {
         Foo = 0,
@@ -201,7 +230,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = u32::MAX,
     }
 
-    #[derive(sqlx::Type, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumU32);
+
+    #[derive(sqlx::Type, Clone, Debug, PartialEq, Eq)]
     #[repr(u64)]
     enum WeakEnumU64 {
         Foo = 0,
@@ -209,7 +240,9 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
         Baz = u64::MAX,
     }
 
-    #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
+    impl_into_encode_for_db!(MySql, WeakEnumU64);
+
+    #[derive(sqlx::FromRow, Clone, Debug, PartialEq, Eq)]
     struct WeakEnumRow {
         i8: WeakEnumI8,
         i16: WeakEnumI16,

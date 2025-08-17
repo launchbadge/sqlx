@@ -7,7 +7,7 @@ use sqlx::postgres::{
 };
 use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_core::sql_str::AssertSqlSafe;
-use sqlx_core::{bytes::Bytes, error::BoxDynError};
+use sqlx_core::{bytes::Bytes, error::BoxDynError, impl_into_encode_for_db};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
 use std::pin::{pin, Pin};
@@ -1320,6 +1320,9 @@ CREATE TABLE heating_bills (
             Ok(sqlx::encode::IsNull::No)
         }
     }
+
+    impl_into_encode_for_db!(Postgres, WinterYearMonth);
+
     let mut conn = new::<Postgres>().await?;
 
     let result = sqlx::query("DELETE FROM heating_bills;")
@@ -1612,6 +1615,8 @@ CREATE TYPE another.some_enum_type AS ENUM ('d', 'e', 'f');
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct SomeEnumType(String);
 
+    impl_into_encode_for_db!(Postgres, SomeEnumType);
+
     impl sqlx::Type<Postgres> for SomeEnumType {
         fn type_info() -> sqlx::postgres::PgTypeInfo {
             sqlx::postgres::PgTypeInfo::with_name("some_enum_type")
@@ -1774,6 +1779,8 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
         Array(Vec<Value>),
     }
 
+    impl_into_encode_for_db!(Postgres, Value);
+
     impl<'r> Decode<'r, Postgres> for Value {
         fn decode(
             value: sqlx::postgres::PgValueRef<'r>,
@@ -1885,7 +1892,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_issue_1254() -> anyhow::Result<()> {
-    #[derive(sqlx::Type)]
+    #[derive(Debug, sqlx::Type)]
     #[sqlx(type_name = "pair")]
     struct Pair {
         one: i32,
@@ -1893,9 +1900,11 @@ async fn test_issue_1254() -> anyhow::Result<()> {
     }
 
     // array for custom type is not supported, use wrapper
-    #[derive(sqlx::Type)]
+    #[derive(Debug, sqlx::Type)]
     #[sqlx(type_name = "_pair")]
     struct Pairs(Vec<Pair>);
+
+    impl_into_encode_for_db!(Postgres, Pairs);
 
     let mut conn = new::<Postgres>().await?;
     conn.execute(
@@ -2092,7 +2101,7 @@ async fn test_bind_iter() -> anyhow::Result<()> {
 
     let mut conn = new::<Postgres>().await?;
 
-    #[derive(sqlx::FromRow, PartialEq, Debug)]
+    #[derive(sqlx::FromRow, PartialEq, Clone, Debug)]
     struct Person {
         id: i64,
         name: String,
@@ -2128,8 +2137,20 @@ create temporary table person(
             // owned value
             .bind(people.iter().map(|p| p.id).bind_iter())
             // borrowed value
-            .bind(people.iter().map(|p| &p.name).bind_iter())
-            .bind(people.iter().map(|p| &p.birthdate).bind_iter())
+            .bind(
+                people
+                    .iter()
+                    .map(|p| &p.name)
+                    .map(|n| n.clone())
+                    .collect::<Vec<_>>(),
+            )
+            .bind(
+                people
+                    .iter()
+                    .map(|p| &p.birthdate)
+                    .map(|n| n.clone())
+                    .collect::<Vec<_>>(),
+            )
             .execute(&mut conn)
             .await?
             .rows_affected();
@@ -2142,6 +2163,8 @@ create temporary table person(
     assert_eq!(people, p_query);
     Ok(())
 }
+
+#[allow(unused)]
 async fn test_pg_copy_chunked() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 

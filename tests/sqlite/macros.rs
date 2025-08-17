@@ -176,6 +176,31 @@ async fn test_query_scalar() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn query_by_string() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let string = "Hello, world!".to_string();
+    let ref tuple = ("Hello, world!".to_string(),);
+
+    let result = sqlx::query!(
+        "SELECT 'Hello, world!' as string where 'Hello, world!' in (?, ?, ?, ?, ?, ?, ?)",
+        string, // make sure we don't actually take ownership here
+        &string[..],
+        Some(&string),
+        Some(&string[..]),
+        Option::<String>::None,
+        string.clone(),
+        tuple.0 // make sure we're not trying to move out of a field expression
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(result.string, string);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn macro_select_from_view() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

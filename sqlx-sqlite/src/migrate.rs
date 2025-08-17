@@ -181,8 +181,8 @@ CREATE TABLE IF NOT EXISTS {table_name} (
                 "#
             )))
             .bind(migration.version)
-            .bind(&*migration.description)
-            .bind(&*migration.checksum)
+            .bind(&migration.description)
+            .bind(&migration.checksum)
             .execute(&mut *tx)
             .await?;
 

@@ -445,11 +445,11 @@ async fn with_test_row<'a>(
     Ok(transaction)
 }
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[derive(Clone, PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
 struct MyInt(i64);
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[derive(Clone, PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
 struct MyInt4(i32);
 

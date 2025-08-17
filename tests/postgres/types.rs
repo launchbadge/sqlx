@@ -294,6 +294,7 @@ test_type!(mac_address_vec<Vec<sqlx::types::mac_address::MacAddress>>(Postgres,
         ]
 ));
 
+#[allow(deprecated)] //  use of deprecated method `sqlx::types::chrono::TimeZone::ymd`: use `with_ymd_and_hms()` instead
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
@@ -440,7 +441,7 @@ mod json {
         "array['\"😎\"'::jsonb, '\"🙋‍♀️\"'::jsonb]::jsonb[]" == vec![json!("😎"), json!("🙋‍♀️")],
     ));
 
-    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+    #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
     struct Friend {
         name: String,
         age: u32,

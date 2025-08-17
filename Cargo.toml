@@ -244,6 +244,10 @@ disallowed_methods = 'deny'
 level = 'warn'
 check-cfg = [
     'cfg(mariadb, values(any()))',
+    'cfg(postgres_12)',
+    'cfg(postgres_13)',
+    'cfg(postgres_14)',
+    'cfg(postgres_15)',
     'cfg(sqlite_ipaddr)',
     'cfg(sqlite_test_sqlcipher)',
 ]

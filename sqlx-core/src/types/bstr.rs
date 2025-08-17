@@ -3,6 +3,7 @@ use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
+use crate::impl_into_encode;
 use crate::types::Type;
 
 #[doc(no_inline)]
@@ -39,7 +40,7 @@ where
 {
     fn encode_by_ref(
         &self,
-        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+        buf: &mut <DB as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<DB>>::encode(self.as_bytes(), buf)
     }
@@ -52,8 +53,10 @@ where
 {
     fn encode_by_ref(
         &self,
-        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+        buf: &mut <DB as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
     }
 }
+
+impl_into_encode!(BString);

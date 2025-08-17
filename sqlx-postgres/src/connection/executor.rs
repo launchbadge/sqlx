@@ -404,8 +404,6 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'q: 'e,
         E: 'q,
     {
-        // False positive: https://github.com/rust-lang/rust-clippy/issues/12560
-        #[allow(clippy::map_clone)]
         let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
         let arguments = query.take_arguments().map_err(Error::Encode);
         let persistent = query.persistent();

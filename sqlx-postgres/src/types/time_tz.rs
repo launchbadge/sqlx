@@ -64,6 +64,8 @@ mod chrono {
         }
     }
 
+    impl_into_encode_for_db!(Postgres, PgTimeTz<NaiveTime, FixedOffset>);
+
     impl<'r> Decode<'r, Postgres> for PgTimeTz<NaiveTime, FixedOffset> {
         fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
             match value.format() {
@@ -145,6 +147,8 @@ mod time {
             mem::size_of::<i64>() + mem::size_of::<i32>()
         }
     }
+
+    impl_into_encode_for_db!(Postgres, PgTimeTz<Time, UtcOffset>);
 
     impl<'r> Decode<'r, Postgres> for PgTimeTz<Time, UtcOffset> {
         fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {

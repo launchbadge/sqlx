@@ -6,6 +6,9 @@ use crate::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValue
 use chrono::{
     DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc,
 };
+use sqlx_core::encode_owned::EncodeClone;
+use sqlx_core::encode_owned::EncodeOwned;
+use sqlx_core::encode_owned::IntoEncode;
 use std::mem;
 
 impl Type<Postgres> for NaiveDateTime {
@@ -47,6 +50,8 @@ impl Encode<'_, Postgres> for NaiveDateTime {
     }
 }
 
+impl_into_encode_for_db!(Postgres, NaiveDateTime);
+
 impl<'r> Decode<'r, Postgres> for NaiveDateTime {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
@@ -81,6 +86,24 @@ impl<Tz: TimeZone> Encode<'_, Postgres> for DateTime<Tz> {
 
     fn size_hint(&self) -> usize {
         mem::size_of::<i64>()
+    }
+}
+
+impl<Tz> IntoEncode<Postgres> for DateTime<Tz>
+where
+    Tz: TimeZone,
+    for<'e> Self: Encode<'e, Postgres>,
+    Self: Send + Sync + 'static,
+{
+    fn into_encode<'s>(self) -> impl Encode<'s, Postgres> + Type<Postgres> + 's
+    where
+        Self: 's,
+    {
+        self
+    }
+
+    fn into_encode_owned(self) -> impl EncodeOwned<Postgres> + 'static {
+        EncodeClone::from(self)
     }
 }
 

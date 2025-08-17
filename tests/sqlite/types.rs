@@ -3,6 +3,7 @@ extern crate time_ as time;
 use sqlx::sqlite::{Sqlite, SqliteRow};
 use sqlx::Type;
 use sqlx_core::executor::Executor;
+use sqlx_core::impl_into_encode_for_db;
 use sqlx_core::row::Row;
 use sqlx_core::types::Text;
 use sqlx_test::new;
@@ -266,6 +267,8 @@ async fn it_binds_with_borrowed_data() -> anyhow::Result<()> {
         Open,
         Closed,
     }
+
+    impl_into_encode_for_db!(Sqlite, Status);
 
     let owned = Status::New;
 
