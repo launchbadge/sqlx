@@ -213,6 +213,7 @@ impl ConnectionWorker {
                         Command::Begin { tx, statement } => {
                             let depth = shared.transaction_depth.load(Ordering::Acquire);
 
+                            let is_custom_statement = statement.is_some();
                             let statement = match statement {
                                 // custom `BEGIN` statements are not allowed if
                                 // we're already in a transaction (we need to
@@ -229,8 +230,14 @@ impl ConnectionWorker {
                             let res =
                                 conn.handle
                                     .exec(statement.as_str())
-                                    .map(|_| {
+                                    .and_then(|res| {
+                                        if is_custom_statement && !conn.handle.in_transaction() {
+                                            return Err(Error::BeginFailed)
+                                        }
+
                                         shared.transaction_depth.fetch_add(1, Ordering::Release);
+
+                                        Ok(res)
                                     });
                             let res_ok = res.is_ok();
 
