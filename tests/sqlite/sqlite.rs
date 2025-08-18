@@ -1375,6 +1375,28 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_recover_from_bad_transaction_begin() -> anyhow::Result<()> {
+    let mut conn = SqliteConnectOptions::new()
+        .in_memory(true)
+        .connect()
+        .await
+        .unwrap();
+
+    // This statement doesn't actually start a transaction.
+    assert!(conn.begin_with("SELECT 1").await.is_err());
+
+    // Transaction state bookkeeping should be correctly reset.
+
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
+    let value = sqlx::query_scalar::<_, i32>("SELECT 1")
+        .fetch_one(&mut *tx)
+        .await?;
+    assert_eq!(value, 1);
+
+    Ok(())
+}
+
 fn transaction_state(handle: &mut LockedSqliteHandle) -> SqliteTransactionState {
     use libsqlite3_sys::{sqlite3_txn_state, SQLITE_TXN_NONE, SQLITE_TXN_READ, SQLITE_TXN_WRITE};
 
