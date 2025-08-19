@@ -15,6 +15,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
     match &input.data {
         // Newtype structs:
         // struct Foo(i32);
+        // struct Foo { field: i32 };
         Data::Struct(DataStruct { fields, .. })
             if fields.len() == 1 && (matches!(fields, Fields::Unnamed(_)) || attrs.transparent) =>
         {
@@ -31,7 +32,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
             ..
         }) => Err(syn::Error::new_spanned(
             input,
-            "structs with zero or more than one unnamed field are not supported",
+            "tuple structs may only have a single field",
         )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,

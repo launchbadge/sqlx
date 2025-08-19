@@ -12,6 +12,13 @@ use std::ops::Bound;
 #[sqlx(transparent)]
 struct Transparent(i32);
 
+// Also possible for single-field named structs
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct TransparentNamed {
+    field: i32,
+}
+
 #[derive(PartialEq, Debug, sqlx::Type)]
 // https://github.com/launchbadge/sqlx/issues/2611
 // Previously, the derive would generate a `PgHasArrayType` impl that errored on an
@@ -143,9 +150,14 @@ struct FloatRange(PgRange<f64>);
 #[sqlx(type_name = "int4rangeL0pC")]
 struct RangeInclusive(PgRange<i32>);
 
-test_type!(transparent<Transparent>(Postgres,
+test_type!(transparent_tuple<Transparent>(Postgres,
     "0" == Transparent(0),
     "23523" == Transparent(23523)
+));
+
+test_type!(transparent_named<TransparentNamed>(Postgres,
+    "0" == TransparentNamed { field: 0 },
+    "23523" == TransparentNamed { field: 23523 },
 ));
 
 test_type!(transparent_array<TransparentArray>(Postgres,

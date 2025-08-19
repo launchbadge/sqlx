@@ -34,7 +34,7 @@ pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
             ..
         }) => Err(syn::Error::new_spanned(
             input,
-            "structs with zero or more than one unnamed field are not supported",
+            "tuple structs may only have a single field",
         )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
