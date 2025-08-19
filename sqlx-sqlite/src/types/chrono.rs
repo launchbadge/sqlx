@@ -7,7 +7,7 @@ use crate::{
     error::BoxDynError,
     type_info::DataType,
     types::Type,
-    Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
+    Sqlite, SqliteArgumentsBuffer, SqliteTypeInfo, SqliteValueRef,
 };
 use chrono::FixedOffset;
 use chrono::{
@@ -65,25 +65,25 @@ impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
 where
     Tz::Offset: Display,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveDate {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%F").to_string(), buf)
     }
 }
 
 impl Encode<'_, Sqlite> for NaiveTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format("%T%.f").to_string(), buf)
     }
 }

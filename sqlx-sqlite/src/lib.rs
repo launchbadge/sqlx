@@ -74,7 +74,7 @@ extern crate sqlx_core;
 
 use std::sync::atomic::AtomicBool;
 
-pub use arguments::{SqliteArgumentValue, SqliteArguments};
+pub use arguments::{SqliteArgumentValue, SqliteArguments, SqliteArgumentsBuffer};
 pub use column::SqliteColumn;
 #[cfg(feature = "deserialize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "deserialize")))]
@@ -147,7 +147,7 @@ impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 pub type SqliteTransaction<'c> = sqlx_core::transaction::Transaction<'c, Sqlite>;
 
 // NOTE: required due to the lack of lazy normalization
-impl_into_arguments_for_arguments!(SqliteArguments<'q>);
+impl_into_arguments_for_arguments!(SqliteArguments);
 impl_column_index_for_row!(SqliteRow);
 impl_column_index_for_statement!(SqliteStatement);
 impl_acquire!(Sqlite, SqliteConnection);
