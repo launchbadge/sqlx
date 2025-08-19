@@ -4,6 +4,7 @@ use crate::sql_str::SqlStr;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use futures_util::TryStreamExt;
 use std::fmt::Debug;
 
 pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
@@ -94,19 +95,31 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         ))
     }
 
-    fn fetch_many<'q>(
-        &'q mut self,
+    fn fetch_many(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
+        arguments: Option<AnyArguments>,
+    ) -> BoxStream<'_, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
-    fn fetch_optional<'q>(
-        &'q mut self,
+    fn fetch_optional(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
+        arguments: Option<AnyArguments>,
+    ) -> BoxFuture<'_, crate::Result<Option<AnyRow>>> {
+        let mut stream = self.fetch_many(query, persistent, arguments);
+
+        Box::pin(async move {
+            while let Some(result) = stream.try_next().await? {
+                if let Either::Right(row) = result {
+                    return Ok(Some(row));
+                }
+            }
+
+            Ok(None)
+        })
+    }
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,

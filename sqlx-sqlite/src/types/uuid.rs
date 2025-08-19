@@ -1,10 +1,11 @@
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::type_info::DataType;
 use crate::types::Type;
 use crate::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
-use std::borrow::Cow;
+use std::sync::Arc;
 use uuid::{
     fmt::{Hyphenated, Simple},
     Uuid,
@@ -20,12 +21,9 @@ impl Type<Sqlite> for Uuid {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Uuid {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(
+impl Encode<'_, Sqlite> for Uuid {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Blob(Arc::new(
             self.as_bytes().to_vec(),
         )));
 
@@ -46,12 +44,9 @@ impl Type<Sqlite> for Hyphenated {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Hyphenated {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+impl Encode<'_, Sqlite> for Hyphenated {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Text(Arc::new(self.to_string())));
 
         Ok(IsNull::No)
     }
@@ -72,12 +67,9 @@ impl Type<Sqlite> for Simple {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Simple {
-    fn encode_by_ref(
-        &self,
-        args: &mut Vec<SqliteArgumentValue<'q>>,
-    ) -> Result<IsNull, BoxDynError> {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+impl Encode<'_, Sqlite> for Simple {
+    fn encode_by_ref(&self, args: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
+        args.push(SqliteArgumentValue::Text(Arc::new(self.to_string())));
 
         Ok(IsNull::No)
     }
