@@ -3581,6 +3581,7 @@ dependencies = [
  "mac_address",
  "memchr",
  "native-tls",
+ "parking_lot",
  "percent-encoding",
  "pin-project-lite",
  "rust_decimal",
