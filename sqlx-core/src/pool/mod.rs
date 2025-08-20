@@ -87,6 +87,8 @@ mod connection;
 mod inner;
 mod options;
 
+mod shard;
+
 /// An asynchronous pool of SQLx database connections.
 ///
 /// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire]

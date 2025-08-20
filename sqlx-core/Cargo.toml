@@ -92,6 +92,10 @@ indexmap = "2.0"
 event-listener = "5.2.0"
 hashbrown = "0.15.0"
 
+[dependencies.parking_lot]
+version = "0.12.4"
+features = ["arc_lock"]
+
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
