@@ -94,6 +94,10 @@ hashbrown = "0.15.0"
 ease-off = { workspace = true, features = ["futures"] }
 pin-project-lite = "0.2.14"
 
+[dependencies.parking_lot]
+version = "0.12.4"
+features = ["arc_lock"]
+
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt", "sync"] }
