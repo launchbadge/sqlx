@@ -325,7 +325,7 @@ jobs:
           RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
 
       # Direct SSL negotiation only supported by Postgres 17+
-      - if: matrix.postgres == '17'
+      - if: matrix.postgres >= 17
         run: >
           cargo test
           --no-default-features
