@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::parse::Parser;
+use syn::{parse::Parser, Ident};
 
 #[cfg(feature = "migrate")]
 struct Args {
@@ -26,7 +26,11 @@ enum MigrationsOpt {
 
 type AttributeArgs = syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>;
 
-pub fn expand(args: TokenStream, input: syn::ItemFn) -> crate::Result<TokenStream> {
+pub fn expand(
+    args: TokenStream,
+    input: syn::ItemFn,
+    crate_name: Ident,
+) -> crate::Result<TokenStream> {
     let parser = AttributeArgs::parse_terminated;
     let args = parser.parse2(args)?;
 
@@ -50,17 +54,17 @@ pub fn expand(args: TokenStream, input: syn::ItemFn) -> crate::Result<TokenStrea
             .into());
         }
 
-        return Ok(expand_simple(input));
+        return Ok(expand_simple(input, crate_name));
     }
 
     #[cfg(feature = "migrate")]
-    return expand_advanced(args, input);
+    return expand_advanced(args, input, crate_name);
 
     #[cfg(not(feature = "migrate"))]
     return Err(syn::Error::new_spanned(input, "`migrate` feature required").into());
 }
 
-fn expand_simple(input: syn::ItemFn) -> TokenStream {
+fn expand_simple(input: syn::ItemFn, crate_name: Ident) -> TokenStream {
     let ret = &input.sig.output;
     let name = &input.sig.ident;
     let body = &input.block;
@@ -70,13 +74,17 @@ fn expand_simple(input: syn::ItemFn) -> TokenStream {
         #[::core::prelude::v1::test]
         #(#attrs)*
         fn #name() #ret {
-            ::sqlx::test_block_on(async { #body })
+            ::#crate_name::test_block_on(async { #body })
         }
     }
 }
 
 #[cfg(feature = "migrate")]
-fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<TokenStream> {
+fn expand_advanced(
+    args: AttributeArgs,
+    input: syn::ItemFn,
+    crate_name: Ident,
+) -> crate::Result<TokenStream> {
     let config = sqlx_core::config::Config::try_from_crate_or_default()?;
 
     let ret = &input.sig.output;
@@ -103,7 +111,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
                     let path = format!("fixtures/{}", fixture_str);
 
                     quote! {
-                        ::sqlx::testing::TestFixture {
+                        ::#crate_name::testing::TestFixture {
                             path: #path,
                             contents: include_str!(#path),
                         }
@@ -119,7 +127,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
                     let path = format!("{}/{}", path.value(), fixture_str);
 
                     quote! {
-                        ::sqlx::testing::TestFixture {
+                        ::#crate_name::testing::TestFixture {
                             path: #path,
                             contents: include_str!(#path),
                         }
@@ -132,7 +140,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
                     let path = fixture.value();
 
                     quote! {
-                        ::sqlx::testing::TestFixture {
+                        ::#crate_name::testing::TestFixture {
                             path: #path,
                             contents: include_str!(#path),
                         }
@@ -145,7 +153,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
     let migrations = match args.migrations {
         MigrationsOpt::ExplicitPath(path) => {
-            let migrator = crate::migrate::expand(Some(path))?;
+            let migrator = crate::migrate::expand(Some(path), &crate_name)?;
             quote! { args.migrator(&#migrator); }
         }
         MigrationsOpt::InferredPath if !inputs.is_empty() => {
@@ -154,7 +162,8 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
             let resolved_path = crate::common::resolve_path(path, proc_macro2::Span::call_site())?;
 
             if resolved_path.is_dir() {
-                let migrator = crate::migrate::expand_with_path(&config, &resolved_path)?;
+                let migrator =
+                    crate::migrate::expand_with_path(&config, &resolved_path, &crate_name)?;
                 quote! { args.migrator(&#migrator); }
             } else {
                 quote! {}
@@ -174,7 +183,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
                 #body
             }
 
-            let mut args = ::sqlx::testing::TestArgs::new(concat!(module_path!(), "::", stringify!(#name)));
+            let mut args = ::#crate_name::testing::TestArgs::new(concat!(module_path!(), "::", stringify!(#name)));
 
             #migrations
 
@@ -183,7 +192,7 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
             // We need to give a coercion site or else we get "unimplemented trait" errors.
             let f: fn(#(#fn_arg_types),*) -> _ = #name;
 
-            ::sqlx::testing::TestFn::run_test(f, args)
+            ::#crate_name::testing::TestFn::run_test(f, args)
         }
     })
 }

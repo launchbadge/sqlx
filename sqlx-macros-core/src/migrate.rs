@@ -7,19 +7,25 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens, TokenStreamExt};
 use sqlx_core::config::Config;
 use sqlx_core::migrate::{Migration, MigrationType};
-use syn::LitStr;
+use syn::{Ident, LitStr};
 
 pub const DEFAULT_PATH: &str = "./migrations";
 
-pub struct QuoteMigrationType(MigrationType);
+pub struct QuoteMigrationType {
+    crate_name: Ident,
+    inner: MigrationType,
+}
 
 impl ToTokens for QuoteMigrationType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = match self.0 {
-            MigrationType::Simple => quote! { ::sqlx::migrate::MigrationType::Simple },
-            MigrationType::ReversibleUp => quote! { ::sqlx::migrate::MigrationType::ReversibleUp },
+        let crate_name = &self.crate_name;
+        let ts = match self.inner {
+            MigrationType::Simple => quote! { ::#crate_name::migrate::MigrationType::Simple },
+            MigrationType::ReversibleUp => {
+                quote! { ::#crate_name::migrate::MigrationType::ReversibleUp }
+            }
             MigrationType::ReversibleDown => {
-                quote! { ::sqlx::migrate::MigrationType::ReversibleDown }
+                quote! { ::#crate_name::migrate::MigrationType::ReversibleDown }
             }
         };
         tokens.append_all(ts);
@@ -29,6 +35,7 @@ impl ToTokens for QuoteMigrationType {
 struct QuoteMigration {
     migration: Migration,
     path: PathBuf,
+    crate_name: Ident,
 }
 
 impl ToTokens for QuoteMigration {
@@ -42,7 +49,12 @@ impl ToTokens for QuoteMigration {
             ..
         } = &self.migration;
 
-        let migration_type = QuoteMigrationType(*migration_type);
+        let crate_name = &self.crate_name;
+
+        let migration_type = QuoteMigrationType {
+            inner: *migration_type,
+            crate_name: crate_name.clone(),
+        };
 
         let sql = self
             .path
@@ -67,11 +79,11 @@ impl ToTokens for QuoteMigration {
             .unwrap_or_else(|e| quote! { compile_error!(#e) });
 
         let ts = quote! {
-            ::sqlx::migrate::Migration {
+            ::#crate_name::migrate::Migration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
-                sql: ::sqlx::SqlStr::from_static(#sql),
+                sql: ::#crate_name::SqlStr::from_static(#sql),
                 no_tx: #no_tx,
                 checksum: ::std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
@@ -91,7 +103,7 @@ pub fn default_path(config: &Config) -> &str {
         .unwrap_or(DEFAULT_PATH)
 }
 
-pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
+pub fn expand(path_arg: Option<LitStr>, crate_name: &Ident) -> crate::Result<TokenStream> {
     let config = Config::try_from_crate_or_default()?;
 
     let path = match path_arg {
@@ -99,10 +111,14 @@ pub fn expand(path_arg: Option<LitStr>) -> crate::Result<TokenStream> {
         None => { crate::common::resolve_path(default_path(&config), Span::call_site()) }?,
     };
 
-    expand_with_path(&config, &path)
+    expand_with_path(&config, &path, crate_name)
 }
 
-pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStream> {
+pub fn expand_with_path(
+    config: &Config,
+    path: &Path,
+    crate_name: &Ident,
+) -> crate::Result<TokenStream> {
     let path = path.canonicalize().map_err(|e| {
         format!(
             "error canonicalizing migration directory {}: {e}",
@@ -115,7 +131,11 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
     // Use the same code path to resolve migrations at compile time and runtime.
     let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
         .into_iter()
-        .map(|(migration, path)| QuoteMigration { migration, path });
+        .map(|(migration, path)| QuoteMigration {
+            migration,
+            path,
+            crate_name: crate_name.clone(),
+        });
 
     let table_name = config.migrate.table_name();
 
@@ -136,13 +156,13 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
     }
 
     Ok(quote! {
-        ::sqlx::migrate::Migrator {
+        ::#crate_name::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(const {&[
                     #(#migrations),*
             ]}),
             create_schemas: ::std::borrow::Cow::Borrowed(&[#(#create_schemas),*]),
             table_name: ::std::borrow::Cow::Borrowed(#table_name),
-            ..::sqlx::migrate::Migrator::DEFAULT
+            ..::#crate_name::migrate::Migrator::DEFAULT
         }
     })
 }
