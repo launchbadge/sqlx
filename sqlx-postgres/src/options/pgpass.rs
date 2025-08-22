@@ -313,6 +313,31 @@ mod tests {
             ),
             Err(PGPassLineParseError::UnexpectedEOL)
         );
+        // Password with trailing whitespace
+        assert_eq!(
+            load_password_from_line("*:*:*:*:baz ", "localhost", 5432, "foo", Some("bar")),
+            Ok(Some("baz ".to_owned()))
+        );
+        // Password with escaped colon
+        assert_eq!(
+            load_password_from_line("*:*:*:*:ba\\:z", "localhost", 5432, "foo", Some("bar")),
+            Ok(Some("ba:z".to_owned()))
+        );
+        // Password with escaped backslash
+        assert_eq!(
+            load_password_from_line("*:*:*:*:ba\\\\z", "localhost", 5432, "foo", Some("bar")),
+            Ok(Some("ba\\z".to_owned()))
+        );
+        // Password with superfluous escape
+        assert_eq!(
+            load_password_from_line("*:*:*:*:ba\\z", "localhost", 5432, "foo", Some("bar")),
+            Ok(Some("baz".to_owned()))
+        );
+        // Password with trailing escape
+        assert_eq!(
+            load_password_from_line("*:*:*:*:baz\\", "localhost", 5432, "foo", Some("bar")),
+            Ok(Some("baz".to_owned()))
+        );
     }
 
     #[test]
