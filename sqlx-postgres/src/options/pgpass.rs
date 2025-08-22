@@ -157,7 +157,28 @@ fn load_password_from_line(
         return Ok(None);
     }
 
-    Ok(Some(line.to_owned()))
+    Ok(Some(unescape_password(line)))
+}
+
+/// Unescape occurrences of `:` and `\` in the given password’s.
+fn unescape_password(password_escaped: &str) -> String {
+    let mut result = String::new();
+
+    let mut it = password_escaped.chars();
+    while let Some(char) = it.next() {
+        if char != '\\' {
+            result.push(char);
+        } else if let Some(c) = it.next() {
+            if c != ':' && c != '\\' {
+                tracing::warn!("Superfluous escape in pgpass file");
+            }
+            result.push(c);
+        } else {
+            tracing::warn!("Superfluous escape at EOL in pgpass file");
+        }
+    }
+
+    result
 }
 
 /// check if the next field matches the provided value
