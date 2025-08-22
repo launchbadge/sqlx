@@ -182,8 +182,8 @@ impl PgConnection {
 
         // fallback to asking the database directly for a type name
         if should_fetch {
-            // we're boxing this future here so we can use async recursion
-            let info = Box::pin(async { self.fetch_type_by_oid(oid).await }).await?;
+            // recursion now boxed inside fetch_type_by_oid()
+            let info = self.fetch_type_by_oid(oid).await?;
 
             // cache the type name <-> oid relationship in a paired hashmap
             // so we don't come down this road again
@@ -267,70 +267,66 @@ impl PgConnection {
         }))
     }
 
-    async fn fetch_type_by_oid(&mut self, oid: Oid) -> Result<PgTypeInfo, Error> {
-        let (name, typ_type, category, relation_id, element, base_type): (
-            String,
-            i8,
-            i8,
-            Oid,
-            Oid,
-            Oid,
-        ) = query_as(
-            // Converting the OID to `regtype` and then `text` will give us the name that
-            // the type will need to be found at by search_path.
-            "SELECT oid::regtype::text, \
-                     typtype, \
-                     typcategory, \
-                     typrelid, \
-                     typelem, \
-                     typbasetype \
-                     FROM pg_catalog.pg_type \
-                     WHERE oid = $1",
-        )
-        .bind(oid)
-        .fetch_one(&mut *self)
-        .await?;
+    fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
+        Box::pin(async move {
+            let (name, typ_type, category, relation_id, element, base_type): (
+                String,
+                i8,
+                i8,
+                Oid,
+                Oid,
+                Oid,
+            ) = query_as(
+                "SELECT oid::regtype::text, \
+                         typtype, \
+                         typcategory, \
+                         typrelid, \
+                         typelem, \
+                         typbasetype \
+                   FROM pg_catalog.pg_type \
+                  WHERE oid = $1",
+            )
+                .bind(oid)
+                .fetch_one(&mut *self)
+                .await?;
 
-        let typ_type = TypType::try_from(typ_type);
-        let category = TypCategory::try_from(category);
+            let typ_type = TypType::try_from(typ_type);
+            let category = TypCategory::try_from(category);
 
-        match (typ_type, category) {
-            (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
-
-            (Ok(TypType::Base), Ok(TypCategory::Array)) => {
-                Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                    kind: PgTypeKind::Array(
-                        self.maybe_fetch_type_info_by_oid(element, true).await?,
-                    ),
+            match (typ_type, category) {
+                (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
+                (Ok(TypType::Base), Ok(TypCategory::Array)) => Ok(PgTypeInfo(PgType::Custom(Arc::new(
+                    PgCustomType {
+                        kind: PgTypeKind::Array(
+                            self.maybe_fetch_type_info_by_oid(element, true).await?,
+                        ),
+                        name: name.into(),
+                        oid,
+                    },
+                )))),
+                (Ok(TypType::Pseudo), Ok(TypCategory::Pseudo)) => Ok(PgTypeInfo(PgType::Custom(
+                    Arc::new(PgCustomType {
+                        kind: PgTypeKind::Pseudo,
+                        name: name.into(),
+                        oid,
+                    }),
+                ))),
+                (Ok(TypType::Range), Ok(TypCategory::Range)) => {
+                    self.fetch_range_by_oid(oid, name).await
+                }
+                (Ok(TypType::Enum), Ok(TypCategory::Enum)) => {
+                    self.fetch_enum_by_oid(oid, name).await
+                }
+                (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
+                    self.fetch_composite_by_oid(oid, relation_id, name).await
+                }
+                _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                    kind: PgTypeKind::Simple,
                     name: name.into(),
                     oid,
-                }))))
+                })))),
             }
-
-            (Ok(TypType::Pseudo), Ok(TypCategory::Pseudo)) => {
-                Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                    kind: PgTypeKind::Pseudo,
-                    name: name.into(),
-                    oid,
-                }))))
-            }
-
-            (Ok(TypType::Range), Ok(TypCategory::Range)) => {
-                self.fetch_range_by_oid(oid, name).await
-            }
-
-            (Ok(TypType::Enum), Ok(TypCategory::Enum)) => self.fetch_enum_by_oid(oid, name).await,
-
-            (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
-                self.fetch_composite_by_oid(oid, relation_id, name).await
-            }
-
-            _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                kind: PgTypeKind::Simple,
-                name: name.into(),
-                oid,
-            })))),
-        }
+        })
     }
 
     async fn fetch_enum_by_oid(&mut self, oid: Oid, name: String) -> Result<PgTypeInfo, Error> {
