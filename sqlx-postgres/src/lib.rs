@@ -1,5 +1,5 @@
 //! **PostgreSQL** database driver.
-
+#![recursion_limit = "512"] // or "512" if still overflows
 #[macro_use]
 extern crate sqlx_core;
 
