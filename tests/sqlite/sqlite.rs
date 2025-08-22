@@ -1416,3 +1416,25 @@ enum SqliteTransactionState {
     Read,
     Write,
 }
+
+#[sqlx_macros::test]
+async fn issue_3982() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let r = sqlx::raw_sql("insert into products(product_no) values(1)")
+        .execute(&mut conn)
+        .await?;
+    assert_eq!(r.rows_affected(), 1);
+
+    let (name,) = sqlx::query_as::<_, (Option<String>,)>(
+        r#"
+        select name from products where name IS NULL
+        "#,
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(name, None,);
+
+    Ok(())
+}
