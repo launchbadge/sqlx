@@ -4,8 +4,7 @@ use crate::error::Error;
 use crate::pool::{CloseEvent, Pool, PoolConnection, PoolConnector, PoolOptions};
 
 use std::cmp;
-use std::future::{self, Future};
-use std::pin::pin;
+use std::future::Future;
 use std::pin::pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -18,7 +17,7 @@ use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
 use either::Either;
 use futures_util::future::{self, OptionFuture};
-use futures_util::{FutureExt};
+use futures_util::FutureExt;
 use std::time::{Duration, Instant};
 use tracing::Level;
 
