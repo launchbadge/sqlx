@@ -44,7 +44,14 @@ impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
         let socket_result = match options.fetch_socket() {
             Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,
-            None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
+            None => {
+                net::connect_tcp(
+                    options.get_host(),
+                    options.get_port(),
+                    MaybeUpgradeTls(options),
+                )
+                .await?
+            }
         };
 
         let socket = socket_result?;
