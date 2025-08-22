@@ -127,6 +127,11 @@ impl PgConnectOptions {
         self
     }
 
+    /// Identical to [Self::host()], but through a mutable reference.
+    pub fn set_host(&mut self, host: &str) {
+        host.clone_into(&mut self.host);
+    }
+
     /// Sets the port to connect to at the server host.
     ///
     /// The default port for PostgreSQL is `5432`.
@@ -139,6 +144,12 @@ impl PgConnectOptions {
     ///     .port(5432);
     /// ```
     pub fn port(mut self, port: u16) -> Self {
+        self.port = port;
+        self
+    }
+
+    /// Identical to [`Self::port()`], but through a mutable reference.
+    pub fn set_port(&mut self, port: u16) -> &mut Self {
         self.port = port;
         self
     }
@@ -169,6 +180,12 @@ impl PgConnectOptions {
         self
     }
 
+    /// Identical to [`Self::username()`], but through a mutable reference.
+    pub fn set_username(&mut self, username: &str) -> &mut Self {
+        username.clone_into(&mut self.username);
+        self
+    }
+
     /// Sets the password to use if the server demands password authentication.
     ///
     /// # Example
@@ -180,6 +197,12 @@ impl PgConnectOptions {
     ///     .password("safe-and-secure");
     /// ```
     pub fn password(mut self, password: &str) -> Self {
+        self.password = Some(password.to_owned());
+        self
+    }
+
+    /// Identical to [`Self::password()`]. but through a mutable reference.
+    pub fn set_password(&mut self, password: &str) -> &mut Self {
         self.password = Some(password.to_owned());
         self
     }
