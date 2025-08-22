@@ -211,8 +211,6 @@ impl PgConnectOptions {
     /// By default, the SSL mode is [`Prefer`](PgSslMode::Prefer), and the client will
     /// first attempt an SSL connection but fallback to a non-SSL connection on failure.
     ///
-    /// Ignored for Unix domain socket communication.
-    ///
     /// # Example
     ///
     /// ```rust
@@ -230,8 +228,6 @@ impl PgConnectOptions {
     ///
     /// By default, the protocol is [`Postgres`](PgSslNegotiation::Postgres), and the client will
     /// first check whether the server supports SSL, and fallback to a non-SSL connection if not.
-    ///
-    /// Ignored for Unix domain socket communication.
     ///
     /// # Example
     ///
