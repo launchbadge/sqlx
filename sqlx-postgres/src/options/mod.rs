@@ -99,7 +99,7 @@ impl PgConnectOptions {
                 self.get_host(),
                 self.get_port(),
                 self.get_username(),
-                Some(self.get_database()),
+                self.get_database(),
             );
         }
 
