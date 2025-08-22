@@ -12,7 +12,6 @@ use super::inner::{is_beyond_max_lifetime, PoolInner};
 use crate::pool::connect::{ConnectPermit, ConnectionId};
 use crate::pool::options::PoolConnectionMetadata;
 use crate::rt;
-use std::future::Future;
 
 const RETURN_TO_POOL_TIMEOUT: Duration = Duration::from_secs(5);
 const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
