@@ -94,19 +94,19 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         ))
     }
 
-    fn fetch_many<'q>(
-        &'q mut self,
+    fn fetch_many(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxStream<'q, crate::Result<Either<AnyQueryResult, AnyRow>>>;
+        arguments: Option<AnyArguments>,
+    ) -> BoxStream<'_, crate::Result<Either<AnyQueryResult, AnyRow>>>;
 
-    fn fetch_optional<'q>(
-        &'q mut self,
+    fn fetch_optional(
+        &mut self,
         query: SqlStr,
         persistent: bool,
-        arguments: Option<AnyArguments<'q>>,
-    ) -> BoxFuture<'q, crate::Result<Option<AnyRow>>>;
+        arguments: Option<AnyArguments>,
+    ) -> BoxFuture<'_, crate::Result<Option<AnyRow>>>;
 
     fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
