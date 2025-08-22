@@ -161,8 +161,8 @@ pub(crate) async fn authenticate(
 
 // nonce is a sequence of random printable bytes
 fn gen_nonce() -> String {
-    let mut rng = rand::thread_rng();
-    let count = rng.gen_range(64..128);
+    let mut rng = rand::rng();
+    let count = rng.random_range(64..128);
 
     // printable = %x21-2B / %x2D-7E
     // ;; Printable ASCII except ",".
@@ -170,10 +170,10 @@ fn gen_nonce() -> String {
     // ;; a valid "value".
     let nonce: String = std::iter::repeat(())
         .map(|()| {
-            let mut c = rng.gen_range(0x21u8..0x7F);
+            let mut c = rng.random_range(0x21u8..0x7F);
 
             while c == 0x2C {
-                c = rng.gen_range(0x21u8..0x7F);
+                c = rng.random_range(0x21u8..0x7F);
             }
 
             c
@@ -182,7 +182,7 @@ fn gen_nonce() -> String {
         .map(|c| c as char)
         .collect();
 
-    rng.gen_range(32..128);
+    rng.random_range(32..128);
     format!("{NONCE_ATTR}={nonce}")
 }
 
@@ -210,9 +210,9 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
 fn bench_sasl_hi(b: &mut test::Bencher) {
     use test::black_box;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let nonce: Vec<u8> = std::iter::repeat(())
-        .map(|()| rng.sample(rand::distributions::Alphanumeric))
+        .map(|()| rng.sample(rand::distr::Alphanumeric))
         .take(64)
         .collect();
     b.iter(|| {
