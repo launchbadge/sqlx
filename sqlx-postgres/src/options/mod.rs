@@ -99,7 +99,7 @@ impl PgConnectOptions {
                 self.get_host(),
                 self.get_port(),
                 self.get_username(),
-                self.get_database(),
+                Some(self.get_database()),
             );
         }
 
@@ -533,16 +533,20 @@ impl PgConnectOptions {
 
     /// Get the current database name.
     ///
+    /// Defaults to username if not given.
+    ///
     /// # Example
     ///
     /// ```rust
     /// # use sqlx_postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new()
-    ///     .database("postgres");
-    /// assert!(options.get_database().is_some());
+    /// let options = PgConnectOptions::new().database("postgres");
+    /// assert_eq!(options.get_database(), "postgres");
+    ///
+    /// let options = PgConnectOptions::new().username("alice");
+    /// assert_eq!(options.get_database(), "alice");
     /// ```
-    pub fn get_database(&self) -> Option<&str> {
-        self.database.as_deref()
+    pub fn get_database(&self) -> &str {
+        self.database.as_deref().unwrap_or(&self.username)
     }
 
     /// Get the SSL mode.

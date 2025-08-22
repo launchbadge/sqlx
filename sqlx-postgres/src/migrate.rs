@@ -21,10 +21,7 @@ fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error>
     let options = PgConnectOptions::from_str(url)?;
 
     // pull out the name of the database to create
-    let database = options
-        .get_database()
-        .unwrap_or(options.get_username())
-        .to_owned();
+    let database = options.get_database().to_owned();
 
     // switch us to the maintenance database
     // use `postgres` _unless_ the database is postgres, in which case, use `template1`
