@@ -22,6 +22,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--project")
 parser.add_argument("-l", "--list-projects", action="store_true")
 parser.add_argument("-b", "--build", action="store_true")
+parser.add_argument("--locked", action="store_true")
+parser.add_argument("--offline", action="store_true")
 
 argv, unknown = parser.parse_known_args()
 
@@ -78,12 +80,21 @@ def project(name, database=None, driver=None, target=None):
         # migrate
         sqlx("migrate run", database_url, cwd=cwd)
 
-    target_arg = "" if target is None else f" --target {target}"
+    args = ""
+    if target is not None:
+        args += f" --target {target}"
+
+    if argv.locked:
+        args += " --locked"
+
+    if argv.offline:
+        args += " --offline"
+
     # check
-    run("cargo check" + target_arg, cwd=cwd, env=env)
+    run("cargo check" + args, cwd=cwd, env=env)
 
     if argv.build:
-        run("cargo build" + target_arg, cwd=cwd, env=env)
+        run("cargo build" + args, cwd=cwd, env=env)
 
 
 # todos
@@ -91,3 +102,4 @@ project("mysql/todos", driver="mysql_8", database="todos")
 project("postgres/todos", driver="postgres_12", database="todos")
 project("sqlite/todos", driver="sqlite", database="todos.db")
 project("sqlite/extension", driver="sqlite", database="extension.db")
+project("sqlite/todos-wasm", driver="sqlite", database="wasm.db", target="wasm32-unknown-unknown")
