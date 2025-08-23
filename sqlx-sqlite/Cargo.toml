@@ -25,12 +25,11 @@ regexp = ["dep:regex"]
 # Conditionally compiled SQLite features
 deserialize = []
 load-extension = []
-preupdate-hook = ["libsqlite3-sys?/preupdate_hook"]
-unlock-notify = ["libsqlite3-sys?/unlock_notify"]
+preupdate-hook = ["libsqlite3-sys/preupdate_hook"]
+unlock-notify = ["libsqlite3-sys/unlock_notify"]
 
-bundled = ["dep:libsqlite3-sys", "libsqlite3-sys/bundled"]
-unbundled = ["dep:libsqlite3-sys", "libsqlite3-sys/buildtime_bindgen"]
-wasm = ["dep:sqlite-wasm-rs"]
+bundled = ["libsqlite3-sys/bundled"]
+unbundled = ["libsqlite3-sys/buildtime_bindgen"]
 
 sqlx-toml = ["sqlx-core/sqlx-toml"]
 
@@ -52,18 +51,20 @@ _unstable-all-sqlite-features = [
 _unstable-docs = [
     "bundled", "any",
     "_unstable-all-types",
-    "_unstable-all-sqlite-features"
+    "_unstable-all-sqlite-features",
 ]
 
-[dependencies.libsqlite3-sys]
+[target.'cfg(not(any(target_os = "wasi", target_os = "emscripten")))'.dependencies.libsqlite3-sys]
 # See `sqlx-sqlite/src/lib.rs` for details.
-optional = true
 version = ">=0.30.0, <0.36.0"
 default-features = false
 features = [
     "pkg-config",
     "vcpkg",
 ]
+
+[target.'cfg(any(target_os = "wasi", target_os = "emscripten"))'.dependencies]
+sqlite-wasm-rs = { version = "0.4.3", default-features = false, features = ["precompiled"] }
 
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
@@ -91,7 +92,6 @@ thiserror = "2.0.0"
 
 serde = { version = "1.0.145", features = ["derive"], optional = true }
 regex = { version = "1.5.5", optional = true }
-sqlite-wasm-rs = { version = "0.4.3", default-features = false, features = ["precompiled"], optional = true }
 
 [dependencies.sqlx-core]
 workspace = true

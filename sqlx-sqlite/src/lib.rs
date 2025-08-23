@@ -72,9 +72,10 @@
 #[macro_use]
 extern crate sqlx_core;
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(any(target_os = "wasi", target_os = "emscripten")))]
 pub(crate) use libsqlite3_sys as sqlite_lib;
-#[cfg(feature = "wasm")]
+
+#[cfg(any(target_os = "wasi", target_os = "emscripten"))]
 pub(crate) use sqlite_wasm_rs as sqlite_lib;
 
 use std::sync::atomic::AtomicBool;
