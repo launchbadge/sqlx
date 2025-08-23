@@ -122,7 +122,7 @@ impl ConnectionHandle {
                 match status {
                     SQLITE_OK => return Ok(()),
                     #[cfg(feature = "unlock-notify")]
-                    libsqlite3_sys::SQLITE_LOCKED_SHAREDCACHE => {
+                    crate::sqlite_lib::SQLITE_LOCKED_SHAREDCACHE => {
                         crate::statement::unlock_notify::wait(self.as_ptr())?
                     }
                     _ => return Err(SqliteError::new(self.as_ptr()).into()),
