@@ -54,7 +54,7 @@ _unstable-docs = [
     "_unstable-all-sqlite-features",
 ]
 
-[target.'cfg(not(any(target_os = "wasi", target_os = "emscripten")))'.dependencies.libsqlite3-sys]
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies.libsqlite3-sys]
 # See `sqlx-sqlite/src/lib.rs` for details.
 version = ">=0.30.0, <0.36.0"
 default-features = false
@@ -63,7 +63,7 @@ features = [
     "vcpkg",
 ]
 
-[target.'cfg(any(target_os = "wasi", target_os = "emscripten"))'.dependencies]
+[target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dependencies]
 sqlite-wasm-rs = { version = "0.4.3", default-features = false, features = ["precompiled"] }
 
 [dependencies]
