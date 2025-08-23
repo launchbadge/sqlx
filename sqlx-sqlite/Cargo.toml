@@ -25,11 +25,12 @@ regexp = ["dep:regex"]
 # Conditionally compiled SQLite features
 deserialize = []
 load-extension = []
-preupdate-hook = ["libsqlite3-sys/preupdate_hook"]
-unlock-notify = ["libsqlite3-sys/unlock_notify"]
+preupdate-hook = ["libsqlite3-sys?/preupdate_hook"]
+unlock-notify = ["libsqlite3-sys?/unlock_notify"]
 
-bundled = ["libsqlite3-sys/bundled"]
-unbundled = ["libsqlite3-sys/buildtime_bindgen"]
+bundled = ["dep:libsqlite3-sys", "libsqlite3-sys/bundled"]
+unbundled = ["dep:libsqlite3-sys", "libsqlite3-sys/buildtime_bindgen"]
+wasm = ["dep:sqlite-wasm-rs"]
 
 sqlx-toml = ["sqlx-core/sqlx-toml"]
 
@@ -56,6 +57,7 @@ _unstable-docs = [
 
 [dependencies.libsqlite3-sys]
 # See `sqlx-sqlite/src/lib.rs` for details.
+optional = true
 version = ">=0.30.0, <0.36.0"
 default-features = false
 features = [
@@ -89,6 +91,7 @@ thiserror = "2.0.0"
 
 serde = { version = "1.0.145", features = ["derive"], optional = true }
 regex = { version = "1.5.5", optional = true }
+sqlite-wasm-rs = { version = "0.4.3", default-features = false, features = ["precompiled"], optional = true }
 
 [dependencies.sqlx-core]
 workspace = true

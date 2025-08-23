@@ -3,7 +3,7 @@ use crate::connection::LogSettings;
 use crate::connection::{ConnectionState, Statements};
 use crate::error::Error;
 use crate::SqliteConnectOptions;
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3_busy_timeout, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY,
     SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
     SQLITE_OPEN_SHAREDCACHE, SQLITE_OPEN_URI,

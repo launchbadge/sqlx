@@ -9,7 +9,7 @@ use std::ptr;
 use std::ptr::NonNull;
 
 use futures_intrusive::sync::MutexGuard;
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
     sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };

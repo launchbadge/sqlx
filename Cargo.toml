@@ -24,6 +24,7 @@ members = [
     "examples/postgres/transaction",
     "examples/sqlite/todos",
     "examples/sqlite/extension",
+    "examples/sqlite/todos-wasm",
 ]
 
 [workspace.package]
@@ -117,6 +118,7 @@ any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/a
 postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
 sqlite = ["sqlite-bundled", "sqlite-deserialize", "sqlite-load-extension", "sqlite-unlock-notify"]
+sqlite-wasm = ["_sqlite", "sqlite-deserialize", "sqlx-sqlite/wasm", "sqlx-macros?/sqlite"]
 
 # SQLite base features
 sqlite-bundled = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]

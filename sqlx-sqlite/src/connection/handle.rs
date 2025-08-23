@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use std::{io, ptr};
 
 use crate::error::Error;
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3, sqlite3_close, sqlite3_exec, sqlite3_extended_result_codes, sqlite3_get_autocommit,
     sqlite3_last_insert_rowid, sqlite3_open_v2, SQLITE_OK,
 };

@@ -1,6 +1,6 @@
 use super::ConnectionState;
 use crate::{error::Error, SqliteConnection, SqliteError};
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3_deserialize, sqlite3_free, sqlite3_malloc64, sqlite3_serialize,
     SQLITE_DESERIALIZE_FREEONCLOSE, SQLITE_DESERIALIZE_READONLY, SQLITE_DESERIALIZE_RESIZEABLE,
     SQLITE_NOMEM, SQLITE_OK,
