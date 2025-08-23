@@ -330,7 +330,15 @@ mod chrono {
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap().ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
+            == FixedOffset::east_opt(60 * 60 * 6 + 1800)
+                .unwrap()
+                .from_local_datetime(
+                    &NaiveDate::from_ymd_opt(2019, 1, 2)
+                        .unwrap()
+                        .and_hms_micro_opt(5, 10, 20, 115_100)
+                        .unwrap()
+                )
+                .unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
