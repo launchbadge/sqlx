@@ -267,6 +267,9 @@ jobs:
 
       - name: Setup Rust
         run: rustup show active-toolchain || rustup toolchain install
+      
+      - name: Add wasm32-unknown-unknown toolchain
+        run: rutup target add wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
 
