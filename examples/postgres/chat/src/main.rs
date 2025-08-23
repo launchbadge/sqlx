@@ -98,7 +98,7 @@ impl ChatApp {
                 ]
                 .as_ref(),
             )
-            .split(frame.size());
+            .split(frame.area());
 
         let text = Text::from(Line::from(vec![
             Span::raw("Press "),
@@ -114,12 +114,12 @@ impl ChatApp {
             .style(Style::default().fg(Color::Yellow))
             .block(Block::default().borders(Borders::ALL).title("Input"));
         frame.render_widget(input, chunks[1]);
-        frame.set_cursor(
+        frame.set_cursor_position((
             // Put cursor past the end of the input text
             chunks[1].x + self.input.width() as u16 + 1,
             // Move one line down, from the border to the input line
             chunks[1].y + 1,
-        );
+        ));
 
         let messages =
             List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
