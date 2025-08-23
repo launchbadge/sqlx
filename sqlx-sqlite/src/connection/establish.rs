@@ -163,7 +163,7 @@ impl EstablishParams {
         if self.register_regexp_function {
             // configure a `regexp` function for sqlite, it does not come with one by default
             let status = crate::regexp::register(handle.as_ptr());
-            if status != libsqlite3_sys::SQLITE_OK {
+            if status != crate::sqlite_lib::SQLITE_OK {
                 return Err(Error::Database(Box::new(handle.expect_error())));
             }
         }
@@ -193,7 +193,7 @@ impl EstablishParams {
 
     #[cfg(feature = "load-extension")]
     unsafe fn apply_extensions(&self, handle: &mut ConnectionHandle) -> Result<(), Error> {
-        use libsqlite3_sys::{sqlite3_free, sqlite3_load_extension};
+        use crate::sqlite_lib::{sqlite3_free, sqlite3_load_extension};
         use std::ffi::{c_int, CStr};
         use std::ptr;
 
@@ -202,7 +202,7 @@ impl EstablishParams {
             handle: &mut ConnectionHandle,
             enabled: bool,
         ) -> Result<(), Error> {
-            use libsqlite3_sys::{sqlite3_db_config, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION};
+            use crate::sqlite_lib::{sqlite3_db_config, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION};
 
             // SAFETY: we have exclusive access and this matches the expected signature
             // <https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigenableloadextension>

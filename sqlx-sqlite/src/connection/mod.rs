@@ -149,7 +149,7 @@ impl ConnectionState {
     pub(crate) fn remove_preupdate_hook(&mut self) {
         if let Some(mut handler) = self.preupdate_hook_callback.take() {
             unsafe {
-                libsqlite3_sys::sqlite3_preupdate_hook(self.handle.as_ptr(), None, ptr::null_mut());
+                crate::sqlite_lib::sqlite3_preupdate_hook(self.handle.as_ptr(), None, ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -457,7 +457,7 @@ impl LockedSqliteHandle<'_> {
             self.guard.remove_preupdate_hook();
             self.guard.preupdate_hook_callback = Some(PreupdateHookHandler(callback));
 
-            libsqlite3_sys::sqlite3_preupdate_hook(
+            crate::sqlite_lib::sqlite3_preupdate_hook(
                 self.as_raw_handle().as_mut(),
                 Some(preupdate_hook::<F>),
                 handler,

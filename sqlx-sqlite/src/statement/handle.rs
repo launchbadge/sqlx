@@ -399,7 +399,7 @@ impl StatementHandle {
                     SQLITE_DONE => return Ok(false),
                     SQLITE_MISUSE => panic!("misuse!"),
                     #[cfg(feature = "unlock-notify")]
-                    libsqlite3_sys::SQLITE_LOCKED_SHAREDCACHE => {
+                    crate::sqlite_lib::SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
                         super::unlock_notify::wait(self.db_handle())?;
