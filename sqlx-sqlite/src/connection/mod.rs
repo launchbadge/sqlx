@@ -8,11 +8,11 @@ use std::panic::catch_unwind;
 use std::ptr;
 use std::ptr::NonNull;
 
-use futures_intrusive::sync::MutexGuard;
 use crate::sqlite_lib::{
     sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
     sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
 };
+use futures_intrusive::sync::MutexGuard;
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
 
@@ -149,7 +149,11 @@ impl ConnectionState {
     pub(crate) fn remove_preupdate_hook(&mut self) {
         if let Some(mut handler) = self.preupdate_hook_callback.take() {
             unsafe {
-                crate::sqlite_lib::sqlite3_preupdate_hook(self.handle.as_ptr(), None, ptr::null_mut());
+                crate::sqlite_lib::sqlite3_preupdate_hook(
+                    self.handle.as_ptr(),
+                    None,
+                    ptr::null_mut(),
+                );
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
