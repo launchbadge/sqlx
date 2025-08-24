@@ -2,12 +2,12 @@ use crate::connection::handle::ConnectionHandle;
 use crate::connection::LogSettings;
 use crate::connection::{ConnectionState, Statements};
 use crate::error::Error;
-use crate::SqliteConnectOptions;
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3_busy_timeout, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY,
     SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
     SQLITE_OPEN_SHAREDCACHE, SQLITE_OPEN_URI,
 };
+use crate::SqliteConnectOptions;
 use percent_encoding::NON_ALPHANUMERIC;
 use std::collections::BTreeMap;
 use std::ffi::CString;
@@ -163,7 +163,7 @@ impl EstablishParams {
         if self.register_regexp_function {
             // configure a `regexp` function for sqlite, it does not come with one by default
             let status = crate::regexp::register(handle.as_ptr());
-            if status != libsqlite3_sys::SQLITE_OK {
+            if status != crate::sqlite_lib::SQLITE_OK {
                 return Err(Error::Database(Box::new(handle.expect_error())));
             }
         }
@@ -193,7 +193,7 @@ impl EstablishParams {
 
     #[cfg(feature = "load-extension")]
     unsafe fn apply_extensions(&self, handle: &mut ConnectionHandle) -> Result<(), Error> {
-        use libsqlite3_sys::{sqlite3_free, sqlite3_load_extension};
+        use crate::sqlite_lib::{sqlite3_free, sqlite3_load_extension};
         use std::ffi::{c_int, CStr};
         use std::ptr;
 
@@ -202,7 +202,7 @@ impl EstablishParams {
             handle: &mut ConnectionHandle,
             enabled: bool,
         ) -> Result<(), Error> {
-            use libsqlite3_sys::{sqlite3_db_config, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION};
+            use crate::sqlite_lib::{sqlite3_db_config, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION};
 
             // SAFETY: we have exclusive access and this matches the expected signature
             // <https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigenableloadextension>

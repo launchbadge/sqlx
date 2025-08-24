@@ -2,7 +2,7 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::str::FromStr;
 
-use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
+use crate::sqlite_lib::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
 
 use crate::error::BoxDynError;
 

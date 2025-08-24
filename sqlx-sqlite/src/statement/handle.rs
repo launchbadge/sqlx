@@ -4,7 +4,8 @@ use std::ffi::CStr;
 use crate::error::{BoxDynError, Error};
 use crate::type_info::DataType;
 use crate::{SqliteError, SqliteTypeInfo};
-use libsqlite3_sys::{
+
+use crate::sqlite_lib::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_parameter_count, sqlite3_bind_parameter_name,
     sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings, sqlite3_column_blob,
@@ -398,7 +399,7 @@ impl StatementHandle {
                     SQLITE_DONE => return Ok(false),
                     SQLITE_MISUSE => panic!("misuse!"),
                     #[cfg(feature = "unlock-notify")]
-                    libsqlite3_sys::SQLITE_LOCKED_SHAREDCACHE => {
+                    crate::sqlite_lib::SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
                         super::unlock_notify::wait(self.db_handle())?;
