@@ -55,6 +55,30 @@ async fn it_maths() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_clears_statement_cache_on_error() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    let query = "SELECT 1";
+
+    let mut conn = new::<MySql>().await?;
+    let _ = sqlx::query(query).fetch_one(&mut conn).await?;
+    assert_eq!(1, conn.cached_statements_size());
+
+    // clear cached statements only on the server side
+    conn.nuke_cached_statements().await?;
+    assert_eq!(1, conn.cached_statements_size());
+
+    // one query fails as the statement is not cached server-side any more, client-side cache is cleared
+    assert!(sqlx::query(query).fetch_one(&mut conn).await.is_err());
+    assert_eq!(0, conn.cached_statements_size());
+
+    // next query succeeds again
+    let _ = sqlx::query(query).fetch_one(&mut conn).await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_fail_at_querying() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
