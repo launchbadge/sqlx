@@ -183,7 +183,11 @@ impl MySqlConnection {
             loop {
                 // query response is a meta-packet which may be one of:
                 //  Ok, Err, ResultSet, or (unhandled) LocalInfileRequest
-                let mut packet = self.inner.stream.recv_packet().await?;
+                let mut packet = self.inner.stream.recv_packet().await.inspect_err(|_| {
+                    // if a prepared statement vanished on the server side, we get an error here
+                    // clear the statement cache in case the connection got reset to cause re-preparing
+                    self.inner.cache_statement.clear();
+                })?;
 
                 if packet[0] == 0x00 || packet[0] == 0xff {
                     // first packet in a query response is OK or ERR
