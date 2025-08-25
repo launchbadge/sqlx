@@ -3,6 +3,11 @@ use sqlx::{Any, Connection, Executor, Row};
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_test::new;
 
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "json")]
+use sqlx::types::Json;
+
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
     sqlx::any::install_default_drivers();
@@ -139,6 +144,50 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 
         assert_eq!(val, i);
     }
+
+    Ok(())
+}
+
+#[cfg(feature = "json")]
+#[sqlx_macros::test]
+async fn it_encodes_decodes_json() -> anyhow::Result<()> {
+    sqlx::any::install_default_drivers();
+
+    let mut conn = new::<Any>().await?;
+
+    // Test with serde_json::Value
+    let json_value = serde_json::json!({
+        "name": "test",
+        "value": 42,
+        "items": [1, 2, 3]
+    });
+
+    // This will work by encoding JSON as text and decoding it back
+    let result: serde_json::Value = sqlx::query_scalar("SELECT ?")
+        .bind(Json(&json_value))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(result, json_value);
+
+    // Test with custom struct
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct TestData {
+        name: String,
+        count: i32,
+    }
+
+    let test_data = TestData {
+        name: "example".to_string(),
+        count: 100,
+    };
+
+    let result: Json<TestData> = sqlx::query_scalar("SELECT ?")
+        .bind(Json(&test_data))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(result.0, test_data);
 
     Ok(())
 }
