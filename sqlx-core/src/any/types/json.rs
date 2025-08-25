@@ -28,14 +28,14 @@ where
     }
 }
 
-impl<'r, T> Decode<'_, Any> for Json<T>
+impl<T> Decode<'_, Any> for Json<T>
 where
     T: for<'de> Deserialize<'de>,
 {
     fn decode(value: AnyValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.kind {
-            AnyValueKind::Text(text) => Json::decode_from_string(&text.into_owned()),
-            AnyValueKind::Blob(blob) => Json::decode_from_bytes(&blob.into_owned()),
+            AnyValueKind::Text(text) => Json::decode_from_string(&text),
+            AnyValueKind::Blob(blob) => Json::decode_from_bytes(&blob),
             other => other.unexpected(),
         }
     }
