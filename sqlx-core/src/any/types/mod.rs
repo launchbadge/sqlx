@@ -21,6 +21,7 @@ mod blob;
 mod bool;
 mod float;
 mod int;
+mod json;
 mod str;
 
 #[test]
@@ -50,4 +51,7 @@ fn test_type_impls() {
     // These imply that there are also impls for the equivalent slice types.
     has_type::<Vec<u8>>();
     has_type::<String>();
+    
+    // JSON types
+    has_type::<crate::types::Json<serde_json::Value>>();
 }
