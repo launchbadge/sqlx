@@ -16,6 +16,7 @@ use sqlx_core::column::{ColumnOrigin, TableColumn};
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::Arc;
+use futures_core::future::BoxFuture;
 
 /// Describes the type of the `pg_type.typtype` column
 ///
