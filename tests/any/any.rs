@@ -153,6 +153,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 async fn it_encodes_decodes_json() -> anyhow::Result<()> {
     sqlx::any::install_default_drivers();
 
+    // Create new connection
     let mut conn = new::<Any>().await?;
 
     // Test with serde_json::Value

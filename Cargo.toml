@@ -64,10 +64,20 @@ default = ["any", "macros", "migrate", "json"]
 
 derive = ["sqlx-macros/derive"]
 macros = ["derive", "sqlx-macros/macros"]
-migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
+migrate = [
+    "sqlx-core/migrate",
+    "sqlx-macros?/migrate",
+    "sqlx-mysql?/migrate",
+    "sqlx-postgres?/migrate",
+    "sqlx-sqlite?/migrate",
+]
 
 # Enable parsing of `sqlx.toml` for configuring macros and migrations.
-sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-macros?/sqlx-toml", "sqlx-sqlite?/sqlx-toml"]
+sqlx-toml = [
+    "sqlx-core/sqlx-toml",
+    "sqlx-macros?/sqlx-toml",
+    "sqlx-sqlite?/sqlx-toml",
+]
 
 # intended mainly for CI and docs
 all-databases = ["mysql", "sqlite", "postgres", "any"]
@@ -82,27 +92,40 @@ _unstable-all-types = [
     "mac_address",
     "uuid",
     "bit-vec",
-    "bstr"
+    "bstr",
 ]
 
 # Render documentation that wouldn't otherwise be shown (e.g. `sqlx_core::config`).
 _unstable-docs = [
     "all-databases",
     "_unstable-all-types",
-    "sqlx-sqlite/_unstable-docs"
+    "sqlx-sqlite/_unstable-docs",
 ]
 
 # Base runtime features without TLS
-runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
+runtime-async-std = [
+    "_rt-async-std",
+    "sqlx-core/_rt-async-std",
+    "sqlx-macros?/_rt-async-std",
+]
 runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # TLS features
 tls-native-tls = ["sqlx-core/_tls-native-tls", "sqlx-macros?/_tls-native-tls"]
 tls-rustls = ["tls-rustls-ring"] # For backwards compatibility
-tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs", "sqlx-macros?/_tls-rustls-aws-lc-rs"]
+tls-rustls-aws-lc-rs = [
+    "sqlx-core/_tls-rustls-aws-lc-rs",
+    "sqlx-macros?/_tls-rustls-aws-lc-rs",
+]
 tls-rustls-ring = ["tls-rustls-ring-webpki"] # For backwards compatibility
-tls-rustls-ring-webpki = ["sqlx-core/_tls-rustls-ring-webpki", "sqlx-macros?/_tls-rustls-ring-webpki"]
-tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots", "sqlx-macros?/_tls-rustls-ring-native-roots"]
+tls-rustls-ring-webpki = [
+    "sqlx-core/_tls-rustls-ring-webpki",
+    "sqlx-macros?/_tls-rustls-ring-webpki",
+]
+tls-rustls-ring-native-roots = [
+    "sqlx-core/_tls-rustls-ring-native-roots",
+    "sqlx-macros?/_tls-rustls-ring-native-roots",
+]
 
 # No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
 tls-none = []
@@ -113,14 +136,28 @@ _rt-tokio = []
 _sqlite = []
 
 # database
-any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/any"]
+any = [
+    "sqlx-core/any",
+    "sqlx-mysql?/any",
+    "sqlx-postgres?/any",
+    "sqlx-sqlite?/any",
+]
 postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
-sqlite = ["sqlite-bundled", "sqlite-deserialize", "sqlite-load-extension", "sqlite-unlock-notify"]
+sqlite = [
+    "sqlite-bundled",
+    "sqlite-deserialize",
+    "sqlite-load-extension",
+    "sqlite-unlock-notify",
+]
 
 # SQLite base features
 sqlite-bundled = ["_sqlite", "sqlx-sqlite/bundled", "sqlx-macros?/sqlite"]
-sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled", "sqlx-macros?/sqlite-unbundled"]
+sqlite-unbundled = [
+    "_sqlite",
+    "sqlx-sqlite/unbundled",
+    "sqlx-macros?/sqlite-unbundled",
+]
 
 # SQLite features using conditionally compiled APIs
 # Note: these assume `sqlite-bundled` or `sqlite-unbundled` is also enabled
@@ -132,7 +169,10 @@ sqlite-deserialize = ["sqlx-sqlite/deserialize"]
 # Enable `SqliteConnectOptions::extension()` and `::extension_with_entrypoint()`.
 # Also required to use `drivers.sqlite.unsafe-load-extensions` from `sqlx.toml`.
 # Cannot be used with `-DSQLITE_OMIT_LOAD_EXTENSION`
-sqlite-load-extension = ["sqlx-sqlite/load-extension", "sqlx-macros?/sqlite-load-extension"]
+sqlite-load-extension = [
+    "sqlx-sqlite/load-extension",
+    "sqlx-macros?/sqlite-load-extension",
+]
 
 # Enables `sqlite3_preupdate_hook`
 # Requires `-DSQLITE_ENABLE_PREUPDATE_HOOK` (set automatically with `sqlite-bundled`)
@@ -143,17 +183,63 @@ sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
 sqlite-unlock-notify = ["sqlx-sqlite/unlock-notify"]
 
 # types
-json = ["sqlx-core/json", "sqlx-macros?/json", "sqlx-mysql?/json", "sqlx-postgres?/json", "sqlx-sqlite?/json"]
+json = [
+    "sqlx-core/json",
+    "sqlx-macros?/json",
+    "sqlx-mysql?/json",
+    "sqlx-postgres?/json",
+    "sqlx-sqlite?/json",
+]
 
-bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros?/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
-bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec", "sqlx-postgres?/bit-vec"]
-chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-mysql?/chrono", "sqlx-postgres?/chrono", "sqlx-sqlite?/chrono"]
+bigdecimal = [
+    "sqlx-core/bigdecimal",
+    "sqlx-macros?/bigdecimal",
+    "sqlx-mysql?/bigdecimal",
+    "sqlx-postgres?/bigdecimal",
+]
+bit-vec = [
+    "sqlx-core/bit-vec",
+    "sqlx-macros?/bit-vec",
+    "sqlx-postgres?/bit-vec",
+]
+chrono = [
+    "sqlx-core/chrono",
+    "sqlx-macros?/chrono",
+    "sqlx-mysql?/chrono",
+    "sqlx-postgres?/chrono",
+    "sqlx-sqlite?/chrono",
+]
 ipnet = ["sqlx-core/ipnet", "sqlx-macros?/ipnet", "sqlx-postgres?/ipnet"]
-ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork", "sqlx-postgres?/ipnetwork"]
-mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address", "sqlx-postgres?/mac_address"]
-rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal", "sqlx-mysql?/rust_decimal", "sqlx-postgres?/rust_decimal"]
-time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
-uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
+ipnetwork = [
+    "sqlx-core/ipnetwork",
+    "sqlx-macros?/ipnetwork",
+    "sqlx-postgres?/ipnetwork",
+]
+mac_address = [
+    "sqlx-core/mac_address",
+    "sqlx-macros?/mac_address",
+    "sqlx-postgres?/mac_address",
+]
+rust_decimal = [
+    "sqlx-core/rust_decimal",
+    "sqlx-macros?/rust_decimal",
+    "sqlx-mysql?/rust_decimal",
+    "sqlx-postgres?/rust_decimal",
+]
+time = [
+    "sqlx-core/time",
+    "sqlx-macros?/time",
+    "sqlx-mysql?/time",
+    "sqlx-postgres?/time",
+    "sqlx-sqlite?/time",
+]
+uuid = [
+    "sqlx-core/uuid",
+    "sqlx-macros?/uuid",
+    "sqlx-mysql?/uuid",
+    "sqlx-postgres?/uuid",
+    "sqlx-sqlite?/uuid",
+]
 regexp = ["sqlx-sqlite?/regexp"]
 bstr = ["sqlx-core/bstr"]
 
@@ -175,11 +261,16 @@ sqlx = { version = "=0.9.0-alpha.1", path = "." }
 # These are optional unless enabled in a workspace crate.
 bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
-chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
+chrono = { version = "0.4.34", default-features = false, features = [
+    "std",
+    "clock",
+] }
 ipnet = "2.3.0"
 ipnetwork = "0.21.1"
 mac_address = "1.1.5"
-rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
+rust_decimal = { version = "1.26.1", default-features = false, features = [
+    "std",
+] }
 time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
@@ -206,7 +297,9 @@ sqlx-sqlite = { workspace = true, optional = true }
 [dev-dependencies]
 anyhow = "1.0.52"
 time_ = { version = "0.3.2", package = "time" }
-futures-util = { version = "0.3.19", default-features = false, features = ["alloc"] }
+futures-util = { version = "0.3.19", default-features = false, features = [
+    "alloc",
+] }
 env_logger = "0.11"
 async-std = { workspace = true, features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
