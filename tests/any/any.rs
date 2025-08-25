@@ -162,9 +162,19 @@ async fn it_encodes_decodes_json() -> anyhow::Result<()> {
         "items": [1, 2, 3]
     });
 
-    // This will work by encoding JSON as text and decoding it back
-    let result: serde_json::Value = sqlx::query_scalar("SELECT ?")
+    // Create temp table:
+    sqlx::query("create temporary table json_test (data TEXT)")
+        .execute(&mut conn)
+        .await?;
+
+    // Insert into the temporary table:
+    sqlx::query("insert into json_test (data) values ($1)")
         .bind(Json(&json_value))
+        .execute(&mut conn)
+        .await?;
+
+    // This will work by encoding JSON as text and decoding it back
+    let result: serde_json::Value = sqlx::query_scalar("select data from json_test")
         .fetch_one(&mut conn)
         .await?;
 
@@ -174,16 +184,17 @@ async fn it_encodes_decodes_json() -> anyhow::Result<()> {
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct TestData {
         name: String,
-        count: i32,
+        value: i32,
+        items: [i32; 3],
     }
 
     let test_data = TestData {
-        name: "example".to_string(),
-        count: 100,
+        name: "test".to_string(),
+        value: 42,
+        items: [1, 2, 3],
     };
 
-    let result: Json<TestData> = sqlx::query_scalar("SELECT ?")
-        .bind(Json(&test_data))
+    let result: Json<TestData> = sqlx::query_scalar("select data from json_test")
         .fetch_one(&mut conn)
         .await?;
 
