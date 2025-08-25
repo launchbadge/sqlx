@@ -1,5 +1,3 @@
-#![cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
-
 use sqlx::Sqlite;
 use sqlx_test::new;
 

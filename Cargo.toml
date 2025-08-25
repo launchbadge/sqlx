@@ -299,7 +299,7 @@ required-features = ["sqlite"]
 [[test]]
 name = "sqlite-macros"
 path = "tests/sqlite/macros.rs"
-required-features = ["macros"]  # Also requires either sqlite or sqlite-unbundled
+required-features = ["_sqlite", "macros"]
 
 [[test]]
 name = "sqlite-derives"
