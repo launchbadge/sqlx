@@ -100,7 +100,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as Database>::Arguments<'q>> {
         self
     }
 
-    /// Like [`Query::try_bind`] but immediately returns an error if encoding the value failed.
+    /// Like [`Query::bind`] but immediately returns an error if encoding a value failed.
     pub fn try_bind<T: 'q + Encode<'q, DB> + Type<DB>>(
         &mut self,
         value: T,

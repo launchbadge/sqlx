@@ -7,8 +7,7 @@ use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Variant,
+    parse_quote, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, Variant,
 };
 
 pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -16,18 +15,11 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
     match &input.data {
         // Newtype structs:
         // struct Foo(i32);
-        Data::Struct(DataStruct {
-            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
-            ..
-        }) => {
-            if unnamed.len() == 1 {
-                expand_derive_has_sql_type_transparent(input, unnamed.first().unwrap())
-            } else {
-                Err(syn::Error::new_spanned(
-                    input,
-                    "structs with zero or more than one unnamed field are not supported",
-                ))
-            }
+        // struct Foo { field: i32 };
+        Data::Struct(DataStruct { fields, .. })
+            if fields.len() == 1 && (matches!(fields, Fields::Unnamed(_)) || attrs.transparent) =>
+        {
+            expand_derive_has_sql_type_transparent(input, fields.iter().next().unwrap())
         }
         // Record types
         // struct Foo { foo: i32, bar: String }
@@ -35,6 +27,13 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
             fields: Fields::Named(FieldsNamed { named, .. }),
             ..
         }) => expand_derive_has_sql_type_struct(input, named),
+        Data::Struct(DataStruct {
+            fields: Fields::Unnamed(..),
+            ..
+        }) => Err(syn::Error::new_spanned(
+            input,
+            "tuple structs may only have a single field",
+        )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
             ..

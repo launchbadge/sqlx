@@ -34,6 +34,10 @@ test_type!(str<String>(Sqlite,
     "''" == ""
 ));
 
+test_type!(null_str<Option<String>>(Sqlite,
+    "NULL" == None::<String>
+));
+
 test_type!(bytes<Vec<u8>>(Sqlite,
     "X'DEADBEEF'"
         == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],

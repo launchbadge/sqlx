@@ -281,7 +281,7 @@ pub fn check_struct_attributes(
 
     assert_attribute!(
         !attributes.transparent,
-        "unexpected #[sqlx(transparent)]",
+        "#[sqlx(transparent)] is only valid for structs with exactly one field",
         input
     );
 
