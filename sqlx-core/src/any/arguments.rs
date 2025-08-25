@@ -1,5 +1,5 @@
 use crate::any::value::AnyValueKind;
-use crate::any::{Any, AnyTypeInfoKind};
+use crate::any::{Any, AnyJson, AnyTypeInfoKind};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -62,6 +62,7 @@ impl<'q> AnyArguments<'q> {
         f64: Type<A::Database> + Encode<'a, A::Database>,
         String: Type<A::Database> + Encode<'a, A::Database>,
         Vec<u8>: Type<A::Database> + Encode<'a, A::Database>,
+        A::Database: AnyJson,
     {
         let mut out = A::default();
 
@@ -76,6 +77,11 @@ impl<'q> AnyArguments<'q> {
                 AnyValueKind::Null(AnyTypeInfoKind::Double) => out.add(Option::<f32>::None),
                 AnyValueKind::Null(AnyTypeInfoKind::Text) => out.add(Option::<String>::None),
                 AnyValueKind::Null(AnyTypeInfoKind::Blob) => out.add(Option::<Vec<u8>>::None),
+                #[cfg(feature = "json")]
+                AnyValueKind::Null(AnyTypeInfoKind::Json) => {
+                    let null_json = serde_json::value::RawValue::from_string("null".to_string())?;
+                    A::Database::add_json(&mut out, null_json)
+                }
                 AnyValueKind::Bool(b) => out.add(b),
                 AnyValueKind::SmallInt(i) => out.add(i),
                 AnyValueKind::Integer(i) => out.add(i),
@@ -84,6 +90,8 @@ impl<'q> AnyArguments<'q> {
                 AnyValueKind::Double(d) => out.add(d),
                 AnyValueKind::Text(t) => out.add(String::from(t)),
                 AnyValueKind::Blob(b) => out.add(Vec::from(b)),
+                #[cfg(feature = "json")]
+                AnyValueKind::Json(j) => A::Database::add_json(&mut out, j),
             }?
         }
         Ok(out)

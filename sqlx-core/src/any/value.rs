@@ -18,6 +18,9 @@ pub enum AnyValueKind<'a> {
     Double(f64),
     Text(Cow<'a, str>),
     Blob(Cow<'a, [u8]>),
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    Json(Box<serde_json::value::RawValue>),
 }
 
 impl AnyValueKind<'_> {
@@ -33,6 +36,8 @@ impl AnyValueKind<'_> {
                 AnyValueKind::Double(_) => AnyTypeInfoKind::Double,
                 AnyValueKind::Text(_) => AnyTypeInfoKind::Text,
                 AnyValueKind::Blob(_) => AnyTypeInfoKind::Blob,
+                #[cfg(feature = "json")]
+                AnyValueKind::Json(_) => AnyTypeInfoKind::Json,
             },
         }
     }
@@ -83,6 +88,8 @@ impl Value for AnyValue {
                 AnyValueKind::Double(d) => AnyValueKind::Double(*d),
                 AnyValueKind::Text(t) => AnyValueKind::Text(Cow::Borrowed(t)),
                 AnyValueKind::Blob(b) => AnyValueKind::Blob(Cow::Borrowed(b)),
+                #[cfg(feature = "json")]
+                AnyValueKind::Json(j) => AnyValueKind::Json(j.clone()),
             },
         }
     }
@@ -111,6 +118,8 @@ impl<'a> ValueRef<'a> for AnyValueRef<'a> {
                 AnyValueKind::Double(d) => AnyValueKind::Double(*d),
                 AnyValueKind::Text(t) => AnyValueKind::Text(Cow::Owned(t.to_string())),
                 AnyValueKind::Blob(b) => AnyValueKind::Blob(Cow::Owned(b.to_vec())),
+                #[cfg(feature = "json")]
+                AnyValueKind::Json(j) => AnyValueKind::Json(j.clone()),
             },
         }
     }

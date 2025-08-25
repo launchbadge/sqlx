@@ -21,6 +21,8 @@ mod blob;
 mod bool;
 mod float;
 mod int;
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
 mod str;
 
@@ -53,5 +55,6 @@ fn test_type_impls() {
     has_type::<String>();
 
     // JSON types
+    #[cfg(feature = "json")]
     has_type::<crate::types::Json<serde_json::Value>>();
 }

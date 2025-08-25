@@ -8,12 +8,15 @@ use serde::{Deserialize, Serialize};
 impl<T> Type<Any> for Json<T> {
     fn type_info() -> AnyTypeInfo {
         AnyTypeInfo {
-            kind: AnyTypeInfoKind::Text,
+            kind: AnyTypeInfoKind::Json,
         }
     }
 
     fn compatible(ty: &AnyTypeInfo) -> bool {
-        matches!(ty.kind, AnyTypeInfoKind::Text | AnyTypeInfoKind::Blob)
+        matches!(
+            ty.kind,
+            AnyTypeInfoKind::Json | AnyTypeInfoKind::Text | AnyTypeInfoKind::Blob
+        )
     }
 }
 
@@ -23,7 +26,8 @@ where
 {
     fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
         let json_string = self.encode_to_string()?;
-        buf.0.push(AnyValueKind::Text(json_string.into()));
+        let raw_value = serde_json::value::RawValue::from_string(json_string)?;
+        buf.0.push(AnyValueKind::Json(raw_value));
         Ok(IsNull::No)
     }
 }
@@ -34,6 +38,8 @@ where
 {
     fn decode(value: AnyValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.kind {
+            #[cfg(feature = "json")]
+            AnyValueKind::Json(raw) => Json::decode_from_string(raw.get()),
             AnyValueKind::Text(text) => Json::decode_from_string(&text),
             AnyValueKind::Blob(blob) => Json::decode_from_bytes(&blob),
             other => other.unexpected(),
