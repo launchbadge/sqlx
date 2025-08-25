@@ -62,8 +62,8 @@ pub trait AnyJson: crate::database::Database {
         A: crate::arguments::Arguments<'a, Database = Self>;
 
     #[cfg(feature = "json")]
-    fn decode_json<'a>(
-        value: <Self as crate::database::Database>::ValueRef<'a>,
+    fn decode_json(
+        value: <Self as crate::database::Database>::ValueRef<'_>,
     ) -> Result<Box<serde_json::value::RawValue>, crate::error::BoxDynError>;
 }
 
@@ -89,8 +89,8 @@ where
         args.add(crate::types::Json(value))
     }
 
-    fn decode_json<'a>(
-        value: <Self as crate::database::Database>::ValueRef<'a>,
+    fn decode_json(
+        value: <Self as crate::database::Database>::ValueRef<'_>,
     ) -> Result<Box<serde_json::value::RawValue>, crate::error::BoxDynError> {
         use crate::decode::Decode;
         <crate::types::Json<Box<serde_json::value::RawValue>>>::decode(value).map(|j| j.0)
