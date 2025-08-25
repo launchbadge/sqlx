@@ -519,6 +519,21 @@ impl PgConnectOptions {
         &self.username
     }
 
+    /// Get the password.
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .password("53C237");
+    /// assert_eq!(options.get_password().as_deref(), Some("53C237"));
+    /// ```
+    pub fn get_password(&self) -> Option<Cow<'_, str>> {
+        if self.password.is_some() {
+            return self.password.as_deref().map(Cow::Borrowed);
+        }
+        None
+    }
+
     /// Get the current database name.
     ///
     /// # Example

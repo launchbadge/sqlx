@@ -87,7 +87,7 @@ pub(crate) async fn authenticate(
 
     // SaltedPassword := Hi(Normalize(password), salt, i)
     let salted_password = hi(
-        options.password.as_deref().unwrap_or_default(),
+        &options.get_password().unwrap_or_default(),
         &cont.salt,
         cont.iterations,
     )?;
