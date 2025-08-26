@@ -169,7 +169,7 @@ async fn it_encodes_decodes_json() -> anyhow::Result<()> {
         .await?;
 
     // Insert into the temporary table:
-    sqlx::query("insert into json_test (data) values (?)")
+    sqlx::query("insert into json_test (data) values ($1)")
         .bind(Json(&json_value))
         .execute(&mut conn)
         .await?;
