@@ -168,8 +168,14 @@ async fn it_encodes_decodes_json() -> anyhow::Result<()> {
         .execute(&mut conn)
         .await?;
 
+    #[cfg(feature = "postgres")]
+    let query = "insert into json_test (data) values ($1)";
+
+    #[cfg(not(feature = "postgres"))]
+    let query = "insert into json_test (data) values (?)";
+
     // Insert into the temporary table:
-    sqlx::query("insert into json_test (data) values ($1)")
+    sqlx::query(query)
         .bind(Json(&json_value))
         .execute(&mut conn)
         .await?;
