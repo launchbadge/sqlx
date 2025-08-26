@@ -468,7 +468,9 @@ mod json {
             .await?;
 
         let value: &JsonRawValue = row.try_get(0)?;
+        assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
+        let value: Box<JsonRawValue> = row.try_get(0)?;
         assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
         // prepared, binary API
@@ -477,7 +479,9 @@ mod json {
             .await?;
 
         let value: &JsonRawValue = row.try_get(0)?;
+        assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
+        let value: Box<JsonRawValue> = row.try_get(0)?;
         assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
         Ok(())
