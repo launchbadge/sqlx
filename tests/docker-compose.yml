@@ -230,7 +230,7 @@ services:
             args:
                 VERSION: 17
         ports:
-            - 5432:5432
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_HOST_AUTH_METHOD: trust
@@ -374,7 +374,7 @@ services:
             args:
                 VERSION: 13
         ports:
-            - 5432:5432
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_HOST_AUTH_METHOD: trust
