@@ -14,7 +14,8 @@
 //!   - <https://docs.rs/sqlx/0.6.2/sqlx/sqlite/struct.SqliteConnection.html#method.lock_handle>
 //!   - <https://docs.rs/sqlx/0.6.2/sqlx/sqlite/struct.LockedSqliteHandle.html#method.as_raw_handle>
 
-use libsqlite3_sys as ffi;
+use crate::sqlite_lib as ffi;
+
 use log::error;
 use regex::Regex;
 use std::sync::Arc;
