@@ -69,7 +69,7 @@ CREATE TABLE circles (
     EXCLUDE USING gist (c WITH &&)
 );
 
-CREATE DOMAIN positive_int AS integer CHECK (VALUE >= 0);
+CREATE DOMAIN positive_int AS integer CHECK (VALUE > 0);
 CREATE DOMAIN percentage AS positive_int CHECK (VALUE <= 100);
 
 CREATE TYPE person as (

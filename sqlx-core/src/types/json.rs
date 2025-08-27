@@ -196,20 +196,6 @@ where
     }
 }
 
-impl<DB> Type<DB> for Box<JsonRawValue>
-where
-    for<'a> Json<&'a Self>: Type<DB>,
-    DB: Database,
-{
-    fn type_info() -> DB::TypeInfo {
-        <Json<&Self> as Type<DB>>::type_info()
-    }
-
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        <Json<&Self> as Type<DB>>::compatible(ty)
-    }
-}
-
 impl<'q, DB> Encode<'q, DB> for JsonRawValue
 where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
