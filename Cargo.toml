@@ -93,7 +93,9 @@ _unstable-docs = [
 ]
 
 # Base runtime features without TLS
+runtime-async-global-executor = ["_rt-async-global-executor", "sqlx-core/_rt-async-global-executor", "sqlx-macros?/_rt-async-global-executor"]
 runtime-async-std = ["_rt-async-std", "sqlx-core/_rt-async-std", "sqlx-macros?/_rt-async-std"]
+runtime-smol = ["_rt-smol", "sqlx-core/_rt-smol", "sqlx-macros?/_rt-smol"]
 runtime-tokio = ["_rt-tokio", "sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # TLS features
@@ -108,7 +110,9 @@ tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots", "sqlx
 tls-none = []
 
 # for conditional compilation
+_rt-async-global-executor = []
 _rt-async-std = []
+_rt-smol = []
 _rt-tokio = []
 _sqlite = []
 
@@ -184,11 +188,21 @@ time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
-dotenvy = { version = "0.15.7", default-features = false }
+cfg-if = "1.0.0"
+dotenvy = { version = "0.15.0", default-features = false }
 
 # Runtimes
+[workspace.dependencies.async-global-executor]
+version = "3.1"
+default-features = false
+features = ["async-io"]
+
 [workspace.dependencies.async-std]
-version = "1.12"
+version = "1.13"
+
+[workspace.dependencies.smol]
+version = "2.0"
+default-features = false
 
 [workspace.dependencies.tokio]
 version = "1"
