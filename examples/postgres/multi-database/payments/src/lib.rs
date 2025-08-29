@@ -1,6 +1,6 @@
-use accounts::{AccountId, AccountsManager};
+use accounts::AccountId;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{Acquire, PgConnection, PgPool, Postgres};
+use sqlx::PgPool;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
