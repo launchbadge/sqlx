@@ -1,6 +1,10 @@
 use crate::connection::stream::PgStream;
 use crate::error::Error;
-use crate::message::{Authentication, AuthenticationSasl, SaslInitialResponse, SaslResponse};
+use crate::message::{
+    Authentication, AuthenticationSasl, AuthenticationSaslContinue, SaslInitialResponse,
+    SaslResponse,
+};
+use crate::rt;
 use crate::PgConnectOptions;
 use hmac::{Hmac, Mac};
 use rand::Rng;
@@ -85,12 +89,36 @@ pub(crate) async fn authenticate(
         }
     };
 
+    let password = options.password.clone().unwrap_or_default();
+    let (mac, client_final_message) = rt::spawn_blocking(move || {
+        final_message(client_first_message_bare, channel_binding, cont, password)
+    })
+    .await?;
+
+    stream.send(SaslResponse(&client_final_message)).await?;
+
+    let data = match stream.recv_expect().await? {
+        Authentication::SaslFinal(data) => data,
+
+        auth => {
+            return Err(err_protocol!("expected SASLFinal but received {:?}", auth));
+        }
+    };
+
+    // authentication is only considered valid if this verification passes
+    mac.verify_slice(&data.verifier).map_err(Error::protocol)?;
+
+    Ok(())
+}
+
+fn final_message(
+    client_first_message_bare: String,
+    channel_binding: String,
+    cont: AuthenticationSaslContinue,
+    password: String,
+) -> Result<(Hmac<Sha256>, String), Error> {
     // SaltedPassword := Hi(Normalize(password), salt, i)
-    let salted_password = hi(
-        options.password.as_deref().unwrap_or_default(),
-        &cont.salt,
-        cont.iterations,
-    )?;
+    let salted_password = hi(&password, &cont.salt, cont.iterations)?;
 
     // ClientKey := HMAC(SaltedPassword, "Client Key")
     let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;
@@ -143,20 +171,7 @@ pub(crate) async fn authenticate(
     let mut client_final_message = format!("{client_final_message_wo_proof},{CLIENT_PROOF_ATTR}=");
     BASE64_STANDARD.encode_string(client_proof, &mut client_final_message);
 
-    stream.send(SaslResponse(&client_final_message)).await?;
-
-    let data = match stream.recv_expect().await? {
-        Authentication::SaslFinal(data) => data,
-
-        auth => {
-            return Err(err_protocol!("expected SASLFinal but received {:?}", auth));
-        }
-    };
-
-    // authentication is only considered valid if this verification passes
-    mac.verify_slice(&data.verifier).map_err(Error::protocol)?;
-
-    Ok(())
+    Ok((mac, client_final_message))
 }
 
 // nonce is a sequence of random printable bytes
@@ -222,4 +237,26 @@ fn bench_sasl_hi(b: &mut test::Bencher) {
             test::black_box(4096),
         );
     });
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    use crate::io::ProtocolDecode;
+
+    #[test]
+    fn mac() {
+        let start = std::time::Instant::now();
+        let (_mac, _client_final_message) = final_message(
+            "first_message_bare".to_string(),
+            "channel_binding".to_string(),
+            AuthenticationSaslContinue::decode_with("r=/z+giZiTxAH7r8sNAeHr7cvpqV3uo7G/bJBIJO3pjVM7t3ng,s=4UV68bIkC8f9/X8xH7aPhg==,i=4096".as_bytes().into(), ()).unwrap(),
+            "some-password".to_string(),
+        )
+        .unwrap();
+        let duration = start.elapsed();
+        dbg!(duration);
+    }
 }
