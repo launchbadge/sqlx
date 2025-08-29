@@ -1,9 +1,9 @@
 pub(crate) use sqlx_core::database::{Database, HasStatementCache};
 
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::{
-    SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnection, SqliteQueryResult,
-    SqliteRow, SqliteStatement, SqliteTransactionManager, SqliteTypeInfo, SqliteValue,
-    SqliteValueRef,
+    SqliteArguments, SqliteColumn, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement,
+    SqliteTransactionManager, SqliteTypeInfo, SqliteValue, SqliteValueRef,
 };
 
 /// Sqlite database driver.
@@ -26,8 +26,8 @@ impl Database for Sqlite {
     type Value = SqliteValue;
     type ValueRef<'r> = SqliteValueRef<'r>;
 
-    type Arguments<'q> = SqliteArguments<'q>;
-    type ArgumentBuffer<'q> = Vec<SqliteArgumentValue<'q>>;
+    type Arguments<'q> = SqliteArguments;
+    type ArgumentBuffer<'q> = SqliteArgumentsBuffer;
 
     type Statement = SqliteStatement;
 

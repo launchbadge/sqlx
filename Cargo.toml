@@ -173,7 +173,7 @@ sqlx-postgres = { version = "=0.9.0-alpha.1", path = "sqlx-postgres" }
 sqlx-sqlite = { version = "=0.9.0-alpha.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.9.0-alpha.1", path = "." }
+sqlx = { version = "=0.9.0-alpha.1", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -181,7 +181,7 @@ bigdecimal = "0.4.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock"] }
 ipnet = "2.3.0"
-ipnetwork = "0.20.0"
+ipnetwork = "0.21.1"
 mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
 time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
@@ -258,6 +258,7 @@ disallowed_methods = 'deny'
 level = 'warn'
 check-cfg = [
     'cfg(mariadb, values(any()))',
+    'cfg(postgres, values(any()))',
     'cfg(sqlite_ipaddr)',
     'cfg(sqlite_test_sqlcipher)',
 ]
@@ -312,12 +313,7 @@ required-features = ["sqlite"]
 [[test]]
 name = "sqlite-macros"
 path = "tests/sqlite/macros.rs"
-required-features = ["sqlite", "macros"]
-
-[[test]]
-name = "sqlite-unbundled-macros"
-path = "tests/sqlite/macros.rs"
-required-features = ["sqlite-unbundled", "macros"]
+required-features = ["_sqlite", "macros"]
 
 [[test]]
 name = "sqlite-derives"
@@ -447,7 +443,6 @@ required-features = ["postgres", "macros", "migrate"]
 name = "postgres-migrate"
 path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
-
 
 [[test]]
 name = "postgres-query-builder"

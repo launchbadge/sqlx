@@ -8,18 +8,17 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Stmt, TypeParamBound, Variant,
+    parse_quote, Arm, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, Stmt,
+    TypeParamBound, Variant,
 };
 
 pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
     let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
-        Data::Struct(DataStruct {
-            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
-            ..
-        }) if unnamed.len() == 1 => {
-            expand_derive_decode_transparent(input, unnamed.first().unwrap())
+        Data::Struct(DataStruct { fields, .. })
+            if fields.len() == 1 && (matches!(fields, Fields::Unnamed(_)) || attrs.transparent) =>
+        {
+            expand_derive_decode_transparent(input, fields.iter().next().unwrap())
         }
         Data::Enum(DataEnum { variants, .. }) => match attrs.repr {
             Some(_) => expand_derive_decode_weak_enum(input, variants),
@@ -35,7 +34,7 @@ pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
             ..
         }) => Err(syn::Error::new_spanned(
             input,
-            "structs with zero or more than one unnamed field are not supported",
+            "tuple structs may only have a single field",
         )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
@@ -72,6 +71,12 @@ fn expand_derive_decode_transparent(
         .push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+    let field_ident = if let Some(ident) = &field.ident {
+        quote! { #ident }
+    } else {
+        quote! { 0 }
+    };
+
     let tts = quote!(
         #[automatically_derived]
         impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
@@ -83,7 +88,8 @@ fn expand_derive_decode_transparent(
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                <#ty as ::sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
+                <#ty as ::sqlx::decode::Decode<'r, DB>>::decode(value)
+                    .map(|val| Self { #field_ident: val })
             }
         }
     );

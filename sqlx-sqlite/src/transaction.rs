@@ -12,16 +12,7 @@ impl TransactionManager for SqliteTransactionManager {
     type Database = Sqlite;
 
     async fn begin(conn: &mut SqliteConnection, statement: Option<SqlStr>) -> Result<(), Error> {
-        let is_custom_statement = statement.is_some();
-        conn.worker.begin(statement).await?;
-        if is_custom_statement {
-            // Check that custom statement actually put the connection into a transaction.
-            let mut handle = conn.lock_handle().await?;
-            if !handle.in_transaction() {
-                return Err(Error::BeginFailed);
-            }
-        }
-        Ok(())
+        conn.worker.begin(statement).await
     }
 
     fn commit(conn: &mut SqliteConnection) -> impl Future<Output = Result<(), Error>> + Send + '_ {

@@ -4,8 +4,8 @@ use std::{io, ptr};
 
 use crate::error::Error;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_extended_result_codes, sqlite3_last_insert_rowid,
-    sqlite3_open_v2, SQLITE_OK,
+    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_extended_result_codes, sqlite3_get_autocommit,
+    sqlite3_last_insert_rowid, sqlite3_open_v2, SQLITE_OK,
 };
 
 use crate::SqliteError;
@@ -76,6 +76,12 @@ impl ConnectionHandle {
         } else {
             Err(self.expect_error())
         }
+    }
+
+    pub(crate) fn in_transaction(&mut self) -> bool {
+        // SAFETY: we have exclusive access to the database handle
+        let ret = unsafe { sqlite3_get_autocommit(self.as_ptr()) };
+        ret == 0
     }
 
     pub(crate) fn last_insert_rowid(&mut self) -> i64 {

@@ -9,18 +9,17 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Lifetime, LifetimeParam, Stmt, TypeParamBound, Variant,
+    Lifetime, LifetimeParam, Stmt, TypeParamBound, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
     let args = parse_container_attributes(&input.attrs)?;
 
     match &input.data {
-        Data::Struct(DataStruct {
-            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
-            ..
-        }) if unnamed.len() == 1 => {
-            expand_derive_encode_transparent(input, unnamed.first().unwrap())
+        Data::Struct(DataStruct { fields, .. })
+            if fields.len() == 1 && (matches!(fields, Fields::Unnamed(_)) || args.transparent) =>
+        {
+            expand_derive_encode_transparent(input, fields.iter().next().unwrap())
         }
         Data::Enum(DataEnum { variants, .. }) => match args.repr {
             Some(_) => expand_derive_encode_weak_enum(input, variants),
@@ -36,7 +35,7 @@ pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
             ..
         }) => Err(syn::Error::new_spanned(
             input,
-            "structs with zero or more than one unnamed field are not supported",
+            "tuple structs may only have a single field",
         )),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
@@ -77,6 +76,12 @@ fn expand_derive_encode_transparent(
         .push(parse_quote!(#ty: ::sqlx::encode::Encode<#lifetime, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+    let field_ident = if let Some(ident) = &field.ident {
+        quote! { #ident }
+    } else {
+        quote! { 0 }
+    };
+
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics ::sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics
@@ -86,15 +91,15 @@ fn expand_derive_encode_transparent(
                 &self,
                 buf: &mut <DB as ::sqlx::database::Database>::ArgumentBuffer<#lifetime>,
             ) -> ::std::result::Result<::sqlx::encode::IsNull, ::sqlx::error::BoxDynError> {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
+                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.#field_ident, buf)
             }
 
             fn produces(&self) -> Option<DB::TypeInfo> {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::produces(&self.0)
+                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::produces(&self.#field_ident)
             }
 
             fn size_hint(&self) -> usize {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::size_hint(&self.0)
+                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::size_hint(&self.#field_ident)
             }
         }
     ))

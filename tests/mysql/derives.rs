@@ -1,5 +1,5 @@
 use sqlx_mysql::MySql;
-use sqlx_test::new;
+use sqlx_test::{new, test_type};
 
 #[sqlx::test]
 async fn test_derive_strong_enum() -> anyhow::Result<()> {
@@ -300,3 +300,23 @@ async fn test_derive_weak_enum() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct TransparentTuple(i64);
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct TransparentNamed {
+    field: i64,
+}
+
+test_type!(transparent_tuple<TransparentTuple>(MySql,
+    "0" == TransparentTuple(0),
+    "23523" == TransparentTuple(23523)
+));
+
+test_type!(transparent_named<TransparentNamed>(MySql,
+    "0" == TransparentNamed { field: 0 },
+    "23523" == TransparentNamed { field: 23523 },
+));

@@ -278,10 +278,14 @@ impl ValueHandle {
         unsafe { Self::try_dup_of(self.value.as_ptr(), self.column_type.clone()) }
     }
 
-    fn type_info(&self) -> SqliteTypeInfo {
-        let value_type = SqliteTypeInfo(DataType::from_code(unsafe {
+    fn value_type_info(&self) -> SqliteTypeInfo {
+        SqliteTypeInfo(DataType::from_code(unsafe {
             sqlite3_value_type(self.value.as_ptr())
-        }));
+        }))
+    }
+
+    fn type_info(&self) -> SqliteTypeInfo {
+        let value_type = self.value_type_info();
 
         // Assume the actual value type is more accurate, if it's not NULL.
         match &self.column_type {
@@ -305,7 +309,7 @@ impl ValueHandle {
     }
 
     fn is_null(&self) -> bool {
-        self.type_info().is_null()
+        self.value_type_info().is_null()
     }
 }
 

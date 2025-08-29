@@ -11,6 +11,7 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +48,8 @@ jobs:
           - macOS-13
           - macOS-latest
 
+    timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
 
@@ -70,6 +73,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: password
     env:
       BASE_URL: mysql://root:password@localhost
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -149,6 +153,7 @@ jobs:
           POSTGRES_PASSWORD: password
     env:
       BASE_URL: postgres://postgres:password@localhost
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -220,6 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_URL: sqlite://.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -312,6 +318,8 @@ jobs:
           - os: macOS-latest
             target: aarch64-apple-darwin
             bin: target/debug/cargo-sqlx
+
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4

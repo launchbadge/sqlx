@@ -205,8 +205,8 @@ where
                 }
 
                 // appears to have been used in the past to communicate potential NULLS
-                // but reading source code back through our supported postgres versions (9.5+)
-                // this is never used for anything
+                // but reading source code back through our historically supported
+                // postgres versions (9.5+) this is never used for anything
                 let _flags = buf.get_i32();
 
                 // the OID of the element

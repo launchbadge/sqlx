@@ -1,3 +1,4 @@
+use crate::arguments::SqliteArgumentsBuffer;
 use crate::value::ValueRef;
 use crate::{
     decode::Decode,
@@ -5,7 +6,7 @@ use crate::{
     error::BoxDynError,
     type_info::DataType,
     types::Type,
-    Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
+    Sqlite, SqliteTypeInfo, SqliteValueRef,
 };
 use time::format_description::{well_known::Rfc3339, BorrowedFormatItem};
 use time::macros::format_description as fd;
@@ -55,27 +56,27 @@ impl Type<Sqlite> for Time {
 }
 
 impl Encode<'_, Sqlite> for OffsetDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         Encode::<Sqlite>::encode(self.format(&Rfc3339)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for PrimitiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
         Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for Date {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         let format = fd!("[year]-[month]-[day]");
         Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }
 }
 
 impl Encode<'_, Sqlite> for Time {
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut SqliteArgumentsBuffer) -> Result<IsNull, BoxDynError> {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
         Encode::<Sqlite>::encode(self.format(&format)?, buf)
     }

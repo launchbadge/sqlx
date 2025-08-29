@@ -330,7 +330,15 @@ mod chrono {
 
     test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
-            == FixedOffset::east_opt(60 * 60 * 6 + 1800).unwrap().ymd(2019, 1, 2).and_hms_micro_opt(5, 10, 20, 115100).unwrap()
+            == FixedOffset::east_opt(60 * 60 * 6 + 1800)
+                .unwrap()
+                .from_local_datetime(
+                    &NaiveDate::from_ymd_opt(2019, 1, 2)
+                        .unwrap()
+                        .and_hms_micro_opt(5, 10, 20, 115_100)
+                        .unwrap()
+                )
+                .unwrap()
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
@@ -468,7 +476,9 @@ mod json {
             .await?;
 
         let value: &JsonRawValue = row.try_get(0)?;
+        assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
+        let value: Box<JsonRawValue> = row.try_get(0)?;
         assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
         // prepared, binary API
@@ -477,7 +487,9 @@ mod json {
             .await?;
 
         let value: &JsonRawValue = row.try_get(0)?;
+        assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
+        let value: Box<JsonRawValue> = row.try_get(0)?;
         assert_eq!(value.get(), "{\"hello\": \"world\"}");
 
         Ok(())
@@ -519,7 +531,7 @@ test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
          Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
 ));
 
-#[cfg(any(postgres_14, postgres_15))]
+#[cfg(not(postgres = "13"))]
 test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(2)" == sqlx::postgres::types::PgCube::Point(2.),
     "cube(2.1)" == sqlx::postgres::types::PgCube::Point(2.1),
@@ -530,51 +542,43 @@ test_type!(cube<sqlx::postgres::types::PgCube>(Postgres,
     "cube(array[2,3,4],array[4,5,6])" == sqlx::postgres::types::PgCube::MultiDimension(vec![vec![2.,3.,4.],vec![4.,5.,6.]]),
 ));
 
-#[cfg(any(postgres_14, postgres_15))]
+#[cfg(not(postgres = "13"))]
 test_type!(_cube<Vec<sqlx::postgres::types::PgCube>>(Postgres,
     "array[cube(2),cube(2)]" == vec![sqlx::postgres::types::PgCube::Point(2.), sqlx::postgres::types::PgCube::Point(2.)],
     "array[cube(2.2,-3.4)]" == vec![sqlx::postgres::types::PgCube::OneDimensionInterval(2.2, -3.4)],
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(point<sqlx::postgres::types::PgPoint>(Postgres,
     "point(2.2,-3.4)" ~= sqlx::postgres::types::PgPoint { x: 2.2, y:-3.4 },
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_point<Vec<sqlx::postgres::types::PgPoint>>(Postgres,
     "array[point(2,3),point(2.1,3.4)]" @= vec![sqlx::postgres::types::PgPoint { x:2., y: 3. }, sqlx::postgres::types::PgPoint { x:2.1, y: 3.4 }],
     "array[point(2.2,-3.4)]" @= vec![sqlx::postgres::types::PgPoint { x: 2.2, y: -3.4 }],
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(line<sqlx::postgres::types::PgLine>(Postgres,
     "line('{1.1, -2.2, 3.3}')" == sqlx::postgres::types::PgLine { a: 1.1, b:-2.2, c: 3.3 },
     "line('((0.0, 0.0), (1.0,1.0))')" == sqlx::postgres::types::PgLine { a: 1., b: -1., c: 0. },
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(lseg<sqlx::postgres::types::PgLSeg>(Postgres,
     "lseg('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgLSeg { start_x: 1., start_y: 2., end_x: 3. , end_y: 4.},
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(box<sqlx::postgres::types::PgBox>(Postgres,
     "box('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1. , lower_left_y: 2.},
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(_box<Vec<sqlx::postgres::types::PgBox>>(Postgres,
     "array[box('1,2,3,4'),box('((1.1, 2.2), (3.3, 4.4))')]" @= vec![sqlx::postgres::types::PgBox { upper_right_x: 3., upper_right_y: 4., lower_left_x: 1., lower_left_y: 2. }, sqlx::postgres::types::PgBox { upper_right_x: 3.3, upper_right_y: 4.4, lower_left_x: 1.1, lower_left_y: 2.2 }],
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(path<sqlx::postgres::types::PgPath>(Postgres,
     "path('((1.0, 2.0), (3.0,4.0))')" == sqlx::postgres::types::PgPath { closed: true, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
     "path('[(1.0, 2.0), (3.0,4.0)]')" == sqlx::postgres::types::PgPath { closed: false, points: vec![ sqlx::postgres::types::PgPoint { x: 1., y: 2. }, sqlx::postgres::types::PgPoint { x: 3. , y: 4. } ]},
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(polygon<sqlx::postgres::types::PgPolygon>(Postgres,
     "polygon('((-2,-3),(-1,-3),(-1,-1),(1,1),(1,3),(2,3),(2,-3),(1,-3),(1,0),(-1,0),(-1,-2),(-2,-2))')" ~= sqlx::postgres::types::PgPolygon {  points: vec![
             sqlx::postgres::types::PgPoint { x: -2., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -3. }, sqlx::postgres::types::PgPoint { x: -1., y: -1. }, sqlx::postgres::types::PgPoint { x: 1., y: 1. },
@@ -583,7 +587,6 @@ test_type!(polygon<sqlx::postgres::types::PgPolygon>(Postgres,
     ]},
 ));
 
-#[cfg(any(postgres_12, postgres_13, postgres_14, postgres_15))]
 test_type!(circle<sqlx::postgres::types::PgCircle>(Postgres,
     "circle('<(1.1, -2.2), 3.3>')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
     "circle('((1.1, -2.2), 3.3)')" ~= sqlx::postgres::types::PgCircle { x: 1.1, y:-2.2, radius: 3.3 },
@@ -678,17 +681,11 @@ test_prepared_type!(citext_array<Vec<PgCiText>>(Postgres,
     ],
 ));
 
-// FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
-// but `PgLTree` should just fall back to text format
-#[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
     "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
     "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::try_from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
 ));
 
-// FIXME: needed to disable `ltree` tests in version that don't have a binary format for it
-// but `PgLTree` should just fall back to text format
-#[cfg(any(postgres_14, postgres_15))]
 test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
     "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
         vec![
@@ -716,6 +713,22 @@ test_type!(nested_domain_types_1<Person>(Postgres,
     "ROW(1, 21::positive_int, 50::percentage)::person" == Person { id: 1, age: PositiveInt(21), percent: Percentage(PositiveInt(50)) })
 );
 
+test_type!(domain_type_array_1<Vec<PositiveInt>>(Postgres,
+    "ARRAY[1, 50, 1000]::positive_int[]" == vec![
+        PositiveInt(1),
+        PositiveInt(50),
+        PositiveInt(1000),
+    ],
+));
+
+test_type!(domain_type_array_2<Vec<Percentage>>(Postgres,
+    "ARRAY[4, 66, 100]::percentage[]" == vec![
+        Percentage(PositiveInt(4)),
+        Percentage(PositiveInt(66)),
+        Percentage(PositiveInt(100))
+    ],
+));
+
 #[derive(sqlx::Type, Debug, PartialEq)]
 #[sqlx(type_name = "leaf_composite")]
 struct LeafComposite {
@@ -733,8 +746,16 @@ struct RootComposite {
 }
 
 test_type!(nested_domain_types_2<RootComposite>(Postgres,
-    "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1})})
+    "ROW(ROW(1))::root_composite" == RootComposite { domain: Domain(LeafComposite { prim: 1 }) })
 );
+
+test_type!(domain_type_array_3<Vec<Domain>>(Postgres,
+    "ARRAY[ROW(50), ROW(1), ROW(1000)]::domain[]" == vec![
+        Domain(LeafComposite { prim: 50 }),
+        Domain(LeafComposite { prim: 1 }),
+        Domain(LeafComposite { prim: 1000 }),
+    ]
+));
 
 test_type!(test_arc<Arc<i32>>(Postgres, "1::INT4" == Arc::new(1i32)));
 test_type!(test_cow<Cow<'_, i32>>(Postgres, "1::INT4" == Cow::<i32>::Owned(1i32)));

@@ -13,9 +13,8 @@ use std::ops::{Deref, DerefMut};
 /// connection or [`begin`][`Acquire::begin`] a transaction, then you can do it
 /// like that:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::{Acquire, postgres::Postgres, error::BoxDynError};
-/// # #[cfg(any(postgres_9_6, postgres_15))]
 /// async fn run_query<'a, A>(conn: A) -> Result<(), BoxDynError>
 /// where
 ///     A: Acquire<'a, Database = Postgres>,
@@ -32,10 +31,9 @@ use std::ops::{Deref, DerefMut};
 /// If you run into a lifetime error about "implementation of `sqlx::Acquire` is
 /// not general enough", the [workaround] looks like this:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use std::future::Future;
 /// # use sqlx::{Acquire, postgres::Postgres, error::BoxDynError};
-/// # #[cfg(any(postgres_9_6, postgres_15))]
 /// fn run_query<'a, 'c, A>(conn: A) -> impl Future<Output = Result<(), BoxDynError>> + Send + 'a
 /// where
 ///     A: Acquire<'c, Database = Postgres> + Send + 'a,
@@ -55,9 +53,8 @@ use std::ops::{Deref, DerefMut};
 /// connection as an argument to a function, then it's easier to just accept a
 /// mutable reference to a database connection like so:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::{postgres::PgConnection, error::BoxDynError};
-/// # #[cfg(any(postgres_9_6, postgres_15))]
 /// async fn run_query(conn: &mut PgConnection) -> Result<(), BoxDynError> {
 ///     sqlx::query!("SELECT 1 as v").fetch_one(&mut *conn).await?;
 ///     sqlx::query!("SELECT 2 as v").fetch_one(&mut *conn).await?;
