@@ -109,8 +109,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
         .connect_lazy_with(master_opts.clone());
 
-    let master_pool = MASTER_POOL
-        .try_insert(pool)
+    let master_pool = once_lock_try_insert_polyfill(&MASTER_POOL, pool)
         .unwrap_or_else(|(existing, _pool)| existing);
 
     let mut conn = master_pool.acquire().await?;
