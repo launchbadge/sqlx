@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 use futures_intrusive::sync::MutexGuard;
 use libsqlite3_sys::{
     sqlite3, sqlite3_commit_hook, sqlite3_progress_handler, sqlite3_rollback_hook,
-    sqlite3_update_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE,
+    sqlite3_update_hook, sqlite3_wal_hook, SQLITE_DELETE, SQLITE_INSERT, SQLITE_OK, SQLITE_UPDATE,
 };
 #[cfg(feature = "preupdate-hook")]
 pub use preupdate_hook::*;
@@ -96,6 +96,11 @@ pub struct UpdateHookResult<'a> {
     pub rowid: i64,
 }
 
+pub struct WalHookResult<'a> {
+    pub database: &'a str,
+    pub page_count: i32,
+}
+
 pub(crate) struct UpdateHookHandler(NonNull<dyn FnMut(UpdateHookResult) + Send + 'static>);
 unsafe impl Send for UpdateHookHandler {}
 
@@ -104,6 +109,9 @@ unsafe impl Send for CommitHookHandler {}
 
 pub(crate) struct RollbackHookHandler(NonNull<dyn FnMut() + Send + 'static>);
 unsafe impl Send for RollbackHookHandler {}
+
+pub(crate) struct WalHookHandler(NonNull<dyn FnMut(WalHookResult) + Send + 'static>);
+unsafe impl Send for WalHookHandler {}
 
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
@@ -123,6 +131,8 @@ pub(crate) struct ConnectionState {
     commit_hook_callback: Option<CommitHookHandler>,
 
     rollback_hook_callback: Option<RollbackHookHandler>,
+
+    wal_hook_callback: Option<WalHookHandler>,
 }
 
 impl ConnectionState {
@@ -168,6 +178,15 @@ impl ConnectionState {
         if let Some(mut handler) = self.rollback_hook_callback.take() {
             unsafe {
                 sqlite3_rollback_hook(self.handle.as_ptr(), None, ptr::null_mut());
+                let _ = { Box::from_raw(handler.0.as_mut()) };
+            }
+        }
+    }
+
+    pub(crate) fn remove_wal_hook(&mut self) {
+        if let Some(mut handler) = self.wal_hook_callback.take() {
+            unsafe {
+                sqlite3_wal_hook(self.handle.as_ptr(), None, ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -353,6 +372,28 @@ where
     }
 }
 
+extern "C" fn wal_hook<F>(
+    callback: *mut c_void,
+    _db: *mut sqlite3,
+    database: *const c_char,
+    page_count: c_int,
+) -> c_int
+where
+    F: FnMut(WalHookResult) + Send + 'static,
+{
+    unsafe {
+        let _ = catch_unwind(|| {
+            let callback: *mut F = callback.cast::<F>();
+            let database = CStr::from_ptr(database).to_str().unwrap_or_default();
+            (*callback)(WalHookResult {
+                database,
+                page_count,
+            })
+        });
+    }
+    SQLITE_OK
+}
+
 impl LockedSqliteHandle<'_> {
     /// Returns the underlying sqlite3* connection handle.
     ///
@@ -520,6 +561,26 @@ impl LockedSqliteHandle<'_> {
         }
     }
 
+    /// Sets a WAL hook that is invoked whenever a commit occurs in WAL mode. Only a single WAL hook may be
+    /// defined at one time per database connection; setting a new WAL hook overrides the old one.
+    ///
+    /// Note that sqlite3_wal_autocheckpoint() and the wal_autocheckpoint pragma overwrite the WAL hook.
+    pub fn set_wal_hook<F>(&mut self, callback: F)
+    where
+        F: FnMut(WalHookResult) + Send + 'static,
+    {
+        unsafe {
+            let callback_boxed = Box::new(callback);
+            // SAFETY: `Box::into_raw()` always returns a non-null pointer.
+            let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
+            let handler = callback.as_ptr() as *mut _;
+            self.guard.remove_wal_hook();
+            self.guard.wal_hook_callback = Some(WalHookHandler(callback));
+
+            sqlite3_wal_hook(self.as_raw_handle().as_mut(), Some(wal_hook::<F>), handler);
+        }
+    }
+
     /// Removes the progress handler on a database connection. The method does nothing if no handler was set.
     pub fn remove_progress_handler(&mut self) {
         self.guard.remove_progress_handler();
@@ -540,6 +601,10 @@ impl LockedSqliteHandle<'_> {
 
     pub fn remove_rollback_hook(&mut self) {
         self.guard.remove_rollback_hook();
+    }
+
+    pub fn remove_wal_hook(&mut self) {
+        self.guard.remove_wal_hook();
     }
 
     pub fn last_error(&mut self) -> Option<SqliteError> {

@@ -188,6 +188,7 @@ impl EstablishParams {
             preupdate_hook_callback: None,
             commit_hook_callback: None,
             rollback_hook_callback: None,
+            wal_hook_callback: None,
         })
     }
 

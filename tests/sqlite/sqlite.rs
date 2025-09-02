@@ -979,6 +979,62 @@ async fn test_multiple_set_rollback_hook_calls_drop_old_handler() -> anyhow::Res
 }
 
 #[sqlx_macros::test]
+async fn test_query_with_wal_hook() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    conn.execute("PRAGMA journal_mode = WAL").await?;
+
+    // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
+    let state = "test".to_string();
+    static CALLED: AtomicBool = AtomicBool::new(false);
+    conn.lock_handle().await?.set_wal_hook(move |_| {
+        assert_eq!(state, "test");
+        CALLED.store(true, Ordering::Relaxed);
+    });
+
+    let mut tx = conn.begin().await?;
+    sqlx::query("INSERT INTO tweet ( id, text ) VALUES (5, 'Hello, World' )")
+        .execute(&mut *tx)
+        .await?;
+    assert!(!CALLED.load(Ordering::Relaxed));
+    tx.commit().await?;
+    assert!(CALLED.load(Ordering::Relaxed));
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_multiple_set_wal_hook_calls_drop_old_handler() -> anyhow::Result<()> {
+    let ref_counted_object = Arc::new(0);
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+
+    {
+        let mut conn = new::<Sqlite>().await?;
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_wal_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_wal_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        let o = ref_counted_object.clone();
+        conn.lock_handle().await?.set_wal_hook(move |_| {
+            println!("{o:?}");
+        });
+        assert_eq!(2, Arc::strong_count(&ref_counted_object));
+
+        conn.lock_handle().await?.remove_wal_hook();
+    }
+
+    assert_eq!(1, Arc::strong_count(&ref_counted_object));
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn issue_3150() {
     // Same bounds as `tokio::spawn()`
     async fn fake_spawn<F>(future: F) -> F::Output
