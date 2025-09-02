@@ -268,12 +268,12 @@ impl PgListener {
         let mut close_event = (!self.ignore_close_event).then(|| self.pool.close_event());
 
         loop {
-            let next_message = self.connection().await?.inner.stream.recv_unchecked();
+            let next_message = dbg!(self.connection().await)?.inner.stream.recv_unchecked();
 
             let res = if let Some(ref mut close_event) = close_event {
                 // cancels the wait and returns `Err(PoolClosed)` if the pool is closed
                 // before `next_message` returns, or if the pool was already closed
-                close_event.do_until(next_message).await?
+                dbg!(close_event.do_until(next_message).await)?
             } else {
                 next_message.await
             };
@@ -292,7 +292,7 @@ impl PgListener {
                     }
 
                     if self.eager_reconnect {
-                        self.connect_if_needed().await?;
+                        dbg!(self.connect_if_needed().await)?;
                     }
 
                     // lost connection
@@ -313,7 +313,7 @@ impl PgListener {
 
                 // Mark the connection as ready for another query
                 BackendMessageFormat::ReadyForQuery => {
-                    self.connection().await?.inner.pending_ready_for_query_count -= 1;
+                    dbg!(self.connection().await)?.inner.pending_ready_for_query_count -= 1;
                 }
 
                 // Ignore unexpected messages
