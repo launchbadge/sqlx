@@ -88,8 +88,19 @@ impl<DB: DatabaseExt> CachingDescribeBlocking<DB> {
                 }
             };
 
-            conn.describe(AssertSqlSafe(query.to_string()).into_sql_str())
+            match conn
+                .describe(AssertSqlSafe(query.to_string()).into_sql_str())
                 .await
+            {
+                Ok(describe) => Ok(describe),
+                Err(e) => {
+                    if matches!(e, sqlx_core::Error::Io(_) | sqlx_core::Error::Protocol(_)) {
+                        cache.remove(database_url);
+                    }
+
+                    Err(e)
+                }
+            }
         })
     }
 }
