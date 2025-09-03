@@ -1,12 +1,14 @@
 use event_listener::{Event, IntoNotification};
-use parking_lot::Mutex;
 use std::future::Future;
+use std::num::NonZero;
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use std::{array, iter};
+
+use spin::lock_api::Mutex;
 
 type ShardId = usize;
 type ConnectionIndex = usize;
@@ -15,7 +17,11 @@ type ConnectionIndex = usize;
 ///
 /// We want tasks to acquire from their local shards where possible, so they don't enter
 /// the global queue immediately.
-const GLOBAL_QUEUE_DELAY: Duration = Duration::from_millis(5);
+const GLOBAL_QUEUE_DELAY: Duration = Duration::from_millis(10);
+
+/// Delay before attempting to acquire from a non-local shard,
+/// as well as the backoff when iterating through shards.
+const NON_LOCAL_ACQUIRE_DELAY: Duration = Duration::from_micros(100);
 
 pub struct Sharded<T> {
     shards: Box<[ArcShard<T>]>,
@@ -29,11 +35,10 @@ struct Global<T> {
     disconnect_event: Event<LockGuard<T>>,
 }
 
-type ArcMutexGuard<T> = parking_lot::ArcMutexGuard<parking_lot::RawMutex, Option<T>>;
+type ArcMutexGuard<T> = lock_api::ArcMutexGuard<spin::Mutex<()>, Option<T>>;
 
 pub struct LockGuard<T> {
-    // `Option` allows us to drop the guard before sending the notification.
-    // Otherwise, if the receiver wakes too quickly, it might fail to lock the mutex.
+    // `Option` allows us to take the guard in the drop handler.
     locked: Option<ArcMutexGuard<T>>,
     shard: ArcShard<T>,
     index: ConnectionIndex,
@@ -73,13 +78,13 @@ const MAX_SHARD_SIZE: usize = if usize::BITS > 64 {
 };
 
 impl<T> Sharded<T> {
-    pub fn new(connections: usize, shards: usize) -> Sharded<T> {
+    pub fn new(connections: usize, shards: NonZero<usize>) -> Sharded<T> {
         let global = Arc::new(Global {
             unlock_event: Event::with_tag(),
             disconnect_event: Event::with_tag(),
         });
 
-        let shards = Params::calc(connections, shards)
+        let shards = Params::calc(connections, shards.get())
             .shard_sizes()
             .enumerate()
             .map(|(shard_id, size)| Shard::new(shard_id, size, global.clone()))
@@ -89,8 +94,28 @@ impl<T> Sharded<T> {
     }
 
     pub async fn acquire(&self, connected: bool) -> LockGuard<T> {
-        let mut acquire_local =
-            pin!(self.shards[thread_id() % self.shards.len()].acquire(connected));
+        if self.shards.len() == 1 {
+            return self.shards[0].acquire(connected).await;
+        }
+
+        let thread_id = current_thread_id();
+
+        let mut acquire_local = pin!(self.shards[thread_id % self.shards.len()].acquire(connected));
+
+        let mut acquire_nonlocal = pin!(async {
+            let mut next_shard = thread_id;
+
+            loop {
+                crate::rt::sleep(NON_LOCAL_ACQUIRE_DELAY).await;
+
+                // Choose shards pseudorandomly by multiplying with a (relatively) large prime.
+                next_shard = (next_shard.wrapping_mul(547)) % self.shards.len();
+
+                if let Some(locked) = self.shards[next_shard].try_acquire(connected) {
+                    return locked;
+                }
+            }
+        });
 
         let mut acquire_global = pin!(async {
             crate::rt::sleep(GLOBAL_QUEUE_DELAY).await;
@@ -113,6 +138,10 @@ impl<T> Sharded<T> {
                 return Poll::Ready(locked);
             }
 
+            if let Poll::Ready(locked) = acquire_nonlocal.as_mut().poll(cx) {
+                return Poll::Ready(locked);
+            }
+
             if let Poll::Ready(locked) = acquire_global.as_mut().poll(cx) {
                 return Poll::Ready(locked);
             }
@@ -125,6 +154,9 @@ impl<T> Sharded<T> {
 
 impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
     fn new(shard_id: ShardId, len: usize, global: Arc<Global<T>>) -> Arc<Self> {
+        // There's no way to create DSTs like this, in `std::sync::Arc`, on stable.
+        //
+        // Instead, we coerce from an array.
         macro_rules! make_array {
             ($($n:literal),+) => {
                 match len {
@@ -206,6 +238,8 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
 
 impl Params {
     fn calc(connections: usize, mut shards: usize) -> Params {
+        assert_ne!(shards, 0);
+
         let mut shard_size = connections / shards;
         let mut remainder = connections % shards;
 
@@ -217,7 +251,11 @@ impl Params {
         } else if shard_size >= MAX_SHARD_SIZE {
             let new_shards = connections.div_ceil(MAX_SHARD_SIZE);
 
-            tracing::debug!(connections, shards, "clamping shard count to {new_shards}");
+            tracing::debug!(
+                connections,
+                shards,
+                "shard size exceeds {MAX_SHARD_SIZE}, clamping shard count to {new_shards}"
+            );
 
             shards = new_shards;
             shard_size = connections / shards;
@@ -239,7 +277,7 @@ impl Params {
     }
 }
 
-fn thread_id() -> usize {
+fn current_thread_id() -> usize {
     // FIXME: this can be replaced when this is stabilized:
     // https://doc.rust-lang.org/stable/std/thread/struct.ThreadId.html#method.as_u64
     static THREAD_ID: AtomicUsize = AtomicUsize::new(0);

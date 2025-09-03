@@ -7,6 +7,7 @@ use crate::pool::{Pool, PoolConnector};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
 use std::fmt::{self, Debug, Formatter};
+use std::num::NonZero;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -68,6 +69,7 @@ pub struct PoolOptions<DB: Database> {
         >,
     >,
     pub(crate) max_connections: usize,
+    pub(crate) shards: NonZero<usize>,
     pub(crate) acquire_time_level: LevelFilter,
     pub(crate) acquire_slow_level: LevelFilter,
     pub(crate) acquire_slow_threshold: Duration,
@@ -91,6 +93,7 @@ impl<DB: Database> Clone for PoolOptions<DB> {
             before_acquire: self.before_acquire.clone(),
             after_release: self.after_release.clone(),
             max_connections: self.max_connections,
+            shards: self.shards,
             acquire_time_level: self.acquire_time_level,
             acquire_slow_threshold: self.acquire_slow_threshold,
             acquire_slow_level: self.acquire_slow_level,
@@ -143,6 +146,7 @@ impl<DB: Database> PoolOptions<DB> {
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             min_connections: 0,
+            shards: NonZero::<usize>::MIN,
             // Logging all acquires is opt-in
             acquire_time_level: LevelFilter::Off,
             // Default to warning, because an acquire timeout will be an error
@@ -204,6 +208,58 @@ impl<DB: Database> PoolOptions<DB> {
     /// Get the minimum number of connections to maintain at all times.
     pub fn get_min_connections(&self) -> usize {
         self.min_connections
+    }
+
+    /// Set the number of shards to split the internal structures into.
+    ///
+    /// The default value is dynamically determined based on the configured number of worker threads
+    /// in the current runtime (if that information is available),
+    /// or [`std::thread::available_parallelism()`],
+    /// or 1 otherwise.
+    ///
+    /// Each shard is assigned an equal share of [`max_connections`][Self::max_connections]
+    /// and its own queue of tasks waiting to acquire a connection.
+    ///
+    /// Then, when accessing the pool, each thread selects a "local" shard based on its
+    /// [thread ID][std::thread::Thread::id]<sup>1</sup>.
+    ///
+    /// If the number of shards equals the number of threads (which they do by default),
+    /// and worker threads are spawned sequentially (which they generally are),
+    /// each thread should access a different shard, which should significantly reduce
+    /// cache coherence overhead on multicore systems.
+    ///
+    /// If the number of shards does not evenly divide `max_connections`,
+    /// the implementation makes a best-effort to distribute them as evenly as possible
+    /// (if `remainder = max_connections % shards` and `remainder != 0`,
+    /// then `remainder` shards will get one additional connection each).
+    ///
+    /// The implementation then clamps the number of connections in a shard to the range `[1, 64]`.
+    ///
+    /// ### Details
+    /// When a task calls [`Pool::acquire()`] (or any other method that calls `acquire()`),
+    /// it will first attempt to acquire a connection from its thread-local shard, or lock an empty
+    /// slot to open a new connection (acquiring an idle connection and opening a new connection
+    /// happen concurrently to minimize acquire time).
+    ///
+    /// Failing that, it joins the wait list on the shard. Released connections are passed to
+    /// waiting tasks in a first-come, first-serve order per shard.
+    ///
+    /// If the task cannot acquire a connection after a short delay,
+    /// it tries to acquire a connection from another shard.
+    ///
+    /// If the task _still_ cannot acquire a connection after a longer delay,
+    /// it joins a global wait list. Tasks in the global wait list are the highest priority
+    /// for released connections, implementing a kind of eventual fairness.
+    ///
+    /// <sup>1</sup> because, as of writing, [`std::thread::ThreadId::as_u64`] is unstable,
+    /// the current implementation assigns each thread its own sequential ID in a `thread_local!()`.
+    pub fn shards(mut self, shards: NonZero<usize>) -> Self {
+        self.shards = shards;
+        self
+    }
+
+    pub fn get_shards(&self) -> usize {
+        self.shards.get()
     }
 
     /// Enable logging of time taken to acquire a connection from the connection pool via
@@ -571,4 +627,29 @@ impl<DB: Database> Debug for PoolOptions<DB> {
             .field("test_before_acquire", &self.test_before_acquire)
             .finish()
     }
+}
+
+fn default_shards() -> NonZero<usize> {
+    #[cfg(feature = "_rt-tokio")]
+    if let Ok(rt) = tokio::runtime::Handle::try_current() {
+        return rt
+            .metrics()
+            .num_workers()
+            .try_into()
+            .unwrap_or(NonZero::<usize>::MIN);
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    if let Some(val) = std::env::var("ASYNC_STD_THREAD_COUNT")
+        .ok()
+        .and_then(|s| s.parse())
+    {
+        return val;
+    }
+
+    if let Ok(val) = std::thread::available_parallelism() {
+        return val;
+    }
+
+    NonZero::<usize>::MIN
 }

@@ -13,6 +13,7 @@ use std::task::ready;
 use crate::logger::private_level_filter_to_trace_level;
 use crate::pool::connect::{ConnectPermit, ConnectionCounter, ConnectionId, DynConnector};
 use crate::pool::idle::IdleQueue;
+use crate::pool::shard::Sharded;
 use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
 use either::Either;
@@ -24,6 +25,7 @@ use tracing::Level;
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connector: DynConnector<DB>,
     pub(super) counter: ConnectionCounter,
+    pub(super) sharded: Sharded<DB::Connection>,
     pub(super) idle: IdleQueue<DB>,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
@@ -40,6 +42,7 @@ impl<DB: Database> PoolInner<DB> {
         let pool = Self {
             connector: DynConnector::new(connector),
             counter: ConnectionCounter::new(),
+            sharded: Sharded::new(options.max_connections, options.shards),
             idle: IdleQueue::new(options.fair, options.max_connections),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),

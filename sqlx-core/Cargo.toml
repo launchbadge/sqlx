@@ -106,8 +106,22 @@ thiserror.workspace = true
 ease-off = { workspace = true, features = ["futures"] }
 pin-project-lite = "0.2.14"
 
-[dependencies.parking_lot]
-version = "0.12.4"
+# N.B. we don't actually utilize spinlocks, we just need a `Mutex` type with a few requirements:
+# * Guards that are `Send` (so `parking_lot` and `std::sync` are non-starters)
+# * Guards that can use `Arc` and so don't borrow (which is provided by `lock_api`)
+#
+# Where we actually use this (in `sqlx-core/src/pool/shard.rs`), we don't rely on the mutex itself for anything but
+# safe shared mutability. The `Shard` structure has its own synchronization, and only uses `Mutex::try_lock()`.
+#
+# We *could* use either `tokio::sync::Mutex` or `async_lock::Mutex` for this, but those have all the code for the
+# async support, which we don't need.
+[dependencies.spin]
+version = "0.10.0"
+default-features = false
+features = ["mutex", "lock_api", "spin_mutex"]
+
+[dependencies.lock_api]
+version = "0.4.13"
 features = ["arc_lock"]
 
 [dev-dependencies]
