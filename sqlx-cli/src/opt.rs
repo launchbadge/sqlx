@@ -10,6 +10,7 @@ use clap::{
 use clap_complete::Shell;
 use sqlx::migrate::{MigrateError, Migrator, ResolveWith};
 use std::env;
+use std::error::Error;
 use std::ops::{Deref, Not};
 use std::path::PathBuf;
 
@@ -245,6 +246,15 @@ pub enum MigrateCommand {
         /// pending migrations. If already at the target version, then no-op.
         #[clap(long)]
         target_version: Option<i64>,
+
+        #[clap(long)]
+        /// Template parameters for substitution in migrations from environment variables
+        params_from_env: bool,
+
+        #[clap(long, short, value_parser = parse_key_val::<String, String>, num_args = 1, value_delimiter=',')]
+        /// Provide template parameters for substitution in migrations, e.g. --params
+        /// key:value,key2:value2
+        params: Vec<(String, String)>,
     },
 
     /// Revert the latest migration with a down file.
@@ -270,6 +280,15 @@ pub enum MigrateCommand {
         /// at the target version, then no-op.
         #[clap(long)]
         target_version: Option<i64>,
+
+        #[clap(long)]
+        /// Template parameters for substitution in migrations from environment variables
+        params_from_env: bool,
+
+        #[clap(long, short, value_parser = parse_key_val::<String, String>, num_args = 1, value_delimiter=',')]
+        /// Provide template parameters for substitution in migrations, e.g. --params
+        /// key:value,key2:value2
+        params: Vec<(String, String)>,
     },
 
     /// List all available migrations.
@@ -574,4 +593,18 @@ fn next_timestamp() -> String {
 
 fn fmt_sequential(version: i64) -> String {
     format!("{version:04}")
+}
+
+/// Parse a single key-value pair
+fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
+{
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }

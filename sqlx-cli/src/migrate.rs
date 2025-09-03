@@ -213,6 +213,7 @@ fn validate_applied_migrations(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     config: &Config,
     migration_source: &MigrationSourceOpt,
@@ -220,6 +221,8 @@ pub async fn run(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    params_from_env: bool,
+    parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
     let migrator = migration_source.resolve(config).await?;
 
@@ -264,6 +267,14 @@ pub async fn run(
         .map(|m| (m.version, m))
         .collect();
 
+    let env_params: HashMap<_, _> = if params_from_env {
+        std::env::vars().collect()
+    } else {
+        HashMap::with_capacity(0)
+    };
+
+    let params: HashMap<_, _> = parameters.into_iter().collect();
+
     for migration in migrator.iter() {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
@@ -282,6 +293,18 @@ pub async fn run(
 
                 let elapsed = if dry_run || skip {
                     Duration::new(0, 0)
+                } else if params_from_env {
+                    conn.apply(
+                        config.migrate.table_name(),
+                        &migration.process_parameters(&env_params)?,
+                    )
+                    .await?
+                } else if !params.is_empty() {
+                    conn.apply(
+                        config.migrate.table_name(),
+                        &migration.process_parameters(&params)?,
+                    )
+                    .await?
                 } else {
                     conn.apply(config.migrate.table_name(), migration).await?
                 };
@@ -315,6 +338,7 @@ pub async fn run(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn revert(
     config: &Config,
     migration_source: &MigrationSourceOpt,
@@ -322,6 +346,8 @@ pub async fn revert(
     dry_run: bool,
     ignore_missing: bool,
     target_version: Option<i64>,
+    params_from_env: bool,
+    parameters: Vec<(String, String)>,
 ) -> anyhow::Result<()> {
     let migrator = migration_source.resolve(config).await?;
 
@@ -368,6 +394,15 @@ pub async fn revert(
         .collect();
 
     let mut is_applied = false;
+
+    let env_params: HashMap<_, _> = if params_from_env {
+        std::env::vars().collect()
+    } else {
+        HashMap::with_capacity(0)
+    };
+
+    let params: HashMap<_, _> = parameters.into_iter().collect();
+
     for migration in migrator.iter().rev() {
         if !migration.migration_type.is_down_migration() {
             // Skipping non down migration
@@ -381,6 +416,18 @@ pub async fn revert(
 
             let elapsed = if dry_run || skip {
                 Duration::new(0, 0)
+            } else if params_from_env {
+                conn.revert(
+                    config.migrate.table_name(),
+                    &migration.process_parameters(&env_params)?,
+                )
+                .await?
+            } else if !params.is_empty() {
+                conn.revert(
+                    config.migrate.table_name(),
+                    &migration.process_parameters(&params)?,
+                )
+                .await?
             } else {
                 conn.revert(config.migrate.table_name(), migration).await?
             };

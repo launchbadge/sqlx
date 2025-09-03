@@ -83,6 +83,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                 ignore_missing,
                 mut connect_opts,
                 target_version,
+                params_from_env,
+                params,
             } => {
                 let config = config.load_config().await?;
 
@@ -95,6 +97,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                     dry_run,
                     *ignore_missing,
                     target_version,
+                    params_from_env,
+                    params,
                 )
                 .await?
             }
@@ -105,6 +109,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                 ignore_missing,
                 mut connect_opts,
                 target_version,
+                params_from_env,
+                params,
             } => {
                 let config = config.load_config().await?;
 
@@ -117,6 +123,8 @@ async fn do_run(opt: Opt) -> anyhow::Result<()> {
                     dry_run,
                     *ignore_missing,
                     target_version,
+                    params_from_env,
+                    params,
                 )
                 .await?
             }

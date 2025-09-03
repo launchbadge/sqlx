@@ -91,6 +91,7 @@ hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
 hashbrown = "0.15.0"
+subst = { workspace = true }
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
