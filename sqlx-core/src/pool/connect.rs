@@ -220,6 +220,11 @@ pub trait PoolConnector<DB: Database>: Send + Sync + 'static {
     ) -> impl Future<Output = crate::Result<DB::Connection>> + Send + '_;
 }
 
+/// # Note: Future Changes (FIXME)
+/// This could theoretically be replaced with an impl over `AsyncFn` to allow lending closures,
+/// except we have no way to put the `Send` bound on the returned future.
+///
+/// We need Return Type Notation for that: https://github.com/rust-lang/rust/pull/138424
 impl<DB, F, Fut> PoolConnector<DB> for F
 where
     DB: Database,
