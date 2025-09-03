@@ -1346,7 +1346,7 @@ checksum = "da0e4dd2a88388a1f4ccc7c9ce104604dab68d9f408dc34cd45823d5a9069095"
 dependencies = [
  "futures-core",
  "futures-sink",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2034,7 +2034,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2917,7 +2917,7 @@ dependencies = [
  "cfg-if",
  "getrandom",
  "libc",
- "spin",
+ "spin 0.9.8",
  "untrusted",
  "windows-sys 0.52.0",
 ]
@@ -3377,6 +3377,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "spin"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591"
+dependencies = [
+ "lock_api",
+]
+
+[[package]]
 name = "spki"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3465,11 +3474,11 @@ dependencies = [
  "indexmap 2.7.0",
  "ipnet",
  "ipnetwork",
+ "lock_api",
  "log",
  "mac_address",
  "memchr",
  "native-tls",
- "parking_lot",
  "percent-encoding",
  "pin-project-lite",
  "rust_decimal",
@@ -3479,6 +3488,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "smallvec",
+ "spin 0.10.0",
  "sqlx",
  "thiserror 2.0.11",
  "time",
