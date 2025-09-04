@@ -214,24 +214,3 @@ async fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32],
 
     Ok(hi.into())
 }
-
-#[cfg(all(test, not(debug_assertions)))]
-#[bench]
-async fn bench_sasl_hi(b: &mut test::Bencher) {
-    use test::black_box;
-
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-
-    let mut rng = rand::thread_rng();
-    let nonce: Vec<u8> = std::iter::repeat(())
-        .map(|()| rng.sample(rand::distributions::Alphanumeric))
-        .take(64)
-        .collect();
-    b.to_async(&runtime).iter(|| {
-        hi(
-            test::black_box("secret_password"),
-            test::black_box(&nonce),
-            test::black_box(4096),
-        )
-    });
-}
