@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             //       this small risk since this value is not super important.
             let elapsed = start.elapsed();
 
-            // language=SQL
+            // language=SQLite
             #[allow(clippy::cast_possible_truncation)]
             let _ = query(AssertSqlSafe(format!(
                 r#"
@@ -233,7 +233,7 @@ async fn execute_migration(
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
-    // language=SQL
+    // language=SQLite
     let _ = query(AssertSqlSafe(format!(
         r#"
     INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
@@ -259,7 +259,7 @@ async fn revert_migration(
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
-    // language=SQL
+    // language=SQLite
     let _ = query(AssertSqlSafe(format!(
         r#"
     DELETE FROM {table_name}
