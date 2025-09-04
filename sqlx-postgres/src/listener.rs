@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug};
-use std::io;
 use std::str::from_utf8;
 
 use futures_channel::mpsc;
@@ -197,6 +196,30 @@ impl PgListener {
         Ok(self.connection.as_mut().unwrap())
     }
 
+    // same as `connection` but if fails to connect retries 5 times
+    #[inline]
+    async fn connection_with_recovery(&mut self) -> Result<&mut PgConnection, Error> {
+        // retry max 5 times with these backoff durations
+        let backoff_times = [0, 100, 1000, 2000, 10_000]; // ms
+
+        let mut last_err = None;
+        for backoff_ms in backoff_times {
+            match self.connect_if_needed().await {
+                Ok(()) => return Ok(self.connection.as_mut().unwrap()),
+                Err(err @ Error::Io(_)) => {
+                    last_err = Some(err);
+
+                    crate::rt::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                    continue;
+                },
+                Err(other) => return Err(other),
+            }
+        }
+        
+        // if 5 retries later still got IO error, return the last one and stop
+        Err(last_err.unwrap())
+    }
+
     /// Receives the next notification available from any of the subscribed channels.
     ///
     /// If the connection to PostgreSQL is lost, it is automatically reconnected on the next
@@ -258,62 +281,61 @@ impl PgListener {
     ///
     /// [`eager_reconnect`]: PgListener::eager_reconnect
     pub async fn try_recv(&mut self) -> Result<Option<PgNotification>, Error> {
+        match self.recv_without_recovery().await {
+            Ok(notification) => return Ok(Some(notification)),
+
+            // The connection is dead, ensure that it is dropped,
+            // update self state, and loop to try again.
+            Err(Error::Io(_)) => {
+                if let Some(mut conn) = self.connection.take() {
+                    self.buffer_tx = conn.inner.stream.notifications.take();
+                    // Close the connection in a background task, so we can continue.
+                    conn.close_on_drop();
+                }
+
+                if self.eager_reconnect {
+                    self.connection_with_recovery().await?;
+                }
+
+                // lost connection
+                return Ok(None);
+            },
+            Err(e) => return Err(e),
+        }
+    }
+
+    async fn recv_without_recovery(&mut self) -> Result<PgNotification, Error> {
         // Flush the buffer first, if anything
         // This would only fill up if this listener is used as a connection
         if let Some(notification) = self.next_buffered() {
-            return Ok(Some(notification));
+            return Ok(notification);
         }
 
         // Fetch our `CloseEvent` listener, if applicable.
         let mut close_event = (!self.ignore_close_event).then(|| self.pool.close_event());
 
         loop {
-            let next_message = dbg!(self.connection().await)?.inner.stream.recv_unchecked();
+            let next_message = self.connection().await?.inner.stream.recv_unchecked();
 
             let res = if let Some(ref mut close_event) = close_event {
                 // cancels the wait and returns `Err(PoolClosed)` if the pool is closed
                 // before `next_message` returns, or if the pool was already closed
-                dbg!(close_event.do_until(next_message).await)?
+                close_event.do_until(next_message).await?
             } else {
                 next_message.await
             };
 
-            let message = match res {
-                Ok(message) => message,
-
-                // The connection is dead, ensure that it is dropped,
-                // update self state, and loop to try again.
-                Err(Error::Io(err)) =>
-                {
-                    if let Some(mut conn) = self.connection.take() {
-                        self.buffer_tx = conn.inner.stream.notifications.take();
-                        // Close the connection in a background task, so we can continue.
-                        conn.close_on_drop();
-                    }
-
-                    if self.eager_reconnect {
-                        dbg!(self.connect_if_needed().await)?;
-                    }
-
-                    // lost connection
-                    return Ok(None);
-                }
-
-                // Forward other errors
-                Err(error) => {
-                    return Err(error);
-                }
-            };
+            let message = res?;
 
             match message.format {
                 // We've received an async notification, return it.
                 BackendMessageFormat::NotificationResponse => {
-                    return Ok(Some(PgNotification(message.decode()?)));
+                    return Ok(PgNotification(message.decode()?));
                 }
 
                 // Mark the connection as ready for another query
                 BackendMessageFormat::ReadyForQuery => {
-                    dbg!(self.connection().await)?.inner.pending_ready_for_query_count -= 1;
+                    self.connection().await?.inner.pending_ready_for_query_count -= 1;
                 }
 
                 // Ignore unexpected messages
