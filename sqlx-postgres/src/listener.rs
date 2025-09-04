@@ -211,11 +211,11 @@ impl PgListener {
 
                     crate::rt::sleep(std::time::Duration::from_millis(backoff_ms)).await;
                     continue;
-                },
+                }
                 Err(other) => return Err(other),
             }
         }
-        
+
         // if 5 retries later still got IO error, return the last one and stop
         Err(last_err.unwrap())
     }
@@ -282,7 +282,7 @@ impl PgListener {
     /// [`eager_reconnect`]: PgListener::eager_reconnect
     pub async fn try_recv(&mut self) -> Result<Option<PgNotification>, Error> {
         match self.recv_without_recovery().await {
-            Ok(notification) => return Ok(Some(notification)),
+            Ok(notification) => Ok(Some(notification)),
 
             // The connection is dead, ensure that it is dropped,
             // update self state, and loop to try again.
@@ -298,9 +298,9 @@ impl PgListener {
                 }
 
                 // lost connection
-                return Ok(None);
-            },
-            Err(e) => return Err(e),
+                Ok(None)
+            }
+            Err(e) => Err(e),
         }
     }
 
