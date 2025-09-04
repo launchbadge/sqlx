@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
             if migration.no_tx {
                 revert_migration(self, table_name, migration).await?;
             } else {
-                // Use a single transaction for the actual migration script and the essential bookeeping so we never
+                // Use a single transaction for the actual migration script and the essential bookkeeping so we never
                 // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
                 let mut tx = self.begin().await?;
                 revert_migration(&mut tx, table_name, migration).await?;
