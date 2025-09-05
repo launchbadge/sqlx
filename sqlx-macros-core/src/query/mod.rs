@@ -1,6 +1,7 @@
 #[cfg(procmacro2_semver_exempt)]
 use std::collections::HashSet;
 use std::collections::{hash_map, HashMap};
+use std::env::VarError;
 use std::hash::{BuildHasherDefault, DefaultHasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
@@ -430,17 +431,23 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     let tracked_value = if TRACKED_ENV_VARS.lock().unwrap().insert(name.to_string()) {
         // Avoid tracking the same env var multiple times, which would undesirably modify
         // build system state and thus behavior in case we change var values.
-        proc_macro::tracked_env::var(name)
+        Some(proc_macro::tracked_env::var(name))
     } else {
         None
     };
     #[cfg(not(procmacro2_semver_exempt))]
     let tracked_value = None;
 
-    tracked_value
-        .or_else(|| std::env::var(name).ok())
-        .or_else(|| LOADED_ENV_VARS.lock().unwrap().get(name).cloned())
-        .ok_or(std::env::VarError::NotPresent)
+    match tracked_value.map_or_else(|| std::env::var(name), |var| var) {
+        Ok(v) => Ok(v),
+        Err(VarError::NotPresent) => LOADED_ENV_VARS
+            .lock()
+            .unwrap()
+            .get(name)
+            .cloned()
+            .ok_or(VarError::NotPresent),
+        Err(e) => Err(e),
+    }
 }
 
 /// Load configuration environment variables from a `.env` file, without overriding existing
