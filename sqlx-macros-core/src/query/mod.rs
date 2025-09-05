@@ -1,4 +1,8 @@
+#[cfg(procmacro2_semver_exempt)]
+use std::collections::HashSet;
 use std::collections::{hash_map, HashMap};
+#[cfg(procmacro2_semver_exempt)]
+use std::hash::{BuildHasherDefault, DefaultHasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
@@ -115,20 +119,19 @@ static METADATA: LazyLock<Mutex<HashMap<String, Metadata>>> = LazyLock::new(Defa
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
 fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
     let manifest_dir: PathBuf = manifest_dir.into();
+    let config = Config::try_from_crate_or_default()?;
 
-    let (database_url, offline, offline_dir) = load_dot_env(&manifest_dir);
+    load_env(&manifest_dir, &config);
 
     let offline = env("SQLX_OFFLINE")
-        .ok()
-        .or(offline)
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let offline_dir = env("SQLX_OFFLINE_DIR").ok().or(offline_dir);
+    let offline_dir = env("SQLX_OFFLINE_DIR").ok();
 
-    let config = Config::try_from_crate_or_default()?;
-
-    let database_url = env(config.common.database_url_var()).ok().or(database_url);
+    let database_url = env(config.common.database_url_var())
+        .ok()
+        .or_else(|| env("DATABASE_URL").ok());
 
     Ok(Metadata {
         manifest_dir,
@@ -415,64 +418,96 @@ where
     Ok(ret_tokens)
 }
 
+#[cfg(procmacro2_semver_exempt)]
+static TRACKED_ENV_VARS: Mutex<HashSet<String, BuildHasherDefault<DefaultHasher>>> =
+    Mutex::new(HashSet::with_hasher(BuildHasherDefault::new()));
+
 /// Get the value of an environment variable, telling the compiler about it if applicable.
 fn env(name: &str) -> Result<String, std::env::VarError> {
     #[cfg(procmacro2_semver_exempt)]
-    {
+    if TRACKED_ENV_VARS.lock().unwrap().insert(name.to_string()) {
+        // Avoid tracking the same env var multiple times, which would undesirably modify
+        // build system state and thus behavior in case we change var values.
         proc_macro::tracked_env::var(name)
+    } else {
+        std::env::var(name)
     }
 
     #[cfg(not(procmacro2_semver_exempt))]
-    {
-        std::env::var(name)
-    }
+    std::env::var(name)
 }
 
-/// Get `DATABASE_URL`, `SQLX_OFFLINE` and `SQLX_OFFLINE_DIR` from the `.env`.
-fn load_dot_env(manifest_dir: &Path) -> (Option<String>, Option<String>, Option<String>) {
-    let mut env_path = manifest_dir.join(".env");
+/// Load configuration environment variables from a `.env` file, without overriding existing
+/// environment variables. If applicable, the compiler is informed about the loaded env vars
+/// and the `.env` files they may come from.
+fn load_env(manifest_dir: &Path, config: &Config) {
+    let loadable_vars = [
+        "DATABASE_URL",
+        "SQLX_OFFLINE",
+        "SQLX_OFFLINE_DIR",
+        config.common.database_url_var(),
+    ];
 
-    // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
-    // otherwise fallback to default dotenv file.
-    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
-    let env_file = if env_path.exists() {
-        let res = dotenvy::from_path_iter(&env_path);
-        match res {
-            Ok(iter) => Some(iter),
-            Err(e) => panic!("failed to load environment from {env_path:?}, {e}"),
+    let (found_dotenv, candidate_dotenv_paths) = find_dotenv(manifest_dir);
+
+    // Tell the compiler to watch the candidate `.env` paths for changes. It's important to
+    // watch them all, because there are several possible locations where a `.env` file
+    // might be read, and we want to react to changes in any of them.
+    #[cfg(procmacro2_semver_exempt)]
+    for path in &candidate_dotenv_paths {
+        if let Some(path) = path.to_str() {
+            proc_macro::tracked_path::path(path);
         }
-    } else {
-        #[allow(unused_assignments)]
+    }
+
+    // Tell the compiler about the environment variables we care about before we load them
+    // from any `.env`, so the build system can react to changes in their original values,
+    // not the values we load from a potential `.env` file tracked above, which should not
+    // take precedence.
+    #[cfg(procmacro2_semver_exempt)]
+    for name in &loadable_vars {
+        if TRACKED_ENV_VARS.lock().unwrap().insert(name.to_string()) {
+            proc_macro::tracked_env::var(name);
+        }
+    }
+
+    if let Some(dotenv_path) = found_dotenv
+        .then_some(candidate_dotenv_paths)
+        .iter()
+        .flatten()
+        .last()
+    {
+        for dotenv_var_result in dotenvy::from_path_iter(dotenv_path)
+            .ok()
+            .into_iter()
+            .flatten()
         {
-            env_path = PathBuf::from(".env");
-        }
-        dotenvy::dotenv_iter().ok()
-    };
-
-    let mut offline = None;
-    let mut database_url = None;
-    let mut offline_dir = None;
-
-    if let Some(env_file) = env_file {
-        // tell the compiler to watch the `.env` for changes.
-        #[cfg(procmacro2_semver_exempt)]
-        if let Some(env_path) = env_path.to_str() {
-            proc_macro::tracked_path::path(env_path);
-        }
-
-        for item in env_file {
-            let Ok((key, value)) = item else {
+            let Ok((key, value)) = dotenv_var_result else {
                 continue;
             };
 
-            match key.as_str() {
-                "DATABASE_URL" => database_url = Some(value),
-                "SQLX_OFFLINE" => offline = Some(value),
-                "SQLX_OFFLINE_DIR" => offline_dir = Some(value),
-                _ => {}
-            };
+            if loadable_vars.contains(&&*key) && std::env::var(&key).is_err() {
+                std::env::set_var(key, value);
+            }
         }
     }
+}
 
-    (database_url, offline, offline_dir)
+fn find_dotenv(mut dir: &Path) -> (bool, Vec<PathBuf>) {
+    let mut candidate_files = vec![];
+
+    loop {
+        candidate_files.push(dir.join(".env"));
+        let candidate_file = candidate_files.last().unwrap();
+
+        if candidate_file.is_file() {
+            return (true, candidate_files);
+        }
+
+        if let Some(parent) = dir.parent() {
+            dir = parent;
+        } else {
+            return (false, candidate_files);
+        }
+    }
 }
