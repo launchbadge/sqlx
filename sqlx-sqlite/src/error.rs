@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::{borrow::Cow, str};
 
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3, sqlite3_errmsg, sqlite3_errstr, sqlite3_extended_errcode, SQLITE_CONSTRAINT_CHECK,
     SQLITE_CONSTRAINT_FOREIGNKEY, SQLITE_CONSTRAINT_NOTNULL, SQLITE_CONSTRAINT_PRIMARYKEY,
     SQLITE_CONSTRAINT_UNIQUE, SQLITE_ERROR, SQLITE_NOMEM,

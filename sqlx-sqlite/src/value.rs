@@ -4,10 +4,11 @@ use std::ptr::NonNull;
 use std::slice;
 use std::str;
 
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
     sqlite3_value_dup, sqlite3_value_free, sqlite3_value_int64, sqlite3_value_type,
 };
+
 use sqlx_core::type_info::TypeInfo;
 pub(crate) use sqlx_core::value::{Value, ValueRef};
 

@@ -6,7 +6,7 @@ use std::slice;
 use std::str::from_utf8_unchecked;
 use std::sync::Arc;
 
-use libsqlite3_sys::{sqlite3_create_collation_v2, SQLITE_OK, SQLITE_UTF8};
+use crate::sqlite_lib::{sqlite3_create_collation_v2, SQLITE_OK, SQLITE_UTF8};
 
 use crate::connection::handle::ConnectionHandle;
 use crate::error::Error;

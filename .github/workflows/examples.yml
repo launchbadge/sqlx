@@ -267,6 +267,9 @@ jobs:
 
       - name: Setup Rust
         run: rustup show active-toolchain || rustup toolchain install
+      
+      - name: Add wasm32-unknown-unknown toolchain
+        run: rustup target add wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
 
@@ -279,3 +282,13 @@ jobs:
         env:
           DATABASE_URL: sqlite://todos.sqlite
         run: cargo run -p sqlx-example-sqlite-todos
+
+      - name: TODOs WASM (Setup)
+        env:
+          DATABASE_URL: sqlite://todos-wasm.sqlite
+        run: sqlx db setup --source=examples/sqlite/todos-wasm/migrations
+
+      - name: TODOs WASM (Build)
+        env:
+          DATABASE_URL: sqlite://todos-wasm.sqlite
+        run: cargo build -p sqlx-example-sqlite-todos-wasm --target wasm32-unknown-unknown

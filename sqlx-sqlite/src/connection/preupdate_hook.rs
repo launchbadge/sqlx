@@ -1,7 +1,7 @@
 use super::SqliteOperation;
 use crate::{SqliteError, SqliteValueRef};
 
-use libsqlite3_sys::{
+use crate::sqlite_lib::{
     sqlite3, sqlite3_preupdate_count, sqlite3_preupdate_depth, sqlite3_preupdate_new,
     sqlite3_preupdate_old, sqlite3_value, SQLITE_OK,
 };

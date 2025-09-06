@@ -1,0 +1,10 @@
+[package]
+name = "sqlx-example-sqlite-todos-wasm"
+version = "0.1.0"
+edition = "2018"
+workspace = "../../../"
+
+[dependencies]
+anyhow = "1.0"
+sqlx = { path = "../../../", features = [ "sqlite-bundled", "sqlite-deserialize", "sqlite-unlock-notify", "tls-none" ] }
+tokio = { version = "1.20.0", features = ["rt", "macros"]}

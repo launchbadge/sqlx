@@ -72,6 +72,18 @@
 #[macro_use]
 extern crate sqlx_core;
 
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+pub(crate) use libsqlite3_sys as sqlite_lib;
+
+#[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+pub(crate) use sqlite_wasm_rs as sqlite_lib;
+
+#[cfg(all(
+    feature = "load-extension",
+    any(target_arch = "wasm32", target_arch = "wasm64")
+))]
+compile_error!("Sqlite on WASM does not support `load-extension`");
+
 use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments, SqliteArgumentsBuffer};
