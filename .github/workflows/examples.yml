@@ -179,6 +179,11 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
         run: cargo run -p sqlx-example-postgres-mockable-todos
 
+      - name: Mockable TODOs (Test)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/mockable-todos
+        run: cargo test -p sqlx-example-postgres-mockable-todos
+
       - name: Multi-Database (Setup)
         working-directory: examples/postgres/multi-database
         env:

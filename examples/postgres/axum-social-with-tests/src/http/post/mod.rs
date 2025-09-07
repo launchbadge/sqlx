@@ -1,4 +1,5 @@
-use axum::{Extension, Json, Router};
+use axum::extract::State;
+use axum::{Json, Router};
 
 use axum::routing::get;
 
@@ -14,9 +15,11 @@ use crate::http::Result;
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
+use super::AppState;
+
 mod comment;
 
-pub fn router() -> Router {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/v1/post", get(get_posts).post(create_post))
         .merge(comment::router())
@@ -43,10 +46,7 @@ struct Post {
 }
 
 // #[axum::debug_handler] // very useful!
-async fn create_post(
-    db: Extension<PgPool>,
-    Json(req): Json<CreatePostRequest>,
-) -> Result<Json<Post>> {
+async fn create_post(db: State<PgPool>, Json(req): Json<CreatePostRequest>) -> Result<Json<Post>> {
     req.validate()?;
     let user_id = req.auth.verify(&*db).await?;
 
@@ -73,7 +73,7 @@ async fn create_post(
 }
 
 /// Returns posts in descending chronological order.
-async fn get_posts(db: Extension<PgPool>) -> Result<Json<Vec<Post>>> {
+async fn get_posts(db: State<PgPool>) -> Result<Json<Vec<Post>>> {
     // Note: normally you'd want to put a `LIMIT` on this as well,
     // though that would also necessitate implementing pagination.
     let posts = sqlx::query_as!(

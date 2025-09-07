@@ -140,7 +140,7 @@ mod tests {
     use super::*;
     use mockall::predicate::*;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_mocked_add() {
         let description = String::from("My todo");
         let args = Args {
