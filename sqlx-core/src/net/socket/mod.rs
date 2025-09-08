@@ -1,14 +1,18 @@
-use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
+use std::{
+    future::Future,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs},
+};
 
 use bytes::BufMut;
+use cfg_if::cfg_if;
 
 pub use buffered::{BufferedSocket, WriteBuffer};
 
-use crate::io::ReadBuf;
+use crate::{io::ReadBuf, rt::spawn_blocking};
 
 mod buffered;
 
@@ -192,53 +196,94 @@ pub async fn connect_tcp<Ws: WithSocket>(
     // IPv6 addresses in URLs will be wrapped in brackets and the `url` crate doesn't trim those.
     let host = host.trim_matches(&['[', ']'][..]);
 
-    #[cfg(feature = "_rt-tokio")]
-    if crate::rt::rt_tokio::available() {
-        use tokio::net::TcpStream;
+    let addresses = if let Ok(addr) = host.parse::<Ipv4Addr>() {
+        let addr = SocketAddrV4::new(addr, port);
+        vec![SocketAddr::V4(addr)].into_iter()
+    } else if let Ok(addr) = host.parse::<Ipv6Addr>() {
+        let addr = SocketAddrV6::new(addr, port, 0, 0);
+        vec![SocketAddr::V6(addr)].into_iter()
+    } else {
+        let host = host.to_string();
+        spawn_blocking(move || {
+            let addr = (host.as_str(), port);
+            ToSocketAddrs::to_socket_addrs(&addr)
+        })
+        .await?
+    };
 
-        let stream = TcpStream::connect((host, port)).await?;
-        stream.set_nodelay(true)?;
+    let mut last_err = None;
 
-        return Ok(with_socket.with_socket(stream).await);
+    // Loop through all the Socket Addresses that the hostname resolves to
+    for socket_addr in addresses {
+        match connect_tcp_address(socket_addr).await {
+            Ok(stream) => return Ok(with_socket.with_socket(stream).await),
+            Err(e) => last_err = Some(e),
+        }
     }
 
-    #[cfg(feature = "_rt-async-std")]
-    {
-        use async_io::Async;
-        use async_std::net::ToSocketAddrs;
-        use std::net::TcpStream;
+    // If we reach this point, it means we failed to connect to any of the addresses.
+    // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
+    Err(match last_err {
+        Some(err) => err,
+        None => io::Error::new(
+            io::ErrorKind::AddrNotAvailable,
+            "Hostname did not resolve to any addresses",
+        )
+        .into(),
+    })
+}
 
-        let mut last_err = None;
+async fn connect_tcp_address(socket_addr: SocketAddr) -> crate::Result<impl Socket> {
+    cfg_if! {
+        if #[cfg(feature = "_rt-tokio")] {
+            if crate::rt::rt_tokio::available() {
+                use tokio::net::TcpStream;
 
-        // Loop through all the Socket Addresses that the hostname resolves to
-        for socket_addr in (host, port).to_socket_addrs().await? {
-            let stream = Async::<TcpStream>::connect(socket_addr)
-                .await
-                .and_then(|s| {
-                    s.get_ref().set_nodelay(true)?;
-                    Ok(s)
-                });
-            match stream {
-                Ok(stream) => return Ok(with_socket.with_socket(stream).await),
-                Err(e) => last_err = Some(e),
+                let stream = TcpStream::connect(socket_addr).await?;
+                stream.set_nodelay(true)?;
+
+                Ok(stream)
+            } else {
+                crate::rt::missing_rt(socket_addr)
             }
-        }
+        } else if #[cfg(feature = "_rt-async-io")] {
+            use async_io::Async;
+            use std::net::TcpStream;
 
-        // If we reach this point, it means we failed to connect to any of the addresses.
-        // Return the last error we encountered, or a custom error if the hostname didn't resolve to any address.
-        match last_err {
-            Some(err) => Err(err.into()),
-            None => Err(io::Error::new(
-                io::ErrorKind::AddrNotAvailable,
-                "Hostname did not resolve to any addresses",
-            )
-            .into()),
+            let stream = Async::<TcpStream>::connect(socket_addr).await?;
+            stream.get_ref().set_nodelay(true)?;
+
+            Ok(stream)
+        } else {
+            crate::rt::missing_rt(socket_addr);
+            #[allow(unreachable_code)]
+            Ok(())
         }
     }
+}
 
-    #[cfg(not(feature = "_rt-async-std"))]
-    {
-        crate::rt::missing_rt((host, port, with_socket))
+// Work around `impl Socket`` and 'unability to specify test build cargo feature'.
+// `connect_tcp_address` compilation would fail without this impl with
+// 'cannot infer return type' error.
+impl Socket for () {
+    fn try_read(&mut self, _: &mut dyn ReadBuf) -> io::Result<usize> {
+        unreachable!()
+    }
+
+    fn try_write(&mut self, _: &[u8]) -> io::Result<usize> {
+        unreachable!()
+    }
+
+    fn poll_read_ready(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
+    }
+
+    fn poll_write_ready(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
+    }
+
+    fn poll_shutdown(&mut self, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        unreachable!()
     }
 }
 
@@ -260,19 +305,17 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
             return Ok(with_socket.with_socket(stream).await);
         }
 
-        #[cfg(feature = "_rt-async-std")]
-        {
-            use async_io::Async;
-            use std::os::unix::net::UnixStream;
+        cfg_if! {
+            if #[cfg(feature = "_rt-async-io")] {
+                use async_io::Async;
+                use std::os::unix::net::UnixStream;
 
-            let stream = Async::<UnixStream>::connect(path).await?;
+                let stream = Async::<UnixStream>::connect(path).await?;
 
-            Ok(with_socket.with_socket(stream).await)
-        }
-
-        #[cfg(not(feature = "_rt-async-std"))]
-        {
-            crate::rt::missing_rt((path, with_socket))
+                Ok(with_socket.with_socket(stream).await)
+            } else {
+                crate::rt::missing_rt((path, with_socket))
+            }
         }
     }
 

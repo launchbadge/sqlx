@@ -58,7 +58,6 @@ default = ["postgres", "sqlite", "mysql", "native-tls", "completions", "sqlx-tom
 rustls = ["sqlx/tls-rustls"]
 native-tls = ["sqlx/tls-native-tls"]
 
-# databases
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite", "_sqlite"]

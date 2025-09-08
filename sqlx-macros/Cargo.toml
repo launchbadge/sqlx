@@ -15,7 +15,9 @@ proc-macro = true
 default = []
 
 # for conditional compilation
+_rt-async-global-executor = ["sqlx-macros-core/_rt-async-global-executor"]
 _rt-async-std = ["sqlx-macros-core/_rt-async-std"]
+_rt-smol = ["sqlx-macros-core/_rt-smol"]
 _rt-tokio = ["sqlx-macros-core/_rt-tokio"]
 
 _tls-native-tls = ["sqlx-macros-core/_tls-native-tls"]
