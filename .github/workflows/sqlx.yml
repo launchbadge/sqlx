@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
+        # Note: because `async-std` is deprecated, we only check it in a single job to save CI time.
         runtime: [ async-std, async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls, none ]
     timeout-minutes: 30

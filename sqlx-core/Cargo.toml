@@ -20,11 +20,13 @@ any = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
-_rt-async-global-executor = ["async-global-executor", "_rt-async-io"]
+_rt-async-global-executor = ["async-global-executor", "_rt-async-io", "_rt-async-task"]
 _rt-async-io = ["async-io", "async-fs"] # see note at async-fs declaration
 _rt-async-std = ["async-std", "_rt-async-io"]
-_rt-smol = ["smol", "_rt-async-io"]
+_rt-async-task = ["async-task"]
+_rt-smol = ["smol", "_rt-async-io", "_rt-async-task"]
 _rt-tokio = ["tokio", "tokio-stream"]
+
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
 _tls-rustls-ring-webpki = ["_tls-rustls", "rustls/ring", "webpki-roots"]
@@ -68,6 +70,8 @@ mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "2.4.1", optional = true }
+async-task = { version = "4.7.1", optional = true }
+
 # work around bug in async-fs 2.0.0, which references futures-lite dependency wrongly, see https://github.com/launchbadge/sqlx/pull/3791#issuecomment-3043363281
 async-fs = { version = "2.1", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
