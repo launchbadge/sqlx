@@ -71,15 +71,17 @@ impl Migrator {
 
     /// Creates a new instance with the given migrations.
     ///
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// use sqlx::{ SqlSafeStr, migrate::{Migration, MigrationType::*, Migrator}};
     ///
     /// // Define your migrations.
+    /// // You can also use include_str!() instead of hard-coded SQL statements.
     /// let migrations = vec![
-    ///     Migration::new(1, "user".into(), ReversibleUp, include_str!("./migrations/1_user.sql").into_sql_str(), false),
-    ///     Migration::new(2, "post".into(), ReversibleUp, include_str!("./migrations/2_post.sql").into_sql_str(), false),
+    ///     Migration::new(1, "user".into(), ReversibleUp, "create table uesrs ( ... )").into_sql_str(), false),
+    ///     Migration::new(2, "post".into(), ReversibleUp, "create table posts ( ... )").into_sql_str(), false),
     ///     // add more...
     ///  ];
     ///  let m = Migrator::with_migrations(migrations);
