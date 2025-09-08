@@ -69,6 +69,30 @@ impl Migrator {
         })
     }
 
+    /// Creates a new instance with the given migrations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use sqlx::{ SqlSafeStr, migrate::{Migration, MigrationType::*, Migrator}};
+    /// 
+    /// // Define your migrations.
+    /// let migrations = vec![
+    ///     Migration::new(1, "init".into(), ReversibleUp, include_str!("./s1.sql").into_sql_str(), false),
+    ///     Migration::new(2, "change".into(), ReversibleUp, include_str!("./s2.sql").into_sql_str(), false),
+    ///     // add more...
+    ///  ];
+    ///  let m = Migrator::with_migrations(migrations);
+    /// ```
+    pub fn with_migrations(mut migrations: Vec<Migration>) -> Self {
+        // Ensure that we are sorted by version in ascending order.
+        migrations.sort_by_key(|m| m.version);
+        Self {
+            migrations: Cow::Owned(migrations),
+            ..Self::DEFAULT
+        }
+    }
+
     /// Override the name of the table used to track executed migrations.
     ///
     /// May be schema-qualified and/or contain quotes. Defaults to `_sqlx_migrations`.
