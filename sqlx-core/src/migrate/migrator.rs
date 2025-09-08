@@ -75,11 +75,11 @@ impl Migrator {
     ///
     /// ```rust,no_run
     /// use sqlx::{ SqlSafeStr, migrate::{Migration, MigrationType::*, Migrator}};
-    /// 
+    ///
     /// // Define your migrations.
     /// let migrations = vec![
-    ///     Migration::new(1, "init".into(), ReversibleUp, include_str!("./s1.sql").into_sql_str(), false),
-    ///     Migration::new(2, "change".into(), ReversibleUp, include_str!("./s2.sql").into_sql_str(), false),
+    ///     Migration::new(1, "user".into(), ReversibleUp, include_str!("./migrations/1_user.sql").into_sql_str(), false),
+    ///     Migration::new(2, "post".into(), ReversibleUp, include_str!("./migrations/2_post.sql").into_sql_str(), false),
     ///     // add more...
     ///  ];
     ///  let m = Migrator::with_migrations(migrations);
