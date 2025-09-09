@@ -196,30 +196,6 @@ impl PgListener {
         Ok(self.connection.as_mut().unwrap())
     }
 
-    // same as `connection` but if fails to connect retries 5 times
-    #[inline]
-    async fn connection_with_recovery(&mut self) -> Result<&mut PgConnection, Error> {
-        // retry max 5 times with these backoff durations
-        let backoff_times = [0, 100, 1000, 2000, 10_000]; // ms
-
-        let mut last_err = None;
-        for backoff_ms in backoff_times {
-            match self.connect_if_needed().await {
-                Ok(()) => return Ok(self.connection.as_mut().unwrap()),
-                Err(err @ Error::Io(_)) => {
-                    last_err = Some(err);
-
-                    crate::rt::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    continue;
-                }
-                Err(other) => return Err(other),
-            }
-        }
-
-        // if 5 retries later still got IO error, return the last one and stop
-        Err(last_err.unwrap())
-    }
-
     /// Receives the next notification available from any of the subscribed channels.
     ///
     /// If the connection to PostgreSQL is lost, it is automatically reconnected on the next
@@ -285,7 +261,7 @@ impl PgListener {
             Ok(notification) => Ok(Some(notification)),
 
             // The connection is dead, ensure that it is dropped,
-            // update self state, and loop to try again.
+            // update self state
             Err(Error::Io(_)) => {
                 if let Some(mut conn) = self.connection.take() {
                     self.buffer_tx = conn.inner.stream.notifications.take();
@@ -294,7 +270,17 @@ impl PgListener {
                 }
 
                 if self.eager_reconnect {
-                    self.connection_with_recovery().await?;
+                    // If reconnecting fails due to an IO error - retry
+                    // if the pool is unable to get a new working connection
+                    // it will eventually error out with Error::PoolTimedOut and
+                    // end this loop
+                    loop {
+                        match self.connection().await {
+                            Ok(_) => break,
+                            Err(Error::Io(_)) => continue,
+                            Err(e) => return Err(e),
+                        }
+                    }
                 }
 
                 // lost connection
