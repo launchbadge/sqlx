@@ -204,13 +204,13 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     /// will be prepared (and cached) before execution.
     ///
     /// Returns `Err` if encoding any of the arguments failed.
-    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError>;
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments>, BoxDynError>;
 
     /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
 }
 
-impl<'q, DB: Database, T> Execute<'q, DB> for T
+impl<DB: Database, T> Execute<'_, DB> for T
 where
     T: SqlSafeStr + Send,
 {
@@ -225,7 +225,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments>, BoxDynError> {
         Ok(None)
     }
 
@@ -235,7 +235,7 @@ where
     }
 }
 
-impl<'q, DB: Database, T> Execute<'q, DB> for (T, Option<<DB as Database>::Arguments<'q>>)
+impl<DB: Database, T> Execute<'_, DB> for (T, Option<<DB as Database>::Arguments>)
 where
     T: SqlSafeStr + Send,
 {
@@ -250,7 +250,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments<'q>>, BoxDynError> {
+    fn take_arguments(&mut self) -> Result<Option<<DB as Database>::Arguments>, BoxDynError> {
         Ok(self.1.take())
     }
 

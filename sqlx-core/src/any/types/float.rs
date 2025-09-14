@@ -37,10 +37,10 @@ impl Type<Any> for f64 {
     }
 }
 
-impl<'q> Encode<'q, Any> for f64 {
+impl Encode<'_, Any> for f64 {
     fn encode_by_ref(
         &self,
-        buf: &mut <Any as Database>::ArgumentBuffer<'q>,
+        buf: &mut <Any as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         buf.0.push(AnyValueKind::Double(*self));
         Ok(IsNull::No)
