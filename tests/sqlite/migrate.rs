@@ -77,6 +77,29 @@ async fn no_tx(mut conn: PoolConnection<Sqlite>) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx::test(migrations = false)]
+async fn no_tx_reversible(mut conn: PoolConnection<Sqlite>) -> anyhow::Result<()> {
+    clean_up(&mut conn).await?;
+
+    let migrator = Migrator::new(Path::new("tests/sqlite/migrations_no_tx_reversible")).await?;
+
+    // run migration
+    migrator.run(&mut conn).await?;
+
+    // check outcome
+    let res: String = conn.fetch_one("PRAGMA JOURNAL_MODE").await?.get(0);
+    assert_eq!(res, "wal".to_string());
+
+    // roll back
+    migrator.undo(&mut conn, -1).await?;
+
+    // check outcome
+    let res: String = conn.fetch_one("PRAGMA JOURNAL_MODE").await?.get(0);
+    assert_eq!(res, "delete".to_string());
+
+    Ok(())
+}
+
 /// Ensure that we have a clean initial state.
 async fn clean_up(conn: &mut SqliteConnection) -> anyhow::Result<()> {
     conn.execute("DROP TABLE migrations_simple_test").await.ok();
