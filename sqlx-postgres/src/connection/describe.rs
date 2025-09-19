@@ -576,7 +576,7 @@ WHERE rngtypid = $1
         if self.is_explain_available() {
             // patch up our null inference with data from EXPLAIN
             let nullable_patch = self
-                .nullables_from_explain(stmt_id, &meta.parameters)
+                .nullables_from_explain(stmt_id, meta.parameters.len())
                 .await?;
 
             for (nullable, patch) in nullables.iter_mut().zip(nullable_patch) {
@@ -594,7 +594,7 @@ WHERE rngtypid = $1
     async fn nullables_from_explain(
         &mut self,
         stmt_id: StatementId,
-        parameters: &[PgTypeInfo],
+        params_len: usize,
     ) -> Result<Vec<Option<bool>>, Error> {
         let stmt_id_display = stmt_id
             .display()
@@ -603,15 +603,16 @@ WHERE rngtypid = $1
         let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE {stmt_id_display}");
         let mut comma = false;
 
-        if !parameters.is_empty() {
+        if params_len > 0 {
             explain += "(";
 
-            for ty in parameters {
+            // fill the arguments list with NULL, which should theoretically be valid
+            for _ in 0..params_len {
                 if comma {
                     explain += ", ";
                 }
 
-                explain += &explain_argument_literal(ty);
+                explain += "NULL";
                 comma = true;
             }
 
@@ -636,159 +637,6 @@ WHERE rngtypid = $1
         }
 
         Ok(nullables)
-    }
-}
-
-// Build a non-NULL literal for each bind used when issuing
-// `EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE ...` during macro validation.
-//
-// Passing `NULL` causes the planner to treat predicates as constants which can
-// be optimized away (TimescaleDB relies on those predicates to infer
-// `time_bucket_gapfill` bounds). See issue #4019.
-fn explain_argument_literal(ty: &PgTypeInfo) -> String {
-    explain_argument_literal_inner(ty, 0)
-}
-
-fn explain_argument_literal_inner(ty: &PgTypeInfo, depth: usize) -> String {
-    const RECURSION_LIMIT: usize = 8;
-
-    if depth > RECURSION_LIMIT {
-        return format!("NULL::{}", ty);
-    }
-
-    if matches!(ty.0, PgType::Void) {
-        return format!("NULL::{}", ty);
-    }
-
-    if ty.try_array_element().is_some() {
-        return format!("'{{}}'::{}", ty);
-    }
-
-    match &ty.0 {
-        PgType::Bool => "FALSE".to_owned(),
-        PgType::Bytea => "pg_catalog.decode('00', 'hex')".to_owned(),
-        PgType::Char => "'a'::\"char\"".to_owned(),
-        PgType::Bpchar => "' '::bpchar".to_owned(),
-        PgType::Varchar => "''::varchar".to_owned(),
-        PgType::Text => "''::text".to_owned(),
-        PgType::Name => "'sqlx'::name".to_owned(),
-        PgType::Unknown => "'sqlx'::text".to_owned(),
-        PgType::Int2
-        | PgType::Int4
-        | PgType::Int8
-        | PgType::Float4
-        | PgType::Float8
-        | PgType::Numeric
-        | PgType::Money
-        | PgType::Oid => format!("0::{}", ty),
-        PgType::Json => "'{}'::json".to_owned(),
-        PgType::Jsonb => "'{}'::jsonb".to_owned(),
-        PgType::Jsonpath => "'$.sqlx'::jsonpath".to_owned(),
-        PgType::Uuid => "'00000000-0000-0000-0000-000000000000'::uuid".to_owned(),
-        PgType::Date => "'1970-01-01'::date".to_owned(),
-        PgType::Time => "'00:00:00'::time".to_owned(),
-        PgType::Timetz => "'00:00:00+00'::timetz".to_owned(),
-        PgType::Timestamp => "'1970-01-01 00:00:00'::timestamp".to_owned(),
-        PgType::Timestamptz => "'1970-01-01 00:00:00+00'::timestamptz".to_owned(),
-        PgType::Interval => "'0 seconds'::interval".to_owned(),
-        PgType::Bit => "B'0'::bit".to_owned(),
-        PgType::Varbit => "B'0'::varbit".to_owned(),
-        PgType::Macaddr => "'00:00:00:00:00:00'::macaddr".to_owned(),
-        PgType::Macaddr8 => "'00:00:00:00:00:00:00:00'::macaddr8".to_owned(),
-        PgType::Inet => "'127.0.0.1'::inet".to_owned(),
-        PgType::Cidr => "'127.0.0.0/24'::cidr".to_owned(),
-        PgType::Int4Range => "pg_catalog.int4range(0, 1)".to_owned(),
-        PgType::Int8Range => "pg_catalog.int8range(0, 1)".to_owned(),
-        PgType::NumRange => "pg_catalog.numrange(0, 1)".to_owned(),
-        PgType::DateRange => {
-            "pg_catalog.daterange('1970-01-01'::date, '1970-01-02'::date)".to_owned()
-        }
-        PgType::TsRange => "pg_catalog.tsrange('1970-01-01 00:00:00'::timestamp, \
-                             '1970-01-02 00:00:00'::timestamp)"
-            .to_owned(),
-        PgType::TstzRange => "pg_catalog.tstzrange('1970-01-01 00:00:00+00'::timestamptz, \
-                                  '1970-01-02 00:00:00+00'::timestamptz)"
-            .to_owned(),
-        PgType::Custom(custom) => match &custom.kind {
-            PgTypeKind::Domain(base) => {
-                let base_literal = explain_argument_literal_inner(base, depth + 1);
-                if is_null_literal(&base_literal) {
-                    format!("NULL::{}", ty)
-                } else {
-                    format!("({})::{}", base_literal, ty)
-                }
-            }
-            PgTypeKind::Enum(variants) => variants
-                .first()
-                .map(|variant| format!("'{}'::{}", escape_sql_literal(variant), ty))
-                .unwrap_or_else(|| format!("NULL::{}", ty)),
-            PgTypeKind::Array(_) => format!("'{{}}'::{}", ty),
-            PgTypeKind::Range(_)
-            | PgTypeKind::Composite(_)
-            | PgTypeKind::Simple
-            | PgTypeKind::Pseudo => {
-                format!("NULL::{}", ty)
-            }
-        },
-        PgType::Record | PgType::Void => format!("NULL::{}", ty),
-        PgType::DeclareWithOid(_) => format!("NULL::{}", ty),
-        PgType::DeclareWithName(name) => format!("NULL::{name}"),
-        PgType::DeclareArrayOf(_) => format!("'{{}}'::{}", ty),
-        // Fallback: some geometric/pseudo types don't have obvious, always-valid sentinel
-        // literals. Continue to use NULL casts for those until better coverage is added.
-        _ => format!("NULL::{}", ty),
-    }
-}
-
-fn is_null_literal(literal: &str) -> bool {
-    literal.starts_with("NULL::")
-}
-
-fn escape_sql_literal(value: &str) -> String {
-    value.replace('\'', "''")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::explain_argument_literal;
-    use crate::ext::ustr::UStr;
-    use crate::type_info::{PgCustomType, PgType, PgTypeInfo, PgTypeKind};
-    use crate::types::Oid;
-    use std::sync::Arc;
-
-    #[test]
-    fn explain_literal_for_basic_types() {
-        assert_eq!(explain_argument_literal(&PgTypeInfo::BOOL), "FALSE");
-        assert_eq!(
-            explain_argument_literal(&PgTypeInfo::TIMESTAMPTZ),
-            "'1970-01-01 00:00:00+00'::timestamptz"
-        );
-        assert_eq!(
-            explain_argument_literal(&PgTypeInfo::UUID),
-            "'00000000-0000-0000-0000-000000000000'::uuid"
-        );
-    }
-
-    #[test]
-    fn explain_literal_for_arrays_is_empty_array() {
-        assert_eq!(
-            explain_argument_literal(&PgTypeInfo::INT4_ARRAY),
-            "'{}'::INT4[]"
-        );
-    }
-
-    #[test]
-    fn explain_literal_for_domain_casts_base_literal() {
-        let domain = PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-            oid: Oid(1),
-            name: UStr::from("my_domain".to_string()),
-            kind: PgTypeKind::Domain(PgTypeInfo::TIMESTAMPTZ),
-        })));
-
-        assert_eq!(
-            explain_argument_literal(&domain),
-            "('1970-01-01 00:00:00+00'::timestamptz)::my_domain"
-        );
     }
 }
 
