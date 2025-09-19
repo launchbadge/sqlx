@@ -50,6 +50,11 @@ This section will be replaced in subsequent alpha releases. See the Git history 
 [#3821]: https://github.com/launchbadge/sqlx/pull/3821
 [#3383]: https://github.com/launchbadge/sqlx/pull/3383
 
+### Fixed
+* [[#4019]]: fix(postgres): avoid NULL binds during macro validation to preserve TimescaleDB hyperfunction predicates
+
+[#4019]: https://github.com/launchbadge/sqlx/issues/4019
+
 ## 0.8.6 - 2025-05-19
 
 9 pull requests were merged this release cycle.
