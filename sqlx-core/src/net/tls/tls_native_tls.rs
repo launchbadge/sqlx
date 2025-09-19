@@ -62,6 +62,8 @@ pub async fn handshake<S: Socket>(
         builder.identity(identity);
     }
 
+    // The openssl TlsConnector synchronously loads certificates from files.
+    // Loading these files can block for tens of milliseconds.
     let connector = rt::spawn_blocking(move || builder.build())
         .await
         .map_err(Error::tls)?;
