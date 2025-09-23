@@ -1,6 +1,6 @@
 use crate::connection::Connection;
 use crate::database::Database;
-use crate::pool::connection::{Floating, Idle, Live};
+use crate::pool::connection::{Floating, Idle, ConnectionInner};
 use crate::pool::inner::PoolInner;
 use crossbeam_queue::ArrayQueue;
 use event_listener::Event;
@@ -71,7 +71,7 @@ impl<DB: Database> IdleQueue<DB> {
             })
     }
 
-    pub fn release(&self, conn: Floating<DB, Live<DB>>) {
+    pub fn release(&self, conn: Floating<DB, ConnectionInner<DB>>) {
         let Floating {
             inner: conn,
             permit,

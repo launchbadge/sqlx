@@ -87,7 +87,7 @@ mod connect;
 mod connection;
 mod inner;
 
-mod idle;
+// mod idle;
 mod options;
 
 mod shard;
@@ -369,7 +369,7 @@ impl<DB: Database> Pool<DB> {
     /// Returns `None` immediately if there are no idle connections available in the pool
     /// or there are tasks waiting for a connection which have yet to wake.
     pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
-        self.0.try_acquire().map(|conn| conn.into_live().reattach())
+        self.0.try_acquire().map(|conn| PoolConnection::new(conn, self.0.clone()))
     }
 
     /// Retrieves a connection and immediately begins a new transaction.

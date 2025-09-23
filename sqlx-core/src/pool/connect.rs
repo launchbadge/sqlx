@@ -1,20 +1,30 @@
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
-use crate::pool::connection::Floating;
+use crate::pool::connection::ConnectionInner;
 use crate::pool::inner::PoolInner;
-use crate::pool::PoolConnection;
+use crate::pool::{Pool, PoolConnection};
 use crate::rt::JoinHandle;
-use crate::Error;
+use crate::{rt, Error};
 use ease_off::EaseOff;
-use event_listener::{listener, Event};
+use event_listener::{listener, Event, EventListener};
 use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
+use crate::pool::shard::DisconnectedSlot;
+#[cfg(doc)]
+use crate::pool::PoolOptions;
+use crate::sync::{AsyncMutex, AsyncMutexGuard};
+use ease_off::core::EaseOffCore;
 use std::io;
+use std::ops::ControlFlow;
+use std::pin::{pin, Pin};
+use std::task::{ready, Context, Poll};
+
+const EASE_OFF: EaseOffCore = ease_off::Options::new().into_core();
 
 /// Custom connect callback for [`Pool`][crate::pool::Pool].
 ///
@@ -197,13 +207,15 @@ pub trait PoolConnector<DB: Database>: Send + Sync + 'static {
     /// If this method returns an error that is known to be retryable, it is called again
     /// in an exponential backoff loop. Retryable errors include, but are not limited to:
     ///
-    /// * [`io::ErrorKind::ConnectionRefused`]
+    /// * [`io::Error`]
     /// * Database errors for which
     ///   [`is_retryable_connect_error`][crate::error::DatabaseError::is_retryable_connect_error]
     ///   returns `true`.
     /// * [`Error::PoolConnector`] with `retryable: true`.
     ///   This error kind is not returned internally and is designed to allow this method to return
     ///   arbitrary error types not otherwise supported.
+    ///
+    /// This behavior may be customized by overriding [`Self::connect_with_control_flow()`].
     ///
     /// Manual implementations of this method may also use the signature:
     /// ```rust,ignore
@@ -218,6 +230,54 @@ pub trait PoolConnector<DB: Database>: Send + Sync + 'static {
         &self,
         meta: PoolConnectMetadata,
     ) -> impl Future<Output = crate::Result<DB::Connection>> + Send + '_;
+
+    /// Open a connection for the pool, or indicate what to do on an error.
+    ///
+    /// This method may return one of the following:
+    ///
+    /// * `ControlFlow::Break(Ok(_))` with a successfully established connection.
+    /// * `ControlFlow::Break(Err(_))` with an error to immediately return to the caller.
+    /// * `ControlFlow::Continue(_)` with a retryable error.
+    ///   The pool will call this method again in an exponential backoff loop until it succeeds,
+    ///   or the [connect timeout][PoolOptions::connect_timeout]
+    ///   or [acquire timeout][PoolOptions::acquire_timeout] is reached.
+    ///
+    /// # Default Implementation
+    /// This method has a provided implementation by default which calls [`Self::connect()`]
+    /// and then returns `ControlFlow::Continue` if the error is any of the following:
+    ///
+    /// * [`io::Error`]
+    /// * Database errors for which
+    ///   [`is_retryable_connect_error`][crate::error::DatabaseError::is_retryable_connect_error]
+    ///   returns `true`.
+    /// * [`Error::PoolConnector`] with `retryable: true`.
+    ///   This error kind is not returned internally and is designed to allow this method to return
+    ///   arbitrary error types not otherwise supported.
+    ///
+    /// A custom backoff loop may be implemented by overriding this method and retrying internally,
+    /// only returning `ControlFlow::Break` if/when an error should be propagated out to the caller.
+    ///
+    /// If this method is overridden and does not call [`Self::connect()`], then the implementation
+    /// of the latter can be a stub. It is not called internally.
+    fn connect_with_control_flow(
+        &self,
+        meta: PoolConnectMetadata,
+    ) -> impl Future<Output = ControlFlow<crate::Result<DB::Connection>, Error>> + Send + '_ {
+        async {
+            match self.connect(meta).await {
+                Err(err @ Error::Io(_)) => ControlFlow::Continue(err),
+                Err(Error::Database(dbe)) if dbe.is_retryable_connect_error() => {
+                    ControlFlow::Continue(Error::Database(dbe))
+                }
+                Err(
+                    err @ Error::PoolConnector {
+                        retryable: true, ..
+                    },
+                ) => ControlFlow::Continue(err),
+                res => ControlFlow::Break(res),
+            }
+        }
+    }
 }
 
 /// # Note: Future Changes (FIXME)
@@ -260,8 +320,12 @@ pub struct PoolConnectMetadata {
     ///
     /// May be used for reporting purposes, or to implement a custom backoff.
     pub start: Instant,
+
+    /// The deadline (`start` plus the [connect timeout][PoolOptions::connect_timeout], if set).
+    pub deadline: Option<Instant>,
+
     /// The number of attempts that have occurred so far.
-    pub num_attempts: usize,
+    pub num_attempts: u32,
     /// The current size of the pool.
     pub pool_size: usize,
     /// The ID of the connection, unique for the pool.
@@ -271,7 +335,12 @@ pub struct PoolConnectMetadata {
 pub struct DynConnector<DB: Database> {
     // We want to spawn the connection attempt as a task anyway
     connect: Box<
-        dyn Fn(ConnectionId, ConnectPermit<DB>) -> JoinHandle<crate::Result<PoolConnection<DB>>>
+        dyn Fn(
+                Pool<DB>,
+                ConnectionId,
+                DisconnectedSlot<ConnectionInner<DB>>,
+                Arc<ConnectTaskShared>,
+            ) -> ConnectTask<DB>
             + Send
             + Sync
             + 'static,
@@ -283,18 +352,90 @@ impl<DB: Database> DynConnector<DB> {
         let connector = Arc::new(connector);
 
         Self {
-            connect: Box::new(move |id, permit| {
-                crate::rt::spawn(connect_with_backoff(id, permit, connector.clone()))
+            connect: Box::new(move |pool, id, guard, shared| {
+                ConnectTask::spawn(pool, id, guard, connector.clone(), shared)
             }),
         }
     }
 
     pub fn connect(
         &self,
+        pool: Pool<DB>,
         id: ConnectionId,
-        permit: ConnectPermit<DB>,
-    ) -> JoinHandle<crate::Result<PoolConnection<DB>>> {
-        (self.connect)(id, permit)
+        slot: DisconnectedSlot<ConnectionInner<DB>>,
+        shared: Arc<ConnectTaskShared>,
+    ) -> ConnectTask<DB> {
+        (self.connect)(pool, id, slot, shared)
+    }
+}
+
+pub struct ConnectTask<DB: Database> {
+    handle: JoinHandle<crate::Result<PoolConnection<DB>>>,
+    shared: Arc<ConnectTaskShared>,
+}
+
+pub struct ConnectTaskShared {
+    cancel_event: Event,
+    // Using the normal `std::sync::Mutex` because the critical sections are very short;
+    // we only hold the lock long enough to insert or take the value.
+    last_error: Mutex<Option<Error>>,
+}
+
+impl<DB: Database> Future for ConnectTask<DB> {
+    type Output = crate::Result<PoolConnection<DB>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.handle).poll(cx)
+    }
+}
+
+impl<DB: Database> ConnectTask<DB> {
+    fn spawn(
+        pool: Pool<DB>,
+        id: ConnectionId,
+        guard: DisconnectedSlot<ConnectionInner<DB>>,
+        connector: Arc<impl PoolConnector<DB>>,
+        shared: Arc<ConnectTaskShared>,
+    ) -> Self {
+        let handle = crate::rt::spawn(connect_with_backoff(
+            pool,
+            id,
+            connector,
+            guard,
+            shared.clone(),
+        ));
+
+        Self { handle, shared }
+    }
+
+    pub fn cancel(&self) -> Option<Error> {
+        self.shared.cancel_event.notify(1);
+
+        self.shared
+            .last_error
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
+}
+
+impl ConnectTaskShared {
+    pub fn new_arc() -> Arc<Self> {
+        Arc::new(Self {
+            cancel_event: Event::new(),
+            last_error: Mutex::new(None),
+        })
+    }
+
+    pub fn take_error(&self) -> Option<Error> {
+        self.last_error
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+    }
+
+    fn put_error(&self, error: Error) {
+        *self.last_error.lock().unwrap_or_else(|e| e.into_inner()) = Some(error);
     }
 }
 
@@ -307,6 +448,14 @@ pub struct ConnectionCounter {
 /// An opaque connection ID, unique for every connection attempt with the same pool.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConnectionId(usize);
+
+impl ConnectionId {
+    pub(super) fn next() -> ConnectionId {
+        static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
+        ConnectionId(NEXT_ID.fetch_add(1, Ordering::AcqRel))
+    }
+}
 
 impl ConnectionCounter {
     pub fn new() -> Self {
@@ -456,41 +605,131 @@ impl Display for ConnectionId {
     err
 )]
 async fn connect_with_backoff<DB: Database>(
+    pool: Pool<DB>,
     connection_id: ConnectionId,
-    permit: ConnectPermit<DB>,
     connector: Arc<impl PoolConnector<DB>>,
+    slot: DisconnectedSlot<ConnectionInner<DB>>,
+    shared: Arc<ConnectTaskShared>,
 ) -> crate::Result<PoolConnection<DB>> {
-    if permit.pool().is_closed() {
-        return Err(Error::PoolClosed);
-    }
+    listener!(pool.0.on_closed => closed);
+    listener!(shared.cancel_event => cancelled);
 
-    let mut ease_off = EaseOff::start_timeout(permit.pool().options.connect_timeout);
+    let start = Instant::now();
+    let deadline = pool
+        .0
+        .options
+        .connect_timeout
+        .and_then(|timeout| start.checked_add(timeout));
 
-    for attempt in 1usize.. {
+    for attempt in 1u32.. {
         let meta = PoolConnectMetadata {
-            start: ease_off.started_at(),
+            start,
+            deadline,
             num_attempts: attempt,
-            pool_size: permit.pool().size(),
+            pool_size: pool.size(),
             connection_id,
         };
 
-        let conn = ease_off
-            .try_async(connector.connect(meta))
-            .await
-            .or_retry_if(|e| can_retry_error(e.inner()))?;
+        tracing::trace!(
+            target: "sqlx::pool::connect",
+            %connection_id,
+            attempt,
+            elapsed_seconds=start.elapsed().as_secs_f64(),
+            "beginning connection attempt"
+        );
 
-        if let Some(conn) = conn {
-            return Ok(Floating::new_live(conn, connection_id, permit).reattach());
+        let res = connector.connect_with_control_flow(meta).await;
+
+        let now = Instant::now();
+        let elapsed = now.duration_since(start);
+        let elapsed_seconds = elapsed.as_secs_f64();
+
+        match res {
+            ControlFlow::Break(Ok(conn)) => {
+                tracing::trace!(
+                    target: "sqlx::pool::connect",
+                    %connection_id,
+                    attempt,
+                    elapsed_seconds,
+                    "connection established",
+                );
+
+                return Ok(PoolConnection::new(
+                    slot.put(ConnectionInner {
+                        raw: conn,
+                        id: connection_id,
+                        created_at: now,
+                        last_released_at: now,
+                    }),
+                    pool.0.clone(),
+                ));
+            }
+            ControlFlow::Break(Err(e)) => {
+                tracing::warn!(
+                    target: "sqlx::pool::connect",
+                    %connection_id,
+                    attempt,
+                    elapsed_seconds,
+                    error=?e,
+                    "error connecting to database",
+                );
+
+                return Err(e);
+            }
+            ControlFlow::Continue(e) => {
+                tracing::warn!(
+                    target: "sqlx::pool::connect",
+                    %connection_id,
+                    attempt,
+                    elapsed_seconds,
+                    error=?e,
+                    "error connecting to database; retrying",
+                );
+
+                shared.put_error(e);
+            }
+        }
+
+        let wait = EASE_OFF
+            .nth_retry_at(attempt, now, deadline, &mut rand::thread_rng())
+            .map_err(|_| {
+                Error::PoolTimedOut {
+                    // This should be populated by the caller
+                    last_connect_error: None,
+                }
+            })?;
+
+        if let Some(wait) = wait {
+            tracing::trace!(
+                target: "sqlx::pool::connect",
+                %connection_id,
+                attempt,
+                elapsed_seconds,
+                "waiting for {:?}",
+                wait.duration_since(now),
+            );
+
+            let mut sleep = pin!(rt::sleep_until(wait));
+
+            std::future::poll_fn(|cx| {
+                if let Poll::Ready(()) = Pin::new(&mut closed).poll(cx) {
+                    return Poll::Ready(Err(Error::PoolClosed));
+                }
+
+                if let Poll::Ready(()) = Pin::new(&mut cancelled).poll(cx) {
+                    return Poll::Ready(Err(Error::PoolTimedOut {
+                        last_connect_error: None,
+                    }));
+                }
+
+                ready!(sleep.as_mut().poll(cx));
+                Poll::Ready(Ok(()))
+            })
+            .await?;
         }
     }
 
-    Err(Error::PoolTimedOut)
-}
-
-fn can_retry_error(e: &Error) -> bool {
-    match e {
-        Error::Io(e) if e.kind() == io::ErrorKind::ConnectionRefused => true,
-        Error::Database(e) => e.is_retryable_connect_error(),
-        _ => false,
-    }
+    Err(Error::PoolTimedOut {
+        last_connect_error: None,
+    })
 }

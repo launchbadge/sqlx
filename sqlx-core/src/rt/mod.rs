@@ -56,18 +56,18 @@ pub async fn timeout_at<F: Future>(deadline: Instant, f: F) -> Result<F::Output,
     if rt_tokio::available() {
         return tokio::time::timeout_at(deadline.into(), f)
             .await
-            .map_err(|_| TimeoutError(()));
+            .map_err(|_| TimeoutError);
     }
 
     #[cfg(feature = "_rt-async-std")]
     {
         let Some(duration) = deadline.checked_duration_since(Instant::now()) else {
-            return Err(TimeoutError(()));
+            return Err(TimeoutError);
         };
 
         async_std::future::timeout(duration, f)
             .await
-            .map_err(|_| TimeoutError(()))
+            .map_err(|_| TimeoutError)
     }
 
     #[cfg(not(feature = "_rt-async-std"))]
@@ -85,6 +85,21 @@ pub async fn sleep(duration: Duration) {
             rt_async_io::sleep(duration).await
         } else {
             missing_rt(duration)
+        }
+    }
+}
+
+pub async fn sleep_until(instant: Instant) {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return tokio::time::sleep_until(instant.into()).await;
+    }
+
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::sleep_until(instant).await
+        } else {
+            missing_rt(instant)
         }
     }
 }
@@ -186,7 +201,7 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
 #[track_caller]
 pub const fn missing_rt<T>(_unused: T) -> ! {
     if cfg!(feature = "_rt-tokio") {
-        panic!("this functionality requires a Tokio context")
+        panic!("this functionality requires an active Tokio runtime")
     }
 
     panic!("one of the `runtime` features of SQLx must be enabled")

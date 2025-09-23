@@ -1,12 +1,12 @@
 //! Types for working with errors produced by SQLx.
 
+use crate::database::Database;
 use std::any::type_name;
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
-
-use crate::database::Database;
+use std::sync::Arc;
 
 use crate::type_info::TypeInfo;
 use crate::types::Type;
@@ -104,7 +104,10 @@ pub enum Error {
     ///
     /// [`Pool::acquire`]: crate::pool::Pool::acquire
     #[error("pool timed out while waiting for an open connection")]
-    PoolTimedOut,
+    PoolTimedOut {
+        #[source]
+        last_connect_error: Option<Box<Self>>,
+    },
 
     /// [`Pool::close`] was called while we were waiting in [`Pool::acquire`].
     ///
