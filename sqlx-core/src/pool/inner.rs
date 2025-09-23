@@ -1,32 +1,35 @@
-use super::connection::{Floating, Idle, Live};
+use super::connection::ConnectionInner;
 use crate::database::Database;
 use crate::error::Error;
-use crate::pool::{CloseEvent, Pool, PoolConnection, PoolConnector, PoolOptions};
+use crate::pool::{connection, CloseEvent, Pool, PoolConnection, PoolConnector, PoolOptions};
 
 use std::cmp;
 use std::future::Future;
-use std::pin::pin;
+use std::pin::{pin, Pin};
+use std::rc::Weak;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::task::ready;
+use std::task::{ready, Poll};
 
+use crate::connection::Connection;
 use crate::logger::private_level_filter_to_trace_level;
-use crate::pool::connect::{ConnectPermit, ConnectionCounter, ConnectionId, DynConnector};
-use crate::pool::idle::IdleQueue;
-use crate::pool::shard::Sharded;
+use crate::pool::connect::{
+    ConnectPermit, ConnectTask, ConnectTaskShared, ConnectionCounter, ConnectionId, DynConnector,
+};
+use crate::pool::shard::{ConnectedSlot, DisconnectedSlot, Sharded};
 use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
 use either::Either;
+use futures_core::FusedFuture;
 use futures_util::future::{self, OptionFuture};
-use futures_util::FutureExt;
+use futures_util::{stream, FutureExt, TryStreamExt};
 use std::time::{Duration, Instant};
 use tracing::Level;
 
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connector: DynConnector<DB>,
     pub(super) counter: ConnectionCounter,
-    pub(super) sharded: Sharded<DB::Connection>,
-    pub(super) idle: IdleQueue<DB>,
+    pub(super) sharded: Sharded<ConnectionInner<DB>>,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
@@ -39,19 +42,38 @@ impl<DB: Database> PoolInner<DB> {
         options: PoolOptions<DB>,
         connector: impl PoolConnector<DB>,
     ) -> Arc<Self> {
-        let pool = Self {
-            connector: DynConnector::new(connector),
-            counter: ConnectionCounter::new(),
-            sharded: Sharded::new(options.max_connections, options.shards),
-            idle: IdleQueue::new(options.fair, options.max_connections),
-            is_closed: AtomicBool::new(false),
-            on_closed: event_listener::Event::new(),
-            acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
-            acquire_slow_level: private_level_filter_to_trace_level(options.acquire_slow_level),
-            options,
-        };
+        let pool = Arc::<Self>::new_cyclic(|pool_weak| {
+            let pool_weak = pool_weak.clone();
 
-        let pool = Arc::new(pool);
+            let reconnect = move |slot| {
+                let Some(pool) = pool_weak.upgrade() else {
+                    return;
+                };
+
+                pool.connector.connect(
+                    Pool(pool.clone()),
+                    ConnectionId::next(),
+                    slot,
+                    ConnectTaskShared::new_arc(),
+                );
+            };
+
+            Self {
+                connector: DynConnector::new(connector),
+                counter: ConnectionCounter::new(),
+                sharded: Sharded::new(
+                    options.max_connections,
+                    options.shards,
+                    options.min_connections,
+                    reconnect,
+                ),
+                is_closed: AtomicBool::new(false),
+                on_closed: event_listener::Event::new(),
+                acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
+                acquire_slow_level: private_level_filter_to_trace_level(options.acquire_slow_level),
+                options,
+            }
+        });
 
         spawn_maintenance_tasks(&pool);
 
@@ -59,11 +81,11 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn size(&self) -> usize {
-        self.counter.connections()
+        self.sharded.count_connected()
     }
 
     pub(super) fn num_idle(&self) -> usize {
-        self.idle.len()
+        self.sharded.count_unlocked(true)
     }
 
     pub(super) fn is_closed(&self) -> bool {
@@ -79,23 +101,13 @@ impl<DB: Database> PoolInner<DB> {
         self.mark_closed();
 
         // Keep clearing the idle queue as connections are released until the count reaches zero.
-        async move {
-            let mut drained = pin!(self.counter.drain());
+        self.sharded.drain(|slot| async move {
+            let (conn, slot) = ConnectedSlot::take(slot);
 
-            loop {
-                let mut acquire_idle = pin!(self.idle.acquire(self));
+            let _ = conn.raw.close().await;
 
-                // Not using `futures::select!{}` here because it requires a proc-macro dep,
-                // and frankly it's a little broken.
-                match future::select(drained.as_mut(), acquire_idle.as_mut()).await {
-                    // *not* `either::Either`; they rolled their own
-                    future::Either::Left(_) => break,
-                    future::Either::Right((idle, _)) => {
-                        idle.close().await;
-                    }
-                }
-            }
-        }
+            slot
+        })
     }
 
     pub(crate) fn close_event(&self) -> CloseEvent {
@@ -109,17 +121,12 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     #[inline]
-    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<DB, Idle<DB>>> {
+    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<ConnectedSlot<ConnectionInner<DB>>> {
         if self.is_closed() {
             return None;
         }
 
-        self.idle.try_acquire(self)
-    }
-
-    pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
-        // `options.after_release` and other checks are in `PoolConnection::return_to_pool()`.
-        self.idle.release(floating);
+        self.sharded.try_acquire_connected()
     }
 
     pub(super) async fn acquire(self: &Arc<Self>) -> Result<PoolConnection<DB>, Error> {
@@ -131,91 +138,70 @@ impl<DB: Database> PoolInner<DB> {
 
         let mut close_event = pin!(self.close_event());
         let mut deadline = pin!(rt::sleep(self.options.acquire_timeout));
-        let mut acquire_idle = pin!(self.idle.acquire(self).fuse());
-        let mut before_acquire = OptionFuture::from(None);
-        let mut acquire_connect_permit = pin!(OptionFuture::from(Some(
-            self.counter.acquire_permit(self).fuse()
-        )));
-        let mut connect = OptionFuture::from(None);
 
-        // The internal state machine of `acquire()`.
-        //
-        // * The initial state is racing to acquire either an idle connection or a new `ConnectPermit`.
-        // * If we acquire a `ConnectPermit`, we begin the connection loop (with backoff)
-        //   as implemented by `DynConnector`.
-        // * If we acquire an idle connection, we then start polling `check_idle_conn()`.
-        //
-        // This doesn't quite fit into `select!{}` because the set of futures that may be polled
-        // at a given time is dynamic, so it's actually simpler to hand-roll it.
-        let acquired = future::poll_fn(|cx| {
-            use std::task::Poll::*;
+        let connect_shared = ConnectTaskShared::new_arc();
 
-            // First check if the pool is already closed,
-            // or register for a wakeup if it gets closed.
-            if let Ready(()) = close_event.poll_unpin(cx) {
-                return Ready(Err(Error::PoolClosed));
+        let mut acquire_connected = pin!(self.acquire_connected().fuse());
+
+        let mut acquire_disconnected = pin!(self.sharded.acquire_disconnected().fuse());
+
+        let mut connect = future::Fuse::terminated();
+
+        let acquired = std::future::poll_fn(|cx| loop {
+            if let Poll::Ready(()) = close_event.as_mut().poll(cx) {
+                return Poll::Ready(Err(Error::PoolClosed));
             }
 
-            // Then check if our deadline has elapsed, or schedule a wakeup for when that happens.
-            if let Ready(()) = deadline.poll_unpin(cx) {
-                return Ready(Err(Error::PoolTimedOut));
+            if let Poll::Ready(()) = deadline.as_mut().poll(cx) {
+                return Poll::Ready(Err(Error::PoolTimedOut {
+                    last_connect_error: connect_shared.take_error().map(Box::new),
+                }));
             }
 
-            // Attempt to acquire a connection from the idle queue.
-            if let Ready(idle) = acquire_idle.poll_unpin(cx) {
-                // If we acquired an idle connection, run any checks that need to be done.
-                //
-                // Includes `test_on_acquire` and the `before_acquire` callback, if set.
-                match finish_acquire(idle) {
-                    // There are checks needed to be done, so they're spawned as a task
-                    // to be cancellation-safe.
-                    Either::Left(check_task) => {
-                        before_acquire = Some(check_task).into();
+            if let Poll::Ready(res) = acquire_connected.as_mut().poll(cx) {
+                match res {
+                    Ok(conn) => {
+                        return Poll::Ready(Ok(conn));
                     }
-                    // The connection is ready to go.
-                    Either::Right(conn) => {
-                        return Ready(Ok(conn));
-                    }
-                }
-            }
-
-            // Poll the task returned by `finish_acquire`
-            match ready!(before_acquire.poll_unpin(cx)) {
-                Some(Ok(conn)) => return Ready(Ok(conn)),
-                Some(Err((id, permit))) => {
-                    // We don't strictly need to poll `connect` here; all we really want to do
-                    // is to check if it is `None`. But since currently there's no getter for that,
-                    // it doesn't really hurt to just poll it here.
-                    match connect.poll_unpin(cx) {
-                        Ready(None) => {
-                            // If we're not already attempting to connect,
-                            // take the permit returned from closing the connection and
-                            // attempt to open a new one.
-                            connect = Some(self.connector.connect(id, permit)).into();
+                    Err(slot) => {
+                        if connect.is_terminated() {
+                            connect = self
+                                .connector
+                                .connect(
+                                    Pool(self.clone()),
+                                    ConnectionId::next(),
+                                    slot,
+                                    connect_shared.clone(),
+                                )
+                                .fuse();
                         }
-                        // `permit` is dropped in these branches, allowing another task to use it
-                        Ready(Some(res)) => return Ready(res),
-                        Pending => (),
+
+                        // Try to acquire another connected connection.
+                        acquire_connected.set(self.acquire_connected().fuse());
+                        continue;
                     }
-
-                    // Attempt to acquire another idle connection concurrently to opening a new one.
-                    acquire_idle.set(self.idle.acquire(self).fuse());
-                    // Annoyingly, `OptionFuture` doesn't fuse to `None` on its own
-                    before_acquire = None.into();
                 }
-                None => (),
             }
 
-            if let Ready(Some((id, permit))) = acquire_connect_permit.poll_unpin(cx) {
-                connect = Some(self.connector.connect(id, permit)).into();
+            if let Poll::Ready(slot) = acquire_disconnected.as_mut().poll(cx) {
+                if connect.is_terminated() {
+                    connect = self
+                        .connector
+                        .connect(
+                            Pool(self.clone()),
+                            ConnectionId::next(),
+                            slot,
+                            connect_shared.clone(),
+                        )
+                        .fuse();
+                }
             }
 
-            if let Ready(Some(res)) = connect.poll_unpin(cx) {
-                // RFC: suppress errors here?
-                return Ready(res);
+            if let Poll::Ready(res) = Pin::new(&mut connect).poll(cx) {
+                return Poll::Ready(res);
             }
 
-            Pending
+            return Poll::Pending;
         })
         .await?;
 
@@ -245,59 +231,66 @@ impl<DB: Database> PoolInner<DB> {
         Ok(acquired)
     }
 
-    /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
-    pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
-        rt::timeout_at(deadline, async {
-            while self.size() < self.options.min_connections {
-                // Don't wait for a connect permit.
-                //
-                // If no extra permits are available then we shouldn't be trying to spin up
-                // connections anyway.
-                let Some((id, permit)) = self.counter.try_acquire_permit(self) else {
-                    return Ok(());
-                };
+    async fn acquire_connected(
+        self: &Arc<Self>,
+    ) -> Result<PoolConnection<DB>, DisconnectedSlot<ConnectionInner<DB>>> {
+        let connected = self.sharded.acquire_connected().await;
 
-                let conn = self.connector.connect(id, permit).await?;
+        tracing::debug!(
+            target: "sqlx::pool",
+            connection_id=%connected.id,
+            "acquired idle connection"
+        );
 
-                // We skip `after_release` since the connection was never provided to user code
-                // besides inside `PollConnector::connect()`, if they override it.
-                self.release(conn.into_floating());
-            }
-
-            Ok(())
-        })
-        .await
-        .unwrap_or_else(|_| Err(Error::PoolTimedOut))
+        match finish_acquire(self, connected) {
+            Either::Left(task) => task.await,
+            Either::Right(conn) => Ok(conn),
+        }
     }
 
-    /// Attempt to maintain `min_connections`, logging if unable.
-    pub async fn min_connections_maintenance(self: &Arc<Self>, deadline: Option<Instant>) {
-        let deadline = deadline.unwrap_or_else(|| {
-            // Arbitrary default deadline if the caller doesn't care.
-            Instant::now() + Duration::from_secs(300)
-        });
+    pub(crate) async fn try_min_connections(self: &Arc<Self>) -> Result<(), Error> {
+        stream::iter(
+            self.sharded
+                .iter_min_connections()
+                .map(Result::<_, Error>::Ok),
+        )
+        .try_for_each_concurrent(None, |slot| async move {
+            let shared = ConnectTaskShared::new_arc();
 
-        match self.try_min_connections(deadline).await {
-            Ok(()) => (),
-            Err(Error::PoolClosed) => (),
-            Err(Error::PoolTimedOut) => {
-                tracing::debug!("unable to complete `min_connections` maintenance before deadline")
+            let res = self
+                .connector
+                .connect(
+                    Pool(self.clone()),
+                    ConnectionId::next(),
+                    slot,
+                    shared.clone(),
+                )
+                .await;
+
+            match res {
+                Ok(conn) => {
+                    drop(conn);
+                    Ok(())
+                }
+                Err(Error::PoolTimedOut { .. }) => Err(Error::PoolTimedOut {
+                    last_connect_error: shared.take_error().map(Box::new),
+                }),
+                Err(other) => Err(other),
             }
-            Err(error) => tracing::debug!(%error, "error while maintaining min_connections"),
-        }
+        })
+        .await
     }
 }
 
 impl<DB: Database> Drop for PoolInner<DB> {
     fn drop(&mut self) {
         self.mark_closed();
-        self.idle.drain(self);
     }
 }
 
 /// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
 pub(super) fn is_beyond_max_lifetime<DB: Database>(
-    live: &Live<DB>,
+    live: &ConnectionInner<DB>,
     options: &PoolOptions<DB>,
 ) -> bool {
     options
@@ -306,60 +299,69 @@ pub(super) fn is_beyond_max_lifetime<DB: Database>(
 }
 
 /// Returns `true` if the connection has exceeded `options.idle_timeout` if set, `false` otherwise.
-fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> bool {
+fn is_beyond_idle_timeout<DB: Database>(
+    idle: &ConnectionInner<DB>,
+    options: &PoolOptions<DB>,
+) -> bool {
     options
         .idle_timeout
-        .is_some_and(|timeout| idle.idle_since.elapsed() > timeout)
+        .is_some_and(|timeout| idle.last_released_at.elapsed() > timeout)
 }
 
 /// Execute `test_before_acquire` and/or `before_acquire` in a background task, if applicable.
 ///
 /// Otherwise, immediately returns the connection.
 fn finish_acquire<DB: Database>(
-    mut conn: Floating<DB, Idle<DB>>,
+    pool: &Arc<PoolInner<DB>>,
+    mut conn: ConnectedSlot<ConnectionInner<DB>>,
 ) -> Either<
-    JoinHandle<Result<PoolConnection<DB>, (ConnectionId, ConnectPermit<DB>)>>,
+    JoinHandle<Result<PoolConnection<DB>, DisconnectedSlot<ConnectionInner<DB>>>>,
     PoolConnection<DB>,
 > {
-    let pool = conn.permit.pool();
-
     if pool.options.test_before_acquire || pool.options.before_acquire.is_some() {
+        let pool = pool.clone();
+
         // Spawn a task so the call may complete even if `acquire()` is cancelled.
         return Either::Left(rt::spawn(async move {
             // Check that the connection is still live
-            if let Err(error) = conn.ping().await {
+            if let Err(error) = conn.raw.ping().await {
                 // an error here means the other end has hung up or we lost connectivity
                 // either way we're fine to just discard the connection
                 // the error itself here isn't necessarily unexpected so WARN is too strong
-                tracing::info!(%error, "ping on idle connection returned error");
+                tracing::info!(%error, connection_id=%conn.id, "ping on idle connection returned error");
+
                 // connection is broken so don't try to close nicely
-                return Err(conn.close_hard().await);
+                let (_res, slot) = connection::close_hard(conn).await;
+                return Err(slot);
             }
 
-            if let Some(test) = &conn.permit.pool().options.before_acquire {
-                let meta = conn.metadata();
-                match test(&mut conn.inner.live.raw, meta).await {
+            if let Some(test) = &pool.options.before_acquire {
+                let meta = conn.idle_metadata();
+                match test(&mut conn.raw, meta).await {
                     Ok(false) => {
                         // connection was rejected by user-defined hook, close nicely
-                        return Err(conn.close().await);
+                        let (_res, slot) = connection::close(conn).await;
+                        return Err(slot);
                     }
 
                     Err(error) => {
                         tracing::warn!(%error, "error from `before_acquire`");
+
                         // connection is broken so don't try to close nicely
-                        return Err(conn.close_hard().await);
+                        let (_res, slot) = connection::close_hard(conn).await;
+                        return Err(slot);
                     }
 
                     Ok(true) => {}
                 }
             }
 
-            Ok(conn.into_live().reattach())
+            Ok(PoolConnection::new(conn, pool))
         }));
     }
 
     // No checks are configured, return immediately.
-    Either::Right(conn.into_live().reattach())
+    Either::Right(PoolConnection::new(conn, pool.clone()))
 }
 
 fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
@@ -376,7 +378,13 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
             if pool.options.min_connections > 0 {
                 rt::spawn(async move {
                     if let Some(pool) = pool_weak.upgrade() {
-                        pool.min_connections_maintenance(None).await;
+                        if let Err(error) = pool.try_min_connections().await {
+                            tracing::error!(
+                                target: "sqlx::pool",
+                                ?error,
+                                "error maintaining min_connections"
+                            );
+                        }
                     }
                 });
             }
@@ -401,31 +409,21 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 
                     // Go over all idle connections, check for idleness and lifetime,
                     // and if we have fewer than min_connections after reaping a connection,
-                    // open a new one immediately. Note that other connections may be popped from
-                    // the queue in the meantime - that's fine, there is no harm in checking more
-                    for _ in 0..pool.num_idle() {
-                        if let Some(conn) = pool.try_acquire() {
-                            if is_beyond_idle_timeout(&conn, &pool.options)
-                                || is_beyond_max_lifetime(&conn, &pool.options)
-                            {
-                                let _ = conn.close().await;
-                                pool.min_connections_maintenance(Some(next_run)).await;
-                            } else {
-                                pool.release(conn.into_live());
-                            }
+                    // open a new one immediately.
+                    for conn in pool.sharded.iter_idle() {
+                        if is_beyond_idle_timeout(&conn, &pool.options)
+                            || is_beyond_max_lifetime(&conn, &pool.options)
+                        {
+                            // Dropping the slot will check if the connection needs to be
+                            // re-made.
+                            let _ = connection::close(conn).await;
                         }
                     }
 
                     // Don't hold a reference to the pool while sleeping.
                     drop(pool);
 
-                    if let Some(duration) = next_run.checked_duration_since(Instant::now()) {
-                        // `async-std` doesn't have a `sleep_until()`
-                        rt::sleep(duration).await;
-                    } else {
-                        // `next_run` is in the past, just yield.
-                        rt::yield_now().await;
-                    }
+                    rt::sleep_until(next_run).await;
                 }
             })
             .await;
