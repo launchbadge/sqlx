@@ -418,23 +418,13 @@ where
     Ok(ret_tokens)
 }
 
-#[cfg(procmacro2_semver_exempt)]
-static TRACKED_ENV_VARS: Mutex<HashSet<String, BuildHasherDefault<DefaultHasher>>> =
-    Mutex::new(HashSet::with_hasher(BuildHasherDefault::new()));
-
 static LOADED_ENV_VARS: Mutex<HashMap<String, String, BuildHasherDefault<DefaultHasher>>> =
     Mutex::new(HashMap::with_hasher(BuildHasherDefault::new()));
 
 /// Get the value of an environment variable, telling the compiler about it if applicable.
 fn env(name: &str) -> Result<String, std::env::VarError> {
     #[cfg(procmacro2_semver_exempt)]
-    let tracked_value = if TRACKED_ENV_VARS.lock().unwrap().insert(name.to_string()) {
-        // Avoid tracking the same env var multiple times, which would undesirably modify
-        // build system state and thus behavior in case we change var values.
-        Some(proc_macro::tracked_env::var(name))
-    } else {
-        None
-    };
+    let tracked_value = Some(proc_macro::tracked_env::var(name));
     #[cfg(not(procmacro2_semver_exempt))]
     let tracked_value = None;
 
@@ -470,17 +460,6 @@ fn load_env(manifest_dir: &Path, config: &Config) {
     for path in &candidate_dotenv_paths {
         if let Some(path) = path.to_str() {
             proc_macro::tracked_path::path(path);
-        }
-    }
-
-    // Tell the compiler about the environment variables we care about before we load them
-    // from any `.env`, so the build system can react to changes in their original values,
-    // not the values we load from a potential `.env` file tracked above, which should not
-    // take precedence.
-    #[cfg(procmacro2_semver_exempt)]
-    for name in &loadable_vars {
-        if TRACKED_ENV_VARS.lock().unwrap().insert(name.to_string()) {
-            proc_macro::tracked_env::var(name);
         }
     }
 
