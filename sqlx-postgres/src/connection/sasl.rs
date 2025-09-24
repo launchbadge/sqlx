@@ -1,6 +1,7 @@
 use crate::connection::stream::PgStream;
 use crate::error::Error;
 use crate::message::{Authentication, AuthenticationSasl, SaslInitialResponse, SaslResponse};
+use crate::rt;
 use crate::PgConnectOptions;
 use hmac::{Hmac, Mac};
 use rand::Rng;
@@ -90,7 +91,8 @@ pub(crate) async fn authenticate(
         options.password.as_deref().unwrap_or_default(),
         &cont.salt,
         cont.iterations,
-    )?;
+    )
+    .await?;
 
     // ClientKey := HMAC(SaltedPassword, "Client Key")
     let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;
@@ -187,7 +189,7 @@ fn gen_nonce() -> String {
 }
 
 // Hi(str, salt, i):
-fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error> {
+async fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error> {
     let mut mac = Hmac::<Sha256>::new_from_slice(s.as_bytes()).map_err(Error::protocol)?;
 
     mac.update(salt);
@@ -196,30 +198,19 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
     let mut u = mac.finalize_reset().into_bytes();
     let mut hi = u;
 
-    for _ in 1..iter_count {
+    for i in 1..iter_count {
         mac.update(u.as_slice());
         u = mac.finalize_reset().into_bytes();
         hi = hi.iter().zip(u.iter()).map(|(&a, &b)| a ^ b).collect();
+
+        // For large iteration counts, this process can take a long time and block the event loop.
+        // It was measured as taking ~50ms for 4096 iterations (the default) on a developer machine.
+        // If we want to yield every 10-100us (as generally advised for tokio), then we can yield
+        // every 5 iterations which should be every ~50us.
+        if i % 5 == 0 {
+            rt::yield_now().await;
+        }
     }
 
     Ok(hi.into())
-}
-
-#[cfg(all(test, not(debug_assertions)))]
-#[bench]
-fn bench_sasl_hi(b: &mut test::Bencher) {
-    use test::black_box;
-
-    let mut rng = rand::thread_rng();
-    let nonce: Vec<u8> = std::iter::repeat(())
-        .map(|()| rng.sample(rand::distributions::Alphanumeric))
-        .take(64)
-        .collect();
-    b.iter(|| {
-        let _ = hi(
-            test::black_box("secret_password"),
-            test::black_box(&nonce),
-            test::black_box(4096),
-        );
-    });
 }

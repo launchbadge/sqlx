@@ -22,7 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        runtime: [ async-std, tokio ]
+        # Note: because `async-std` is deprecated, we only check it in a single job to save CI time.
+        runtime: [ async-std, async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls, none ]
     timeout-minutes: 30
     steps:
@@ -122,7 +123,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        runtime: [ async-std, tokio ]
+        runtime: [ async-global-executor, smol, tokio ]
         linking: [ sqlite, sqlite-unbundled ]
     needs: check
     timeout-minutes: 30
@@ -208,7 +209,7 @@ jobs:
     strategy:
       matrix:
         postgres: [ 17, 13 ]
-        runtime: [ async-std, tokio ]
+        runtime: [ async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     timeout-minutes: 30
@@ -243,7 +244,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
       # Run the `test-attr` test again to cover cleanup.
       - run: >
@@ -254,7 +255,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
       - if: matrix.tls != 'none'
         run: >
@@ -264,7 +265,7 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
       # Remove test artifacts
       - run: cargo clean -p sqlx
@@ -290,7 +291,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           SQLX_OFFLINE: true
           SQLX_OFFLINE_DIR: .sqlx
-          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
   postgres-ssl-auth:
     name: Postgres SSL Auth
@@ -322,7 +323,7 @@ jobs:
           --features any,postgres,macros,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt
-          RUSTFLAGS: --cfg postgres="${{ matrix.postgres }}"
+          RUSTFLAGS: -D warnings --cfg postgres="${{ matrix.postgres }}"
 
   mysql:
     name: MySQL
@@ -330,7 +331,7 @@ jobs:
     strategy:
       matrix:
         mysql: [ 8 ]
-        runtime: [ async-std, tokio ]
+        runtime: [ async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     timeout-minutes: 30
@@ -431,7 +432,7 @@ jobs:
     strategy:
       matrix:
         mariadb: [ verylatest, 11_8, 11_4, 10_11, 10_6 ]
-        runtime: [ async-std, tokio ]
+        runtime: [ async-global-executor, smol, tokio ]
         tls: [ native-tls, rustls-aws-lc-rs, rustls-ring, none ]
     needs: check
     timeout-minutes: 30

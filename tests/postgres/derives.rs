@@ -818,7 +818,7 @@ async fn test_custom_pg_array() -> anyhow::Result<()> {
 
     impl PgHasArrayType for User {
         fn array_type_info() -> sqlx::postgres::PgTypeInfo {
-            sqlx::postgres::PgTypeInfo::array_of("Gebruiker")
+            sqlx::postgres::PgTypeInfo::array_of("User")
         }
     }
     Ok(())

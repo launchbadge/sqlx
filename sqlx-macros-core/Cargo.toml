@@ -12,7 +12,9 @@ rust-version.workspace = true
 default = []
 
 # for conditional compilation
+_rt-async-global-executor = ["async-global-executor", "sqlx-core/_rt-async-global-executor"]
 _rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
+_rt-smol = ["smol", "sqlx-core/_rt-smol"]
 _rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
 
 _tls-native-tls = ["sqlx-core/_tls-native-tls"]
@@ -57,9 +59,12 @@ sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = t
 sqlx-postgres = { workspace = true, features = ["offline", "migrate"], optional = true }
 sqlx-sqlite = { workspace = true, features = ["offline", "migrate"], optional = true }
 
+async-global-executor = { workspace = true, optional = true }
 async-std = { workspace = true, optional = true }
+smol = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
+cfg-if = { workspace = true}
 dotenvy = { workspace = true }
 
 hex = { version = "0.4.3" }
@@ -75,5 +80,4 @@ url = { version = "2.2.2" }
 
 [lints.rust.unexpected_cfgs]
 level = "warn"
-# 1.80 will warn without this
 check-cfg = ['cfg(sqlx_macros_unstable)', 'cfg(procmacro2_semver_exempt)']
