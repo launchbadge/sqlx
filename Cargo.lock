@@ -273,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "async-lock"
-version = "3.4.0"
+version = "3.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff6e472cdea888a4bd64f342f09b3f50e1886d32afe8df3d663c01140b811b18"
+checksum = "5fd03604047cee9b6ce9de9f70c6cd540a0520c813cbd49bae61f33ab80ed1dc"
 dependencies = [
  "event-listener 5.4.0",
  "event-listener-strategy",
@@ -1254,6 +1254,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
+name = "ease-off"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20e90ae5e739d99dc0406f9a4e2307a999625e2414d2ecc4fbb4ded8a3945f77"
+dependencies = [
+ "async-io",
+ "pin-project",
+ "rand",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1390,7 +1403,7 @@ checksum = "da0e4dd2a88388a1f4ccc7c9ce104604dab68d9f408dc34cd45823d5a9069095"
 dependencies = [
  "futures-core",
  "futures-sink",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2089,7 +2102,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -3472,6 +3485,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "spin"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591"
+dependencies = [
+ "lock_api",
+]
+
+[[package]]
 name = "spki"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3542,6 +3564,7 @@ dependencies = [
  "async-fs",
  "async-global-executor 3.1.0",
  "async-io",
+ "async-lock",
  "async-std",
  "async-task",
  "base64 0.22.1",
@@ -3553,10 +3576,10 @@ dependencies = [
  "chrono",
  "crc",
  "crossbeam-queue",
+ "ease-off",
  "either",
  "event-listener 5.4.0",
  "futures-core",
- "futures-intrusive",
  "futures-io",
  "futures-util",
  "hashbrown 0.15.4",
@@ -3564,11 +3587,13 @@ dependencies = [
  "indexmap 2.10.0",
  "ipnet",
  "ipnetwork",
+ "lock_api",
  "log",
  "mac_address",
  "memchr",
  "native-tls",
  "percent-encoding",
+ "pin-project-lite",
  "rust_decimal",
  "rustls",
  "rustls-native-certs",
@@ -3577,6 +3602,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "smol",
+ "spin 0.10.0",
  "sqlx",
  "thiserror 2.0.12",
  "time",
