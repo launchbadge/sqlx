@@ -5,9 +5,14 @@
 //! | Rust type                             | SQL type(s)                                          |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bool`                                | BOOLEAN                                              |
+//! | `i8`                                  | TINYINT                                              |
 //! | `i16`                                 | SMALLINT                                             |
 //! | `i32`                                 | INT                                                  |
 //! | `i64`                                 | BIGINT                                               |
+//! | `u8`                                  | UNSIGNED TINYINT                                     |
+//! | `u16`                                 | UNSIGNED SMALLINT                                    |
+//! | `u32`                                 | UNSIGNED INT                                         |
+//! | `u64`                                 | UNSIGNED BIGINT                                      |
 //! | `f32`                                 | FLOAT                                                |
 //! | `f64`                                 | DOUBLE                                               |
 //! | `&str`, [`String`]                    | VARCHAR, CHAR, TEXT                                  |
@@ -22,6 +27,7 @@ mod bool;
 mod float;
 mod int;
 mod str;
+mod uint;
 
 #[test]
 fn test_type_impls() {
@@ -40,9 +46,15 @@ fn test_type_impls() {
 
     has_type::<bool>();
 
+    has_type::<i8>();
     has_type::<i16>();
     has_type::<i32>();
     has_type::<i64>();
+
+    has_type::<u8>();
+    has_type::<u16>();
+    has_type::<u32>();
+    has_type::<u64>();
 
     has_type::<f32>();
     has_type::<f64>();

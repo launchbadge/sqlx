@@ -20,9 +20,14 @@ impl AnyTypeInfo {
 pub enum AnyTypeInfoKind {
     Null,
     Bool,
+    TinyInt,
     SmallInt,
     Integer,
     BigInt,
+    UnsignedTinyInt,
+    UnsignedSmallInt,
+    UnsignedInteger,
+    UnsignedBigInt,
     Real,
     Double,
     Text,
@@ -39,9 +44,14 @@ impl TypeInfo for AnyTypeInfo {
 
         match self.kind {
             Bool => "BOOLEAN",
+            TinyInt => "TINYINT",
             SmallInt => "SMALLINT",
             Integer => "INTEGER",
             BigInt => "BIGINT",
+            UnsignedTinyInt => "UNSIGNED TINYINT",
+            UnsignedSmallInt => "UNSIGNED SMALLINT",
+            UnsignedInteger => "UNSIGNED INTEGER",
+            UnsignedBigInt => "UNSIGNED BIGINT",
             Real => "REAL",
             Double => "DOUBLE",
             Text => "TEXT",
@@ -59,6 +69,16 @@ impl Display for AnyTypeInfo {
 
 impl AnyTypeInfoKind {
     pub fn is_integer(&self) -> bool {
-        matches!(self, SmallInt | Integer | BigInt)
+        matches!(
+            self,
+            TinyInt
+                | SmallInt
+                | Integer
+                | BigInt
+                | UnsignedTinyInt
+                | UnsignedSmallInt
+                | UnsignedInteger
+                | UnsignedBigInt
+        )
     }
 }

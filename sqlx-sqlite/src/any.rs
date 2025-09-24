@@ -214,9 +214,13 @@ fn map_arguments(args: AnyArguments) -> SqliteArguments {
         .map(|val| match val {
             AnyValueKind::Null(_) => SqliteArgumentValue::Null,
             AnyValueKind::Bool(b) => SqliteArgumentValue::Int(b as i32),
+            AnyValueKind::TinyInt(i) => SqliteArgumentValue::Int(i as i32),
             AnyValueKind::SmallInt(i) => SqliteArgumentValue::Int(i as i32),
             AnyValueKind::Integer(i) => SqliteArgumentValue::Int(i),
             AnyValueKind::BigInt(i) => SqliteArgumentValue::Int64(i),
+            AnyValueKind::UnsignedTinyInt(i) => SqliteArgumentValue::Int(i as i32),
+            AnyValueKind::UnsignedSmallInt(i) => SqliteArgumentValue::Int(i as i32),
+            AnyValueKind::UnsignedInteger(i) => SqliteArgumentValue::Int64(i as i64),
             AnyValueKind::Real(r) => SqliteArgumentValue::Double(r as f64),
             AnyValueKind::Double(d) => SqliteArgumentValue::Double(d),
             AnyValueKind::Text(t) => SqliteArgumentValue::Text(Arc::new(t.to_string())),
