@@ -48,13 +48,10 @@ use crate::types::Type;
 pub use value::AnyValueKind;
 
 /// Encode and decode support for JSON with the `Any` driver.
-///
-/// Exists because `where` bounds on `AnyArguments::convert_into` and `AnyValue::map_from` cannot be
-/// conditional on the `json` feature. Notice how this trait is always enabled, but its method aren't.
 #[doc(hidden)]
 pub trait AnyJson: crate::database::Database {
     #[cfg(feature = "json")]
-    fn add_json<'a, A>(
+    fn add_json<A>(
         args: &mut A,
         value: Box<serde_json::value::RawValue>,
     ) -> Result<(), crate::error::BoxDynError>
@@ -71,7 +68,6 @@ pub trait AnyJson: crate::database::Database {
 #[cfg(not(feature = "json"))]
 impl<DB: crate::database::Database> AnyJson for DB {}
 
-/// Full-featured impl
 #[cfg(feature = "json")]
 impl<DB> AnyJson for DB
 where

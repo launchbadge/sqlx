@@ -40,8 +40,8 @@ where
         match value.kind {
             #[cfg(feature = "json")]
             AnyValueKind::Json(raw) => Json::decode_from_string(raw.get()),
-            AnyValueKind::Text(text) => Json::decode_from_string(&text),
-            AnyValueKind::Blob(blob) => Json::decode_from_bytes(&blob),
+            AnyValueKind::Text(text) => Json::decode_from_string(text),
+            AnyValueKind::Blob(blob) => Json::decode_from_bytes(blob),
             other => other.unexpected(),
         }
     }
