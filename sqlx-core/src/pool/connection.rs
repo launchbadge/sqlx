@@ -11,6 +11,7 @@ use crate::error::Error;
 use super::inner::{is_beyond_max_lifetime, PoolInner};
 use crate::pool::connect::{ConnectPermit, ConnectionId};
 use crate::pool::options::PoolConnectionMetadata;
+use crate::pool::shard::ConnectedSlot;
 use crate::rt;
 
 const RETURN_TO_POOL_TIMEOUT: Duration = Duration::from_secs(5);
@@ -20,7 +21,7 @@ const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
 ///
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<DB: Database> {
-    live: Option<Live<DB>>,
+    live: Option<ConnectedSlot<Live<DB>>>,
     close_on_drop: bool,
     pub(crate) pool: Arc<PoolInner<DB>>,
 }
@@ -80,6 +81,14 @@ impl<DB: Database> AsMut<DB::Connection> for PoolConnection<DB> {
 }
 
 impl<DB: Database> PoolConnection<DB> {
+    pub(super) fn new(live: ConnectedSlot<Live<DB>>, pool: Arc<PoolInner<DB>>) -> Self {
+        Self {
+            live: Some(live),
+            close_on_drop: false,
+            pool,
+        }
+    }
+
     /// Close this connection, allowing the pool to open a replacement.
     ///
     /// Equivalent to calling [`.detach()`] then [`.close()`], but the connection permit is retained

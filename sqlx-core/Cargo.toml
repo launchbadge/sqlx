@@ -20,11 +20,12 @@ any = []
 json = ["serde", "serde_json"]
 
 # for conditional compilation
-_rt-async-global-executor = ["async-global-executor", "_rt-async-io", "_rt-async-task"]
-_rt-async-io = ["async-io", "async-fs"] # see note at async-fs declaration
-_rt-async-std = ["async-std", "_rt-async-io", "ease-off/async-io-2"]
+_rt-async-global-executor = ["async-global-executor", "_rt-async-io", "_rt-async-lock", "_rt-async-task"]
+_rt-async-io = ["async-io", "async-fs", "ease-off/async-io-2"] # see note at async-fs declaration
+_rt-async-lock = ["async-lock"]
+_rt-async-std = ["async-std", "_rt-async-io", "_rt-async-lock"]
 _rt-async-task = ["async-task"]
-_rt-smol = ["smol", "_rt-async-io", "_rt-async-task"]
+_rt-smol = ["smol", "_rt-async-io", "_rt-async-lock", "_rt-async-task"]
 _rt-tokio = ["tokio", "tokio-stream", "ease-off/tokio"]
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
@@ -69,6 +70,7 @@ mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 async-io = { version = "2.4.1", optional = true }
+async-lock = { version = "3.4.1", optional = true }
 async-task = { version = "4.7.1", optional = true }
 
 # work around bug in async-fs 2.0.0, which references futures-lite dependency wrongly, see https://github.com/launchbadge/sqlx/pull/3791#issuecomment-3043363281

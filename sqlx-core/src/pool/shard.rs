@@ -1,14 +1,14 @@
 use event_listener::{Event, IntoNotification};
+use spin::lock_api::Mutex;
 use std::future::Future;
 use std::num::NonZero;
+use std::ops::{Deref, DerefMut};
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use std::{array, iter};
-
-use spin::lock_api::Mutex;
 
 type ShardId = usize;
 type ConnectionIndex = usize;
@@ -17,7 +17,7 @@ type ConnectionIndex = usize;
 ///
 /// We want tasks to acquire from their local shards where possible, so they don't enter
 /// the global queue immediately.
-const GLOBAL_QUEUE_DELAY: Duration = Duration::from_millis(10);
+const GLOBAL_ACQUIRE_DELAY: Duration = Duration::from_millis(10);
 
 /// Delay before attempting to acquire from a non-local shard,
 /// as well as the backoff when iterating through shards.
@@ -31,18 +31,22 @@ pub struct Sharded<T> {
 type ArcShard<T> = Arc<Shard<T, [Arc<Mutex<Option<T>>>]>>;
 
 struct Global<T> {
-    unlock_event: Event<LockGuard<T>>,
-    disconnect_event: Event<LockGuard<T>>,
+    unlock_event: Event<SlotGuard<T>>,
+    disconnect_event: Event<SlotGuard<T>>,
 }
 
 type ArcMutexGuard<T> = lock_api::ArcMutexGuard<spin::Mutex<()>, Option<T>>;
 
-pub struct LockGuard<T> {
+struct SlotGuard<T> {
     // `Option` allows us to take the guard in the drop handler.
     locked: Option<ArcMutexGuard<T>>,
     shard: ArcShard<T>,
     index: ConnectionIndex,
 }
+
+pub struct ConnectedSlot<T>(SlotGuard<T>);
+
+pub struct DisconnectedSlot<T>(SlotGuard<T>);
 
 // Align to cache lines.
 // Simplified from https://docs.rs/crossbeam-utils/0.8.21/src/crossbeam_utils/cache_padded.rs.html#80
@@ -58,8 +62,8 @@ struct Shard<T, Ts: ?Sized> {
     locked_set: AtomicUsize,
     /// Bitset for all connection indexes that are currently connected.
     connected_set: AtomicUsize,
-    unlock_event: Event<LockGuard<T>>,
-    disconnect_event: Event<LockGuard<T>>,
+    unlock_event: Event<SlotGuard<T>>,
+    disconnect_event: Event<SlotGuard<T>>,
     global: Arc<Global<T>>,
     connections: Ts,
 }
@@ -93,7 +97,41 @@ impl<T> Sharded<T> {
         Sharded { shards, global }
     }
 
-    pub async fn acquire(&self, connected: bool) -> LockGuard<T> {
+    #[allow(clippy::cast_possible_truncation)] // This is only informational
+    pub fn count_unlocked(&self, connected: bool) -> usize {
+        self.shards
+            .iter()
+            .map(|shard| shard.unlocked_mask(connected).count_ones() as usize)
+            .sum()
+    }
+
+    pub async fn acquire_connected(&self) -> ConnectedSlot<T> {
+        let guard = self.acquire(true).await;
+
+        assert!(
+            guard.get().is_some(),
+            "BUG: expected slot {}/{} to be connected but it wasn't",
+            guard.shard.shard_id,
+            guard.index
+        );
+
+        ConnectedSlot(guard)
+    }
+
+    pub async fn acquire_disconnected(&self) -> DisconnectedSlot<T> {
+        let guard = self.acquire(true).await;
+
+        assert!(
+            guard.get().is_some(),
+            "BUG: expected slot {}/{} NOT to be connected but it WAS",
+            guard.shard.shard_id,
+            guard.index
+        );
+
+        DisconnectedSlot(guard)
+    }
+
+    async fn acquire(&self, connected: bool) -> SlotGuard<T> {
         if self.shards.len() == 1 {
             return self.shards[0].acquire(connected).await;
         }
@@ -118,7 +156,7 @@ impl<T> Sharded<T> {
         });
 
         let mut acquire_global = pin!(async {
-            crate::rt::sleep(GLOBAL_QUEUE_DELAY).await;
+            crate::rt::sleep(GLOBAL_ACQUIRE_DELAY).await;
 
             let event_to_listen = if connected {
                 &self.global.unlock_event
@@ -181,7 +219,21 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
         )
     }
 
-    async fn acquire(self: &Arc<Self>, connected: bool) -> LockGuard<T> {
+    #[inline]
+    fn unlocked_mask(&self, connected: bool) -> usize {
+        let locked_set = self.locked_set.load(Ordering::Acquire);
+        let connected_set = self.connected_set.load(Ordering::Relaxed);
+
+        let connected_mask = if connected {
+            connected_set
+        } else {
+            !connected_set
+        };
+
+        !locked_set & connected_mask
+    }
+
+    async fn acquire(self: &Arc<Self>, connected: bool) -> SlotGuard<T> {
         // Attempt an unfair acquire first, before we modify the waitlist.
         if let Some(locked) = self.try_acquire(connected) {
             return locked;
@@ -205,30 +257,21 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
         listener.await
     }
 
-    fn try_acquire(self: &Arc<Self>, connected: bool) -> Option<LockGuard<T>> {
-        let locked_set = self.locked_set.load(Ordering::Acquire);
-        let connected_set = self.connected_set.load(Ordering::Relaxed);
-
-        let connected_mask = if connected {
-            connected_set
-        } else {
-            !connected_set
-        };
-
+    fn try_acquire(self: &Arc<Self>, connected: bool) -> Option<SlotGuard<T>> {
         // Choose the first index that is unlocked with bit `connected`
-        let index = (!locked_set & connected_mask).leading_zeros() as usize;
+        let index = self.unlocked_mask(connected).leading_zeros() as usize;
 
         self.try_lock(index)
     }
 
-    fn try_lock(self: &Arc<Self>, index: ConnectionIndex) -> Option<LockGuard<T>> {
+    fn try_lock(self: &Arc<Self>, index: ConnectionIndex) -> Option<SlotGuard<T>> {
         let locked = self.connections[index].try_lock_arc()?;
 
         // The locking of the connection itself must use an `Acquire` fence,
         // so additional synchronization is unnecessary.
         atomic_set(&self.locked_set, index, true, Ordering::Relaxed);
 
-        Some(LockGuard {
+        Some(SlotGuard {
             locked: Some(locked),
             shard: self.clone(),
             index,
@@ -289,7 +332,60 @@ fn current_thread_id() -> usize {
     CURRENT_THREAD_ID.with(|i| *i)
 }
 
-impl<T> Drop for LockGuard<T> {
+impl<T> Deref for ConnectedSlot<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+            .get()
+            .as_ref()
+            .expect("BUG: expected slot to be populated, but it wasn't")
+    }
+}
+
+impl<T> DerefMut for ConnectedSlot<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+            .get_mut()
+            .as_mut()
+            .expect("BUG: expected slot to be populated, but it wasn't")
+    }
+}
+
+impl<T> ConnectedSlot<T> {
+    pub fn take(mut this: Self) -> (T, DisconnectedSlot<T>) {
+        let conn = this
+            .0
+            .get_mut()
+            .take()
+            .expect("BUG: expected slot to be populated, but it wasn't");
+
+        (conn, DisconnectedSlot(this.0))
+    }
+}
+
+impl<T> DisconnectedSlot<T> {
+    pub fn put(mut self, connection: T) -> ConnectedSlot<T> {
+        *self.0.get_mut() = Some(connection);
+        ConnectedSlot(self.0)
+    }
+}
+
+impl<T> SlotGuard<T> {
+    fn get(&self) -> &Option<T> {
+        self.locked
+            .as_deref()
+            .expect("BUG: `SlotGuard.locked` taken")
+    }
+
+    fn get_mut(&mut self) -> &mut Option<T> {
+        self.locked
+            .as_deref_mut()
+            .expect("BUG: `SlotGuard.locked` taken")
+    }
+}
+
+impl<T> Drop for SlotGuard<T> {
     fn drop(&mut self) {
         let Some(locked) = self.locked.take() else {
             return;
@@ -305,6 +401,7 @@ impl<T> Drop for LockGuard<T> {
             Ordering::Relaxed,
         );
 
+        // We don't actually unlock the connection unless there's no receivers to accept it.
         // If another receiver is waiting for a connection, we can directly pass them the lock.
         //
         // This prevents drive-by tasks from acquiring connections before waiting tasks
@@ -314,7 +411,6 @@ impl<T> Drop for LockGuard<T> {
         // the situation when a receiver was passed a connection that was still marked as locked,
         // but was cancelled before it could complete the acquisition. Otherwise, the connection
         // would be marked as locked forever, effectively being leaked.
-
         let mut locked = Some(locked);
 
         // This is a code smell, but it's necessary because `event-listener` has no way to specify
@@ -328,7 +424,7 @@ impl<T> Drop for LockGuard<T> {
                 .take()
                 .expect("BUG: notification sent more than once");
 
-            LockGuard {
+            SlotGuard {
                 locked: Some(locked),
                 shard: self.shard.clone(),
                 index: self.index,

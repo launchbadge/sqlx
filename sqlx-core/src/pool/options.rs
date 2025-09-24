@@ -74,7 +74,7 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) acquire_slow_level: LevelFilter,
     pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
-    pub(crate) connect_timeout: Duration,
+    pub(crate) connect_timeout: Option<Duration>,
     pub(crate) min_connections: usize,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
@@ -155,7 +155,7 @@ impl<DB: Database> PoolOptions<DB> {
             // to not flag typical time to add a new connection to a pool.
             acquire_slow_threshold: Duration::from_secs(2),
             acquire_timeout: Duration::from_secs(30),
-            connect_timeout: Duration::from_secs(2 * 60),
+            connect_timeout: None,
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
             fair: true,
@@ -323,15 +323,15 @@ impl<DB: Database> PoolOptions<DB> {
     /// This timeout happens independently of [`acquire_timeout`][Self::acquire_timeout].
     ///
     /// If shorter than `acquire_timeout`, this will cause the last connec
-    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
-        self.connect_timeout = timeout;
+    pub fn connect_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.connect_timeout = timeout.into();
         self
     }
 
     /// Get the maximum amount of time to spend attempting to open a connection.
     ///
     /// This timeout happens independently of [`acquire_timeout`][Self::acquire_timeout].
-    pub fn get_connect_timeout(&self) -> Duration {
+    pub fn get_connect_timeout(&self) -> Option<Duration> {
         self.connect_timeout
     }
 

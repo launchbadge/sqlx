@@ -11,8 +11,9 @@ use std::sync::Arc;
 use std::task::ready;
 
 use crate::logger::private_level_filter_to_trace_level;
-use crate::pool::connect::{ConnectPermit, ConnectionCounter, ConnectionId, DynConnector};
-use crate::pool::idle::IdleQueue;
+use crate::pool::connect::{
+    ConnectPermit, ConnectTask, ConnectionCounter, ConnectionId, DynConnector,
+};
 use crate::pool::shard::Sharded;
 use crate::rt::JoinHandle;
 use crate::{private_tracing_dynamic_event, rt};
@@ -25,8 +26,7 @@ use tracing::Level;
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connector: DynConnector<DB>,
     pub(super) counter: ConnectionCounter,
-    pub(super) sharded: Sharded<DB::Connection>,
-    pub(super) idle: IdleQueue<DB>,
+    pub(super) sharded: Sharded<Live<DB>>,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
@@ -43,7 +43,6 @@ impl<DB: Database> PoolInner<DB> {
             connector: DynConnector::new(connector),
             counter: ConnectionCounter::new(),
             sharded: Sharded::new(options.max_connections, options.shards),
-            idle: IdleQueue::new(options.fair, options.max_connections),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
             acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
@@ -63,7 +62,7 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn num_idle(&self) -> usize {
-        self.idle.len()
+        self.sharded.count_unlocked(true)
     }
 
     pub(super) fn is_closed(&self) -> bool {
@@ -243,6 +242,11 @@ impl<DB: Database> PoolInner<DB> {
         }
 
         Ok(acquired)
+    }
+
+    pub async fn start_connect(self: &Arc<Self>) -> ConnectTask<DB> {
+        let guard = self.sharded.acquire_disconnected().await;
+        self.connector.connect()
     }
 
     /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
