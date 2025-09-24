@@ -96,7 +96,6 @@ impl AnyRow {
         f64: Type<R::Database> + Decode<'a, R::Database>,
         String: Type<R::Database> + Decode<'a, R::Database>,
         Vec<u8>: Type<R::Database> + Decode<'a, R::Database>,
-        R::Database: AnyJson,
     {
         let mut row_out = AnyRow {
             column_names,

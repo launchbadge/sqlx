@@ -269,6 +269,6 @@ async fn it_encodes_decodes_json() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(result.0, test_data);
-  
+
     Ok(())
 }
