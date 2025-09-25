@@ -1,8 +1,6 @@
-#[cfg(procmacro2_semver_exempt)]
-use std::collections::HashSet;
+use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
 use std::env::VarError;
-use std::hash::{BuildHasherDefault, DefaultHasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::{fs, io};
@@ -113,15 +111,20 @@ impl Metadata {
     }
 }
 
-static METADATA: LazyLock<Mutex<HashMap<String, Metadata>>> = LazyLock::new(Default::default);
+static METADATA: LazyLock<Mutex<HashMap<PathBuf, Arc<Metadata>>>> = LazyLock::new(Default::default);
+static CRATE_ENV_FILE_VARS: LazyLock<Mutex<HashMap<PathBuf, HashMap<String, String>>>> =
+    LazyLock::new(Default::default);
+
+thread_local! {
+    static CURRENT_CRATE_MANIFEST_DIR: RefCell<PathBuf> = RefCell::new(PathBuf::new());
+}
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
-    let manifest_dir: PathBuf = manifest_dir.into();
+fn init_metadata(manifest_dir: &Path) -> crate::Result<Arc<Metadata>> {
     let config = Config::try_from_crate_or_default()?;
 
-    load_env(&manifest_dir, &config);
+    load_env(manifest_dir, &config);
 
     let offline = env("SQLX_OFFLINE")
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
@@ -131,40 +134,41 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
 
     let database_url = env(config.common.database_url_var()).ok();
 
-    Ok(Metadata {
-        manifest_dir,
+    Ok(Arc::new(Metadata {
+        manifest_dir: manifest_dir.to_path_buf(),
         offline,
         database_url,
         offline_dir,
         config,
         workspace_root: Arc::new(Mutex::new(None)),
-    })
+    }))
 }
 
 pub fn expand_input<'a>(
     input: QueryMacroInput,
     drivers: impl IntoIterator<Item = &'a QueryDriver>,
 ) -> crate::Result<TokenStream> {
-    let manifest_dir = env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+    // `CARGO_MANIFEST_DIR` can only be loaded from a real environment variable due to the filtering done
+    // by `load_env`, so the value of `CURRENT_CRATE_MANIFEST_DIR` does not matter here.
+    let manifest_dir =
+        PathBuf::from(env("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set"));
+    CURRENT_CRATE_MANIFEST_DIR.set(manifest_dir.clone());
 
-    let mut metadata_lock = METADATA
-        .lock()
-        // Just reset the metadata on error
-        .unwrap_or_else(|poison_err| {
-            let mut guard = poison_err.into_inner();
-            *guard = Default::default();
-            guard
-        });
+    let mut metadata_lock = METADATA.lock().unwrap();
 
     let metadata = match metadata_lock.entry(manifest_dir) {
-        hash_map::Entry::Occupied(occupied) => occupied.into_mut(),
+        hash_map::Entry::Occupied(occupied) => Arc::clone(&occupied.get()),
         hash_map::Entry::Vacant(vacant) => {
             let metadata = init_metadata(vacant.key())?;
-            vacant.insert(metadata)
+            vacant.insert(Arc::clone(&metadata));
+            metadata
         }
     };
 
-    let data_source = match &metadata {
+    // Release the lock now so other expansions in other threads of this process can proceed concurrently.
+    drop(metadata_lock);
+
+    let data_source = match &*metadata {
         Metadata {
             offline: false,
             database_url: Some(db_url),
@@ -182,7 +186,7 @@ pub fn expand_input<'a>(
             ];
             let Some(data_file_path) = dirs
                 .iter()
-                .filter_map(|path| path(metadata))
+                .filter_map(|path| path(&metadata))
                 .map(|path| path.join(&filename))
                 .find(|path| path.exists())
             else {
@@ -416,10 +420,11 @@ where
     Ok(ret_tokens)
 }
 
-static LOADED_ENV_VARS: Mutex<HashMap<String, String, BuildHasherDefault<DefaultHasher>>> =
-    Mutex::new(HashMap::with_hasher(BuildHasherDefault::new()));
-
-/// Get the value of an environment variable, telling the compiler about it if applicable.
+/// Get the value of an environment variable for the current crate, telling the compiler about it if applicable.
+///
+/// The current crate is determined by the `CURRENT_CRATE_MANIFEST_DIR` thread-local variable, which is assumed
+/// to be set to match the crate whose macro is being expanded before this function is called. It is also assumed
+/// that the expansion of this macro happens on a single thread.
 fn env(name: &str) -> Result<String, std::env::VarError> {
     #[cfg(procmacro2_semver_exempt)]
     let tracked_value = Some(proc_macro::tracked_env::var(name));
@@ -428,26 +433,37 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
 
     match tracked_value.map_or_else(|| std::env::var(name), |var| var) {
         Ok(v) => Ok(v),
-        Err(VarError::NotPresent) => LOADED_ENV_VARS
-            .lock()
-            .unwrap()
-            .get(name)
-            .cloned()
+        Err(VarError::NotPresent) => CURRENT_CRATE_MANIFEST_DIR
+            .with_borrow(|manifest_dir| {
+                CRATE_ENV_FILE_VARS
+                    .lock()
+                    .unwrap()
+                    .get(manifest_dir)
+                    .cloned()
+            })
+            .and_then(|env_file_vars| env_file_vars.get(name).cloned())
             .ok_or(VarError::NotPresent),
         Err(e) => Err(e),
     }
 }
 
-/// Load configuration environment variables from a `.env` file, without overriding existing
-/// environment variables. If applicable, the compiler is informed about the loaded env vars
-/// and the `.env` files they may come from.
+/// Load configuration environment variables from a `.env` file. If applicable, the compiler is
+/// about the `.env` files they may come from.
 fn load_env(manifest_dir: &Path, config: &Config) {
-    let loadable_vars = [
-        "DATABASE_URL",
-        "SQLX_OFFLINE",
-        "SQLX_OFFLINE_DIR",
-        config.common.database_url_var(),
-    ];
+    // A whitelist of environment variables to load from a `.env` file avoids
+    // such files overriding internal variables they should not (e.g., `CARGO`,
+    // `CARGO_MANIFEST_DIR`) when using the `env` function above.
+    let database_url_var = config.common.database_url_var();
+    let loadable_vars = if database_url_var == "DATABASE_URL" {
+        &["DATABASE_URL", "SQLX_OFFLINE", "SQLX_OFFLINE_DIR"][..]
+    } else {
+        &[
+            "DATABASE_URL",
+            "SQLX_OFFLINE",
+            "SQLX_OFFLINE_DIR",
+            database_url_var,
+        ]
+    };
 
     let (found_dotenv, candidate_dotenv_paths) = find_dotenv(manifest_dir);
 
@@ -461,26 +477,33 @@ fn load_env(manifest_dir: &Path, config: &Config) {
         }
     }
 
-    if let Some(dotenv_path) = found_dotenv
+    let loaded_vars = found_dotenv
         .then_some(candidate_dotenv_paths)
         .iter()
         .flatten()
         .last()
-    {
-        for dotenv_var_result in dotenvy::from_path_iter(dotenv_path)
-            .ok()
-            .into_iter()
-            .flatten()
-        {
-            let Ok((key, value)) = dotenv_var_result else {
-                continue;
-            };
+        .map(|dotenv_path| {
+            dotenvy::from_path_iter(dotenv_path)
+                .ok()
+                .into_iter()
+                .flatten()
+                .filter_map(|dotenv_var_result| match dotenv_var_result {
+                    Ok((key, value))
+                        if loadable_vars.contains(&&*key) && std::env::var(&key).is_err() =>
+                    {
+                        Some((key, value))
+                    }
+                    _ => None,
+                })
+        })
+        .into_iter()
+        .flatten()
+        .collect();
 
-            if loadable_vars.contains(&&*key) && std::env::var(&key).is_err() {
-                LOADED_ENV_VARS.lock().unwrap().insert(key, value);
-            }
-        }
-    }
+    CRATE_ENV_FILE_VARS
+        .lock()
+        .unwrap()
+        .insert(manifest_dir.to_path_buf(), loaded_vars);
 }
 
 fn find_dotenv(mut dir: &Path) -> (bool, Vec<PathBuf>) {
