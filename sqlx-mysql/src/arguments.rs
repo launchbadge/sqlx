@@ -42,6 +42,7 @@ impl Arguments for MySqlArguments {
 
     fn reserve(&mut self, len: usize, size: usize) {
         self.types.reserve(len);
+        self.null_bitmap.reserve(len);
         self.values.reserve(size);
     }
 
@@ -74,6 +75,10 @@ impl NullBitMap {
 
         self.bytes[byte_index] |= u8::from(is_null.is_null()) << bit_offset;
         self.length += 1;
+    }
+
+    fn reserve(&mut self, len: usize) {
+        self.bytes.reserve(len / (u8::BITS as usize) + 1);
     }
 }
 
