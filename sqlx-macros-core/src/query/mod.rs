@@ -157,7 +157,7 @@ pub fn expand_input<'a>(
     let mut metadata_lock = METADATA.lock().unwrap();
 
     let metadata = match metadata_lock.entry(manifest_dir) {
-        hash_map::Entry::Occupied(occupied) => Arc::clone(&occupied.get()),
+        hash_map::Entry::Occupied(occupied) => Arc::clone(occupied.get()),
         hash_map::Entry::Vacant(vacant) => {
             let metadata = init_metadata(vacant.key())?;
             vacant.insert(Arc::clone(&metadata));
