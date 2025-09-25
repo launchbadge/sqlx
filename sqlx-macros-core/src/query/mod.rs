@@ -129,9 +129,7 @@ fn init_metadata(manifest_dir: &String) -> crate::Result<Metadata> {
 
     let offline_dir = env("SQLX_OFFLINE_DIR").ok();
 
-    let database_url = env(config.common.database_url_var())
-        .ok()
-        .or_else(|| env("DATABASE_URL").ok());
+    let database_url = env(config.common.database_url_var()).ok();
 
     Ok(Metadata {
         manifest_dir,
