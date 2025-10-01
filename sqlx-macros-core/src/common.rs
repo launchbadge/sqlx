@@ -2,6 +2,7 @@ use proc_macro2::Span;
 use std::env;
 use std::path::{Path, PathBuf};
 
+#[allow(dead_code)]
 pub(crate) fn resolve_path(path: impl AsRef<Path>, err_span: Span) -> syn::Result<PathBuf> {
     let path = path.as_ref();
 
