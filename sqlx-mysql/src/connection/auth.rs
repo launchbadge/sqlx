@@ -2,6 +2,8 @@ use bytes::buf::Chain;
 use bytes::Bytes;
 use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
+use rand::thread_rng;
+use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
@@ -9,9 +11,6 @@ use crate::connection::stream::MySqlStream;
 use crate::error::Error;
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::Packet;
-
-// Note: This module uses password hashing and authentication that should ideally
-// be used over TLS connections for security. Consider enabling TLS in production.
 
 impl AuthPlugin {
     pub(super) async fn scramble(
@@ -134,7 +133,7 @@ async fn encrypt_rsa<'s>(
     stream: &'s mut MySqlStream,
     public_key_request_id: u8,
     password: &'s str,
-    _nonce: &'s Chain<Bytes, Bytes>,
+    nonce: &'s Chain<Bytes, Bytes>,
 ) -> Result<Vec<u8>, Error> {
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
@@ -143,17 +142,29 @@ async fn encrypt_rsa<'s>(
         return Ok(to_asciz(password));
     }
 
-    // Note: For security, it's strongly recommended to use TLS for MySQL connections.
-    // Non-TLS authentication sends passwords in cleartext which is insecure.
-    // Consider adding '?ssl-mode=required' to your connection string in production.
-
-    // Fallback to cleartext password for non-TLS connections
-    // This maintains backward compatibility but should only be used in development
+    // client sends a public key request
     stream.write_packet(&[public_key_request_id][..])?;
     stream.flush().await?;
 
-    // Send cleartext password (null-terminated)
-    Ok(to_asciz(password))
+    // server sends a public key response
+    let packet = stream.recv_packet().await?;
+    let rsa_pub_key = &packet[1..];
+
+    // xor the password with the given nonce
+    let mut pass = to_asciz(password);
+
+    let (a, b) = (nonce.first_ref(), nonce.last_ref());
+    let mut nonce = Vec::with_capacity(a.len() + b.len());
+    nonce.extend_from_slice(a);
+    nonce.extend_from_slice(b);
+
+    xor_eq(&mut pass, &nonce);
+
+    // client sends an RSA encrypted password
+    let pkey = parse_rsa_pub_key(rsa_pub_key)?;
+    let padding = Oaep::new::<sha1::Sha1>();
+    pkey.encrypt(&mut thread_rng(), padding, &pass[..])
+        .map_err(Error::protocol)
 }
 
 // XOR(x, y)
@@ -172,4 +183,15 @@ fn to_asciz(s: &str) -> Vec<u8> {
     z.push('\0');
 
     z.into_bytes()
+}
+
+// https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
+fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
+    let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
+
+    // This takes advantage of the knowledge that we know
+    // we are receiving a PKCS#8 RSA Public Key at all
+    // times from MySQL
+
+    RsaPublicKey::from_public_key_pem(pem).map_err(Error::protocol)
 }
