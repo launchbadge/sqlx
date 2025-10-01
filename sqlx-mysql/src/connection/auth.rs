@@ -146,7 +146,7 @@ async fn encrypt_rsa<'s>(
     // Note: For security, it's strongly recommended to use TLS for MySQL connections.
     // Non-TLS authentication sends passwords in cleartext which is insecure.
     // Consider adding '?ssl-mode=required' to your connection string in production.
-    
+
     // Fallback to cleartext password for non-TLS connections
     // This maintains backward compatibility but should only be used in development
     stream.write_packet(&[public_key_request_id][..])?;
