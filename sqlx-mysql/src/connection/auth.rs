@@ -143,15 +143,12 @@ async fn encrypt_rsa<'s>(
         return Ok(to_asciz(password));
     }
 
-    // Note: For security, it's recommended to use TLS for MySQL connections.
-    // Non-TLS authentication falls back to cleartext which is insecure.
-    // Consider adding '?ssl-mode=required' to your connection string.
-    tracing::warn!(
-        "MySQL authentication without TLS is insecure. Consider enabling TLS with '?ssl-mode=required'"
-    );
-
+    // Note: For security, it's strongly recommended to use TLS for MySQL connections.
+    // Non-TLS authentication sends passwords in cleartext which is insecure.
+    // Consider adding '?ssl-mode=required' to your connection string in production.
+    
     // Fallback to cleartext password for non-TLS connections
-    // This maintains backward compatibility but is not secure
+    // This maintains backward compatibility but should only be used in development
     stream.write_packet(&[public_key_request_id][..])?;
     stream.flush().await?;
 
