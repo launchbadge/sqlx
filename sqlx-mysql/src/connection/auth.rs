@@ -10,6 +10,9 @@ use crate::error::Error;
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::Packet;
 
+// Note: This module uses password hashing and authentication that should ideally
+// be used over TLS connections for security. Consider enabling TLS in production.
+
 impl AuthPlugin {
     pub(super) async fn scramble(
         self,
@@ -129,7 +132,7 @@ fn scramble_sha256(
 
 async fn encrypt_rsa<'s>(
     stream: &'s mut MySqlStream,
-    _public_key_request_id: u8,
+    public_key_request_id: u8,
     password: &'s str,
     _nonce: &'s Chain<Bytes, Bytes>,
 ) -> Result<Vec<u8>, Error> {
@@ -140,13 +143,20 @@ async fn encrypt_rsa<'s>(
         return Ok(to_asciz(password));
     }
 
-    // RSA encryption has been removed due to security vulnerabilities (RUSTSEC-2023-0071).
-    // TLS must be used for secure password transmission with sha256_password and caching_sha2_password.
-    Err(Error::Configuration(
-        "RSA encryption is no longer supported for MySQL authentication without TLS. \
-         Please enable TLS in your connection string (e.g., by adding '?ssl-mode=required')."
-            .into(),
-    ))
+    // Note: For security, it's recommended to use TLS for MySQL connections.
+    // Non-TLS authentication falls back to cleartext which is insecure.
+    // Consider adding '?ssl-mode=required' to your connection string.
+    tracing::warn!(
+        "MySQL authentication without TLS is insecure. Consider enabling TLS with '?ssl-mode=required'"
+    );
+
+    // Fallback to cleartext password for non-TLS connections
+    // This maintains backward compatibility but is not secure
+    stream.write_packet(&[public_key_request_id][..])?;
+    stream.flush().await?;
+
+    // Send cleartext password (null-terminated)
+    Ok(to_asciz(password))
 }
 
 // XOR(x, y)

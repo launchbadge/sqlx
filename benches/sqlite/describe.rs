@@ -2,8 +2,8 @@ use criterion::BenchmarkId;
 use criterion::Criterion;
 use criterion::{criterion_group, criterion_main};
 
-use sqlx::sqlite::{Sqlite, SqliteConnection};
 use sqlx::sql_str::AssertSqlSafe;
+use sqlx::sqlite::{Sqlite, SqliteConnection};
 use sqlx::Executor;
 use sqlx_test::new;
 
