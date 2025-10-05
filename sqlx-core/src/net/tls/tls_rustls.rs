@@ -19,7 +19,7 @@ use rustls::{
 use crate::error::Error;
 use crate::io::ReadBuf;
 use crate::net::tls::util::StdSocket;
-use crate::net::tls::TlsConfig;
+use crate::net::tls::{RawTlsConfig, TlsConfig};
 use crate::net::Socket;
 
 pub struct RustlsSocket<S: Socket> {
@@ -87,100 +87,135 @@ impl<S: Socket> Socket for RustlsSocket<S> {
     }
 }
 
-pub async fn handshake<S>(socket: S, tls_config: TlsConfig<'_>) -> Result<RustlsSocket<S>, Error>
-where
-    S: Socket,
-{
-    #[cfg(all(
-        feature = "_tls-rustls-aws-lc-rs",
-        not(feature = "_tls-rustls-ring-webpki"),
-        not(feature = "_tls-rustls-ring-native-roots")
-    ))]
-    let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    #[cfg(any(
-        feature = "_tls-rustls-ring-webpki",
-        feature = "_tls-rustls-ring-native-roots"
-    ))]
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
+impl TlsConfig<'_> {
+    async fn rustls_config(&self) -> crate::Result<(rustls::ClientConfig, &str), Error> {
+        let RawTlsConfig {
+            accept_invalid_certs,
+            accept_invalid_hostnames,
+            hostname,
+            root_cert,
+            client_cert,
+            client_key,
+        } = match self {
+            TlsConfig::RawTlsConfig(raw) => raw,
+            TlsConfig::PrebuiltRustls { config, hostname } => {
+                return Ok(((*config).to_owned(), hostname));
+            }
+        };
 
-    // Unwrapping is safe here because we use a default provider.
-    let config = ClientConfig::builder_with_provider(provider.clone())
+        #[cfg(all(
+            feature = "_tls-rustls-aws-lc-rs",
+            not(feature = "_tls-rustls-ring-webpki"),
+            not(feature = "_tls-rustls-ring-native-roots")
+        ))]
+        let config = ClientConfig::builder_with_provider(Arc::new(
+            rustls::crypto::aws_lc_rs::default_provider(),
+        ))
         .with_safe_default_protocol_versions()
         .unwrap();
+        #[cfg(any(
+            feature = "_tls-rustls-ring-webpki",
+            feature = "_tls-rustls-ring-native-roots"
+        ))]
+        let config =
+            ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+                .with_safe_default_protocol_versions()
+                .unwrap();
+        #[cfg(all(
+            not(feature = "_tls-rustls-aws-lc-rs"),
+            not(feature = "_tls-rustls-ring-webpki"),
+            not(feature = "_tls-rustls-ring-native-roots")
+        ))]
+        let config = ClientConfig::builder();
 
-    // authentication using user's key and its associated certificate
-    let user_auth = match (tls_config.client_cert_path, tls_config.client_key_path) {
-        (Some(cert_path), Some(key_path)) => {
-            let cert_chain = certs_from_pem(cert_path.data().await?)?;
-            let key_der = private_key_from_pem(key_path.data().await?)?;
-            Some((cert_chain, key_der))
-        }
-        (None, None) => None,
-        (_, _) => {
-            return Err(Error::Configuration(
-                "user auth key and certs must be given together".into(),
-            ))
-        }
-    };
-
-    let config = if tls_config.accept_invalid_certs {
-        if let Some(user_auth) = user_auth {
-            config
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier { provider }))
-                .with_client_auth_cert(user_auth.0, user_auth.1)
-                .map_err(Error::tls)?
-        } else {
-            config
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier { provider }))
-                .with_no_client_auth()
-        }
-    } else {
-        let mut cert_store = import_root_certs();
-
-        if let Some(ca) = tls_config.root_cert_path {
-            let data = ca.data().await?;
-
-            for result in CertificateDer::pem_slice_iter(&data) {
-                let Ok(cert) = result else {
-                    return Err(Error::Tls(format!("Invalid certificate {ca}").into()));
-                };
-
-                cert_store.add(cert).map_err(|err| Error::Tls(err.into()))?;
+        // authentication using user's key and its associated certificate
+        let user_auth = match (client_cert, client_key) {
+            (Some(cert), Some(key)) => {
+                let cert_chain = certs_from_pem(cert.data().await?)?;
+                let key_der = private_key_from_pem(key.data().await?)?;
+                Some((cert_chain, key_der))
             }
-        }
+            (None, None) => None,
+            (_, _) => {
+                return Err(Error::Configuration(
+                    "user auth key and certs must be given together".into(),
+                ))
+            }
+        };
 
-        if tls_config.accept_invalid_hostnames {
-            let verifier = WebPkiServerVerifier::builder(Arc::new(cert_store))
-                .build()
-                .map_err(|err| Error::Tls(err.into()))?;
+        let provider = config.crypto_provider().clone();
 
+        let config = if *accept_invalid_certs {
             if let Some(user_auth) = user_auth {
                 config
                     .dangerous()
-                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier { provider }))
                     .with_client_auth_cert(user_auth.0, user_auth.1)
                     .map_err(Error::tls)?
             } else {
                 config
                     .dangerous()
-                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_custom_certificate_verifier(Arc::new(DummyTlsVerifier { provider }))
                     .with_no_client_auth()
             }
-        } else if let Some(user_auth) = user_auth {
-            config
-                .with_root_certificates(cert_store)
-                .with_client_auth_cert(user_auth.0, user_auth.1)
-                .map_err(Error::tls)?
         } else {
-            config
-                .with_root_certificates(cert_store)
-                .with_no_client_auth()
-        }
-    };
+            let mut cert_store = import_root_certs();
 
-    let host = ServerName::try_from(tls_config.hostname.to_owned()).map_err(Error::tls)?;
+            if let Some(ca) = root_cert {
+                let data = ca.data().await?;
+
+                for result in CertificateDer::pem_slice_iter(&data) {
+                    let Ok(cert) = result else {
+                        return Err(Error::Tls(format!("Invalid certificate {ca}").into()));
+                    };
+
+                    cert_store.add(cert).map_err(|err| Error::Tls(err.into()))?;
+                }
+            }
+
+            if *accept_invalid_hostnames {
+                let verifier = WebPkiServerVerifier::builder(Arc::new(cert_store))
+                    .build()
+                    .map_err(|err| Error::Tls(err.into()))?;
+
+                if let Some(user_auth) = user_auth {
+                    config
+                        .dangerous()
+                        .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier {
+                            verifier,
+                        }))
+                        .with_client_auth_cert(user_auth.0, user_auth.1)
+                        .map_err(Error::tls)?
+                } else {
+                    config
+                        .dangerous()
+                        .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier {
+                            verifier,
+                        }))
+                        .with_no_client_auth()
+                }
+            } else if let Some(user_auth) = user_auth {
+                config
+                    .with_root_certificates(cert_store)
+                    .with_client_auth_cert(user_auth.0, user_auth.1)
+                    .map_err(Error::tls)?
+            } else {
+                config
+                    .with_root_certificates(cert_store)
+                    .with_no_client_auth()
+            }
+        };
+
+        Ok((config, hostname))
+    }
+}
+
+pub async fn handshake<S>(socket: S, tls_config: TlsConfig<'_>) -> Result<RustlsSocket<S>, Error>
+where
+    S: Socket,
+{
+    let (config, hostname) = tls_config.rustls_config().await?;
+    let host = ServerName::try_from(hostname.to_owned()).map_err(Error::tls)?;
 
     let mut socket = RustlsSocket {
         inner: StdSocket::new(socket),

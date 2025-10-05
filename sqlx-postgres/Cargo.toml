@@ -14,6 +14,7 @@ any = ["sqlx-core/any"]
 json = ["sqlx-core/json"]
 migrate = ["sqlx-core/migrate"]
 offline = ["sqlx-core/offline"]
+rustls = ["dep:rustls", "sqlx-core/_tls-rustls"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "dep:num-bigint", "sqlx-core/bigdecimal"]
@@ -27,6 +28,9 @@ time = ["dep:time", "sqlx-core/time"]
 uuid = ["dep:uuid", "sqlx-core/uuid"]
 
 [dependencies]
+# TLS
+rustls = { version = "0.23.24", default-features = false, features = ["std", "tls12"], optional = true }
+
 # Futures crates
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.19", default-features = false }

@@ -57,13 +57,25 @@ impl std::fmt::Display for CertificateInput {
     }
 }
 
-pub struct TlsConfig<'a> {
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum TlsConfig<'a> {
+    RawTlsConfig(RawTlsConfig<'a>),
+    #[cfg(feature = "_tls-rustls")]
+    PrebuiltRustls {
+        config: &'a rustls::ClientConfig,
+        hostname: &'a str,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct RawTlsConfig<'a> {
     pub accept_invalid_certs: bool,
     pub accept_invalid_hostnames: bool,
     pub hostname: &'a str,
-    pub root_cert_path: Option<&'a CertificateInput>,
-    pub client_cert_path: Option<&'a CertificateInput>,
-    pub client_key_path: Option<&'a CertificateInput>,
+    pub root_cert: Option<&'a CertificateInput>,
+    pub client_cert: Option<&'a CertificateInput>,
+    pub client_key: Option<&'a CertificateInput>,
 }
 
 pub async fn handshake<S, Ws>(
