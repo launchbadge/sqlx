@@ -190,6 +190,7 @@ uuid = "1.1.2"
 # Common utility crates
 cfg-if = "1.0.0"
 dotenvy = { version = "0.15.0", default-features = false }
+thiserror = { version = "2.0.17", default-features = false, features = ["std"] }
 
 # Runtimes
 [workspace.dependencies.async-global-executor]

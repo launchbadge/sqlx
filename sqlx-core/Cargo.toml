@@ -62,6 +62,7 @@ rustls-native-certs = { version = "0.8.0", optional = true }
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
 bigdecimal = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 ipnet = { workspace = true, optional = true }
@@ -69,15 +70,14 @@ ipnetwork = { workspace = true, optional = true }
 mac_address = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
+# work around bug in async-fs 2.0.0, which references futures-lite dependency wrongly, see https://github.com/launchbadge/sqlx/pull/3791#issuecomment-3043363281
+async-fs = { version = "2.1", optional = true }
 async-io = { version = "2.4.1", optional = true }
 async-task = { version = "4.7.1", optional = true }
 
-# work around bug in async-fs 2.0.0, which references futures-lite dependency wrongly, see https://github.com/launchbadge/sqlx/pull/3791#issuecomment-3043363281
-async-fs = { version = "2.1", optional = true }
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 cfg-if = { workspace = true }
-chrono = { version = "0.4.34", default-features = false, features = ["clock"], optional = true }
 crc = { version = "3", optional = true }
 crossbeam-queue = "0.3.2"
 either = "1.6.1"
@@ -93,7 +93,6 @@ serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
 toml = { version = "0.8.16", optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 #sqlformat = "0.2.0"
-thiserror = "2.0.0"
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
@@ -102,7 +101,9 @@ bstr = { version = "1.0", default-features = false, features = ["std"], optional
 hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
-hashbrown = "0.15.0"
+hashbrown = "0.16.0"
+
+thiserror.workspace = true
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
