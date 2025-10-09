@@ -113,8 +113,15 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
     let resolve_config = config.migrate.to_resolve_config();
 
     // Use the same code path to resolve migrations at compile time and runtime.
-    let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path, &resolve_config)?
-        .into_iter()
+#[cfg(not(target_arch = "wasm32"))]
+    let migrations = sqlx_core::migrate::resolve_blocking_with_config(&path,&resolve_config)?;
+    #[cfg(target_arch = "wasm32")]
+    let migrations = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap()
+        .block_on(async { sqlx_core::migrate::resolve(&path).await })?;
+    let migrations = migrations
+    .into_iter()
         .map(|(migration, path)| QuoteMigration { migration, path });
 
     let table_name = config.migrate.table_name();

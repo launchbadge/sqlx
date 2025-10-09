@@ -103,6 +103,8 @@ hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
 hashbrown = "0.15.0"
+wasip3 = { workspace = true}
+wit-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }

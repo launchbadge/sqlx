@@ -64,7 +64,7 @@ where
             async_std::task::block_on(f)
         } else if #[cfg(feature = "_rt-smol")] {
             sqlx_core::rt::test_block_on(f)
-        } else if #[cfg(feature = "_rt-tokio")] {
+        } else if #[cfg(any(feature = "_rt-tokio",target_arch="wasm32"))] {
             use std::sync::LazyLock;
 
             use tokio::runtime::{self, Runtime};
@@ -80,6 +80,7 @@ where
 
             TOKIO_RT.block_on(f)
         } else {
+            #[cfg(not(any(feature = "_rt-async-std", feature = "tokio", target_arch = "wasm32")))]
             sqlx_core::rt::missing_rt(f)
         }
     }

@@ -186,7 +186,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
     port: u16,
     with_socket: Ws,
 ) -> crate::Result<Ws::Output> {
-    #[cfg(feature = "_rt-tokio")]
+    #[cfg(all(feature = "_rt-tokio", not(target_arch = "wasm32")))]    
     if crate::rt::rt_tokio::available() {
         return Ok(with_socket
             .with_socket(tokio::net::TcpStream::connect((host, port)).await?)
@@ -200,6 +200,13 @@ pub async fn connect_tcp<Ws: WithSocket>(
             crate::rt::missing_rt((host, port, with_socket))
         }
     }
+
+    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
+    {
+        let res = crate::rt::rt_wasip3::connect_tcp(host, port, with_socket).await;
+        return res;
+    }
+
 }
 
 /// Open a TCP socket to `host` and `port`.
@@ -258,6 +265,10 @@ pub async fn connect_uds<P: AsRef<Path>, Ws: WithSocket>(
 ) -> crate::Result<Ws::Output> {
     #[cfg(unix)]
     {
+        #[cfg(target_arch = "wasm32")]
+        {
+            todo!("outer socket impl")
+        }
         #[cfg(feature = "_rt-tokio")]
         if crate::rt::rt_tokio::available() {
             use tokio::net::UnixStream;

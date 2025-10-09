@@ -190,6 +190,8 @@ uuid = "1.1.2"
 # Common utility crates
 cfg-if = "1.0.0"
 dotenvy = { version = "0.15.0", default-features = false }
+wasip3 ={ version = "0.2.0" ,default-features = false }
+wit-bindgen = { version = "0.46", default-features = false }
 
 # Runtimes
 [workspace.dependencies.async-global-executor]

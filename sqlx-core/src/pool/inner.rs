@@ -347,7 +347,8 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match crate::rt::timeout(timeout, connect_options.connect()).await {
+            let res = crate::rt::timeout(timeout, connect_options.connect()).await;
+            match res {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
                     // See comment on `PoolOptions::after_connect`

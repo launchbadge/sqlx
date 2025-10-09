@@ -6,7 +6,6 @@ use futures_core::future::BoxFuture;
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -43,13 +42,20 @@ impl MigrationSource<'static> for PathBuf {
         // `spawn_blocking()` on the current thread
         Box::pin(async move {
             crate::rt::spawn_blocking(move || {
+                #[cfg(not(target_arch = "wasm32"))]
                 let migrations_with_paths = resolve_blocking(&self)?;
-
+                #[cfg(target_arch = "wasm32")]
+                let migrations_with_paths = resolve(&canonical).await?;
                 Ok(migrations_with_paths.into_iter().map(|(m, _p)| m).collect())
             })
             .await
         })
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn resolve(path: &Path) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
+    todo!();
 }
 
 /// A [`MigrationSource`] implementation with configurable resolution.
@@ -148,6 +154,7 @@ impl ResolveConfig {
 // FIXME: paths should just be part of `Migration` but we can't add a field backwards compatibly
 // since it's `#[non_exhaustive]`.
 #[doc(hidden)]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn resolve_blocking(path: &Path) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
     resolve_blocking_with_config(path, &ResolveConfig::new())
 }
@@ -161,7 +168,7 @@ pub fn resolve_blocking_with_config(
         message: format!("error canonicalizing path {}", path.display()),
         source: Some(e),
     })?;
-
+    use std::fs;
     let s = fs::read_dir(&path).map_err(|e| ResolveError {
         message: format!("error reading migration directory {}", path.display()),
         source: Some(e),
