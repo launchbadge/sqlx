@@ -107,6 +107,7 @@ hashbrown = "0.15.0"
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
+tempfile = "3.10.1"
 
 [lints]
 workspace = true

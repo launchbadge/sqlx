@@ -331,32 +331,31 @@ mod recursive_tests {
     use std::fs;
 
     #[test]
-    fn non_recursive_ignores_subdirs() -> anyhow::Result<()> {
-        let tmp = tempfile::tempdir()?;
+    fn non_recursive_ignores_subdirs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path();
         // top-level migration
-        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n")?;
+        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n").expect("write top");
         // subdir migration
         let sub = root.join("nested");
-        fs::create_dir(&sub)?;
-        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n")?;
+        fs::create_dir(&sub).expect("create nested");
+        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n").expect("write sub");
 
         let cfg = ResolveConfig::new();
         let got = resolve_blocking_with_config(root, &cfg).expect("resolve ok");
         // should only see the top-level one
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].0.version, 1);
-        Ok(())
     }
 
     #[test]
-    fn recursive_finds_subdirs() -> anyhow::Result<()> {
-        let tmp = tempfile::tempdir()?;
+    fn recursive_finds_subdirs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path();
-        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n")?;
+        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n").expect("write top");
         let sub = root.join("nested");
-        fs::create_dir(&sub)?;
-        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n")?;
+        fs::create_dir(&sub).expect("create nested");
+        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n").expect("write sub");
 
         let mut cfg = ResolveConfig::new();
         cfg.set_recursive(true);
@@ -365,6 +364,5 @@ mod recursive_tests {
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].0.version, 1);
         assert_eq!(got[1].0.version, 2);
-        Ok(())
     }
 }

@@ -3578,6 +3578,7 @@ dependencies = [
  "smallvec",
  "smol",
  "sqlx",
+ "tempfile",
  "thiserror 2.0.12",
  "time",
  "tokio",
