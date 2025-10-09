@@ -324,3 +324,47 @@ fn checksum_with_ignored_chars() {
 
     assert_eq!(digest_ignored, digest_stripped);
 }
+
+#[cfg(test)]
+mod recursive_tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn non_recursive_ignores_subdirs() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+        // top-level migration
+        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n")?;
+        // subdir migration
+        let sub = root.join("nested");
+        fs::create_dir(&sub)?;
+        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n")?;
+
+        let cfg = ResolveConfig::new();
+        let got = resolve_blocking_with_config(root, &cfg).expect("resolve ok");
+        // should only see the top-level one
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].0.version, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn recursive_finds_subdirs() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+        fs::write(root.join("1_top.sql"), "-- top\nSELECT 1;\n")?;
+        let sub = root.join("nested");
+        fs::create_dir(&sub)?;
+        fs::write(sub.join("2_sub.sql"), "-- sub\nSELECT 2;\n")?;
+
+        let mut cfg = ResolveConfig::new();
+        cfg.set_recursive(true);
+        let got = resolve_blocking_with_config(root, &cfg).expect("resolve ok");
+        // should see both, sorted by version
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].0.version, 1);
+        assert_eq!(got[1].0.version, 2);
+        Ok(())
+    }
+}
