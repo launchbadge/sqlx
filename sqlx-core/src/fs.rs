@@ -50,7 +50,7 @@ pub async fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let path = PathBuf::from(path.as_ref());
     #[cfg(not(target_arch = "wasm32"))]
     {
-    rt::spawn_blocking(move || std::fs::create_dir_all(path)).await
+        rt::spawn_blocking(move || std::fs::create_dir_all(path)).await
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -103,7 +103,6 @@ pub async fn read_dir(path: PathBuf) -> io::Result<ReadDir> {
     })
 }
 
-
 #[cfg(target_arch = "wasm32")]
 pub async fn read_dir(path: PathBuf) -> io::Result<ReadDir> {
     todo!()
@@ -144,8 +143,6 @@ impl ReadDir {
             } else {
                 Ok(None)
             }
-
-
         }
         #[cfg(target_arch = "wasm32")]
         todo!()

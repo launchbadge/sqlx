@@ -17,6 +17,5 @@ pub use source::{MigrationSource, ResolveConfig, ResolveWith};
 #[doc(hidden)]
 pub use source::resolve;
 #[cfg(not(target_arch = "wasm32"))]
-
 #[doc(hidden)]
 pub use source::{resolve_blocking, resolve_blocking_with_config};

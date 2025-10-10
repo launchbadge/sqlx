@@ -2,12 +2,11 @@ use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
+use crate::net::WithSocket;
 use bytes::{Buf, BytesMut};
 use wasip3::sockets::types::{IpAddressFamily, IpSocketAddress, TcpSocket as WasiTcpSocket};
-use wasip3::wit_stream;
 use wasip3::wit_bindgen::StreamResult;
-
-use crate::net::WithSocket;
+use wasip3::wit_stream;
 
 mod socket;
 
@@ -28,14 +27,12 @@ impl<T> Future for JoinHandle<T> {
 pub fn spawn<T: 'static + Send>(fut: impl Future<Output = T> + Send + 'static) -> JoinHandle<T> {
     JoinHandle {
         future: Box::pin(async move {
-            // Yield to allow other tasks to run cooperatively
-            wasip3::wit_bindgen::yield_async().await;            
+            wasip3::wit_bindgen::yield_async().await;
             fut.await
         }),
     }
 }
 
-// CPU-intensive operations using wit_bindgen's yield_blocking
 pub fn spawn_blocking<F, R>(f: F) -> impl Future<Output = R>
 where
     F: FnOnce() -> R + Send + 'static,
@@ -48,15 +45,23 @@ where
     }
 }
 
-// Native async yielding
+// Cooperative yielding for WASI P3
 pub async fn yield_now() {
-    wasip3::wit_bindgen::yield_async().await
+    wasip3::wit_bindgen::yield_async().await;
 }
 
 // Modern WASI P3 TcpSocket using wit_stream for async I/O
 pub struct TcpSocket {
     wasi_socket: WasiTcpSocket,
     read_buffer: BytesMut,
+    // Active read operation using WASI's waitable system
+    read_operation: Option<Pin<Box<dyn std::future::Future<Output = std::io::Result<Vec<u8>>> + Send + Sync>>>,
+    // Active write operation using WASI's waitable system
+    // write_operation: Option<Pin<Box<dyn std::future::Future<Output = std::io::Result<usize>> + Send + Sync>>>,
+    // // Write buffer for pending data
+    // write_buffer: BytesMut,
+    // Write readiness state
+    write_ready: bool,
 }
 
 impl TcpSocket {
@@ -64,6 +69,10 @@ impl TcpSocket {
         Self {
             wasi_socket,
             read_buffer: BytesMut::new(),
+            read_operation: None,
+            // write_operation: None,
+            // write_buffer: BytesMut::new(),
+            write_ready: true,
         }
     }
 
@@ -82,36 +91,40 @@ impl TcpSocket {
             (StreamResult::Complete(_), data) => {
                 let to_copy = std::cmp::min(buf.len(), data.len());
                 buf[..to_copy].copy_from_slice(&data[..to_copy]);
-                
+
                 // Buffer remaining data
                 if data.len() > to_copy {
                     self.read_buffer.extend_from_slice(&data[to_copy..]);
                 }
-                
+
                 Ok(to_copy)
             }
             (StreamResult::Dropped, _) => Ok(0),
-            (StreamResult::Cancelled, _) => {
-                Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Read cancelled"))
-            }
+            (StreamResult::Cancelled, _) => Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "Read cancelled",
+            )),
         }
     }
 
     pub async fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let (mut tx, rx) = wit_stream::new();
-        
+
         // Start the send operation asynchronously
         let send_fut = self.wasi_socket.send(rx);
-        
+
         // Write the data
         let remaining = tx.write_all(buf.to_vec()).await;
         drop(tx);
-        
+
         // Wait for send to complete
         send_fut.await.map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::BrokenPipe, format!("Send failed: {:?}", e))
+            std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                format!("Send failed: {:?}", e),
+            )
         })?;
-        
+
         if remaining.is_empty() {
             Ok(buf.len())
         } else {
@@ -125,12 +138,22 @@ pub async fn connect_tcp<Ws: WithSocket>(
     port: u16,
     with_socket: Ws,
 ) -> crate::Result<Ws::Output> {
-    let addresses = wasip3::sockets::ip_name_lookup::resolve_addresses(host.to_string()).await
-        .map_err(|e| crate::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("DNS failed: {:?}", e))))?;
-    
-    let ip = addresses.into_iter().next()
-        .ok_or_else(|| crate::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "No addresses found")))?;
-    
+    let addresses = wasip3::sockets::ip_name_lookup::resolve_addresses(host.to_string())
+        .await
+        .map_err(|e| {
+            crate::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("DNS failed: {:?}", e),
+            ))
+        })?;
+
+    let ip = addresses.into_iter().next().ok_or_else(|| {
+        crate::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "No addresses found",
+        ))
+    })?;
+
     let addr = match ip {
         wasip3::sockets::types::IpAddress::Ipv4(ipv4) => {
             IpSocketAddress::Ipv4(wasip3::sockets::types::Ipv4SocketAddress {
@@ -154,7 +177,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
             format!("failed to create socket: {:?}", e),
         ))
     })?;
-    
+
     wasi_socket.connect(addr).await.map_err(|e| {
         crate::Error::Io(std::io::Error::new(
             std::io::ErrorKind::ConnectionRefused,

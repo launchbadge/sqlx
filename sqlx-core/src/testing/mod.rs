@@ -139,7 +139,7 @@ where
 
 impl<Fut> TestFn for fn() -> Fut
 where
-    Fut: Future,
+    Fut: Future + 'static,
 {
     type Output = Fut::Output;
 
