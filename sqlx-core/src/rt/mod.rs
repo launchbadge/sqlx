@@ -12,7 +12,7 @@ pub mod rt_async_io;
 #[cfg(feature = "_rt-tokio")]
 pub mod rt_tokio;
 
-//#[cfg(target_arch = "wasm32")]
+#[cfg(target_arch = "wasm32")]
 pub mod rt_wasip3;
 
 #[derive(Debug, thiserror::Error)]
@@ -39,7 +39,7 @@ pub enum JoinHandle<T> {
 }
 
 pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, TimeoutError> {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
     {
         let timeout_future = wasip3::clocks::monotonic_clock::wait_for(
             duration.as_nanos().try_into().unwrap_or(u64::MAX),
@@ -54,18 +54,24 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
         .await;
     }
 
-    #[cfg(feature = "_rt-tokio")]
-    if rt_tokio::available() {
-        return tokio::time::timeout(duration, f)
-            .await
-            .map_err(|_| TimeoutError);
-    }
-
     cfg_if! {
-        if #[cfg(feature = "_rt-async-io")] {
+        if #[cfg(feature = "_rt-tokio")] {
+            if rt_tokio::available() {
+                tokio::time::timeout(duration, f)
+                    .await
+                    .map_err(|_| TimeoutError)
+            } else {
+                cfg_if! {
+                    if #[cfg(feature = "_rt-async-io")] {
+                        rt_async_io::timeout(duration, f).await
+                    } else {
+                        missing_rt((duration, f))
+                    }
+                }
+            }
+        } else if #[cfg(feature = "_rt-async-io")] {
             rt_async_io::timeout(duration, f).await
         } else {
-            #[cfg(not(any(feature = "_rt-async-std", target_arch = "wasm32")))]
             missing_rt((duration, f))
         }
     }
@@ -80,13 +86,22 @@ pub async fn sleep(duration: Duration) {
         .await;
         return;
     }
-    #[cfg(feature = "_rt-tokio")]
-    if rt_tokio::available() {
-        return tokio::time::sleep(duration).await;
-    }
 
     cfg_if! {
-        if #[cfg(feature = "_rt-async-io")] {
+        if #[cfg(feature = "_rt-tokio")] {
+            if rt_tokio::available() {
+                tokio::time::sleep(duration).await
+            } else {
+                cfg_if! {
+                    if #[cfg(feature = "_rt-async-io")] {
+                        rt_async_io::sleep(duration).await
+                    } else {
+                        #[cfg(not(any(feature = "_rt-async-std", target_arch = "wasm32")))]
+                        missing_rt(duration)
+                    }
+                }
+            }
+        } else if #[cfg(feature = "_rt-async-io")] {
             rt_async_io::sleep(duration).await
         } else {
             #[cfg(not(any(feature = "_rt-async-std", target_arch = "wasm32")))]
@@ -101,7 +116,7 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
     {
         return JoinHandle::Wasip3(crate::rt::rt_wasip3::spawn(fut));
     }
@@ -124,7 +139,7 @@ where
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
 #[track_caller]
 pub fn spawn_blocking<F, R>(f: F) -> JoinHandle<R>
 where
@@ -162,7 +177,7 @@ where
 }
 
 pub async fn yield_now() {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
     {
         return crate::rt::rt_wasip3::yield_now().await;
     }

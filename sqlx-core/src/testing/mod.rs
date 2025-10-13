@@ -89,7 +89,7 @@ where
     DB: TestSupport + Database,
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    Fut: Future,
+    Fut: Future + 'static,
     Fut::Output: TestTermination,
 {
     type Output = Fut::Output;
@@ -104,13 +104,13 @@ where
     DB: TestSupport + Database,
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    Fut: Future,
-    Fut::Output: TestTermination,
+    Fut: Future + 'static,
+    Fut::Output: TestTermination, <Fut as futures_core::Future>::Output: 'static
 {
     type Output = Fut::Output;
 
-    fn run_test(self, args: TestArgs) -> Self::Output {
-        run_test_with_pool(args, |pool| async move {
+    fn run_test(self, args: TestArgs) -> Self::Output where <Fut as futures_core::Future>::Output: 'static {
+        run_test_with_pool(args, move |pool| async move {
             let conn = pool
                 .acquire()
                 .await
@@ -127,12 +127,12 @@ where
     DB: Database + TestSupport,
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    Fut: Future,
+    Fut: Future + 'static,
     Fut::Output: TestTermination,
 {
     type Output = Fut::Output;
 
-    fn run_test(self, args: TestArgs) -> Self::Output {
+    fn run_test(self, args: TestArgs) -> Self::Output where <Fut as futures_core::Future>::Output: 'static {
         run_test(args, self)
     }
 }
@@ -187,12 +187,12 @@ where
     DB: TestSupport,
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    F: FnOnce(Pool<DB>) -> Fut,
+    F: FnOnce(Pool<DB>) -> Fut + 'static,
     Fut: Future,
-    Fut::Output: TestTermination,
+    Fut::Output: TestTermination, <Fut as futures_core::Future>::Output: 'static
 {
     let test_path = args.test_path;
-    run_test::<DB, _, _>(args, |pool_opts, connect_opts| async move {
+    run_test::<DB, _, _>(args, move |pool_opts, connect_opts| async move {
         let pool = pool_opts
             .connect_with(connect_opts)
             .await
@@ -217,9 +217,10 @@ where
     DB: TestSupport,
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
-    F: FnOnce(PoolOptions<DB>, <DB::Connection as Connection>::Options) -> Fut,
+    F: FnOnce(PoolOptions<DB>, <DB::Connection as Connection>::Options) -> Fut + 'static,
     Fut: Future,
     Fut::Output: TestTermination,
+    <Fut as futures_core::Future>::Output: 'static,
 {
     crate::rt::test_block_on(async move {
         let test_context = DB::test_context(&args)

@@ -34,7 +34,7 @@ fn parse_for_maintenance(url: &str) -> Result<(MySqlConnectOptions, String), Err
 impl MigrateDatabase for MySql {
     async fn create_database(url: &str) -> Result<(), Error> {
         let (options, database) = parse_for_maintenance(url)?;
-        let mut conn = options.connect().await?;
+        let mut conn: MySqlConnection = options.connect().await?;
 
         let _ = conn
             .execute(AssertSqlSafe(format!("CREATE DATABASE `{database}`")))
@@ -59,7 +59,7 @@ impl MigrateDatabase for MySql {
 
     async fn drop_database(url: &str) -> Result<(), Error> {
         let (options, database) = parse_for_maintenance(url)?;
-        let mut conn = options.connect().await?;
+        let mut conn: MySqlConnection = options.connect().await?;
 
         let _ = conn
             .execute(AssertSqlSafe(format!(

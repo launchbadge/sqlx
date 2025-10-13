@@ -186,6 +186,12 @@ pub async fn connect_tcp<Ws: WithSocket>(
     port: u16,
     with_socket: Ws,
 ) -> crate::Result<Ws::Output> {
+    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
+    {
+        let res = crate::rt::rt_wasip3::connect_tcp(host, port, with_socket).await;
+        return res;
+    }
+
     #[cfg(all(feature = "_rt-tokio", not(target_arch = "wasm32")))]
     if crate::rt::rt_tokio::available() {
         return Ok(with_socket
@@ -199,12 +205,6 @@ pub async fn connect_tcp<Ws: WithSocket>(
         } else {
             crate::rt::missing_rt((host, port, with_socket))
         }
-    }
-
-    #[cfg(all(feature = "_rt-tokio", target_arch = "wasm32"))]
-    {
-        let res = crate::rt::rt_wasip3::connect_tcp(host, port, with_socket).await;
-        return res;
     }
 }
 

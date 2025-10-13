@@ -50,7 +50,8 @@ _unstable-doc = ["sqlx-toml"]
 async-global-executor = { workspace = true, optional = true }
 async-std = { workspace = true, optional = true }
 smol = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["sync","rt"]}
+tokio-util = { workspace = true }
 
 # TLS
 native-tls = { version = "0.2.10", optional = true }
@@ -94,7 +95,7 @@ toml = { version = "0.8.16", optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 #sqlformat = "0.2.0"
 thiserror = "2.0.0"
-tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
+tokio-stream = { version = "0.1.8", optional = true }
 tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
 url = { version = "2.2.2" }
@@ -102,9 +103,17 @@ bstr = { version = "1.0", default-features = false, features = ["std"], optional
 hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
-hashbrown = "0.15.0"
-wasip3 = { workspace = true}
+hashbrown = { version = "0.15.0", default-features = false }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { workspace = true, features = ["sync", "rt"] }
+tokio-util = { workspace = true }
+wasip3 = { workspace = true }
 wit-bindgen = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["net", "fs"], optional = true }
+tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
+
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }

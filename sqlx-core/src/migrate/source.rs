@@ -37,19 +37,7 @@ impl<'s> MigrationSource<'s> for &'s Path {
 
 impl MigrationSource<'static> for PathBuf {
     fn resolve(self) -> BoxFuture<'static, Result<Vec<Migration>, BoxDynError>> {
-        // Technically this could just be `Box::pin(spawn_blocking(...))`
-        // but that would actually be a breaking behavior change because it would call
-        // `spawn_blocking()` on the current thread
-        Box::pin(async move {
-            crate::rt::spawn_blocking(move || {
-                #[cfg(not(target_arch = "wasm32"))]
-                let migrations_with_paths = resolve_blocking(&self)?;
-                #[cfg(target_arch = "wasm32")]
-                let migrations_with_paths = resolve(&canonical).await?;
-                Ok(migrations_with_paths.into_iter().map(|(m, _p)| m).collect())
-            })
-            .await
-        })
+        Box::pin(async move { self.as_path().resolve().await })
     }
 }
 

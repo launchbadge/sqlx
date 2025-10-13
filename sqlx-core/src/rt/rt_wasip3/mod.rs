@@ -1,36 +1,34 @@
+use bytes::BytesMut;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
+use std::sync::Arc;
+//use wasip3::sockets::types::IpSocketAddress;
+use wasip3::wit_bindgen::rt::async_support;
+use wasip3::wit_bindgen::rt::async_support::futures::channel::oneshot;
 
 use crate::net::WithSocket;
-use bytes::{Buf, BytesMut};
-use wasip3::sockets::types::{IpAddressFamily, IpSocketAddress, TcpSocket as WasiTcpSocket};
-use wasip3::wit_bindgen::StreamResult;
-use wasip3::wit_stream;
 
 mod socket;
 
-// Modern WASI P3 JoinHandle using wit_bindgen's async primitives
 pub struct JoinHandle<T> {
-    future: Pin<Box<dyn Future<Output = T> + Send + 'static>>,
+    rx: oneshot::Receiver<T>,
 }
 
 impl<T> Future for JoinHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.future.as_mut().poll(cx)
+        match Pin::new(&mut self.rx).poll(cx) {
+            Poll::Ready(Ok(v)) => Poll::Ready(v),
+            Poll::Ready(Err(oneshot::Canceled)) => panic!("wasip3 JoinHandle canceled"),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
-// we provide immediate execution with cooperative yielding for sqlx compatibility
-pub fn spawn<T: 'static + Send>(fut: impl Future<Output = T> + Send + 'static) -> JoinHandle<T> {
-    JoinHandle {
-        future: Box::pin(async move {
-            wasip3::wit_bindgen::yield_async().await;
-            fut.await
-        }),
-    }
+pub async fn yield_now() {
+    wasip3::wit_bindgen::yield_async().await;
 }
 
 pub fn spawn_blocking<F, R>(f: F) -> impl Future<Output = R>
@@ -39,153 +37,139 @@ where
     R: Send + 'static,
 {
     async move {
-        // Yield to allow other tasks to run before blocking operation
         wasip3::wit_bindgen::yield_blocking();
         f()
     }
 }
 
-// Cooperative yielding for WASI P3
-pub async fn yield_now() {
-    wasip3::wit_bindgen::yield_async().await;
+pub fn spawn<T: 'static>(fut: impl Future<Output = T> + 'static) -> JoinHandle<T> {
+    let (tx, rx) = oneshot::channel();
+    async_support::spawn(async move {
+        let v = fut.await;
+        _ = tx.send(v);
+    });
+    JoinHandle { rx }
 }
 
-// Modern WASI P3 TcpSocket using wit_stream for async I/O
 pub struct TcpSocket {
-    wasi_socket: WasiTcpSocket,
-    read_buffer: BytesMut,
-    // Active read operation using WASI's waitable system
-    read_operation: Option<Pin<Box<dyn std::future::Future<Output = std::io::Result<Vec<u8>>> + Send + Sync>>>,
-    // Active write operation using WASI's waitable system
-    // write_operation: Option<Pin<Box<dyn std::future::Future<Output = std::io::Result<usize>> + Send + Sync>>>,
-    // // Write buffer for pending data
-    // write_buffer: BytesMut,
-    // Write readiness state
-    write_ready: bool,
+    pub tx: tokio_util::sync::PollSender<Vec<u8>>,
+    pub rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
+    pub buf: BytesMut,
+    pub task: tokio::task::JoinHandle<()>,
 }
 
-impl TcpSocket {
-    fn new(wasi_socket: WasiTcpSocket) -> Self {
-        Self {
-            wasi_socket,
-            read_buffer: BytesMut::new(),
-            read_operation: None,
-            // write_operation: None,
-            // write_buffer: BytesMut::new(),
-            write_ready: true,
-        }
-    }
-
-    pub async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        // Serve from buffer first
-        if !self.read_buffer.is_empty() {
-            let to_copy = std::cmp::min(buf.len(), self.read_buffer.len());
-            buf[..to_copy].copy_from_slice(&self.read_buffer[..to_copy]);
-            self.read_buffer.advance(to_copy);
-            return Ok(to_copy);
-        }
-
-        // Read from WASI socket stream
-        let (mut stream, _fut) = self.wasi_socket.receive();
-        match stream.read(Vec::with_capacity(buf.len())).await {
-            (StreamResult::Complete(_), data) => {
-                let to_copy = std::cmp::min(buf.len(), data.len());
-                buf[..to_copy].copy_from_slice(&data[..to_copy]);
-
-                // Buffer remaining data
-                if data.len() > to_copy {
-                    self.read_buffer.extend_from_slice(&data[to_copy..]);
-                }
-
-                Ok(to_copy)
-            }
-            (StreamResult::Dropped, _) => Ok(0),
-            (StreamResult::Cancelled, _) => Err(std::io::Error::new(
-                std::io::ErrorKind::Interrupted,
-                "Read cancelled",
-            )),
-        }
-    }
-
-    pub async fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let (mut tx, rx) = wit_stream::new();
-
-        // Start the send operation asynchronously
-        let send_fut = self.wasi_socket.send(rx);
-
-        // Write the data
-        let remaining = tx.write_all(buf.to_vec()).await;
-        drop(tx);
-
-        // Wait for send to complete
-        send_fut.await.map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
-                format!("Send failed: {:?}", e),
-            )
-        })?;
-
-        if remaining.is_empty() {
-            Ok(buf.len())
-        } else {
-            Ok(buf.len() - remaining.len())
-        }
+impl Drop for TcpSocket {
+    fn drop(&mut self) {
+        self.task.abort()
     }
 }
 
 pub async fn connect_tcp<Ws: WithSocket>(
-    host: &str,
+    _host: &str,
     port: u16,
     with_socket: Ws,
 ) -> crate::Result<Ws::Output> {
-    let addresses = wasip3::sockets::ip_name_lookup::resolve_addresses(host.to_string())
-        .await
-        .map_err(|e| {
-            crate::Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("DNS failed: {:?}", e),
-            ))
-        })?;
+    // address resolution requires additional processing
+    // let addresses = wasip3::sockets::ip_name_lookup::resolve_addresses(host.to_string())
+    //     .await
+    //     .map_err(|e| {
+    //         crate::Error::Io(std::io::Error::new(
+    //             std::io::ErrorKind::Other,
+    //             format!("DNS failed: {:?}", e),
+    //         ))
+    //     })?;
 
-    let ip = addresses.into_iter().next().ok_or_else(|| {
-        crate::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "No addresses found",
-        ))
-    })?;
+    // let ip = addresses.into_iter().next().ok_or_else(|| {
+    //     crate::Error::Io(std::io::Error::new(
+    //         std::io::ErrorKind::Other,
+    //         "No addresses found",
+    //     ))
+    // })?;
 
-    let addr = match ip {
-        wasip3::sockets::types::IpAddress::Ipv4(ipv4) => {
-            IpSocketAddress::Ipv4(wasip3::sockets::types::Ipv4SocketAddress {
-                address: ipv4,
-                port,
-            })
-        }
-        wasip3::sockets::types::IpAddress::Ipv6(ipv6) => {
-            IpSocketAddress::Ipv6(wasip3::sockets::types::Ipv6SocketAddress {
-                address: ipv6,
-                port,
-                flow_info: 0,
-                scope_id: 0,
-            })
-        }
-    };
+    // let addr = match ip {
+    //     wasip3::sockets::types::IpAddress::Ipv4(ipv4) => {
+    //         IpSocketAddress::Ipv4(wasip3::sockets::types::Ipv4SocketAddress {
+    //             address: ipv4,
+    //             port,
+    //         })
+    //     }
+    //     wasip3::sockets::types::IpAddress::Ipv6(ipv6) => {
+    //         IpSocketAddress::Ipv6(wasip3::sockets::types::Ipv6SocketAddress {
+    //             address: ipv6,
+    //             port,
+    //             flow_info: 0,
+    //             scope_id: 0,
+    //         })
+    //     }
+    // };
+    let sock =
+        wasip3::sockets::types::TcpSocket::create(wasip3::sockets::types::IpAddressFamily::Ipv4)
+            .expect("failed to create TCP socket");
+    sock.connect(wasip3::sockets::types::IpSocketAddress::Ipv4(
+        wasip3::sockets::types::Ipv4SocketAddress {
+            address: (127, 0, 0, 1),
+            port,
+        },
+    ))
+    .await
+    .expect(&format!("failed to connect to 127.0.0.1:{port}"));
 
-    let wasi_socket = WasiTcpSocket::create(IpAddressFamily::Ipv4).map_err(|e| {
-        crate::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("failed to create socket: {:?}", e),
-        ))
-    })?;
+    // explicit channel item types so the compiler can infer types used below
+    let (rx_tx, rx_rx): (
+        tokio::sync::mpsc::Sender<Vec<u8>>,
+        tokio::sync::mpsc::Receiver<Vec<u8>>,
+    ) = tokio::sync::mpsc::channel(1);
+    let (tx_tx, mut tx_rx): (
+        tokio::sync::mpsc::Sender<Vec<u8>>,
+        tokio::sync::mpsc::Receiver<Vec<u8>>,
+    ) = tokio::sync::mpsc::channel(1);
+    let (mut send_tx, send_rx) = wasip3::wit_stream::new();
+    let (mut recv_rx, recv_fut) = sock.receive();
 
-    wasi_socket.connect(addr).await.map_err(|e| {
-        crate::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            format!("failed to connect to {}:{}: {:?}", host, port, e),
-        ))
-    })?;
+    let task = tokio::task::spawn(async move {
+        let sock = Arc::new(sock);
 
-    let tcp_socket = TcpSocket::new(wasi_socket);
-
-    Ok(with_socket.with_socket(tcp_socket).await)
+        let (ready_tx, ready_rx) = oneshot::channel();
+        async_support::spawn({
+            let sock = Arc::clone(&sock);
+            async move {
+                let fut = sock.send(send_rx);
+                _ = ready_tx.send(());
+                _ = fut.await.unwrap();
+                drop(sock);
+            }
+        });
+        async_support::spawn({
+            let sock = Arc::clone(&sock);
+            async move {
+                _ = recv_fut.await.unwrap();
+                drop(sock);
+            }
+        });
+        futures_util::join!(
+            async {
+                while let Some(result) = recv_rx.next().await {
+                    _ = rx_tx.send(vec![result]).await;
+                }
+                drop(recv_rx);
+                drop(rx_tx);
+            },
+            async {
+                _ = ready_rx.await;
+                while let Some(buf) = tx_rx.recv().await {
+                    _ = send_tx.write(buf).await;
+                }
+                drop(tx_rx);
+                drop(send_tx);
+            },
+        );
+    });
+    Ok(with_socket
+        .with_socket(TcpSocket {
+            tx: tokio_util::sync::PollSender::new(tx_tx),
+            rx: rx_rx,
+            buf: bytes::BytesMut::new(),
+            task,
+        })
+        .await)
 }

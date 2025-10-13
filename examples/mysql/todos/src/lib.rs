@@ -14,27 +14,26 @@ enum Command {
     Done { id: u64 },
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+async fn run() -> anyhow::Result<()> {
+    let args = Args::parse_from(wasip3::cli::environment::get_arguments());
     let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {
         Some(Command::Add { description }) => {
-            println!("Adding new todo with description '{description}'");
+            eprintln!("Adding new todo with description '{description}'");
             let todo_id = add_todo(&pool, description).await?;
-            println!("Added new todo with id {todo_id}");
+            eprintln!("Added new todo with id {todo_id}");
         }
         Some(Command::Done { id }) => {
-            println!("Marking todo {id} as done");
+            eprintln!("Marking todo {id} as done");
             if complete_todo(&pool, id).await? {
-                println!("Todo {id} is marked as done");
+                eprintln!("Todo {id} is marked as done");
             } else {
-                println!("Invalid id {id}");
+                eprintln!("Invalid id {id}");
             }
         }
         None => {
-            println!("Printing list of all todos");
+            eprintln!("Printing list of all todos");
             list_todos(&pool).await?;
         }
     }
@@ -43,7 +42,6 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn add_todo(pool: &MySqlPool, description: String) -> anyhow::Result<u64> {
-    // Insert the task, then obtain the ID of this row
     let todo_id = sqlx::query!(
         r#"
 INSERT INTO todos ( description )
@@ -85,10 +83,8 @@ ORDER BY id
     .fetch_all(pool)
     .await?;
 
-    // NOTE: Booleans in MySQL are stored as `TINYINT(1)` / `i8`
-    //       0 = false, non-0 = true
     for rec in recs {
-        println!(
+        eprintln!(
             "- [{}] {}: {}",
             if rec.done != 0 { "x" } else { " " },
             rec.id,
@@ -97,4 +93,28 @@ ORDER BY id
     }
 
     Ok(())
+}
+
+wasip3::cli::command::export!(Component);
+
+struct Component;
+
+impl wasip3::exports::cli::run::Guest for Component {
+    async fn run() -> Result<(), ()> {
+        if let Err(err) = run().await {
+            let (mut tx, rx) = wasip3::wit_stream::new();
+
+            futures::join!(
+                async { wasip3::cli::stderr::write_via_stream(rx).await.unwrap() },
+                async {
+                    let remaining = tx.write_all(format!("{err:#}\n").into_bytes()).await;
+                    assert!(remaining.is_empty());
+                    drop(tx);
+                }
+            );
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
 }
