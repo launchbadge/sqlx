@@ -45,7 +45,7 @@ jobs:
 
     strategy:
       matrix:
-        offline: ['', 'true']
+        offline: ['', 'offline']
 
     services:
       mysql:
@@ -90,7 +90,8 @@ jobs:
         run: cargo sqlx prepare
 
       - name: Todos (Check)
-        if: ${{ matrix.offline }}
+        env:
+          DATABASE_URL: ${{ !matrix.offline && 'mysql://root:password@localhost:3306/todos?ssl-mode=disabled' || '' }}
         run: |
           cargo clean -p sqlx-example-mysql-todos
           cargo check -p sqlx-example-mysql-todos
@@ -104,16 +105,10 @@ jobs:
           cargo sqlx prepare
           rm .env
 
-      - name: Todos (Check)
-        if: ${{ matrix.offline }}
-        run: |
-          cargo clean -p sqlx-example-mysql-todos
-          cargo check -p sqlx-example-mysql-todos
-
       - name: Todos (Run)
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/todos?ssl-mode=disabled
-          SQLX_OFFLINE: ${{ matrix.offline }}
+          SQLX_OFFLINE: ${{ matrix.offline == 'offline' }}
         run: cargo run -p sqlx-example-mysql-todos
 
   postgres:
@@ -121,6 +116,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: sqlx-cli
     timeout-minutes: 30
+
+    strategy:
+      matrix:
+        offline: ['', 'offline']
 
     services:
       postgres:
@@ -154,14 +153,29 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
         run: sqlx db setup
 
-      - name: Axum Social with Tests (Check)
+      - name: Axum Social with Tests (Prepare)
+        if: ${{ matrix.offline }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
+        run: cargo sqlx prepare -p sqlx-example-postgres-axum-social
+
+      - name: Axum Social with Tests (Check)
+        env:
+          DATABASE_URL: ${{ !matrix.offline && 'postgres://postgres:password@localhost:5432/axum-social' || '' }}
         run: cargo check -p sqlx-example-postgres-axum-social
+
+      - name: Axum Social with Tests (Prepare from .env)
+        if: ${{ matrix.offline }}
+        run: |
+          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/axum-social" >> .env
+          cargo clean -p sqlx-example-postgres-axum-social
+          cargo sqlx prepare -p sqlx-example-postgres-axum-social
+          rm .env
 
       - name: Axum Social with Tests (Test)
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
+          SQLX_OFFLINE: ${{ matrix.offline == 'offline' }}
         run: cargo test -p sqlx-example-postgres-axum-social
 
       # The Chat example has an interactive TUI which is not trivial to test automatically,
