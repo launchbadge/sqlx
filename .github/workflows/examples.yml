@@ -333,7 +333,7 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/preferred-crates
         run: sqlx db setup
 
-      - name: Multi-Tenant (Run)
+      - name: Preferred-Crates (Run)
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/preferred-crates
         run: cargo run -p sqlx-example-postgres-preferred-crates
