@@ -158,7 +158,7 @@ jobs:
         if: ${{ matrix.offline }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
-        run: cargo sqlx prepare -p sqlx-example-postgres-axum-social
+        run: cargo sqlx prepare -- -p sqlx-example-postgres-axum-social
 
       - name: Axum Social with Tests (Check)
         env:
@@ -170,7 +170,7 @@ jobs:
         run: |
           echo "DATABASE_URL=postgres://postgres:password@localhost:5432/axum-social" >> .env
           cargo clean -p sqlx-example-postgres-axum-social
-          cargo sqlx prepare -p sqlx-example-postgres-axum-social
+          cargo sqlx prepare -- -p sqlx-example-postgres-axum-social
           rm .env
 
       - name: Axum Social with Tests (Test)
