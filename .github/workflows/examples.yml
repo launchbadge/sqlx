@@ -298,9 +298,9 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/multi-tenant
         run: |
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-accounts
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-payments
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant
+          cargo clean -p sqlx-example-postgres-multi-tenant-accounts
+          cargo clean -p sqlx-example-postgres-multi-tenant-payments
+          cargo clean -p sqlx-example-postgres-multi-tenant
           # should include -accounts and -payments
           cargo sqlx prepare -- -p sqlx-example-postgres-multi-tenant
 
@@ -311,11 +311,11 @@ jobs:
       - name: Multi-Tenant (Prepare from .env)
         if: ${{ matrix.offline }}
         run: |
-          echo "postgres://postgres:password@localhost:5432/multi-tenant" > .env
+          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/multi-tenant" > .env
           
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-accounts
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-payments
-          cargo sqlx clean -p sqlx-example-postgres-multi-tenant
+          cargo clean -p sqlx-example-postgres-multi-tenant-accounts
+          cargo clean -p sqlx-example-postgres-multi-tenant-payments
+          cargo clean -p sqlx-example-postgres-multi-tenant
           # should include -accounts and -payments
           cargo sqlx prepare -- -p sqlx-example-postgres-multi-tenant
           
