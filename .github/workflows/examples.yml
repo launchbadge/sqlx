@@ -139,6 +139,7 @@ jobs:
       - run: |
           ls -R /home/runner/.local/bin
           chmod +x $HOME/.local/bin/sqlx
+          chmod +x $HOME/.local/bin/cargo-sqlx
           echo $HOME/.local/bin >> $GITHUB_PATH
           sleep 10
 
