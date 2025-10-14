@@ -83,7 +83,9 @@ pub fn expand_input<'a>(
             offline: None | Some(false),
             database_url: Some(db_url),
             ..
-        } => QueryDataSource::live(db_url)?,
+        }
+        // Allow `DATABASE_URL=''`
+        if !db_url.is_empty() => QueryDataSource::live(db_url)?,
         MacrosEnv {
             offline,
             offline_dir,
