@@ -262,12 +262,12 @@ jobs:
 
       - name: Multi-Database (Prepare from .env)
         if: ${{ matrix.offline }}
-        run: | 
-          echo >.env <<EOF
-          DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database
-          ACCOUNTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-accounts
-          PAYMENTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-payments
-          EOF
+        run: |
+          # Tried to get this to work with heredocs but had trouble writing tabs in YAML
+          echo 'DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database' >.env
+          # Important: append, don't truncate
+          echo 'ACCOUNTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-accounts' >> .env
+          echo 'PAYMENTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-payments' >> .env
           
           cargo clean -p sqlx-example-postgres-multi-database-accounts
           cargo clean -p sqlx-example-postgres-multi-database-payments
