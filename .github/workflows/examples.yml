@@ -89,9 +89,8 @@ jobs:
           DATABASE_URL: mysql://root:password@localhost:3306/todos?ssl-mode=disabled
         run: cargo sqlx prepare
 
-      - name: Todos (Check)
-        env:
-          DATABASE_URL: ${{ !matrix.offline && 'mysql://root:password@localhost:3306/todos?ssl-mode=disabled' || '' }}
+      - name: Todos (Check Offline)
+        if: ${{ matrix.offline }}
         run: |
           cargo clean -p sqlx-example-mysql-todos
           cargo check -p sqlx-example-mysql-todos
@@ -100,7 +99,7 @@ jobs:
         if: ${{ matrix.offline }}
         working-directory: examples/mysql/todos
         run: |
-          echo "DATABASE_URL=mysql://root:password@localhost:3306/todos?ssl-mode=disabled" >> .env
+          echo "DATABASE_URL=mysql://root:password@localhost:3306/todos?ssl-mode=disabled" > .env
           cargo clean -p sqlx-example-mysql-todos
           cargo sqlx prepare
           rm .env
@@ -154,21 +153,24 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
         run: sqlx db setup
 
+      # Test `cargo sqlx prepare` setting `DATABASE_URL` both directly and in `.env`
+      # This doesn't need to be done for every single example here, but should at least cover potential problem cases.
       - name: Axum Social with Tests (Prepare)
         if: ${{ matrix.offline }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/axum-social
         run: cargo sqlx prepare -- -p sqlx-example-postgres-axum-social
 
-      - name: Axum Social with Tests (Check)
-        env:
-          DATABASE_URL: ${{ !matrix.offline && 'postgres://postgres:password@localhost:5432/axum-social' || '' }}
-        run: cargo check -p sqlx-example-postgres-axum-social
+      - name: Axum Social with Tests (Check Offline)
+        if: ${{ matrix.offline }}
+        run: |
+          cargo clean -p sqlx-example-postgres-axum-social
+          cargo check -p sqlx-example-postgres-axum-social
 
       - name: Axum Social with Tests (Prepare from .env)
         if: ${{ matrix.offline }}
         run: |
-          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/axum-social" >> .env
+          echo "DATABASE_URL=postgres://postgres:password@localhost:5432/axum-social" > .env
           cargo clean -p sqlx-example-postgres-axum-social
           cargo sqlx prepare -- -p sqlx-example-postgres-axum-social
           rm .env
@@ -239,11 +241,47 @@ jobs:
           (cd payments && sqlx db setup)
           sqlx db setup
 
+      - name: Multi-Database (Prepare)
+        if: ${{ matrix.offline }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+        run: |
+            cargo clean -p sqlx-example-postgres-multi-database-accounts
+            cargo clean -p sqlx-example-postgres-multi-database-payments
+            cargo clean -p sqlx-example-postgres-multi-database
+            # should include -accounts and -payments
+            cargo sqlx prepare -- -p sqlx-example-postgres-multi-database
+
+      - name: Multi-Database (Check Offline)
+        if: ${{ matrix.offline }}
+        run: |
+          cargo clean -p sqlx-example-postgres-multi-database
+          cargo check -p sqlx-example-postgres-multi-database
+
+      - name: Multi-Database (Prepare from .env)
+        if: ${{ matrix.offline }}
+        run: | 
+          echo >.env <<EOF
+          DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database
+          ACCOUNTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-accounts
+          PAYMENTS_DATABASE_URL=postgres://postgres:password@localhost:5432/multi-database-payments
+          EOF
+          
+          cargo clean -p sqlx-example-postgres-multi-database-accounts
+          cargo clean -p sqlx-example-postgres-multi-database-payments
+          cargo clean -p sqlx-example-postgres-multi-database
+          cargo sqlx prepare -- -p sqlx-example-postgres-multi-database
+          
+          rm .env
+
       - name: Multi-Database (Run)
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database
           ACCOUNTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-accounts
           PAYMENTS_DATABASE_URL: postgres://postgres:password@localhost:5432/multi-database-payments
+          SQLX_OFFLINE: ${{ matrix.offline == 'offline' }}
         run: cargo run -p sqlx-example-postgres-multi-database
 
       - name: Multi-Tenant (Setup)
@@ -255,9 +293,38 @@ jobs:
           (cd payments && sqlx migrate run)
           sqlx migrate run
 
+      - name: Multi-Tenant (Prepare)
+        if: ${{ matrix.offline }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/multi-tenant
+        run: |
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-accounts
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-payments
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant
+          # should include -accounts and -payments
+          cargo sqlx prepare -- -p sqlx-example-postgres-multi-tenant
+
+      - name: Multi-Tenant (Check Offline)
+        if: ${{ matrix.offline }}
+        run: cargo check -p sqlx-example-postgres-multi-tenant
+
+      - name: Multi-Tenant (Prepare from .env)
+        if: ${{ matrix.offline }}
+        run: |
+          echo "postgres://postgres:password@localhost:5432/multi-tenant" > .env
+          
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-accounts
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant-payments
+          cargo sqlx clean -p sqlx-example-postgres-multi-tenant
+          # should include -accounts and -payments
+          cargo sqlx prepare -- -p sqlx-example-postgres-multi-tenant
+          
+          rm .env
+
       - name: Multi-Tenant (Run)
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/multi-tenant
+          SQLX_OFFLINE: ${{ matrix.offline == 'offline' }}
         run: cargo run -p sqlx-example-postgres-multi-tenant
 
       - name: Preferred-Crates (Setup)
