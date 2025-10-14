@@ -391,7 +391,28 @@ jobs:
           DATABASE_URL: sqlite://todos.sqlite
         run: sqlx db setup --source=examples/sqlite/todos/migrations
 
+      - name: Todos (Prepare)
+        if: ${{ matrix.offline }}
+        env:
+          DATABASE_URL: sqlite://todos.sqlite
+        run: cargo sqlx prepare -- -p sqlx-example-sqlite-todos
+
+      - name: Todos (Check Offline)
+        if: ${{ matrix.offline }}
+        run: |
+          cargo clean -p sqlx-example-sqlite-todos
+          cargo check -p sqlx-example-sqlite-todos
+
+      - name: Todos (Prepare from .env)
+        if: ${{ matrix.offline }}
+        run: |
+          echo "DATABASE_URL=sqlite://todos.sqlite" > .env
+          cargo clean -p sqlx-example-sqlite-todos
+          cargo sqlx prepare -- -p sqlx-example-sqlite-todos
+          rm .env
+
       - name: TODOs (Run)
         env:
           DATABASE_URL: sqlite://todos.sqlite
+          SQLX_OFFLINE: ${{ matrix.offline == 'offline' }}
         run: cargo run -p sqlx-example-sqlite-todos
