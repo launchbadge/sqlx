@@ -27,21 +27,6 @@ impl<T> Future for JoinHandle<T> {
     }
 }
 
-pub async fn yield_now() {
-    wasip3::wit_bindgen::yield_async().await;
-}
-
-pub fn spawn_blocking<F, R>(f: F) -> impl Future<Output = R>
-where
-    F: FnOnce() -> R + Send + 'static,
-    R: Send + 'static,
-{
-    async move {
-        wasip3::wit_bindgen::yield_blocking();
-        f()
-    }
-}
-
 pub fn spawn<T: 'static>(fut: impl Future<Output = T> + 'static) -> JoinHandle<T> {
     let (tx, rx) = oneshot::channel();
     async_support::spawn(async move {
@@ -126,7 +111,7 @@ pub async fn connect_tcp<Ws: WithSocket>(
     let (mut send_tx, send_rx) = wasip3::wit_stream::new();
     let (mut recv_rx, recv_fut) = sock.receive();
 
-    let task = tokio::task::spawn(async move {
+    let task = tokio::task::spawn_local(async move {
         let sock = Arc::new(sock);
 
         let (ready_tx, ready_rx) = oneshot::channel();

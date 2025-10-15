@@ -199,6 +199,11 @@ pub async fn connect_tcp<Ws: WithSocket>(
             .await);
     }
 
+    #[cfg(target_arch = "wasm32")]
+    {
+        todo!("outer socket impl")
+    }
+
     cfg_if! {
         if #[cfg(feature = "_rt-async-io")] {
             Ok(with_socket.with_socket(connect_tcp_async_io(host, port).await?).await)

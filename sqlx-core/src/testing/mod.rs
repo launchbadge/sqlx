@@ -105,11 +105,15 @@ where
     DB::Connection: Migrate,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
     Fut: Future + 'static,
-    Fut::Output: TestTermination, <Fut as futures_core::Future>::Output: 'static
+    Fut::Output: TestTermination,
+    <Fut as futures_core::Future>::Output: 'static,
 {
     type Output = Fut::Output;
 
-    fn run_test(self, args: TestArgs) -> Self::Output where <Fut as futures_core::Future>::Output: 'static {
+    fn run_test(self, args: TestArgs) -> Self::Output
+    where
+        <Fut as futures_core::Future>::Output: 'static,
+    {
         run_test_with_pool(args, move |pool| async move {
             let conn = pool
                 .acquire()
@@ -132,7 +136,10 @@ where
 {
     type Output = Fut::Output;
 
-    fn run_test(self, args: TestArgs) -> Self::Output where <Fut as futures_core::Future>::Output: 'static {
+    fn run_test(self, args: TestArgs) -> Self::Output
+    where
+        <Fut as futures_core::Future>::Output: 'static,
+    {
         run_test(args, self)
     }
 }
@@ -189,7 +196,8 @@ where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
     F: FnOnce(Pool<DB>) -> Fut + 'static,
     Fut: Future,
-    Fut::Output: TestTermination, <Fut as futures_core::Future>::Output: 'static
+    Fut::Output: TestTermination,
+    <Fut as futures_core::Future>::Output: 'static,
 {
     let test_path = args.test_path;
     run_test::<DB, _, _>(args, move |pool_opts, connect_opts| async move {

@@ -42,7 +42,7 @@ impl MigrationSource<'static> for PathBuf {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn resolve(path: &Path) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
+pub async fn resolve(path: &PathBuf) -> Result<Vec<(Migration, PathBuf)>, ResolveError> {
     todo!();
 }
 
@@ -59,11 +59,12 @@ impl<'s, S: Debug + Into<PathBuf> + Send + 's> MigrationSource<'s> for ResolveWi
         Box::pin(async move {
             let path = self.0.into();
             let config = self.1;
-
+            #[cfg(not(target_arch = "wasm32"))]
             let migrations_with_paths =
                 crate::rt::spawn_blocking(move || resolve_blocking_with_config(&path, &config))
                     .await?;
-
+            #[cfg(target_arch = "wasm32")]
+            let migrations_with_paths = resolve(&path).await?;
             Ok(migrations_with_paths.into_iter().map(|(m, _p)| m).collect())
         })
     }

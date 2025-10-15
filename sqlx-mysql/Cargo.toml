@@ -72,7 +72,7 @@ whoami = { version = "2.0.0-pre", default-features = false }
 serde = { version = "1.0.144", optional = true }
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["mysql"] }
+sqlx = { workspace = true, features = ["mysql","runtime-tokio"] }
 
 [lints]
 workspace = true

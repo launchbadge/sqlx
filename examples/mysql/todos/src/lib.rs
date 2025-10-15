@@ -101,20 +101,24 @@ struct Component;
 
 impl wasip3::exports::cli::run::Guest for Component {
     async fn run() -> Result<(), ()> {
-        if let Err(err) = run().await {
-            let (mut tx, rx) = wasip3::wit_stream::new();
+        tokio::task::LocalSet::new()
+            .run_until(async {
+                if let Err(err) = run().await {
+                    let (mut tx, rx) = wasip3::wit_stream::new();
 
-            futures::join!(
-                async { wasip3::cli::stderr::write_via_stream(rx).await.unwrap() },
-                async {
-                    let remaining = tx.write_all(format!("{err:#}\n").into_bytes()).await;
-                    assert!(remaining.is_empty());
-                    drop(tx);
+                    futures::join!(
+                        async { wasip3::cli::stderr::write_via_stream(rx).await.unwrap() },
+                        async {
+                            let remaining = tx.write_all(format!("{err:#}\n").into_bytes()).await;
+                            assert!(remaining.is_empty());
+                            drop(tx);
+                        }
+                    );
+                    Err(())
+                } else {
+                    Ok(())
                 }
-            );
-            Err(())
-        } else {
-            Ok(())
-        }
+            })
+            .await
     }
 }
