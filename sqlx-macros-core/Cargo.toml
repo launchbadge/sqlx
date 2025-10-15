@@ -26,7 +26,7 @@ _sqlite = []
 
 # SQLx features
 derive = []
-macros = []
+macros = ["thiserror"]
 migrate = ["sqlx-core/migrate"]
 
 sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-sqlite?/sqlx-toml"]
@@ -66,6 +66,7 @@ tokio = { workspace = true, optional = true }
 
 cfg-if = { workspace = true}
 dotenvy = { workspace = true }
+thiserror = { workspace = true, optional = true }
 
 hex = { version = "0.4.3" }
 heck = { version = "0.5" }
