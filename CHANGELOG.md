@@ -43,12 +43,21 @@ This section will be replaced in subsequent alpha releases. See the Git history 
     * Significant changes to the `Migrate` trait
     * `sqlx::migrate::resolve_blocking()` is now `#[doc(hidden)]` and thus SemVer-exempt.
 
+### Fixed
+
+* [[#4053]]: fix(macros): smarter `.env` loading, caching, and invalidation [[@abonander]]
+  * Additional credit to [[@AlexTMjugador]] ([[#4018]]) and [[@Diggsey]] ([[#4039]]) for their proposed solutions
+    which served as a useful comparison.
+
 [seaorm-2600]: https://github.com/SeaQL/sea-orm/issues/2600
 [feature unification]: https://doc.rust-lang.org/cargo/reference/features.html#feature-unification
 [preferred-crates]: examples/postgres/preferred-crates
 
 [#3821]: https://github.com/launchbadge/sqlx/pull/3821
 [#3383]: https://github.com/launchbadge/sqlx/pull/3383
+[#4018]: https://github.com/launchbadge/sqlx/pull/4018
+[#4039]: https://github.com/launchbadge/sqlx/pull/4039
+[#4053]: https://github.com/launchbadge/sqlx/pull/4053
 
 ## 0.8.6 - 2025-05-19
 
@@ -2951,3 +2960,4 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@dyc3]: https://github.com/dyc3
 [@ThomWright]: https://github.com/ThomWright
 [@duhby]: https://github.com/duhby
+[@AlexTMjugador]: https://github.com/AlexTMjugador
