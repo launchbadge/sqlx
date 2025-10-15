@@ -73,7 +73,8 @@ thiserror.workspace = true
 serde = { version = "1.0.144", optional = true }
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["mysql"] }
+# FIXME: https://github.com/rust-lang/cargo/issues/15622
+sqlx = { path = "..", default-features = false, features = ["mysql"] }
 
 [lints]
 workspace = true

@@ -79,7 +79,9 @@ workspace = true
 features = ["json"]
 
 [dev-dependencies.sqlx]
-workspace = true
+# FIXME: https://github.com/rust-lang/cargo/issues/15622
+# workspace = true
+path = ".."
 features = ["postgres", "derive"]
 
 [target.'cfg(target_os = "windows")'.dependencies]

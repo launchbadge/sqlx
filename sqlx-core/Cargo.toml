@@ -106,8 +106,14 @@ hashbrown = "0.16.0"
 thiserror.workspace = true
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies.sqlx]
+# FIXME: https://github.com/rust-lang/cargo/issues/15622
+# workspace = true
+path = ".."
+default-features = false
+features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"]
 
 [lints]
 workspace = true
