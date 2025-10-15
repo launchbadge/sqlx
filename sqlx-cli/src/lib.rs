@@ -49,7 +49,11 @@ pub fn maybe_apply_dotenv() {
         return;
     }
 
-    dotenvy::dotenv().ok();
+    if let Err(e) = dotenvy::dotenv() {
+        if !e.not_found() {
+            eprintln!("Warning: error loading `.env` file: {e:?}");
+        }
+    }
 }
 
 pub async fn run(opt: Opt) -> anyhow::Result<()> {

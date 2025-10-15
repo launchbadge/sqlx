@@ -85,7 +85,8 @@ atoi = "2.0"
 
 log = "0.4.18"
 tracing = { version = "0.1.37", features = ["log"] }
-thiserror = "2.0.0"
+
+thiserror.workspace = true
 
 serde = { version = "1.0.145", features = ["derive"], optional = true }
 regex = { version = "1.5.5", optional = true }
@@ -93,8 +94,12 @@ regex = { version = "1.5.5", optional = true }
 [dependencies.sqlx-core]
 workspace = true
 
-[dev-dependencies]
-sqlx = { workspace = true, features = ["macros", "runtime-tokio", "tls-none", "sqlite"] }
+[dev-dependencies.sqlx]
+# FIXME: https://github.com/rust-lang/cargo/issues/15622
+# workspace = true
+path = ".."
+default-features = false
+features = ["macros", "runtime-tokio", "tls-none", "sqlite"]
 
 [lints]
 workspace = true
