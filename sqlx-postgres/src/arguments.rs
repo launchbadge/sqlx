@@ -111,6 +111,7 @@ impl PgArguments {
         &mut self,
         conn: &mut PgConnection,
         parameters: &[PgTypeInfo],
+        persistent: bool,
     ) -> Result<(), Error> {
         let PgArgumentBuffer {
             ref patches,
@@ -128,8 +129,8 @@ impl PgArguments {
 
         for (offset, kind) in type_holes {
             let oid = match kind {
-                HoleKind::Type { name } => conn.fetch_type_id_by_name(name).await?,
-                HoleKind::Array(array) => conn.fetch_array_type_id(array).await?,
+                HoleKind::Type { name } => conn.fetch_type_id_by_name(persistent, name).await?,
+                HoleKind::Array(array) => conn.fetch_array_type_id(persistent, array).await?,
             };
             buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
