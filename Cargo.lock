@@ -218,7 +218,7 @@ version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebcd09b382f40fcd159c2d695175b2ae620ffa5f3bd6f664131efff4e8b9e04a"
 dependencies = [
- "async-lock",
+ "async-lock 3.4.0",
  "blocking",
  "futures-lite",
 ]
@@ -232,7 +232,7 @@ dependencies = [
  "async-channel 2.5.0",
  "async-executor",
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "blocking",
  "futures-lite",
  "once_cell",
@@ -247,7 +247,7 @@ dependencies = [
  "async-channel 2.5.0",
  "async-executor",
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "blocking",
  "futures-lite",
 ]
@@ -258,7 +258,7 @@ version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1237c0ae75a0f3765f58910ff9cdd0a12eeb39ab2f4c7de23262f337f0aacbb3"
 dependencies = [
- "async-lock",
+ "async-lock 3.4.0",
  "cfg-if",
  "concurrent-queue",
  "futures-io",
@@ -269,6 +269,15 @@ dependencies = [
  "slab",
  "tracing",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "async-lock"
+version = "2.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "287272293e9d8c41773cec55e365490fe034813a2f172f502d6ddcf75b2f582b"
+dependencies = [
+ "event-listener 2.5.3",
 ]
 
 [[package]]
@@ -301,7 +310,7 @@ checksum = "cde3f4e40e6021d7acffc90095cbd6dc54cb593903d1de5832f435eb274b85dc"
 dependencies = [
  "async-channel 2.5.0",
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "async-signal",
  "async-task",
  "blocking",
@@ -319,7 +328,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7605a4e50d4b06df3898d5a70bf5fde51ed9059b0434b73105193bc27acce0d"
 dependencies = [
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "atomic-waker",
  "cfg-if",
  "futures-core",
@@ -340,7 +349,7 @@ dependencies = [
  "async-channel 1.9.0",
  "async-global-executor 2.4.1",
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "crossbeam-utils",
  "futures-channel",
  "futures-core",
@@ -3460,7 +3469,7 @@ dependencies = [
  "async-executor",
  "async-fs",
  "async-io",
- "async-lock",
+ "async-lock 3.4.0",
  "async-net",
  "async-process",
  "blocking",
@@ -3557,6 +3566,7 @@ dependencies = [
  "async-fs",
  "async-global-executor 3.1.0",
  "async-io",
+ "async-lock 2.8.0",
  "async-std",
  "async-task",
  "base64 0.22.1",
@@ -3583,6 +3593,7 @@ dependencies = [
  "mac_address",
  "memchr",
  "native-tls",
+ "once_cell",
  "percent-encoding",
  "rust_decimal",
  "rustls",

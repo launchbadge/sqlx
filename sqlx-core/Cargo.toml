@@ -52,6 +52,8 @@ async-std = { workspace = true, optional = true }
 smol = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["sync","rt"]}
 tokio-util = { workspace = true }
+async-lock = "2.5.0"
+once_cell = "1.21.3"
 
 # TLS
 native-tls = { version = "0.2.10", optional = true }

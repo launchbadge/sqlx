@@ -347,7 +347,23 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
+            eprintln!(
+                "pool: attempting connect (deadline in {}ms, current size={})",
+                timeout.as_millis(),
+                self.size()
+            );
+
             let res = crate::rt::timeout(timeout, connect_options.connect()).await;
+            if let Ok(Ok(_)) = &res {
+                eprintln!("pool: connect attempt succeeded");
+            } else if let Ok(Err(e)) = &res {
+                eprintln!("pool: connect attempt returned error: {:?}", e);
+            } else if res.is_err() {
+                eprintln!(
+                    "pool: connect attempt timed out after {}ms",
+                    timeout.as_millis()
+                );
+            }
             match res {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {

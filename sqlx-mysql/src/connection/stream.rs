@@ -103,7 +103,15 @@ impl<S: Socket> MySqlStream<S> {
         T: ProtocolEncode<'en, Capabilities>,
     {
         self.sequence_id = 0;
+        eprintln!(
+            "mysql: send_packet - writing packet (sequence_id={})",
+            self.sequence_id
+        );
         self.write_packet(payload)?;
+        eprintln!(
+            "mysql: send_packet - flushing write buffer (is_empty={})",
+            self.socket.write_buffer().is_empty()
+        );
         self.flush().await?;
         Ok(())
     }
@@ -112,15 +120,40 @@ impl<S: Socket> MySqlStream<S> {
     where
         T: ProtocolEncode<'en, Capabilities>,
     {
-        self.socket
-            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
+        eprintln!(
+            "mysql: write_packet - encoding packet (sequence_id={})",
+            self.sequence_id
+        );
+        let res = self
+            .socket
+            .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
+        eprintln!(
+            "mysql: write_packet - encoded packet, result={:?}",
+            res.is_ok()
+        );
+        res
     }
 
     async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
 
-        let mut header: Bytes = self.socket.read(4).await?;
+        // Read the 4-byte packet header (3 bytes length + 1 byte sequence id).
+        // Add logging to help diagnose wasm/wasip3 socket read errors.
+        let mut header: Bytes = match self.socket.read::<Bytes>(4).await {
+            Ok(h) => {
+                eprintln!(
+                    "mysql: recv_packet_part: read header ({} bytes): {:?}",
+                    h.len(),
+                    &h
+                );
+                h
+            }
+            Err(e) => {
+                eprintln!("mysql: recv_packet_part: error reading header: {:#?}", e);
+                return Err(e);
+            }
+        };
 
         // cannot overflow
         #[allow(clippy::cast_possible_truncation)]
@@ -129,7 +162,20 @@ impl<S: Socket> MySqlStream<S> {
 
         self.sequence_id = sequence_id.wrapping_add(1);
 
-        let payload: Bytes = self.socket.read(packet_size).await?;
+        // Read the payload according to the size from the header. Log errors.
+        let payload: Bytes = match self.socket.read::<Bytes>(packet_size).await {
+            Ok(p) => {
+                eprintln!("mysql: recv_packet_part: read payload ({} bytes)", p.len());
+                p
+            }
+            Err(e) => {
+                eprintln!(
+                    "mysql: recv_packet_part: error reading payload (expected {} bytes): {:#?}",
+                    packet_size, e
+                );
+                return Err(e);
+            }
+        };
 
         // TODO: packet compression
 

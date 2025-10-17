@@ -15,6 +15,9 @@ pub mod rt_tokio;
 #[cfg(target_arch = "wasm32")]
 pub mod rt_wasip3;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_worker;
+
 #[derive(Debug, thiserror::Error)]
 #[error("operation timed out")]
 pub struct TimeoutError;
@@ -38,6 +41,30 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     #[cfg(debug_assertions)]
     let f = Box::pin(f);
 
+    // wasm: avoid requiring a Tokio runtime handle. Race the future against
+    // a wasip3 monotonic sleep using futures::select so the function works
+    // under the wasip3 executor which doesn't expose a Tokio Handle.
+    #[cfg(target_arch = "wasm32")]
+    {
+        use futures_util::{future::FutureExt, pin_mut, select};
+        // `sleep` is the runtime-agnostic sleep in this same `rt` module:
+        use crate::rt::sleep;
+
+        // fuse so select! can safely poll them
+        let mut fut = f.fuse();
+        let mut timer = sleep(duration).fuse();
+
+        // pin them on the stack (avoids requiring F: Unpin)
+        pin_mut!(fut, timer);
+
+        // select! is an expression — return it
+        return select! {
+            res = fut => Ok(res),
+            _ = timer => Err(TimeoutError),
+        };
+    }
+
+    // Native: if Tokio is enabled and a handle is available, delegate to it.
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {
         return tokio::time::timeout(duration, f)
@@ -171,11 +198,20 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
 
     #[cfg(any(feature = "_rt-tokio", target_arch = "wasm32"))]
     {
-        return tokio::runtime::Builder::new_current_thread()
+        let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("failed to start Tokio runtime")
-            .block_on(f);
+            .expect("failed to start Tokio runtime");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            return rt.block_on(async { tokio::task::LocalSet::new().run_until(f).await });
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            return rt.block_on(f);
+        }
     }
 
     #[cfg(all(

@@ -6,6 +6,7 @@ use log::LevelFilter;
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::Url;
 use std::time::Duration;
+// wasm-specific runtime helpers are available via `sqlx_core::rt::wasm_worker`.
 
 impl ConnectOptions for MySqlConnectOptions {
     type Connection = MySqlConnection;
@@ -20,75 +21,105 @@ impl ConnectOptions for MySqlConnectOptions {
 
     async fn connect(&self) -> Result<Self::Connection, Error>
     where
-        Self::Connection: Sized,
+        Self::Connection: Sized + Send + 'static,
     {
-        let mut conn = MySqlConnection::establish(self).await?;
+        // On wasm, the MySQL connection future may contain non-Send internals from
+        // wasip3/wit-bindgen. Run the connection/initialization on the wasip3 async
+        // runtime using `async_support::spawn` and communicate the result back over
+        // a tokio oneshot channel. The returned future (awaiting the oneshot) is
+        // Send, so callers that require Send are satisfied.
+        let options = self.clone();
 
-        // After the connection is established, we initialize by configuring a few
-        // connection parameters
+        // On wasm we must dispatch to the single-threaded wasip3 runtime so
+        // that any `!Send` futures from wit-bindgen do not escape the local
+        // runtime. On non-wasm targets we can just run the logic directly.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let conn_res: Result<MySqlConnection, Error> =
+                sqlx_core::rt::wasm_worker::dispatch(move || async move {
+                    let mut conn = MySqlConnection::establish(&options).await?;
 
-        // https://mariadb.com/kb/en/sql-mode/
+                    let mut sql_mode = Vec::new();
+                    if options.pipes_as_concat {
+                        sql_mode.push(r#"PIPES_AS_CONCAT"#);
+                    }
+                    if options.no_engine_substitution {
+                        sql_mode.push(r#"NO_ENGINE_SUBSTITUTION"#);
+                    }
 
-        // PIPES_AS_CONCAT - Allows using the pipe character (ASCII 124) as string concatenation operator.
-        //                   This means that "A" || "B" can be used in place of CONCAT("A", "B").
+                    let mut opts = Vec::new();
+                    if !sql_mode.is_empty() {
+                        opts.push(format!(
+                            r#"sql_mode=(SELECT CONCAT(@@sql_mode, ',{}'))"#,
+                            sql_mode.join(",")
+                        ));
+                    }
 
-        // NO_ENGINE_SUBSTITUTION - If not set, if the available storage engine specified by a CREATE TABLE is
-        //                          not available, a warning is given and the default storage
-        //                          engine is used instead.
+                    if let Some(timezone) = &options.timezone {
+                        opts.push(format!(r#"time_zone='{}'"#, timezone));
+                    }
 
-        // NO_ZERO_DATE - Don't allow '0000-00-00'. This is invalid in Rust.
+                    if options.set_names {
+                        let set_names = if let Some(collation) = &options.collation {
+                            format!(r#"NAMES {} COLLATE {collation}"#, options.charset,)
+                        } else {
+                            format!("NAMES {}", options.charset)
+                        };
+                        opts.push(set_names);
+                    }
 
-        // NO_ZERO_IN_DATE - Don't allow 'YYYY-00-00'. This is invalid in Rust.
+                    if !opts.is_empty() {
+                        conn.execute(AssertSqlSafe(format!(r#"SET {};"#, opts.join(","))))
+                            .await?;
+                    }
 
-        // --
+                    Ok(conn)
+                })
+                .await;
 
-        // Setting the time zone allows us to assume that the output
-        // from a TIMESTAMP field is UTC
-
-        // --
-
-        // https://mathiasbynens.be/notes/mysql-utf8mb4
-
-        let mut sql_mode = Vec::new();
-        if self.pipes_as_concat {
-            sql_mode.push(r#"PIPES_AS_CONCAT"#);
-        }
-        if self.no_engine_substitution {
-            sql_mode.push(r#"NO_ENGINE_SUBSTITUTION"#);
-        }
-
-        let mut options = Vec::new();
-        if !sql_mode.is_empty() {
-            options.push(format!(
-                r#"sql_mode=(SELECT CONCAT(@@sql_mode, ',{}'))"#,
-                sql_mode.join(",")
-            ));
-        }
-
-        if let Some(timezone) = &self.timezone {
-            options.push(format!(r#"time_zone='{}'"#, timezone));
-        }
-
-        if self.set_names {
-            // As it turns out, we don't _have_ to set a collation if we don't want to.
-            // We can let the server choose the default collation for the charset.
-            let set_names = if let Some(collation) = &self.collation {
-                format!(r#"NAMES {} COLLATE {collation}"#, self.charset,)
-            } else {
-                // Leaves the default collation up to the server,
-                // but ensures statements and results are encoded using the proper charset.
-                format!("NAMES {}", self.charset)
-            };
-
-            options.push(set_names);
+            conn_res
         }
 
-        if !options.is_empty() {
-            conn.execute(AssertSqlSafe(format!(r#"SET {};"#, options.join(","))))
-                .await?;
-        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut conn = MySqlConnection::establish(&options).await?;
 
-        Ok(conn)
+            let mut sql_mode = Vec::new();
+            if options.pipes_as_concat {
+                sql_mode.push(r#"PIPES_AS_CONCAT"#);
+            }
+            if options.no_engine_substitution {
+                sql_mode.push(r#"NO_ENGINE_SUBSTITUTION"#);
+            }
+
+            let mut opts = Vec::new();
+            if !sql_mode.is_empty() {
+                opts.push(format!(
+                    r#"sql_mode=(SELECT CONCAT(@@sql_mode, ',{}'))"#,
+                    sql_mode.join(",")
+                ));
+            }
+
+            if let Some(timezone) = &options.timezone {
+                opts.push(format!(r#"time_zone='{}'"#, timezone));
+            }
+
+            if options.set_names {
+                let set_names = if let Some(collation) = &options.collation {
+                    format!(r#"NAMES {} COLLATE {collation}"#, options.charset,)
+                } else {
+                    format!("NAMES {}", options.charset)
+                };
+                opts.push(set_names);
+            }
+
+            if !opts.is_empty() {
+                conn.execute(AssertSqlSafe(format!(r#"SET {};"#, opts.join(","))))
+                    .await?;
+            }
+
+            Ok(conn)
+        }
     }
 
     fn log_statements(mut self, level: LevelFilter) -> Self {

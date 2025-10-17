@@ -54,6 +54,7 @@ impl<'a> DoHandshake<'a> {
 
     async fn do_handshake<S: Socket>(self, socket: S) -> Result<MySqlStream, Error> {
         let DoHandshake { options } = self;
+        eprintln!("mysql: do_handshake: starting handshake");
 
         let mut stream = MySqlStream::with_socket(options, socket);
 
@@ -61,6 +62,10 @@ impl<'a> DoHandshake<'a> {
         // https://mariadb.com/kb/en/connection/
 
         let handshake: Handshake = stream.recv_packet().await?.decode()?;
+        eprintln!(
+            "mysql: handshake received: server_version='{}', capabilities={:?}, auth_plugin={:?}",
+            handshake.server_version, handshake.server_capabilities, handshake.auth_plugin
+        );
 
         let mut plugin = handshake.auth_plugin;
         let nonce = handshake.auth_plugin_data;
@@ -116,12 +121,15 @@ impl<'a> DoHandshake<'a> {
 
         stream.flush().await?;
 
+        eprintln!("mysql: do_handshake: wrote handshake response and flushed");
+
         loop {
             let packet = stream.recv_packet().await?;
             match packet[0] {
                 0x00 => {
                     let _ok = packet.ok()?;
 
+                    eprintln!("mysql: do_handshake: received final OK during auth loop");
                     break;
                 }
 
@@ -163,6 +171,7 @@ impl<'a> DoHandshake<'a> {
             }
         }
 
+        eprintln!("mysql: do_handshake: handshake complete, returning stream");
         Ok(stream)
     }
 }

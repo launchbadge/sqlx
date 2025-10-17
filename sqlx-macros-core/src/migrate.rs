@@ -119,7 +119,11 @@ pub fn expand_with_path(config: &Config, path: &Path) -> crate::Result<TokenStre
     let migrations = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap()
-        .block_on(async { sqlx_core::migrate::resolve(&path).await })?;
+        .block_on(async {
+            tokio::task::LocalSet::new()
+                .run_until(async { sqlx_core::migrate::resolve(&path).await })
+                .await
+        })?;
     let migrations = migrations
         .into_iter()
         .map(|(migration, path)| QuoteMigration { migration, path });

@@ -21,6 +21,7 @@ impl Socket for super::TcpSocket {
         }
         match self.rx.try_recv() {
             Ok(rx_vec) => {
+                eprintln!("wasip3 socket: try_read got {} bytes from rx", rx_vec.len());
                 // make the item type explicit so methods like `len` and `split_off` are known
                 let mut rx: Vec<u8> = rx_vec;
                 if rx.len() < n {
@@ -33,7 +34,10 @@ impl Socket for super::TcpSocket {
                     Ok(n)
                 }
             }
-            Err(TryRecvError::Empty) => Err(io::ErrorKind::WouldBlock.into()),
+            Err(TryRecvError::Empty) => {
+                eprintln!("wasip3 socket: try_read would block (Empty)");
+                Err(io::ErrorKind::WouldBlock.into())
+            }
             Err(TryRecvError::Disconnected) => Ok(0),
         }
     }
@@ -43,10 +47,15 @@ impl Socket for super::TcpSocket {
             return Err(io::ErrorKind::ConnectionReset.into());
         };
         let n = buf.len();
-        if let Ok(()) = tx.try_send(buf.to_vec()) {
-            Ok(n)
-        } else {
-            Err(io::ErrorKind::WouldBlock.into())
+        match tx.try_send(buf.to_vec()) {
+            Ok(()) => {
+                eprintln!("wasip3 socket: try_write sent {} bytes", n);
+                Ok(n)
+            }
+            Err(e) => {
+                eprintln!("wasip3 socket: try_write failed: {:?}", e);
+                Err(io::ErrorKind::WouldBlock.into())
+            }
         }
     }
 

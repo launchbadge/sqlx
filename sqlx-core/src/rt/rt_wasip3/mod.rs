@@ -4,10 +4,15 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use std::sync::Arc;
 //use wasip3::sockets::types::IpSocketAddress;
+use core::task::Waker;
+use futures_util::future::{AbortHandle, Abortable};
+use futures_util::stream::StreamExt as _;
+use tokio::sync::mpsc;
 use wasip3::wit_bindgen::rt::async_support;
 use wasip3::wit_bindgen::rt::async_support::futures::channel::oneshot;
 
 use crate::net::WithSocket;
+use tracing::debug;
 
 mod socket;
 
@@ -36,16 +41,62 @@ pub fn spawn<T: 'static>(fut: impl Future<Output = T> + 'static) -> JoinHandle<T
     JoinHandle { rx }
 }
 
+// A tiny poll-aware sender shim backed by `futures::channel::mpsc::Sender`.
+// This provides the minimal API `socket.rs` expects: `try_send`, `get_ref` and
+// `poll_reserve`.
+pub struct WasiPollSender<T> {
+    inner: Option<mpsc::Sender<T>>,
+}
+
+impl<T> WasiPollSender<T> {
+    pub fn new(s: mpsc::Sender<T>) -> Self {
+        Self { inner: Some(s) }
+    }
+
+    pub fn get_ref(&self) -> Option<&mpsc::Sender<T>> {
+        // Note: inner holds a `tokio::sync::mpsc::Sender` stored as a
+        // `Option<mpsc::Sender<T>>` (type alias imported above). Return a
+        // reference to it if present.
+        self.inner.as_ref()
+    }
+
+    pub fn try_send(&self, item: T) -> Result<(), ()> {
+        if let Some(s) = &self.inner {
+            s.try_send(item).map_err(|_| ())
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn poll_reserve(&self, cx: &mut Context<'_>) -> Poll<Result<(), ()>> {
+        // There's no exact `poll_reserve` equivalent in futures mpsc. We emulate
+        // it by checking if `poll_ready` would be `Ready` by attempting to
+        // reserve via a short-lived future that yields `Ready` when the sink
+        // can accept an item. For simplicity, we attempt a non-allocating
+        // check: futures mpsc provides `poll_ready` on the Sink trait but
+        // that's not directly available here. As a pragmatic approach, treat
+        // the sender as always ready and return Pending only if the channel
+        // is closed.
+        if self.inner.is_some() {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Ready(Err(()))
+        }
+    }
+}
+
 pub struct TcpSocket {
-    pub tx: tokio_util::sync::PollSender<Vec<u8>>,
-    pub rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
+    pub tx: WasiPollSender<Vec<u8>>,
+    pub rx: mpsc::Receiver<Vec<u8>>,
     pub buf: BytesMut,
-    pub task: tokio::task::JoinHandle<()>,
+    // Abort handle for the background task spawned with `async_support::spawn`.
+    pub abort_handle: AbortHandle,
 }
 
 impl Drop for TcpSocket {
     fn drop(&mut self) {
-        self.task.abort()
+        // Abort the background task if it's still running.
+        self.abort_handle.abort();
     }
 }
 
@@ -87,9 +138,11 @@ pub async fn connect_tcp<Ws: WithSocket>(
     //         })
     //     }
     // };
+    eprintln!("wasip3: creating tcp socket for port {}", port);
     let sock =
         wasip3::sockets::types::TcpSocket::create(wasip3::sockets::types::IpAddressFamily::Ipv4)
             .expect("failed to create TCP socket");
+    eprintln!("wasip3: created tcp socket for port {}", port);
     sock.connect(wasip3::sockets::types::IpSocketAddress::Ipv4(
         wasip3::sockets::types::Ipv4SocketAddress {
             address: (127, 0, 0, 1),
@@ -97,64 +150,86 @@ pub async fn connect_tcp<Ws: WithSocket>(
         },
     ))
     .await
+    .map_err(|e| {
+        eprintln!("wasip3: connect failed: {:?}", e);
+        e
+    })
     .expect(&format!("failed to connect to 127.0.0.1:{port}"));
 
     // explicit channel item types so the compiler can infer types used below
-    let (rx_tx, rx_rx): (
-        tokio::sync::mpsc::Sender<Vec<u8>>,
-        tokio::sync::mpsc::Receiver<Vec<u8>>,
-    ) = tokio::sync::mpsc::channel(1);
-    let (tx_tx, mut tx_rx): (
-        tokio::sync::mpsc::Sender<Vec<u8>>,
-        tokio::sync::mpsc::Receiver<Vec<u8>>,
-    ) = tokio::sync::mpsc::channel(1);
+    let (rx_tx, rx_rx) = mpsc::channel::<Vec<u8>>(1);
+    let (tx_tx, mut tx_rx) = mpsc::channel::<Vec<u8>>(1);
     let (mut send_tx, send_rx) = wasip3::wit_stream::new();
+    eprintln!("wasip3: created wit_stream for send/recv");
     let (mut recv_rx, recv_fut) = sock.receive();
 
-    let task = tokio::task::spawn_local(async move {
-        let sock = Arc::new(sock);
+    // Spawn a background task using the wasip3 async runtime and make it abortable.
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
 
-        let (ready_tx, ready_rx) = oneshot::channel();
-        async_support::spawn({
-            let sock = Arc::clone(&sock);
-            async move {
-                let fut = sock.send(send_rx);
-                _ = ready_tx.send(());
-                _ = fut.await.unwrap();
-                drop(sock);
-            }
-        });
-        async_support::spawn({
-            let sock = Arc::clone(&sock);
-            async move {
-                _ = recv_fut.await.unwrap();
-                drop(sock);
-            }
-        });
-        futures_util::join!(
-            async {
-                while let Some(result) = recv_rx.next().await {
-                    _ = rx_tx.send(vec![result]).await;
+    let background = Abortable::new(
+        async move {
+            let sock = Arc::new(sock);
+            eprintln!("wasip3: background task starting; sock arc cloned");
+
+            let (ready_tx, ready_rx) = oneshot::channel();
+            async_support::spawn({
+                let sock = Arc::clone(&sock);
+                async move {
+                    eprintln!("wasip3: starting sock.send task");
+                    let fut = sock.send(send_rx);
+                    _ = ready_tx.send(());
+                    match fut.await {
+                        Ok(_) => eprintln!("wasip3: sock.send completed"),
+                        Err(e) => eprintln!("wasip3: sock.send error: {:?}", e),
+                    }
+                    drop(sock);
                 }
-                drop(recv_rx);
-                drop(rx_tx);
-            },
-            async {
-                _ = ready_rx.await;
-                while let Some(buf) = tx_rx.recv().await {
-                    _ = send_tx.write(buf).await;
+            });
+            async_support::spawn({
+                let sock = Arc::clone(&sock);
+                async move {
+                    eprintln!("wasip3: starting recv_fut task");
+                    match recv_fut.await {
+                        Ok(_) => eprintln!("wasip3: recv_fut completed"),
+                        Err(e) => eprintln!("wasip3: recv_fut error: {:?}", e),
+                    }
+                    drop(sock);
                 }
-                drop(tx_rx);
-                drop(send_tx);
-            },
-        );
+            });
+            futures_util::join!(
+                async {
+                    while let Some(result) = recv_rx.next().await {
+                        // `recv_rx` yields single bytes from the wasip3 receive stream.
+                        eprintln!("wasip3: recv_rx.next yielded byte: {:#x}", result);
+                        _ = rx_tx.send(vec![result]).await;
+                    }
+                    drop(recv_rx);
+                    drop(rx_tx);
+                },
+                async {
+                    _ = ready_rx.await;
+                    eprintln!("wasip3: send task ready, draining tx_rx -> send_tx");
+                    while let Some(buf) = tx_rx.recv().await {
+                        eprintln!("wasip3: writing {} bytes to send_tx", buf.len());
+                        let _ = send_tx.write(buf).await;
+                    }
+                    drop(tx_rx);
+                    drop(send_tx);
+                },
+            );
+        },
+        abort_registration,
+    );
+
+    async_support::spawn(async move {
+        let _ = background.await;
     });
     Ok(with_socket
         .with_socket(TcpSocket {
-            tx: tokio_util::sync::PollSender::new(tx_tx),
+            tx: WasiPollSender::new(tx_tx),
             rx: rx_rx,
             buf: bytes::BytesMut::new(),
-            task,
+            abort_handle,
         })
         .await)
 }
