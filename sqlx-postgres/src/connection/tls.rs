@@ -1,8 +1,11 @@
+use sqlx_core::net::tls::RawTlsConfig;
+
 use crate::error::Error;
 use crate::net::tls::{self, TlsConfig};
 use crate::net::{Socket, SocketIntoBox, WithSocket};
 
 use crate::message::SslRequest;
+use crate::options::SslConfig;
 use crate::{PgConnectOptions, PgSslMode};
 
 pub struct MaybeUpgradeTls<'a>(pub &'a PgConnectOptions);
@@ -45,19 +48,28 @@ async fn maybe_upgrade<S: Socket>(
         }
     }
 
-    let accept_invalid_certs = !matches!(
-        options.ssl_mode,
-        PgSslMode::VerifyCa | PgSslMode::VerifyFull
-    );
-    let accept_invalid_hostnames = !matches!(options.ssl_mode, PgSslMode::VerifyFull);
+    let config = match &options.ssl_config {
+        SslConfig::Libpq(c) => {
+            let accept_invalid_certs = !matches!(
+                options.ssl_mode,
+                PgSslMode::VerifyCa | PgSslMode::VerifyFull
+            );
+            let accept_invalid_hostnames = !matches!(options.ssl_mode, PgSslMode::VerifyFull);
 
-    let config = TlsConfig {
-        accept_invalid_certs,
-        accept_invalid_hostnames,
-        hostname: &options.host,
-        root_cert_path: options.ssl_root_cert.as_ref(),
-        client_cert_path: options.ssl_client_cert.as_ref(),
-        client_key_path: options.ssl_client_key.as_ref(),
+            TlsConfig::RawTlsConfig(RawTlsConfig {
+                accept_invalid_certs,
+                accept_invalid_hostnames,
+                hostname: &options.host,
+                root_cert: c.root_cert.as_ref(),
+                client_cert: c.client_cert.as_ref(),
+                client_key: c.client_key.as_ref(),
+            })
+        }
+        #[cfg(feature = "rustls")]
+        SslConfig::Rustls(config) => TlsConfig::PrebuiltRustls {
+            config,
+            hostname: &options.host,
+        },
     };
 
     tls::handshake(socket, config, SocketIntoBox).await
