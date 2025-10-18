@@ -5,6 +5,7 @@ use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
 use crossbeam_queue::ArrayQueue;
+use log::debug;
 
 use crate::sync::{AsyncSemaphore, AsyncSemaphoreReleaser};
 
@@ -347,19 +348,14 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            eprintln!(
-                "pool: attempting connect (deadline in {}ms, current size={})",
-                timeout.as_millis(),
-                self.size()
-            );
 
             let res = crate::rt::timeout(timeout, connect_options.connect()).await;
             if let Ok(Ok(_)) = &res {
-                eprintln!("pool: connect attempt succeeded");
+                debug!("pool: connect attempt succeeded");
             } else if let Ok(Err(e)) = &res {
-                eprintln!("pool: connect attempt returned error: {:?}", e);
+                debug!("pool: connect attempt returned error: {:?}", e);
             } else if res.is_err() {
-                eprintln!(
+                debug!(
                     "pool: connect attempt timed out after {}ms",
                     timeout.as_millis()
                 );

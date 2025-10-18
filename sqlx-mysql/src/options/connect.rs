@@ -2,7 +2,7 @@ use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::{MySqlConnectOptions, MySqlConnection};
-use log::LevelFilter;
+use log::{debug, LevelFilter};
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::Url;
 use std::time::Duration;
@@ -35,9 +35,12 @@ impl ConnectOptions for MySqlConnectOptions {
         // runtime. On non-wasm targets we can just run the logic directly.
         #[cfg(target_arch = "wasm32")]
         {
+            debug!("mysql: connect.rs: starting connection dispatch (unlocked experiment)");
             let conn_res: Result<MySqlConnection, Error> =
                 sqlx_core::rt::wasm_worker::dispatch(move || async move {
+                    debug!("mysql: connect.rs: inside wasm_worker dispatch closure");
                     let mut conn = MySqlConnection::establish(&options).await?;
+                    debug!("mysql: connect.rs: connection established");
 
                     let mut sql_mode = Vec::new();
                     if options.pipes_as_concat {
@@ -69,20 +72,29 @@ impl ConnectOptions for MySqlConnectOptions {
                     }
 
                     if !opts.is_empty() {
+                        debug!(
+                            "mysql: connect.rs: running SET statements: {}",
+                            opts.join(", ")
+                        );
                         conn.execute(AssertSqlSafe(format!(r#"SET {};"#, opts.join(","))))
                             .await?;
+                        debug!("mysql: connect.rs: SET statements complete");
                     }
 
+                    debug!("mysql: connect.rs: returning connection from dispatch closure");
                     Ok(conn)
                 })
                 .await;
+            debug!("mysql: connect.rs: connection dispatch complete");
 
             conn_res
         }
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            debug!("mysql: connect.rs: starting native connection");
             let mut conn = MySqlConnection::establish(&options).await?;
+            debug!("mysql: connect.rs: connection established");
 
             let mut sql_mode = Vec::new();
             if options.pipes_as_concat {
@@ -114,10 +126,16 @@ impl ConnectOptions for MySqlConnectOptions {
             }
 
             if !opts.is_empty() {
+                debug!(
+                    "mysql: connect.rs: running SET statements: {}",
+                    opts.join(", ")
+                );
                 conn.execute(AssertSqlSafe(format!(r#"SET {};"#, opts.join(","))))
                     .await?;
+                debug!("mysql: connect.rs: SET statements complete");
             }
 
+            debug!("mysql: connect.rs: returning connection from native connect");
             Ok(conn)
         }
     }

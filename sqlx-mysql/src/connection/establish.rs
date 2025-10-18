@@ -1,6 +1,3 @@
-use bytes::buf::Buf;
-use bytes::Bytes;
-
 use crate::common::StatementCache;
 use crate::connection::{tls, MySqlConnectionInner, MySqlStream, MAX_PACKET_SIZE};
 use crate::error::Error;
@@ -10,6 +7,9 @@ use crate::protocol::connect::{
 };
 use crate::protocol::Capabilities;
 use crate::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
+use bytes::buf::Buf;
+use bytes::Bytes;
+use log::debug;
 
 impl MySqlConnection {
     pub(crate) async fn establish(options: &MySqlConnectOptions) -> Result<Self, Error> {
@@ -54,7 +54,7 @@ impl<'a> DoHandshake<'a> {
 
     async fn do_handshake<S: Socket>(self, socket: S) -> Result<MySqlStream, Error> {
         let DoHandshake { options } = self;
-        eprintln!("mysql: do_handshake: starting handshake");
+        debug!("mysql: do_handshake: starting handshake");
 
         let mut stream = MySqlStream::with_socket(options, socket);
 
@@ -62,10 +62,11 @@ impl<'a> DoHandshake<'a> {
         // https://mariadb.com/kb/en/connection/
 
         let handshake: Handshake = stream.recv_packet().await?.decode()?;
-        eprintln!(
+        debug!(
             "mysql: handshake received: server_version='{}', capabilities={:?}, auth_plugin={:?}",
             handshake.server_version, handshake.server_capabilities, handshake.auth_plugin
         );
+        debug!("mysql: handshake packet received, beginning auth");
 
         let mut plugin = handshake.auth_plugin;
         let nonce = handshake.auth_plugin_data;
@@ -103,11 +104,20 @@ impl<'a> DoHandshake<'a> {
         stream.capabilities |= Capabilities::PROTOCOL_41;
 
         let mut stream = tls::maybe_upgrade(stream, self.options).await?;
+        debug!("mysql: TLS maybe_upgrade complete");
 
         let auth_response = if let (Some(plugin), Some(password)) = (plugin, &options.password) {
             Some(plugin.scramble(&mut stream, password, &nonce).await?)
         } else {
             None
+        };
+        let payload = HandshakeResponse {
+            charset: super::INITIAL_CHARSET,
+            max_packet_size: MAX_PACKET_SIZE,
+            username: &options.username,
+            database: options.database.as_deref(),
+            auth_plugin: plugin,
+            auth_response: auth_response.as_deref(),
         };
 
         stream.write_packet(HandshakeResponse {
@@ -121,15 +131,20 @@ impl<'a> DoHandshake<'a> {
 
         stream.flush().await?;
 
-        eprintln!("mysql: do_handshake: wrote handshake response and flushed");
-
+        debug!(
+            "mysql: do_handshake: wrote handshake response {:?} and flushed",
+            payload
+        );
+        debug!("mysql: waiting for final OK/auth packets");
+        // This is the blockade
         loop {
             let packet = stream.recv_packet().await?;
             match packet[0] {
                 0x00 => {
                     let _ok = packet.ok()?;
 
-                    eprintln!("mysql: do_handshake: received final OK during auth loop");
+                    debug!("mysql: do_handshake: received final OK during auth loop");
+                    debug!("mysql: handshake/auth complete, breaking loop");
                     break;
                 }
 
@@ -157,10 +172,12 @@ impl<'a> DoHandshake<'a> {
                     if let (Some(plugin), Some(password)) = (plugin, &options.password) {
                         if plugin.handle(&mut stream, packet, password, &nonce).await? {
                             // plugin signaled authentication is ok
+                            debug!("mysql: plugin signaled authentication OK");
                             break;
                         }
 
                         // plugin signaled to continue authentication
+                        debug!("mysql: plugin signaled to continue authentication");
                     } else {
                         return Err(err_protocol!(
                             "unexpected packet 0x{:02x} during authentication",
@@ -171,7 +188,8 @@ impl<'a> DoHandshake<'a> {
             }
         }
 
-        eprintln!("mysql: do_handshake: handshake complete, returning stream");
+        debug!("mysql: do_handshake: handshake complete, returning stream");
+        debug!("mysql: connection should be ready for use");
         Ok(stream)
     }
 }
