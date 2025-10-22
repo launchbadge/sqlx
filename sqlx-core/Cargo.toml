@@ -103,8 +103,9 @@ hashlink = "0.10.0"
 indexmap = "2.0"
 event-listener = "5.2.0"
 hashbrown = "0.15.0"
+rand.workspace = true
 
-ease-off = { workspace = true, features = ["futures"] }
+ease-off = { workspace = true, default-features = false }
 pin-project-lite = "0.2.14"
 
 # N.B. we don't actually utilize spinlocks, we just need a `Mutex` type with a few requirements:

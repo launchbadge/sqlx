@@ -1,14 +1,16 @@
-use event_listener::{Event, IntoNotification};
+use event_listener::{listener, Event, IntoNotification};
 use spin::lock_api::Mutex;
 use std::future::Future;
 use std::num::NonZero;
 use std::ops::{Deref, DerefMut};
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::task::Poll;
+use std::sync::{atomic, Arc};
+use std::task::{ready, Poll};
 use std::time::Duration;
 use std::{array, iter};
+use futures_util::{future, stream, StreamExt};
+use crate::rt;
 
 type ShardId = usize;
 type ConnectionIndex = usize;
@@ -30,9 +32,12 @@ pub struct Sharded<T> {
 
 type ArcShard<T> = Arc<Shard<T, [Arc<Mutex<Option<T>>>]>>;
 
-struct Global<T> {
+struct Global<T, F: ?Sized = dyn Fn(DisconnectedSlot<T>) + Send + Sync + 'static> {
     unlock_event: Event<SlotGuard<T>>,
     disconnect_event: Event<SlotGuard<T>>,
+    min_connections: usize,
+    num_shards: usize,
+    do_reconnect: F,
 }
 
 type ArcMutexGuard<T> = lock_api::ArcMutexGuard<spin::Mutex<()>, Option<T>>;
@@ -58,12 +63,15 @@ pub struct DisconnectedSlot<T>(SlotGuard<T>);
 #[cfg_attr(not(target_pointer_width = "64"), repr(align(64)))]
 struct Shard<T, Ts: ?Sized> {
     shard_id: ShardId,
-    /// Bitset for all connection indexes that are currently in-use.
+    /// Bitset for all connection indices that are currently in-use.
     locked_set: AtomicUsize,
-    /// Bitset for all connection indexes that are currently connected.
+    /// Bitset for all connection indices that are currently connected.
     connected_set: AtomicUsize,
+    /// Bitset for all connection indices that have been explicitly leaked.
+    leaked_set: AtomicUsize,
     unlock_event: Event<SlotGuard<T>>,
     disconnect_event: Event<SlotGuard<T>>,
+    leak_event: Event<ConnectionIndex>,
     global: Arc<Global<T>>,
     connections: Ts,
 }
@@ -82,19 +90,39 @@ const MAX_SHARD_SIZE: usize = if usize::BITS > 64 {
 };
 
 impl<T> Sharded<T> {
-    pub fn new(connections: usize, shards: NonZero<usize>) -> Sharded<T> {
+    pub fn new(connections: usize, shards: NonZero<usize>, min_connections: usize, do_reconnect: impl Fn(DisconnectedSlot<T>) + Send + Sync + 'static) -> Sharded<T> {
+        let params = Params::calc(connections, shards.get());
+
         let global = Arc::new(Global {
             unlock_event: Event::with_tag(),
             disconnect_event: Event::with_tag(),
+            num_shards: params.shards,
+            min_connections,
+            do_reconnect,
         });
 
-        let shards = Params::calc(connections, shards.get())
+        let shards = params
             .shard_sizes()
             .enumerate()
             .map(|(shard_id, size)| Shard::new(shard_id, size, global.clone()))
             .collect::<Box<[_]>>();
 
         Sharded { shards, global }
+    }
+
+    #[inline]
+    pub fn num_shards(&self) -> usize {
+        self.shards.len()
+    }
+
+    #[allow(clippy::cast_possible_truncation)] // This is only informational
+    pub fn count_connected(&self) -> usize {
+        atomic::fence(Ordering::Acquire);
+        
+        self.shards
+            .iter()
+            .map(|shard| shard.connected_set.load(Ordering::Relaxed).count_ones() as usize)
+            .sum()
     }
 
     #[allow(clippy::cast_possible_truncation)] // This is only informational
@@ -116,6 +144,10 @@ impl<T> Sharded<T> {
         );
 
         ConnectedSlot(guard)
+    }
+
+    pub fn try_acquire_connected(&self) -> Option<ConnectedSlot<T>> {
+        todo!()
     }
 
     pub async fn acquire_disconnected(&self) -> DisconnectedSlot<T> {
@@ -144,7 +176,7 @@ impl<T> Sharded<T> {
             let mut next_shard = thread_id;
 
             loop {
-                crate::rt::sleep(NON_LOCAL_ACQUIRE_DELAY).await;
+                rt::sleep(NON_LOCAL_ACQUIRE_DELAY).await;
 
                 // Choose shards pseudorandomly by multiplying with a (relatively) large prime.
                 next_shard = (next_shard.wrapping_mul(547)) % self.shards.len();
@@ -156,7 +188,7 @@ impl<T> Sharded<T> {
         });
 
         let mut acquire_global = pin!(async {
-            crate::rt::sleep(GLOBAL_ACQUIRE_DELAY).await;
+            rt::sleep(GLOBAL_ACQUIRE_DELAY).await;
 
             let event_to_listen = if connected {
                 &self.global.unlock_event
@@ -188,6 +220,26 @@ impl<T> Sharded<T> {
         })
         .await
     }
+
+    pub async fn drain<F, Fut>(&self, close: F)
+        where
+            F: Fn(ConnectedSlot<T>) -> Fut + Send + Sync + 'static,
+            Fut: Future<Output = DisconnectedSlot<T>> + Send + 'static,
+            T: Send + 'static
+    {
+        let close = Arc::new(close);
+
+        stream::iter(self.shards.iter())
+            .for_each_concurrent(None, |shard| {
+                let shard = shard.clone();
+                let close = close.clone();
+
+                rt::spawn(async move {
+                    shard.drain(&*close).await;
+                })
+            })
+            .await;
+    }
 }
 
 impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
@@ -201,9 +253,11 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
                     $($n => Arc::new(Shard {
                         shard_id,
                         locked_set: AtomicUsize::new(0),
-                        unlock_event: Event::with_tag(),
                         connected_set: AtomicUsize::new(0),
+                        leaked_set: AtomicUsize::new(0),
+                        unlock_event: Event::with_tag(),
                         disconnect_event: Event::with_tag(),
+                        leak_event: Event::with_tag(),
                         global,
                         connections: array::from_fn::<_, $n, _>(|_| Arc::new(Mutex::new(None)))
                     }),)*
@@ -233,6 +287,14 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
         !locked_set & connected_mask
     }
 
+    /// Choose the first index that is unlocked with bit `connected`
+    #[inline]
+    fn next_unlocked(&self, connected: bool) -> Option<usize> {
+        let mask = self.unlocked_mask(connected);
+
+        (mask != 0).then_some(mask.trailing_zeros() as usize)
+    }
+
     async fn acquire(self: &Arc<Self>, connected: bool) -> SlotGuard<T> {
         // Attempt an unfair acquire first, before we modify the waitlist.
         if let Some(locked) = self.try_acquire(connected) {
@@ -258,14 +320,13 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
     }
 
     fn try_acquire(self: &Arc<Self>, connected: bool) -> Option<SlotGuard<T>> {
-        // Choose the first index that is unlocked with bit `connected`
-        let index = self.unlocked_mask(connected).leading_zeros() as usize;
-
-        self.try_lock(index)
+        self.try_lock(self.next_unlocked(connected)?)
     }
 
     fn try_lock(self: &Arc<Self>, index: ConnectionIndex) -> Option<SlotGuard<T>> {
-        let locked = self.connections[index].try_lock_arc()?;
+        let locked = self.connections
+            .get(index)?
+            .try_lock_arc()?;
 
         // The locking of the connection itself must use an `Acquire` fence,
         // so additional synchronization is unnecessary.
@@ -277,59 +338,49 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             index,
         })
     }
-}
 
-impl Params {
-    fn calc(connections: usize, mut shards: usize) -> Params {
-        assert_ne!(shards, 0);
+    async fn drain<F, Fut>(self: &Arc<Self>, close: F)
+    where
+        F: Fn(ConnectedSlot<T>) -> Fut,
+        Fut: Future<Output = DisconnectedSlot<T>>,
+    {
+        let mut drain_connected = pin!(async {
+            loop {
+                let connected = self.acquire(true).await;
+                DisconnectedSlot::leak(close(ConnectedSlot(connected)).await);
+            }
+        });
 
-        let mut shard_size = connections / shards;
-        let mut remainder = connections % shards;
+        let mut drain_disconnected = pin!(async {
+            loop {
+                let disconnected = DisconnectedSlot(self.acquire(false).await);
+                DisconnectedSlot::leak(disconnected);
+            }
+        });
 
-        if shard_size == 0 {
-            tracing::debug!(connections, shards, "more shards than connections; clamping shard size to 1, shard count to connections");
-            shards = connections;
-            shard_size = 1;
-            remainder = 0;
-        } else if shard_size >= MAX_SHARD_SIZE {
-            let new_shards = connections.div_ceil(MAX_SHARD_SIZE);
+        let mut drain_leaked = pin!(async {
+            loop {
+                listener!(self.leak_event => leaked);
+                leaked.await;
+            }
+        });
 
-            tracing::debug!(
-                connections,
-                shards,
-                "shard size exceeds {MAX_SHARD_SIZE}, clamping shard count to {new_shards}"
-            );
+        let finished_mask = (1usize << self.connections.len()) - 1;
 
-            shards = new_shards;
-            shard_size = connections / shards;
-            remainder = connections % shards;
-        }
+        std::future::poll_fn(|cx| {
+            // The connection set is drained once all slots are leaked.
+            if self.leaked_set.load(Ordering::Acquire) == finished_mask {
+                return Poll::Ready(());
+            }
 
-        Params {
-            shards,
-            shard_size,
-            remainder,
-        }
+            // These futures shouldn't return `Ready`
+            let _ = drain_connected.as_mut().poll(cx);
+            let _ = drain_disconnected.as_mut().poll(cx);
+            let _ = drain_leaked.as_mut().poll(cx);
+
+            Poll::Pending
+        }).await;
     }
-
-    fn shard_sizes(&self) -> impl Iterator<Item = usize> {
-        iter::repeat_n(self.shard_size + 1, self.remainder).chain(iter::repeat_n(
-            self.shard_size,
-            self.shards - self.remainder,
-        ))
-    }
-}
-
-fn current_thread_id() -> usize {
-    // FIXME: this can be replaced when this is stabilized:
-    // https://doc.rust-lang.org/stable/std/thread/struct.ThreadId.html#method.as_u64
-    static THREAD_ID: AtomicUsize = AtomicUsize::new(0);
-
-    thread_local! {
-        static CURRENT_THREAD_ID: usize = THREAD_ID.fetch_add(1, Ordering::SeqCst);
-    }
-
-    CURRENT_THREAD_ID.with(|i| *i)
 }
 
 impl<T> Deref for ConnectedSlot<T> {
@@ -369,6 +420,15 @@ impl<T> DisconnectedSlot<T> {
         *self.0.get_mut() = Some(connection);
         ConnectedSlot(self.0)
     }
+
+    pub fn leak(mut self: Self) {
+        self.0.locked = None;
+
+        atomic_set(&self.0.shard.connected_set, self.0.index, false, Ordering::Relaxed);
+        atomic_set(&self.0.shard.leaked_set, self.0.index, true, Ordering::Release);
+
+        self.0.shard.leak_event.notify(usize::MAX.tag(self.0.index));
+    }
 }
 
 impl<T> SlotGuard<T> {
@@ -382,6 +442,20 @@ impl<T> SlotGuard<T> {
         self.locked
             .as_deref_mut()
             .expect("BUG: `SlotGuard.locked` taken")
+    }
+
+    fn should_reconnect(&self) -> bool {
+        let min_connections_per_shard = self.shard.global.min_connections / self.shard.global.num_shards;
+
+        let min_connections = if (self.shard.global.min_connections % self.shard.global.num_shards) < self.shard.shard_id {
+                min_connections_per_shard + 1
+            } else {
+                min_connections_per_shard
+            };
+
+        let num_connected = self.shard.connected_set.load(Ordering::Acquire).count_ones() as usize;
+
+        num_connected < min_connections
     }
 }
 
@@ -465,6 +539,12 @@ impl<T> Drop for SlotGuard<T> {
             {
                 return;
             }
+
+            // If this connection is required to satisfy `min_connections`
+            if self.should_reconnect() {
+                (self.shard.global.do_reconnect)(DisconnectedSlot(self_as_tag()));
+                return;
+            }
         }
 
         // Be sure to drop the lock guard if it's still held,
@@ -478,14 +558,67 @@ impl<T> Drop for SlotGuard<T> {
     }
 }
 
+impl Params {
+    fn calc(connections: usize, mut shards: usize) -> Params {
+        assert_ne!(shards, 0);
+
+        let mut shard_size = connections / shards;
+        let mut remainder = connections % shards;
+
+        if shard_size == 0 {
+            tracing::debug!(connections, shards, "more shards than connections; clamping shard size to 1, shard count to connections");
+            shards = connections;
+            shard_size = 1;
+            remainder = 0;
+        } else if shard_size >= MAX_SHARD_SIZE {
+            let new_shards = connections.div_ceil(MAX_SHARD_SIZE);
+
+            tracing::debug!(
+                connections,
+                shards,
+                "shard size exceeds {MAX_SHARD_SIZE}, clamping shard count to {new_shards}"
+            );
+
+            shards = new_shards;
+            shard_size = connections / shards;
+            remainder = connections % shards;
+        }
+
+        Params {
+            shards,
+            shard_size,
+            remainder,
+        }
+    }
+
+    fn shard_sizes(&self) -> impl Iterator<Item = usize> {
+        iter::repeat_n(self.shard_size + 1, self.remainder).chain(iter::repeat_n(
+            self.shard_size,
+            self.shards - self.remainder,
+        ))
+    }
+}
+
 fn atomic_set(atomic: &AtomicUsize, index: usize, value: bool, ordering: Ordering) {
     if value {
-        let bit = 1 >> index;
+        let bit = 1 << index;
         atomic.fetch_or(bit, ordering);
     } else {
-        let bit = !(1 >> index);
+        let bit = !(1 << index);
         atomic.fetch_and(bit, ordering);
     }
+}
+
+fn current_thread_id() -> usize {
+    // FIXME: this can be replaced when this is stabilized:
+    // https://doc.rust-lang.org/stable/std/thread/struct.ThreadId.html#method.as_u64
+    static THREAD_ID: AtomicUsize = AtomicUsize::new(0);
+
+    thread_local! {
+        static CURRENT_THREAD_ID: usize = THREAD_ID.fetch_add(1, Ordering::SeqCst);
+    }
+
+    CURRENT_THREAD_ID.with(|i| *i)
 }
 
 #[cfg(test)]

@@ -191,6 +191,7 @@ uuid = "1.1.2"
 cfg-if = "1.0.0"
 dotenvy = { version = "0.15.7", default-features = false }
 ease-off = "0.1.6"
+rand = "0.8.5"
 
 # Runtimes
 [workspace.dependencies.async-global-executor]

@@ -3594,6 +3594,7 @@ dependencies = [
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
+ "rand",
  "rust_decimal",
  "rustls",
  "rustls-native-certs",

@@ -89,6 +89,21 @@ pub async fn sleep(duration: Duration) {
     }
 }
 
+pub async fn sleep_until(instant: Instant) {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return tokio::time::sleep_until(instant.into()).await;
+    }
+
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::sleep_until(instant).await
+        } else {
+            missing_rt(instant)
+        }
+    }
+}
+
 #[track_caller]
 pub fn spawn<F>(fut: F) -> JoinHandle<F::Output>
 where
