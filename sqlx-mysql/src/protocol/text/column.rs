@@ -41,7 +41,7 @@ bitflags! {
         /// Field is an enumeration.
         const ENUM = 256;
 
-        /// Field is an auto-incement field.
+        /// Field is an auto-increment field.
         const AUTO_INCREMENT = 512;
 
         /// Field is a timestamp.
