@@ -173,8 +173,8 @@ fn find_next_field<'a>(line: &mut &'a str) -> Option<Cow<'a, str>> {
     let mut escaped_string = None;
     let mut last_added = 0;
 
-    let char_indicies = line.char_indices();
-    for (idx, c) in char_indicies {
+    let char_indices = line.char_indices();
+    for (idx, c) in char_indices {
         if c == ':' && !escaping {
             let (field, rest) = line.split_at(idx);
             *line = &rest[1..];

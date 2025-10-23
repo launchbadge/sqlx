@@ -136,8 +136,8 @@ impl AnyConnectionBackend for PgConnection {
     ) -> BoxFuture<'c, sqlx_core::Result<AnyStatement>> {
         Box::pin(async move {
             let statement = Executor::prepare_with(self, sql, &[]).await?;
-            let colunn_names = statement.metadata.column_names.clone();
-            AnyStatement::try_from_statement(statement, colunn_names)
+            let column_names = statement.metadata.column_names.clone();
+            AnyStatement::try_from_statement(statement, column_names)
         })
     }
 
