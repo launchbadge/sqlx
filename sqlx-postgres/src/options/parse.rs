@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::options::{LibpqSslConfig, SslConfig};
 use crate::{PgConnectOptions, PgSslMode};
 use sqlx_core::percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use sqlx_core::Url;
@@ -146,19 +147,28 @@ impl PgConnectOptions {
         };
         url.query_pairs_mut().append_pair("sslmode", ssl_mode);
 
-        if let Some(ssl_root_cert) = &self.ssl_root_cert {
-            url.query_pairs_mut()
-                .append_pair("sslrootcert", &ssl_root_cert.to_string());
-        }
+        // If the `rustls` feature is enabled, it isn't irrefutable.
+        #[allow(irrefutable_let_patterns)]
+        if let SslConfig::Libpq(LibpqSslConfig {
+            root_cert,
+            client_cert,
+            client_key,
+        }) = &self.ssl_config
+        {
+            if let Some(root_cert) = root_cert {
+                url.query_pairs_mut()
+                    .append_pair("sslrootcert", &root_cert.to_string());
+            }
 
-        if let Some(ssl_client_cert) = &self.ssl_client_cert {
-            url.query_pairs_mut()
-                .append_pair("sslcert", &ssl_client_cert.to_string());
-        }
+            if let Some(client_cert) = client_cert {
+                url.query_pairs_mut()
+                    .append_pair("sslcert", &client_cert.to_string());
+            }
 
-        if let Some(ssl_client_key) = &self.ssl_client_key {
-            url.query_pairs_mut()
-                .append_pair("sslkey", &ssl_client_key.to_string());
+            if let Some(client_key) = client_key {
+                url.query_pairs_mut()
+                    .append_pair("sslkey", &client_key.to_string());
+            }
         }
 
         url.query_pairs_mut().append_pair(
