@@ -84,6 +84,7 @@ chrono = { version = "0.4.34", default-features = false, features = ["clock"], o
 crc = { version = "3", optional = true }
 crossbeam-queue = "0.3.2"
 either = "1.6.1"
+futures = "0.3"
 futures-core = { version = "0.3.19", default-features = false }
 futures-io = "0.3.24"
 futures-intrusive = "0.5.0"
@@ -118,7 +119,7 @@ tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["postgres", "sqlite", "mysql", "migrate", "macros", "time", "uuid"] }
+sqlx = { workspace = true, features = ["mysql", "migrate", "macros", "time", "uuid"] }
 tokio = { version = "1", features = ["rt"] }
 
 [lints]
