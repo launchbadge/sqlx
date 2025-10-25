@@ -1,7 +1,7 @@
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::pool::connect::DefaultConnector;
+use crate::pool::connect::{ConnectionId, DefaultConnector};
 use crate::pool::inner::PoolInner;
 use crate::pool::{Pool, PoolConnector};
 use futures_core::future::BoxFuture;
@@ -10,6 +10,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::num::NonZero;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use futures_util::{stream, TryStreamExt};
 
 /// Configuration options for [`Pool`][super::Pool].
 ///
@@ -573,16 +574,12 @@ impl<DB: Database> PoolOptions<DB> {
 
         let inner = PoolInner::new_arc(self, connector);
 
-        if inner.options.min_connections > 0 {
-            // If the idle reaper is spawned then this will race with the call from that task
-            // and may not report any connection errors.
-            inner.try_min_connections(deadline).await?;
-        }
-
-        // If `min_connections` is nonzero then we'll likely just pull a connection
-        // from the idle queue here, but it should at least get tested first.
-        let conn = inner.acquire().await?;
-        inner.release(conn.into_floating());
+        stream::iter(inner.sharded.acquire_min_connections())
+            .map(Result::<(), Error>::Ok)
+            .try_for_each_concurrent(None, |slot| {
+                inner.connector.connect(Pool(inner.clone()), ConnectionId::next(), slot)
+            })
+            .await?;
 
         Ok(Pool(inner))
     }

@@ -220,6 +220,11 @@ impl<T> Sharded<T> {
         })
         .await
     }
+    
+    pub fn acquire_min_connections(&self) -> impl Iterator<Item = DisconnectedSlot<T>> + '_ {
+        self.shards.iter()
+            .flat_map(|shard| shard.acquire_min_connections())
+    }
 
     pub async fn drain<F, Fut>(&self, close: F)
         where
@@ -338,6 +343,17 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             index,
         })
     }
+    
+    fn acquire_min_connections(self: &Arc<Self>) -> impl Iterator<Item = DisconnectedSlot<T>> + '_ {
+        (0 .. self.connections.len())
+            .filter_map(|index| {
+                let slot = self.try_lock(index)?;
+                
+                // Guard against some weird bug causing this to already be connected
+                slot.get().is_none().then_some(DisconnectedSlot(slot))
+            })
+                .take(self.global.shard_min_connections(self.shard_id))
+    }
 
     async fn drain<F, Fut>(self: &Arc<Self>, close: F)
     where
@@ -445,13 +461,7 @@ impl<T> SlotGuard<T> {
     }
 
     fn should_reconnect(&self) -> bool {
-        let min_connections_per_shard = self.shard.global.min_connections / self.shard.global.num_shards;
-
-        let min_connections = if (self.shard.global.min_connections % self.shard.global.num_shards) < self.shard.shard_id {
-                min_connections_per_shard + 1
-            } else {
-                min_connections_per_shard
-            };
+        let min_connections = self.shard.global.shard_min_connections(self.shard.shard_id);
 
         let num_connected = self.shard.connected_set.load(Ordering::Acquire).count_ones() as usize;
 
@@ -555,6 +565,18 @@ impl<T> Drop for SlotGuard<T> {
         drop(locked);
 
         atomic_set(&self.shard.locked_set, self.index, false, Ordering::Release);
+    }
+}
+
+impl<T> Global<T> {
+    fn shard_min_connections(&self, shard_id: ShardId) -> usize {
+        let min_connections_per_shard = self.min_connections / self.num_shards;
+
+        if (self.min_connections % self.num_shards) < shard_id {
+            min_connections_per_shard + 1
+        } else {
+            min_connections_per_shard
+        }
     }
 }
 

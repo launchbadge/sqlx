@@ -647,13 +647,33 @@ async fn connect_with_backoff<DB: Database>(
                     pool.0.clone(),
                 ))
             }
-            ControlFlow::Break(Err(e)) => return Err(e),
+            ControlFlow::Break(Err(e)) => {
+                tracing::warn!(
+                    target: "sqlx::pool::connect",
+                    %connection_id,
+                    attempt,
+                    error=?e,
+                    "error connecting to database",
+                );
+
+                return Err(e)
+            },
             ControlFlow::Continue(e) => {
+                tracing::warn!(
+                    target: "sqlx::pool::connect",
+                    %connection_id,
+                    attempt,
+                    error=?e,
+                    "error connecting to database; retrying",
+                );
+
                 shared.put_error(e);
             }
         }
 
-        let wait = EASE_OFF.nth_retry_at(attempt, Instant::now(), deadline, &mut rand::thread_rng())
+        let now = Instant::now();
+
+        let wait = EASE_OFF.nth_retry_at(attempt, now, deadline, &mut rand::thread_rng())
             .map_err(|_| {
                 Error::PoolTimedOut {
                     // This should be populated by the caller
@@ -662,6 +682,14 @@ async fn connect_with_backoff<DB: Database>(
             })?;
 
         if let Some(wait) = wait {
+            tracing::trace!(
+                target: "sqlx::pool::connect",
+                %connection_id,
+                attempt,
+                "waiting for {:?}",
+                wait.duration_since(now),
+            );
+
             rt::sleep_until(wait).await;
         }
     }
