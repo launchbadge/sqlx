@@ -1,3 +1,4 @@
+#[cfg(feature = "offline")]
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -475,6 +476,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
+    #[cfg(feature = "offline")]
     fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,

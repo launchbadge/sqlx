@@ -92,10 +92,22 @@ impl EstablishParams {
         }
 
         if !query_params.is_empty() {
+            let query_string = query_params
+                .iter()
+                .map(|(key, value)| {
+                    format!(
+                        "{}={}",
+                        percent_encoding::percent_encode(key.as_bytes(), NON_ALPHANUMERIC),
+                        percent_encoding::percent_encode(value.as_bytes(), NON_ALPHANUMERIC)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("&");
+
             filename = format!(
                 "file:{}?{}",
                 percent_encoding::percent_encode(filename.as_bytes(), NON_ALPHANUMERIC),
-                serde_urlencoded::to_string(&query_params).unwrap()
+                query_string
             );
         }
 

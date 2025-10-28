@@ -8,14 +8,17 @@ use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use sqlx_core::sql_str::SqlStr;
 use std::{future, pin::pin};
 
+#[cfg(feature = "offline")]
+use sqlx_core::any::Any;
 use sqlx_core::any::{
-    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
 };
 
 use crate::type_info::PgType;
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
+#[cfg(feature = "offline")]
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::ext::ustr::UStr;
@@ -141,6 +144,7 @@ impl AnyConnectionBackend for PgConnection {
         })
     }
 
+    #[cfg(feature = "offline")]
     fn describe<'c>(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
