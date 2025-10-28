@@ -18,7 +18,7 @@ impl<'de> ProtocolDecode<'de, &'de [MySqlColumn]> for BinaryRow {
         let header = buf.get_u8();
         if header != 0 {
             return Err(err_protocol!(
-                "exepcted 0x00 (ROW) but found 0x{:02x}",
+                "expected 0x00 (ROW) but found 0x{:02x}",
                 header
             ));
         }

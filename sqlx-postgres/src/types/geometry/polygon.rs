@@ -15,7 +15,7 @@ const BYTE_WIDTH: usize = mem::size_of::<f64>();
 /// Description: Polygon (similar to closed polygon)
 /// Representation: `((x1,y1),...)`
 ///
-/// Polygons are represented by lists of points (the vertexes of the polygon). Polygons are very similar to closed paths; the essential semantic difference is that a polygon is considered to include the area within it, while a path is not.
+/// Polygons are represented by lists of points (the vertices of the polygon). Polygons are very similar to closed paths; the essential semantic difference is that a polygon is considered to include the area within it, while a path is not.
 /// An important implementation difference between polygons and paths is that the stored representation of a polygon includes its smallest bounding box. This speeds up certain search operations, although computing the bounding box adds overhead while constructing new polygons.
 /// Values of type polygon are specified using any of the following syntaxes:
 ///
