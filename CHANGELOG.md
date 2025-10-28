@@ -240,7 +240,7 @@ This section will be replaced in subsequent alpha releases. See the Git history 
 [#4007]: https://github.com/launchbadge/sqlx/pull/4007
 [#4008]: https://github.com/launchbadge/sqlx/pull/4008
 [#4009]: https://github.com/launchbadge/sqlx/pull/4009
-[#4015]: https://github.com/launchbadge/sqlx/pull/401
+[#4015]: https://github.com/launchbadge/sqlx/pull/4015
 [#4018]: https://github.com/launchbadge/sqlx/pull/4018
 [#4020]: https://github.com/launchbadge/sqlx/pull/4020
 [#4022]: https://github.com/launchbadge/sqlx/pull/4022
