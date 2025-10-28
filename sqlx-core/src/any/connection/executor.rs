@@ -1,4 +1,5 @@
 use crate::any::{Any, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
+#[cfg(feature = "offline")]
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -56,6 +57,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         self.backend.prepare_with(sql, parameters)
     }
 
+    #[cfg(feature = "offline")]
     fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,

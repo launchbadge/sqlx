@@ -1,5 +1,6 @@
 use super::MySqlStream;
 use crate::connection::stream::Waiting;
+#[cfg(feature = "offline")]
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -10,7 +11,9 @@ use crate::protocol::response::Status;
 use crate::protocol::statement::{
     BinaryRow, Execute as StatementExecute, Prepare, PrepareOk, StmtClose,
 };
-use crate::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
+#[cfg(feature = "offline")]
+use crate::protocol::text::ColumnFlags;
+use crate::protocol::text::{ColumnDefinition, Query, TextRow};
 use crate::statement::{MySqlStatement, MySqlStatementMetadata};
 use crate::HashMap;
 use crate::{
@@ -359,6 +362,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
+    #[cfg(feature = "offline")]
     fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
     where
         'c: 'e,

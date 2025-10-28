@@ -3995,7 +3995,6 @@ dependencies = [
  "percent-encoding",
  "regex",
  "serde",
- "serde_urlencoded",
  "sqlx",
  "sqlx-core",
  "thiserror 2.0.17",

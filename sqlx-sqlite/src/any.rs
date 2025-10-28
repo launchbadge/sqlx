@@ -6,8 +6,10 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
+#[cfg(feature = "offline")]
+use sqlx_core::any::Any;
 use sqlx_core::any::{
-    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind, AnyValueKind,
 };
 use sqlx_core::sql_str::SqlStr;
@@ -16,6 +18,7 @@ use crate::arguments::SqliteArgumentsBuffer;
 use crate::type_info::DataType;
 use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::database::Database;
+#[cfg(feature = "offline")]
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::TransactionManager;
@@ -140,6 +143,7 @@ impl AnyConnectionBackend for SqliteConnection {
         })
     }
 
+    #[cfg(feature = "offline")]
     fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move { Executor::describe(self, sql).await?.try_into_any() })
     }

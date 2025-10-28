@@ -1,19 +1,25 @@
 use crate::connection::TableColumns;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+#[cfg(feature = "offline")]
 use crate::io::StatementId;
 use crate::message::{ParameterDescription, RowDescription};
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
+#[cfg(feature = "offline")]
 use crate::statement::PgStatementMetadata;
 use crate::type_info::{PgArrayOf, PgCustomType, PgType, PgTypeKind};
+#[cfg(feature = "offline")]
 use crate::types::Json;
 use crate::types::Oid;
 use crate::HashMap;
 use crate::{PgColumn, PgConnection, PgTypeInfo};
+#[cfg(feature = "offline")]
 use smallvec::SmallVec;
 use sqlx_core::column::{ColumnOrigin, TableColumn};
+#[cfg(feature = "offline")]
 use sqlx_core::query_builder::QueryBuilder;
+#[cfg(feature = "offline")]
 use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::Arc;
 
@@ -490,6 +496,7 @@ WHERE rngtypid = $1
     }
 
     /// Check whether EXPLAIN statements are supported by the current connection
+    #[cfg(feature = "offline")]
     fn is_explain_available(&self) -> bool {
         let parameter_statuses = &self.inner.stream.parameter_statuses;
         let is_cockroachdb = parameter_statuses.contains_key("crdb_version");
@@ -498,6 +505,7 @@ WHERE rngtypid = $1
         !is_cockroachdb && !is_materialize && !is_questdb
     }
 
+    #[cfg(feature = "offline")]
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
         stmt_id: StatementId,
@@ -591,6 +599,7 @@ WHERE rngtypid = $1
     ///
     /// This currently only marks columns that are on the inner half of an outer join
     /// and returns `None` for all others.
+    #[cfg(feature = "offline")]
     async fn nullables_from_explain(
         &mut self,
         stmt_id: StatementId,
@@ -640,6 +649,7 @@ WHERE rngtypid = $1
     }
 }
 
+#[cfg(feature = "offline")]
 fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>) {
     if let Some(plan_outputs) = &plan.output {
         // all outputs of a Full Join must be marked nullable
@@ -665,6 +675,7 @@ fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>
     }
 }
 
+#[cfg(feature = "offline")]
 #[derive(serde::Deserialize, Debug)]
 #[serde(untagged)]
 enum Explain {
@@ -688,6 +699,7 @@ enum Explain {
     Other(serde::de::IgnoredAny),
 }
 
+#[cfg(feature = "offline")]
 #[derive(serde::Deserialize, Debug)]
 struct Plan {
     #[serde(rename = "Join Type")]
@@ -701,6 +713,7 @@ struct Plan {
 }
 
 #[test]
+#[cfg(feature = "offline")]
 fn explain_parsing() {
     let normal_plan = r#"[
    {

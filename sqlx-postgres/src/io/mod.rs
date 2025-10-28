@@ -16,6 +16,7 @@ pub(crate) struct PortalId(IdInner);
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct IdInner(Option<NonZeroU32>);
 
+#[allow(dead_code)]
 pub(crate) struct DisplayId {
     prefix: &'static str,
     id: NonZeroU32,
@@ -43,6 +44,7 @@ impl StatementId {
     /// Get a type to format this statement ID with [`Display`].
     ///
     /// Returns `None` if this is the unnamed statement.
+    #[allow(dead_code)]
     #[inline(always)]
     pub fn display(&self) -> Option<DisplayId> {
         self.0.display(Self::NAME_PREFIX)

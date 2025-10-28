@@ -7,12 +7,15 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{stream, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+#[cfg(feature = "offline")]
+use sqlx_core::any::Any;
 use sqlx_core::any::{
-    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
 };
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
+#[cfg(feature = "offline")]
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::sql_str::SqlStr;
@@ -141,6 +144,7 @@ impl AnyConnectionBackend for MySqlConnection {
         })
     }
 
+    #[cfg(feature = "offline")]
     fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;

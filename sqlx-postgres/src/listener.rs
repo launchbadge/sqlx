@@ -12,6 +12,7 @@ use sqlx_core::transaction::Transaction;
 use sqlx_core::Either;
 use tracing::Instrument;
 
+#[cfg(feature = "offline")]
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -439,6 +440,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     }
 
     #[doc(hidden)]
+    #[cfg(feature = "offline")]
     fn describe<'e>(self, query: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,

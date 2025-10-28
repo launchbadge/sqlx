@@ -1,4 +1,7 @@
-use crate::any::{Any, AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
+#[cfg(feature = "offline")]
+use crate::any::Any;
+use crate::any::{AnyArguments, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
+#[cfg(feature = "offline")]
 use crate::describe::Describe;
 use crate::sql_str::SqlStr;
 use either::Either;
@@ -114,5 +117,6 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
         parameters: &[AnyTypeInfo],
     ) -> BoxFuture<'c, crate::Result<AnyStatement>>;
 
+    #[cfg(feature = "offline")]
     fn describe(&mut self, sql: SqlStr) -> BoxFuture<'_, crate::Result<Describe<Any>>>;
 }
