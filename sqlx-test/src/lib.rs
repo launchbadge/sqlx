@@ -1,10 +1,14 @@
 use sqlx::pool::PoolOptions;
 use sqlx::{Connection, Database, Error, Pool};
 use std::env;
+use tracing_subscriber::EnvFilter;
 
 pub fn setup_if_needed() {
     let _ = dotenvy::dotenv();
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_test_writer()
+        .finish();
 }
 
 // Make a new connection

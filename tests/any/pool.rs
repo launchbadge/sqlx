@@ -1,6 +1,6 @@
 use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
 use sqlx::Executor;
-use sqlx_core::connection::ConnectOptions;
+use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::pool::PoolConnectMetadata;
 use sqlx_core::sql_str::AssertSqlSafe;
 use std::sync::{
@@ -8,6 +8,29 @@ use std::sync::{
     Arc, Mutex,
 };
 use std::time::Duration;
+
+#[sqlx_macros::test]
+async fn pool_basic_functions() -> anyhow::Result<()> {
+    sqlx::any::install_default_drivers();
+
+    let pool = AnyPoolOptions::new()
+        .max_connections(2)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(&dotenvy::var("DATABASE_URL")?)
+        .await?;
+
+    let mut conn = pool.acquire().await?;
+
+    conn.ping().await?;
+
+    drop(conn);
+
+    let b: bool = sqlx::query_scalar("SELECT true").fetch_one(&pool).await?;
+
+    assert!(b);
+
+    Ok(())
+}
 
 // https://github.com/launchbadge/sqlx/issues/527
 #[sqlx_macros::test]
@@ -43,6 +66,7 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_pool_callbacks() -> anyhow::Result<()> {
     sqlx::any::install_default_drivers();
+    tracing_subscriber::fmt::init();
 
     #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
     struct ConnStats {
@@ -131,7 +155,9 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
                     id
                 );
 
-                conn.execute(&statement[..]).await?;
+                sqlx::raw_sql(AssertSqlSafe(statement))
+                    .execute(&mut conn)
+                    .await?;
                 Ok(conn)
             }
         });
@@ -154,6 +180,8 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
     ];
 
     for (id, before_acquire_calls, after_release_calls) in pattern {
+        eprintln!("ID: {id}, before_acquire calls: {before_acquire_calls}, after_release calls: {after_release_calls}");
+
         let conn_stats: ConnStats = sqlx::query_as("SELECT * FROM conn_stats")
             .fetch_one(&pool)
             .await?;
@@ -183,6 +211,7 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
     let last_meta = Arc::new(Mutex::new(None));
     let last_meta_ = last_meta.clone();
     let pool = AnyPoolOptions::new()
+        .acquire_timeout(Duration::from_secs(1))
         .max_lifetime(Duration::from_millis(400))
         .min_connections(3)
         .before_acquire(move |_conn, _meta| {
