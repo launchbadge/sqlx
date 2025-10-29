@@ -467,3 +467,6 @@ name = "any-pool"
 path = "benches/any/pool.rs"
 required-features = ["runtime-tokio", "any"]
 harness = false
+
+[profile.bench]
+debug = true

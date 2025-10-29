@@ -156,12 +156,6 @@ impl<DB: Database> PoolInner<DB> {
                 return Poll::Ready(Err(Error::PoolClosed));
             }
 
-            if let Poll::Ready(()) = deadline.as_mut().poll(cx) {
-                return Poll::Ready(Err(Error::PoolTimedOut {
-                    last_connect_error: connect_shared.take_error().map(Box::new),
-                }));
-            }
-
             if let Poll::Ready(res) = acquire_connected.as_mut().poll(cx) {
                 match res {
                     Ok(conn) => {
@@ -203,6 +197,12 @@ impl<DB: Database> PoolInner<DB> {
 
             if let Poll::Ready(res) = Pin::new(&mut connect).poll(cx) {
                 return Poll::Ready(res);
+            }
+
+            if let Poll::Ready(()) = deadline.as_mut().poll(cx) {
+                return Poll::Ready(Err(Error::PoolTimedOut {
+                    last_connect_error: connect_shared.take_error().map(Box::new),
+                }));
             }
 
             return Poll::Pending;
