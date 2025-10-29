@@ -574,6 +574,10 @@ impl<DB: Database> PoolOptions<DB> {
 
         let inner = PoolInner::new_arc(self, connector);
 
+        if inner.options.min_connections > 0 {
+            inner.try_min_connections(Some(deadline)).await?;
+        }
+
         Ok(Pool(inner))
     }
 

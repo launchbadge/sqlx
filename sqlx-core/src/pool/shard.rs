@@ -47,6 +47,7 @@ struct SlotGuard<T> {
     locked: Option<ArcMutexGuard<T>>,
     shard: ArcShard<T>,
     index: ConnectionIndex,
+    dropped: bool,
 }
 
 pub struct ConnectedSlot<T>(SlotGuard<T>);
@@ -134,7 +135,7 @@ impl<T> Sharded<T> {
     pub fn count_unlocked(&self, connected: bool) -> usize {
         self.shards
             .iter()
-            .map(|shard| shard.unlocked_mask(connected).count_ones() as usize)
+            .map(|shard| shard.unlocked_mask(connected).count_ones())
             .sum()
     }
 
@@ -156,10 +157,10 @@ impl<T> Sharded<T> {
     }
 
     pub async fn acquire_disconnected(&self) -> DisconnectedSlot<T> {
-        let guard = self.acquire(true).await;
+        let guard = self.acquire(false).await;
 
         assert!(
-            guard.get().is_some(),
+            guard.get().is_none(),
             "BUG: expected slot {}/{} NOT to be connected but it WAS",
             guard.shard.shard_id,
             guard.index
@@ -347,6 +348,7 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             locked: Some(locked),
             shard: self.clone(),
             index,
+            dropped: false,
         })
     }
 
@@ -368,6 +370,13 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             // Guard against some weird bug causing this to already be connected
             slot.get().is_some().then_some(ConnectedSlot(slot))
         })
+    }
+
+    fn all_leaked(&self) -> bool {
+        let all_leaked_mask = (1usize << self.connections.len()) - 1;
+        let leaked_set = self.leaked_set.load(Ordering::Acquire);
+
+        leaked_set == all_leaked_mask
     }
 
     async fn drain<F, Fut>(self: &Arc<Self>, close: F)
@@ -396,11 +405,9 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             }
         });
 
-        let finished_mask = (1usize << self.connections.len()) - 1;
-
         std::future::poll_fn(|cx| {
             // The connection set is drained once all slots are leaked.
-            if self.leaked_set.load(Ordering::Acquire) == finished_mask {
+            if self.all_leaked() {
                 return Poll::Ready(());
             }
 
@@ -409,7 +416,12 @@ impl<T> Shard<T, [Arc<Mutex<Option<T>>>]> {
             let _ = drain_disconnected.as_mut().poll(cx);
             let _ = drain_leaked.as_mut().poll(cx);
 
-            Poll::Pending
+            // Check again after driving the `drain` futures forward.
+            if self.all_leaked() {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
+            }
         })
         .await;
     }
@@ -443,6 +455,13 @@ impl<T> ConnectedSlot<T> {
             .take()
             .expect("BUG: expected slot to be populated, but it wasn't");
 
+        atomic_set(
+            &this.0.shard.connected_set,
+            this.0.index,
+            false,
+            Ordering::AcqRel,
+        );
+
         (conn, DisconnectedSlot(this.0))
     }
 }
@@ -450,6 +469,14 @@ impl<T> ConnectedSlot<T> {
 impl<T> DisconnectedSlot<T> {
     pub fn put(mut self, connection: T) -> ConnectedSlot<T> {
         *self.0.get_mut() = Some(connection);
+
+        atomic_set(
+            &self.0.shard.connected_set,
+            self.0.index,
+            true,
+            Ordering::AcqRel,
+        );
+
         ConnectedSlot(self.0)
     }
 
@@ -546,10 +573,13 @@ impl<T> Drop for SlotGuard<T> {
                 locked: Some(locked),
                 shard: self.shard.clone(),
                 index: self.index,
+                // To avoid infinite recursion or deadlock, don't send another notification
+                // if this guard was already dropped once: just unlock it.
+                dropped: true,
             }
         };
 
-        if connected {
+        if !self.dropped && connected {
             // Check for global waiters first.
             if self
                 .shard
@@ -564,7 +594,7 @@ impl<T> Drop for SlotGuard<T> {
             if self.shard.unlock_event.notify(1.tag_with(&mut self_as_tag)) > 0 {
                 return;
             }
-        } else {
+        } else if !self.dropped {
             if self
                 .shard
                 .global
@@ -584,7 +614,6 @@ impl<T> Drop for SlotGuard<T> {
                 return;
             }
 
-            // If this connection is required to satisfy `min_connections`
             if self.should_reconnect() {
                 (self.shard.global.do_reconnect)(DisconnectedSlot(self_as_tag()));
                 return;
@@ -695,7 +724,7 @@ impl Iterator for Mask {
         }
 
         let index = self.0.trailing_zeros() as usize;
-        self.0 &= 1 << index;
+        self.0 &= !(1 << index);
 
         Some(index)
     }

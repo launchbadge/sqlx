@@ -26,6 +26,8 @@ use futures_util::{stream, FutureExt, TryStreamExt};
 use std::time::{Duration, Instant};
 use tracing::Level;
 
+const GRACEFUL_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
+
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connector: DynConnector<DB>,
     pub(super) counter: ConnectionCounter,
@@ -47,6 +49,8 @@ impl<DB: Database> PoolInner<DB> {
 
             let reconnect = move |slot| {
                 let Some(pool) = pool_weak.upgrade() else {
+                    // Prevent an infinite loop on pool drop.
+                    DisconnectedSlot::leak(slot);
                     return;
                 };
 
@@ -104,7 +108,7 @@ impl<DB: Database> PoolInner<DB> {
         self.sharded.drain(|slot| async move {
             let (conn, slot) = ConnectedSlot::take(slot);
 
-            let _ = conn.raw.close().await;
+            let _ = rt::timeout(GRACEFUL_CLOSE_TIMEOUT, conn.raw.close()).await;
 
             slot
         })
@@ -248,37 +252,42 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
-    pub(crate) async fn try_min_connections(self: &Arc<Self>) -> Result<(), Error> {
-        stream::iter(
-            self.sharded
-                .iter_min_connections()
-                .map(Result::<_, Error>::Ok),
-        )
-        .try_for_each_concurrent(None, |slot| async move {
-            let shared = ConnectTaskShared::new_arc();
+    pub(crate) async fn try_min_connections(
+        self: &Arc<Self>,
+        deadline: Option<Instant>,
+    ) -> Result<(), Error> {
+        let shared = ConnectTaskShared::new_arc();
 
-            let res = self
-                .connector
-                .connect(
+        let connect_min_connections =
+            future::try_join_all(self.sharded.iter_min_connections().map(|slot| {
+                self.connector.connect(
                     Pool(self.clone()),
                     ConnectionId::next(),
                     slot,
                     shared.clone(),
                 )
-                .await;
+            }));
 
-            match res {
-                Ok(conn) => {
-                    drop(conn);
-                    Ok(())
+        let mut conns = if let Some(deadline) = deadline {
+            match rt::timeout_at(deadline, connect_min_connections).await {
+                Ok(Ok(conns)) => conns,
+                Err(_) | Ok(Err(Error::PoolTimedOut { .. })) => {
+                    return Err(Error::PoolTimedOut {
+                        last_connect_error: shared.take_error().map(Box::new),
+                    });
                 }
-                Err(Error::PoolTimedOut { .. }) => Err(Error::PoolTimedOut {
-                    last_connect_error: shared.take_error().map(Box::new),
-                }),
-                Err(other) => Err(other),
+                Ok(Err(e)) => return Err(e),
             }
-        })
-        .await
+        } else {
+            connect_min_connections.await?
+        };
+
+        for mut conn in conns {
+            // Bypass `after_release`
+            drop(conn.return_to_pool());
+        }
+
+        Ok(())
     }
 }
 
@@ -378,7 +387,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
             if pool.options.min_connections > 0 {
                 rt::spawn(async move {
                     if let Some(pool) = pool_weak.upgrade() {
-                        if let Err(error) = pool.try_min_connections().await {
+                        if let Err(error) = pool.try_min_connections(None).await {
                             tracing::error!(
                                 target: "sqlx::pool",
                                 ?error,
