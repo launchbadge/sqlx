@@ -2,7 +2,7 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cfg_if::cfg_if;
 
@@ -51,6 +51,29 @@ pub async fn timeout<F: Future>(duration: Duration, f: F) -> Result<F::Output, T
     }
 }
 
+pub async fn timeout_at<F: Future>(deadline: Instant, f: F) -> Result<F::Output, TimeoutError> {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return tokio::time::timeout_at(deadline.into(), f)
+            .await
+            .map_err(|_| TimeoutError);
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    {
+        let Some(duration) = deadline.checked_duration_since(Instant::now()) else {
+            return Err(TimeoutError);
+        };
+
+        async_std::future::timeout(duration, f)
+            .await
+            .map_err(|_| TimeoutError)
+    }
+
+    #[cfg(not(feature = "_rt-async-std"))]
+    missing_rt((deadline, f))
+}
+
 pub async fn sleep(duration: Duration) {
     #[cfg(feature = "_rt-tokio")]
     if rt_tokio::available() {
@@ -62,6 +85,21 @@ pub async fn sleep(duration: Duration) {
             rt_async_io::sleep(duration).await
         } else {
             missing_rt(duration)
+        }
+    }
+}
+
+pub async fn sleep_until(instant: Instant) {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return tokio::time::sleep_until(instant.into()).await;
+    }
+
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::sleep_until(instant).await
+        } else {
+            missing_rt(instant)
         }
     }
 }
@@ -163,7 +201,7 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
 #[track_caller]
 pub const fn missing_rt<T>(_unused: T) -> ! {
     if cfg!(feature = "_rt-tokio") {
-        panic!("this functionality requires a Tokio context")
+        panic!("this functionality requires an active Tokio runtime")
     }
 
     panic!("one of the `runtime` features of SQLx must be enabled")
