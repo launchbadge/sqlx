@@ -290,9 +290,9 @@ pub async fn connect_tcp<Ws: WithSocket>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{Duration, Instant};
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn test_spawn_completes_successfully() {
@@ -313,7 +313,7 @@ mod tests {
                 }
                 sum
             });
-            
+
             let result = handle.await;
             assert_eq!(result, 55);
         };
@@ -338,7 +338,7 @@ mod tests {
     fn test_spawn_with_sleep() {
         async {
             let started = Instant::now();
-            
+
             let handle = spawn(async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
                 "completed"
@@ -346,7 +346,7 @@ mod tests {
 
             let result = handle.await;
             let elapsed = started.elapsed();
-            
+
             assert_eq!(result, "completed");
             assert!(elapsed >= Duration::from_millis(100));
         };
@@ -453,7 +453,8 @@ mod tests {
             let result = crate::rt::timeout(Duration::from_secs(1), async {
                 crate::rt::sleep(Duration::from_millis(50)).await;
                 42
-            }).await;
+            })
+            .await;
 
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), 42);
@@ -466,7 +467,8 @@ mod tests {
             let result = crate::rt::timeout(Duration::from_millis(50), async {
                 crate::rt::sleep(Duration::from_millis(200)).await;
                 42
-            }).await;
+            })
+            .await;
 
             assert!(result.is_err());
         };
@@ -475,9 +477,7 @@ mod tests {
     #[test]
     fn test_timeout_immediate_completion() {
         async {
-            let result = crate::rt::timeout(Duration::from_secs(1), async {
-                "immediate"
-            }).await;
+            let result = crate::rt::timeout(Duration::from_secs(1), async { "immediate" }).await;
 
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), "immediate");
@@ -493,7 +493,8 @@ mod tests {
                     sum += i;
                 }
                 sum
-            }).await;
+            })
+            .await;
 
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), 5050);
@@ -507,7 +508,8 @@ mod tests {
                 crate::rt::timeout(Duration::from_millis(100), async {
                     crate::rt::sleep(Duration::from_millis(50)).await;
                     "success"
-                }).await
+                })
+                .await
             });
 
             let result = handle.await;
@@ -520,13 +522,13 @@ mod tests {
     fn test_multiple_sleeps_sequential() {
         async {
             let start = Instant::now();
-            
+
             crate::rt::sleep(Duration::from_millis(50)).await;
             crate::rt::sleep(Duration::from_millis(50)).await;
             crate::rt::sleep(Duration::from_millis(50)).await;
-            
+
             let elapsed = start.elapsed();
-            
+
             // Total should be at least 150ms
             assert!(elapsed >= Duration::from_millis(150));
         };
@@ -536,7 +538,7 @@ mod tests {
     fn test_multiple_sleeps_concurrent() {
         async {
             let start = Instant::now();
-            
+
             let h1 = spawn(async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
             });
@@ -550,9 +552,9 @@ mod tests {
             h1.await;
             h2.await;
             h3.await;
-            
+
             let elapsed = start.elapsed();
-            
+
             // Should complete in ~100ms, not 300ms (concurrent execution)
             assert!(elapsed < Duration::from_millis(200));
         };
@@ -566,14 +568,14 @@ mod tests {
             use std::task::{Context, Poll};
 
             let handle = spawn(async { 99 });
-            
+
             // Pin the handle to test Future implementation
             let mut pinned = Box::pin(handle);
-            
+
             // Create a simple waker for testing
             let waker = futures_util::task::noop_waker();
             let mut cx = Context::from_waker(&waker);
-            
+
             // Poll until ready
             loop {
                 match pinned.as_mut().poll(&mut cx) {
@@ -622,9 +624,7 @@ mod tests {
             let result2 = step2.await;
 
             let step3 = spawn(async move {
-                crate::rt::timeout(Duration::from_millis(100), async {
-                    result1 + result2
-                }).await
+                crate::rt::timeout(Duration::from_millis(100), async { result1 + result2 }).await
             });
 
             let final_result = step3.await;
@@ -636,9 +636,7 @@ mod tests {
     #[test]
     fn test_spawn_return_string() {
         async {
-            let handle = spawn(async {
-                String::from("Hello from WASI!")
-            });
+            let handle = spawn(async { String::from("Hello from WASI!") });
 
             let result = handle.await;
             assert_eq!(result, "Hello from WASI!");
@@ -648,9 +646,7 @@ mod tests {
     #[test]
     fn test_spawn_with_option_result() {
         async {
-            let handle = spawn(async {
-                Some(42)
-            });
+            let handle = spawn(async { Some(42) });
 
             let result = handle.await;
             assert_eq!(result, Some(42));
@@ -660,9 +656,7 @@ mod tests {
     #[test]
     fn test_spawn_with_result_type() {
         async {
-            let handle = spawn(async {
-                Ok::<i32, String>(100)
-            });
+            let handle = spawn(async { Ok::<i32, String>(100) });
 
             let result = handle.await;
             assert!(result.is_ok());

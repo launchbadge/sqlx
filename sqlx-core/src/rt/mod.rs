@@ -196,22 +196,19 @@ pub fn test_block_on<F: Future>(f: F) -> F::Output {
         return async_io::block_on(f);
     }
 
-    #[cfg(any(feature = "_rt-tokio", target_arch = "wasm32"))]
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Use futures::executor::block_on for WASM
+        return futures::executor::block_on(f);
+    }
+
+    #[cfg(feature = "_rt-tokio")]
     {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("failed to start Tokio runtime");
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            return rt.block_on(async { tokio::task::LocalSet::new().run_until(f).await });
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            return rt.block_on(f);
-        }
+        return rt.block_on(f);
     }
 
     #[cfg(all(

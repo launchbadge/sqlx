@@ -5,7 +5,7 @@ use std::env;
 async fn run() -> anyhow::Result<()> {
     let database_url = env::var("DATABASE_URL")?;
     let mut conn = MySqlConnection::connect(&database_url).await?;
-    
+
     // MySQL returns DOUBLE for arithmetic, so use f64 or cast to INT
     let value: i64 = sqlx::query_scalar("SELECT CAST(? + ? AS SIGNED)")
         .bind(2_i32)
@@ -13,7 +13,7 @@ async fn run() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(value, 5);
-    
+
     conn.close().await?;
     eprintln!("Prepared query test passed!");
     Ok(())

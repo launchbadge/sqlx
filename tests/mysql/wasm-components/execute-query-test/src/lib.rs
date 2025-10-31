@@ -5,11 +5,11 @@ use std::env;
 async fn run() -> anyhow::Result<()> {
     let database_url = env::var("DATABASE_URL")?;
     let mut conn = MySqlConnection::connect(&database_url).await?;
-    
+
     let result = conn.execute("DO 1").await?;
     // DO statement affects 0 rows but executes successfully
     assert_eq!(result.rows_affected(), 0);
-    
+
     conn.close().await?;
     eprintln!("Execute query test passed!");
     Ok(())

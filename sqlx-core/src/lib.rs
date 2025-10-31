@@ -22,6 +22,8 @@
 // <https://doc.rust-lang.org/unstable-book/language-features/doc-cfg.html>
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub mod wasm;
+
 #[macro_use]
 pub mod ext;
 

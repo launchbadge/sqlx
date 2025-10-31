@@ -2,8 +2,8 @@
 //! These functions execute on the current-thread LocalSet so that `!Send` futures from
 //! wit-bindgen never cross threads.
 
-use log::debug;
 use futures::join;
+use log::debug;
 use wasip3::wit_bindgen::rt::async_support;
 use wasip3::wit_bindgen::rt::async_support::futures::channel::oneshot;
 
@@ -56,9 +56,7 @@ mod tests {
     #[test]
     fn test_dispatch_string_value() {
         async {
-            let result = dispatch(|| async {
-                String::from("Hello from WASM worker!")
-            }).await;
+            let result = dispatch(|| async { String::from("Hello from WASM worker!") }).await;
             assert_eq!(result, "Hello from WASM worker!");
         };
     }
@@ -72,7 +70,8 @@ mod tests {
                     sum += i;
                 }
                 sum
-            }).await;
+            })
+            .await;
             assert_eq!(result, 5050);
         };
     }
@@ -81,12 +80,13 @@ mod tests {
     fn test_dispatch_with_sleep() {
         async {
             let start = std::time::Instant::now();
-            
+
             let result = dispatch(|| async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
                 "completed"
-            }).await;
-            
+            })
+            .await;
+
             let elapsed = start.elapsed();
             assert_eq!(result, "completed");
             assert!(elapsed >= Duration::from_millis(100));
@@ -120,11 +120,9 @@ mod tests {
     fn test_dispatch_with_closure_capture() {
         async {
             let multiplier = 5;
-            
-            let result = dispatch(move || async move {
-                multiplier * 10
-            }).await;
-            
+
+            let result = dispatch(move || async move { multiplier * 10 }).await;
+
             assert_eq!(result, 50);
         };
     }
@@ -132,10 +130,8 @@ mod tests {
     #[test]
     fn test_dispatch_with_option() {
         async {
-            let result = dispatch(|| async {
-                Some(42)
-            }).await;
-            
+            let result = dispatch(|| async { Some(42) }).await;
+
             assert_eq!(result, Some(42));
         };
     }
@@ -143,10 +139,8 @@ mod tests {
     #[test]
     fn test_dispatch_with_result_ok() {
         async {
-            let result = dispatch(|| async {
-                Ok::<i32, String>(100)
-            }).await;
-            
+            let result = dispatch(|| async { Ok::<i32, String>(100) }).await;
+
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), 100);
         };
@@ -155,10 +149,9 @@ mod tests {
     #[test]
     fn test_dispatch_with_result_err() {
         async {
-            let result = dispatch(|| async {
-                Err::<i32, String>("error occurred".to_string())
-            }).await;
-            
+            let result =
+                dispatch(|| async { Err::<i32, String>("error occurred".to_string()) }).await;
+
             assert!(result.is_err());
             assert_eq!(result.unwrap_err(), "error occurred");
         };
@@ -174,7 +167,8 @@ mod tests {
                 counter_clone.fetch_add(10, Ordering::SeqCst);
                 counter_clone.fetch_add(20, Ordering::SeqCst);
                 counter_clone.load(Ordering::SeqCst)
-            }).await;
+            })
+            .await;
 
             assert_eq!(result, 30);
             assert_eq!(counter.load(Ordering::SeqCst), 30);
@@ -185,14 +179,13 @@ mod tests {
     fn test_dispatch_multiple_with_shared_state() {
         async {
             let counter = Arc::new(AtomicU32::new(0));
-            
+
             let mut handles = vec![];
             for i in 1..=5 {
                 let counter_clone = counter.clone();
                 let handle = tokio::spawn(async move {
-                    dispatch(move || async move {
-                        counter_clone.fetch_add(i, Ordering::SeqCst)
-                    }).await
+                    dispatch(move || async move { counter_clone.fetch_add(i, Ordering::SeqCst) })
+                        .await
                 });
                 handles.push(handle);
             }
@@ -214,7 +207,8 @@ mod tests {
 
             dispatch(move || async move {
                 flag_clone.store(true, Ordering::SeqCst);
-            }).await;
+            })
+            .await;
 
             assert!(flag.load(Ordering::SeqCst));
         };
@@ -226,7 +220,8 @@ mod tests {
             let result = dispatch(|| async {
                 let inner_result = dispatch(|| async { 10 }).await;
                 inner_result * 2
-            }).await;
+            })
+            .await;
 
             assert_eq!(result, 20);
         };
@@ -235,9 +230,7 @@ mod tests {
     #[test]
     fn test_dispatch_with_vec_result() {
         async {
-            let result = dispatch(|| async {
-                vec![1, 2, 3, 4, 5]
-            }).await;
+            let result = dispatch(|| async { vec![1, 2, 3, 4, 5] }).await;
 
             assert_eq!(result.len(), 5);
             assert_eq!(result, vec![1, 2, 3, 4, 5]);
@@ -247,9 +240,7 @@ mod tests {
     #[test]
     fn test_dispatch_with_tuple_result() {
         async {
-            let result = dispatch(|| async {
-                (42, "hello", true)
-            }).await;
+            let result = dispatch(|| async { (42, "hello", true) }).await;
 
             assert_eq!(result, (42, "hello", true));
         };
@@ -269,7 +260,8 @@ mod tests {
                     id: 1,
                     name: String::from("test"),
                 }
-            }).await;
+            })
+            .await;
 
             assert_eq!(result.id, 1);
             assert_eq!(result.name, "test");
@@ -280,15 +272,16 @@ mod tests {
     fn test_dispatch_long_running_job() {
         async {
             let start = std::time::Instant::now();
-            
+
             let result = dispatch(|| async {
                 // Simulate some work
                 for _ in 0..5 {
                     crate::rt::sleep(Duration::from_millis(20)).await;
                 }
                 "long job completed"
-            }).await;
-            
+            })
+            .await;
+
             let elapsed = start.elapsed();
             assert_eq!(result, "long job completed");
             assert!(elapsed >= Duration::from_millis(100));
@@ -299,17 +292,17 @@ mod tests {
     fn test_dispatch_concurrent_long_jobs() {
         async {
             let start = std::time::Instant::now();
-            
+
             let job1 = dispatch(|| async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
                 1
             });
-            
+
             let job2 = dispatch(|| async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
                 2
             });
-            
+
             let job3 = dispatch(|| async {
                 crate::rt::sleep(Duration::from_millis(100)).await;
                 3
@@ -317,7 +310,7 @@ mod tests {
 
             let (r1, r2, r3) = join!(job1, job2, job3);
             let elapsed = start.elapsed();
-            
+
             assert_eq!(r1 + r2 + r3, 6);
             // Should complete concurrently in ~100ms, not 300ms
             assert!(elapsed < Duration::from_millis(200));
@@ -328,15 +321,16 @@ mod tests {
     fn test_dispatch_with_conditional_logic() {
         async {
             let input = 5;
-            
+
             let result = dispatch(move || async move {
                 if input > 3 {
                     "greater"
                 } else {
                     "lesser"
                 }
-            }).await;
-            
+            })
+            .await;
+
             assert_eq!(result, "greater");
         };
     }
@@ -345,7 +339,7 @@ mod tests {
     fn test_dispatch_with_match_expression() {
         async {
             let value = 2;
-            
+
             let result = dispatch(move || async move {
                 match value {
                     1 => "one",
@@ -353,8 +347,9 @@ mod tests {
                     3 => "three",
                     _ => "other",
                 }
-            }).await;
-            
+            })
+            .await;
+
             assert_eq!(result, "two");
         };
     }
@@ -368,7 +363,8 @@ mod tests {
             dispatch(move || async move {
                 counter_clone.fetch_add(1, Ordering::SeqCst);
                 // Implicitly returns ()
-            }).await;
+            })
+            .await;
 
             assert_eq!(counter.load(Ordering::SeqCst), 1);
         };
@@ -382,8 +378,9 @@ mod tests {
                 dispatch(|| async {
                     crate::rt::sleep(Duration::from_millis(100)).await;
                     42
-                })
-            ).await;
+                }),
+            )
+            .await;
 
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), 42);
@@ -397,7 +394,8 @@ mod tests {
                 let handle = crate::rt::spawn(async { 10 });
                 let value = handle.await;
                 value * 2
-            }).await;
+            })
+            .await;
 
             assert_eq!(result, 20);
         };
@@ -413,7 +411,8 @@ mod tests {
                 } else {
                     Ok(42)
                 }
-            }).await;
+            })
+            .await;
 
             assert!(result.is_err());
             assert_eq!(result.unwrap_err(), "operation failed");
@@ -437,7 +436,8 @@ mod tests {
             let result = dispatch(|| async {
                 // Create a relatively large vector
                 (0..1000).collect::<Vec<u32>>()
-            }).await;
+            })
+            .await;
 
             assert_eq!(result.len(), 1000);
             assert_eq!(result[0], 0);

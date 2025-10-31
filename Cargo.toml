@@ -246,6 +246,15 @@ hex = "0.4.3"
 #criterion = { version = "0.5.1", features = ["async_tokio"] }
 libsqlite3-sys = { version = "0.30.1" }
 
+# Dev dependencies that should only be enabled when NOT targeting wasm32.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# Enable tempfile for non-wasm tests
+tempfile = "3.10.1"
+# async-std is required for some async tests (only for non-wasm targets)
+async-std = { workspace = true, features = ["attributes"] }
+# criterion benchmarks (only for non-wasm targets)
+criterion = { version = "0.5.1", features = ["async_tokio"] }
+
 # If this is an unconditional dev-dependency then Cargo will *always* try to build `libsqlite3-sys`,
 # even when SQLite isn't the intended test target, and fail if the build environment is not set up for compiling C code.
 [target.'cfg(sqlite_test_sqlcipher)'.dev-dependencies]

@@ -30,7 +30,7 @@ pub async fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::read(path).await
     }
 }
 
@@ -42,7 +42,7 @@ pub async fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::read_to_string(path).await
     }
 }
 
@@ -54,7 +54,7 @@ pub async fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::create_dir_all(path).await
     }
 }
 
@@ -66,7 +66,7 @@ pub async fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::remove_file(path).await
     }
 }
 
@@ -78,7 +78,7 @@ pub async fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::remove_dir(path).await
     }
 }
 
@@ -90,7 +90,7 @@ pub async fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        todo!()
+        crate::wasm::fs::remove_dir_all(path).await
     }
 }
 
@@ -105,7 +105,7 @@ pub async fn read_dir(path: PathBuf) -> io::Result<ReadDir> {
 
 #[cfg(target_arch = "wasm32")]
 pub async fn read_dir(path: PathBuf) -> io::Result<ReadDir> {
-    todo!()
+    crate::wasm::fs::read_dir(path).await
 }
 
 impl ReadDir {
@@ -145,6 +145,6 @@ impl ReadDir {
             }
         }
         #[cfg(target_arch = "wasm32")]
-        todo!()
+        crate::wasm::fs::next(self).await
     }
 }
