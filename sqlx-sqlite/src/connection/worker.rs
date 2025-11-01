@@ -106,9 +106,14 @@ impl ConnectionWorker {
     pub(crate) async fn establish(params: EstablishParams) -> Result<Self, Error> {
         let (establish_tx, establish_rx) = oneshot::channel();
 
-        thread::Builder::new()
-            .name(params.thread_name.clone())
-            .spawn(move || {
+        let mut builder = thread::Builder::new().name(params.thread_name.clone());
+
+        // Only set a custom stack size if explicitly configured
+        if let Some(stack_size) = params.thread_stack_size {
+            builder = builder.stack_size(stack_size);
+        }
+
+        builder.spawn(move || {
                 let (command_tx, command_rx) = flume::bounded(params.command_channel_size);
 
                 let conn = match params.establish() {
