@@ -198,10 +198,15 @@ impl StatementHandle {
         }
     }
 
+    /// Use sqlite3_column_metadata to determine if a specific column is nullable.
+    ///
+    /// Returns None in the case of INTEGER PRIMARY KEYs
+    /// This is because this column is an alias to rowid if the table does not use a compound
+    /// primary key. In this case the row is not nullable, and the output of
+    /// sqlite3_column_metadata may be incorrect.
     pub(crate) fn column_nullable(&self, index: usize) -> Result<Option<bool>, Error> {
         unsafe {
             let index = check_col_idx!(index);
-
             // https://sqlite.org/c3ref/column_database_name.html
             //
             // ### Note
@@ -212,12 +217,13 @@ impl StatementHandle {
             let db_name = sqlite3_column_database_name(self.0.as_ptr(), index);
             let table_name = sqlite3_column_table_name(self.0.as_ptr(), index);
             let origin_name = sqlite3_column_origin_name(self.0.as_ptr(), index);
-
             if db_name.is_null() || table_name.is_null() || origin_name.is_null() {
                 return Ok(None);
             }
 
             let mut not_null: c_int = 0;
+            let mut datatype: *const c_char = ptr::null();
+            let mut primary_key: c_int = 0;
 
             // https://sqlite.org/c3ref/table_column_metadata.html
             let status = sqlite3_table_column_metadata(
@@ -225,11 +231,11 @@ impl StatementHandle {
                 db_name,
                 table_name,
                 origin_name,
+                &mut datatype,
                 // function docs state to provide NULL for return values you don't care about
                 ptr::null_mut(),
-                ptr::null_mut(),
                 &mut not_null,
-                ptr::null_mut(),
+                &mut primary_key,
                 ptr::null_mut(),
             );
 
@@ -245,7 +251,19 @@ impl StatementHandle {
                 return Err(SqliteError::new(self.db_handle()).into());
             }
 
-            Ok(Some(not_null == 0))
+            let datatype = CStr::from_ptr(datatype);
+
+            Ok(
+                if primary_key != 0
+                    && datatype
+                        .to_bytes()
+                        .eq_ignore_ascii_case("integer".as_bytes())
+                {
+                    None
+                } else {
+                    Some(not_null == 0)
+                },
+            )
         }
     }
 

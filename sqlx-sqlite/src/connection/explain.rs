@@ -43,6 +43,7 @@ const OP_IDX_GE: &str = "IdxGE";
 const OP_IDX_GT: &str = "IdxGT";
 const OP_IDX_LE: &str = "IdxLE";
 const OP_IDX_LT: &str = "IdxLT";
+const OP_IDX_ROWID: &str = "IdxRowid";
 const OP_IF: &str = "If";
 const OP_IF_NO_HOPE: &str = "IfNoHope";
 const OP_IF_NOT: &str = "IfNot";
@@ -361,7 +362,9 @@ fn opcode_to_type(op: &str) -> DataType {
         OP_REAL => DataType::Float,
         OP_BLOB => DataType::Blob,
         OP_AND | OP_OR => DataType::Bool,
-        OP_NEWROWID | OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => DataType::Integer,
+        OP_NEWROWID | OP_IDX_ROWID | OP_ROWID | OP_COUNT | OP_INT64 | OP_INTEGER => {
+            DataType::Integer
+        }
         OP_STRING8 => DataType::Text,
         OP_COLUMN | _ => DataType::Null,
     }
@@ -676,7 +679,7 @@ pub(super) fn explain(
 
                     //nobranch if maybe not null
                     let might_not_branch = match state.mem.r.get(&p1) {
-                        Some(r_p1) => !matches!(r_p1.map_to_datatype(), DataType::Null),
+                        Some(r_p1) => r_p1.map_to_nullable() != Some(false),
                         _ => false,
                     };
 
@@ -1379,7 +1382,8 @@ pub(super) fn explain(
                     state.mem.r.insert(p2, RegDataType::Int(p1));
                 }
 
-                OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_ROWID | OP_NEWROWID => {
+                OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_ROWID | OP_IDX_ROWID
+                | OP_NEWROWID => {
                     // r[p2] = <value of constant>
                     state.mem.r.insert(
                         p2,
