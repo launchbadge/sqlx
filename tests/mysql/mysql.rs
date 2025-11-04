@@ -636,3 +636,36 @@ async fn issue_3200() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_can_name_columns_issue_2206() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    sqlx::raw_sql(
+        "\
+        CREATE TABLE IF NOT EXISTS issue_2206
+        (
+            `id`                     BIGINT AUTO_INCREMENT,
+            `name`                   VARCHAR(128) NOT NULL,
+            PRIMARY KEY (id)
+        );
+    ",
+    )
+    .execute(&mut conn)
+    .await?;
+
+    // Support for RETURNING added in MariaDB 10.5.0 and not currently (2025)
+    // supported in MySQL. Don't fail test due to lack of RETURNING support.
+    if let Ok(row) = sqlx::query("INSERT INTO issue_2206 (name) VALUES (?) RETURNING *")
+        .bind("Alice")
+        .fetch_one(&mut conn)
+        .await
+    {
+        let _id: i64 = row.get("id");
+        let name: String = row.get("name");
+
+        assert_eq!(&name, "Alice");
+    }
+
+    Ok(())
+}
