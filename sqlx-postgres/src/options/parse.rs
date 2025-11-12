@@ -76,7 +76,7 @@ impl PgConnectOptions {
 
                 "hostaddr" => {
                     value.parse::<IpAddr>().map_err(Error::config)?;
-                    options = options.host(&value)
+                    options = options.host_addr(&value)
                 }
 
                 "port" => options = options.port(value.parse().map_err(Error::config)?),
@@ -203,7 +203,28 @@ fn it_parses_hostaddr_correctly_from_parameter() {
     let opts = PgConnectOptions::from_str(url).unwrap();
 
     assert_eq!(None, opts.socket);
-    assert_eq!("8.8.8.8", &opts.host);
+    assert_eq!("localhost", &opts.host);
+    assert_eq!(Some("8.8.8.8"), opts.host_addr.as_deref());
+}
+
+#[test]
+fn it_parses_hostaddr_host_separately_from_parameter() {
+    let url = "postgres://example.com/?hostaddr=8.8.8.8";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!("example.com", &opts.host);
+    assert_eq!(Some("8.8.8.8"), opts.host_addr.as_deref());
+}
+
+#[test]
+fn it_parses_hostaddr_host_host_overwrite_from_query_from_parameter() {
+    let url = "postgres://example.com/?hostaddr=8.8.8.8&host=sqlx.rs";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!("sqlx.rs", &opts.host);
+    assert_eq!(Some("8.8.8.8"), opts.host_addr.as_deref());
 }
 
 #[test]
