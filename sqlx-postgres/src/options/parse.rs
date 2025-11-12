@@ -286,7 +286,10 @@ fn it_uses_default_socket_if_host_is_skipped() {
     let _ = std::fs::remove_file(&path_to_socket)
         .unwrap_or_else(|e| panic!("error while deleting tmp socket file: {}", e));
 
-    assert_eq!(Some(std::path::PathBuf::from(default_socket_dir())), opts.socket);
+    assert_eq!(
+        Some(std::path::PathBuf::from(default_socket_dir())),
+        opts.socket
+    );
     assert_eq!(Some("database".into()), opts.database);
 }
 
@@ -338,7 +341,8 @@ fn it_returns_the_parsed_url_when_socket() {
 #[test]
 fn it_returns_the_parsed_url_with_default_socket_when_host_is_not_defined() {
     let port = 5432;
-    let path_to_socket = std::path::PathBuf::from(format!("{}/.s.PGSQL.{}", default_socket_dir(), port));
+    let path_to_socket =
+        std::path::PathBuf::from(format!("{}/.s.PGSQL.{}", default_socket_dir(), port));
 
     let _ = std::fs::File::create(&path_to_socket)
         .unwrap_or_else(|e| panic!("error while creating tmp socket file: {}", e));
@@ -350,7 +354,11 @@ fn it_returns_the_parsed_url_with_default_socket_when_host_is_not_defined() {
         .unwrap_or_else(|e| panic!("error while deleting tmp socket file: {}", e));
 
     let encoded_socket = utf8_percent_encode(&default_socket_dir(), NON_ALPHANUMERIC).to_string();
-    let encoded_url = format!("postgres://{}@{}/database", whoami::username(), encoded_socket);
+    let encoded_url = format!(
+        "postgres://{}@{}/database",
+        whoami::username(),
+        encoded_socket
+    );
     let mut expected_url = Url::parse(&encoded_url).unwrap();
     // PgConnectOptions defaults
     let query_string = "sslmode=prefer&statement-cache-capacity=100";
