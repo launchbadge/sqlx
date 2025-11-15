@@ -1815,16 +1815,28 @@ fn test_explain() {
 
     assert!(
         if let Ok((ty, nullable)) = explain(&mut conn, "SELECT * FROM an_alias") {
-            ty.as_slice() == &[SqliteTypeInfo(DataType::Integer)]
-                && nullable.as_slice() == &[Some(false)]
+            ty == [SqliteTypeInfo(DataType::Integer)] && nullable == [Some(false)]
         } else {
             false
         }
     );
     assert!(
         if let Ok((ty, nullable)) = explain(&mut conn, "SELECT * FROM not_an_alias") {
-            ty.as_slice() == &[SqliteTypeInfo(DataType::Integer)]
-                && nullable.as_slice() == &[Some(true)]
+            ty == [SqliteTypeInfo(DataType::Integer)] && nullable == [Some(true)]
+        } else {
+            false
+        }
+    );
+    assert!(
+        if let Ok((ty, nullable)) = explain(&mut conn, "SELECT rowid FROM an_alias") {
+            ty == [SqliteTypeInfo(DataType::Integer)] && nullable == [Some(false)]
+        } else {
+            false
+        }
+    );
+    assert!(
+        if let Ok((ty, nullable)) = explain(&mut conn, "SELECT rowid FROM not_an_alias") {
+            ty == [SqliteTypeInfo(DataType::Integer)] && nullable == [Some(false)]
         } else {
             false
         }
