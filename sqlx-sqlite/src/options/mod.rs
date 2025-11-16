@@ -511,7 +511,7 @@ impl SqliteConnectOptions {
     ///         .extension("vsv")
     ///         .extension("mod_spatialite");
     /// }
-    ///     
+    ///
     /// # Ok(options)
     /// # }
     /// ```
@@ -647,8 +647,13 @@ impl SqliteConnectOptions {
         for extension in &config.unsafe_load_extensions {
             // SAFETY: the documentation warns the user about loading extensions
             match extension {
-                config::drivers::SqliteExtension::Path(path) => self = unsafe { self.extension(path.clone()) },
-                config::drivers::SqliteExtension::PathWithEntrypoint { path, entrypoint } => self = unsafe { self.extension_with_entrypoint(path.clone(), entrypoint.clone()) },
+                config::drivers::SqliteExtension::Path(path) => {
+                    self = unsafe { self.extension(path.clone()) }
+                }
+                config::drivers::SqliteExtension::PathWithEntrypoint { path, entrypoint } => {
+                    self =
+                        unsafe { self.extension_with_entrypoint(path.clone(), entrypoint.clone()) }
+                }
             }
         }
 

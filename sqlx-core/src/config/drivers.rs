@@ -106,7 +106,7 @@ pub struct SqliteConfig {
 }
 
 /// Extension for the SQLite database driver.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(
     feature = "sqlx-toml",
     derive(serde::Deserialize),
