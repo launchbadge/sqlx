@@ -1,0 +1,2 @@
+[migrate.defaults]
+migration-versioning = "timestamp"

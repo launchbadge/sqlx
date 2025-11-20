@@ -1,0 +1,12 @@
+[package]
+name = "sqlx-example-postgres-files"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+sqlx = { path = "../../../", features = [ "postgres", "runtime-tokio", "tls-native-tls" ] }
+tokio = { version = "1.20.0", features = ["rt", "macros"]}
+dotenvy = "0.15.0"

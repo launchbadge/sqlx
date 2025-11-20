@@ -1,0 +1,10 @@
+[package]
+name = "sqlx-example-postgres-listen"
+version = "0.1.0"
+edition = "2021"
+workspace = "../../../"
+
+[dependencies]
+sqlx = { path = "../../../", features = [ "runtime-tokio", "postgres" ] }
+futures-util = { version = "0.3.1", default-features = false }
+tokio = { version = "1.20.0", features = ["rt-multi-thread", "macros", "time"]}

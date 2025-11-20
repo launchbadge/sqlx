@@ -1,0 +1,14 @@
+[package]
+name = "sqlx-example-postgres-mockable-todos"
+version = "0.1.0"
+edition = "2021"
+workspace = "../../../"
+
+[dependencies]
+anyhow = "1.0"
+sqlx = { path = "../../../", features = [ "postgres", "runtime-tokio", "tls-native-tls" ] }
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1.20.0", features = ["rt", "macros"]}
+dotenvy = "0.15.0"
+async-trait = "0.1.41"
+mockall = "0.11"
