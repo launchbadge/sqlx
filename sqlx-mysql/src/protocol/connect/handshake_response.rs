@@ -1,9 +1,11 @@
 use crate::io::MySqlBufMutExt;
 use crate::io::{BufMutExt, ProtocolEncode};
+#[cfg(feature = "compression")]
+use crate::options::Compression;
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::connect::ssl_request::SslRequest;
 use crate::protocol::Capabilities;
-
+use crate::CompressionConfig;
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse
 // https://mariadb.com/kb/en/connection/#client-handshake-response
 
@@ -25,6 +27,10 @@ pub struct HandshakeResponse<'a> {
 
     /// Opaque authentication response
     pub auth_response: Option<&'a [u8]>,
+
+    /// compression algorithm
+    #[cfg_attr(not(feature = "compression"), allow(dead_code))]
+    pub compression: Option<CompressionConfig>,
 }
 
 impl ProtocolEncode<'_, Capabilities> for HandshakeResponse<'_> {
@@ -74,6 +80,13 @@ impl ProtocolEncode<'_, Capabilities> for HandshakeResponse<'_> {
                 buf.put_str_nul(plugin.name());
             } else {
                 buf.push(0);
+            }
+        }
+
+        #[cfg(feature = "compression")]
+        if context.contains(Capabilities::ZSTD_COMPRESSION_ALGORITHM) {
+            if let Some(CompressionConfig(Compression::Zstd, level)) = self.compression {
+                buf.push(level)
             }
         }
 

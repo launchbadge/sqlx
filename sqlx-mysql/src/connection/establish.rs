@@ -1,6 +1,3 @@
-use bytes::buf::Buf;
-use bytes::Bytes;
-
 use crate::common::StatementCache;
 use crate::connection::{tls, MySqlConnectionInner, MySqlStream, MAX_PACKET_SIZE};
 use crate::error::Error;
@@ -10,6 +7,8 @@ use crate::protocol::connect::{
 };
 use crate::protocol::Capabilities;
 use crate::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
+use bytes::buf::Buf;
+use bytes::Bytes;
 
 impl MySqlConnection {
     pub(crate) async fn establish(options: &MySqlConnectOptions) -> Result<Self, Error> {
@@ -112,6 +111,7 @@ impl<'a> DoHandshake<'a> {
             database: options.database.as_deref(),
             auth_plugin: plugin,
             auth_response: auth_response.as_deref(),
+            compression: options.compression,
         })?;
 
         stream.flush().await?;
@@ -121,7 +121,7 @@ impl<'a> DoHandshake<'a> {
             match packet[0] {
                 0x00 => {
                     let _ok = packet.ok()?;
-
+                    stream = stream.maybe_enable_compression(options);
                     break;
                 }
 

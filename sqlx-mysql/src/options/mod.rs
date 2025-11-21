@@ -1,3 +1,5 @@
+#[cfg(feature = "compression")]
+use sqlx_core::Error;
 use std::path::{Path, PathBuf};
 
 mod connect;
@@ -80,6 +82,93 @@ pub struct MySqlConnectOptions {
     pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
+    pub(crate) compression: Option<CompressionConfig>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct CompressionConfig(
+    pub(crate) Compression,
+    #[cfg_attr(not(feature = "compression"), allow(dead_code))] pub(crate) u8,
+);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Compression {
+    #[cfg(feature = "compression")]
+    Zlib,
+    #[cfg(feature = "compression")]
+    Zstd,
+}
+
+#[cfg(feature = "compression")]
+impl Compression {
+    /// Selects a default compression level optimized for both encoding speed and output size.
+    pub fn default(self) -> CompressionConfig {
+        match self {
+            Compression::Zlib => CompressionConfig(self, 5),
+            Compression::Zstd => CompressionConfig(self, 11),
+        }
+    }
+
+    /// Optimize for the best speed of encoding.
+    pub fn fast(self) -> CompressionConfig {
+        CompressionConfig(self, 1)
+    }
+
+    /// Optimize for the size of data being encoded.
+    pub fn best(self) -> CompressionConfig {
+        match self {
+            Compression::Zlib => CompressionConfig(self, 9),
+            Compression::Zstd => CompressionConfig(self, 22),
+        }
+    }
+
+    /// Sets the compression level for the current algorithm.
+    ///
+    /// Each compression method supports its own valid range of levels:
+    ///
+    /// - **Zstd:** `1` to `22`
+    /// - **Zlib:** `1` to `9`
+    ///
+    /// If the provided level is valid for the selected algorithm, a new
+    /// [`CompressionConfig`] is returned.
+    /// If the level is out of range, an [`Error::Configuration`] is returned.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(CompressionConfig)` if the level is valid
+    /// - `Err(Error)` if the level is invalid
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::Compression;
+    ///
+    /// let ok = Compression::Zstd.level(5);
+    /// assert!(ok.is_ok());
+    ///
+    /// let bad = Compression::Zlib.level(42);
+    /// assert!(bad.is_err());
+    /// ```
+    pub fn level(self, value: u8) -> Result<CompressionConfig, Error> {
+        let range = match self {
+            Compression::Zstd => 1..=22,
+            Compression::Zlib => 1..=9,
+        };
+
+        range
+            .contains(&value)
+            .then_some(CompressionConfig(self, value))
+            .ok_or_else(|| {
+                Error::Configuration(
+                    format!(
+                        "Illegal compression level for {self:?}: expected {}..={}, got {value}",
+                        range.start(),
+                        range.end()
+                    )
+                    .into(),
+                )
+            })
+    }
 }
 
 impl Default for MySqlConnectOptions {
@@ -111,6 +200,7 @@ impl MySqlConnectOptions {
             no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
+            compression: None,
         }
     }
 
@@ -414,6 +504,24 @@ impl MySqlConnectOptions {
         self.set_names = flag_val;
         self
     }
+
+    /// Sets the compression mode for the connection.
+    ///
+    /// Data is uncompressed by default.
+    /// Ensure that the server supports the selected compression algorithm;
+    /// if it does not, the client will fall back to uncompressed mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_mysql::{MySqlConnectOptions, Compression};
+    /// let options = MySqlConnectOptions::new()
+    ///     .compression(Compression::Zlib.fast());
+    /// ```
+    pub fn compression(mut self, compression: CompressionConfig) -> Self {
+        self.compression = Some(compression);
+        self
+    }
 }
 
 impl MySqlConnectOptions {
@@ -525,5 +633,21 @@ impl MySqlConnectOptions {
     /// ```
     pub fn get_collation(&self) -> Option<&str> {
         self.collation.as_deref()
+    }
+
+    /// Get compression
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// #![cfg(feature = "compression")]
+    /// # use sqlx_mysql::{Compression, CompressionConfig, MySqlConnectOptions};
+    /// let options = MySqlConnectOptions::new()
+    ///     .compression(Compression::Zlib.fast());
+    ///
+    /// assert!(options.get_compression().is_some());
+    /// ```
+    pub fn get_compression(&self) -> Option<CompressionConfig> {
+        self.compression
     }
 }

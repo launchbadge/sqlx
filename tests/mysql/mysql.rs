@@ -3,7 +3,7 @@ use futures_util::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Column, Connection, Executor, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_core::connection::ConnectOptions;
-use sqlx_mysql::MySqlConnectOptions;
+use sqlx_mysql::{Compression, MySqlConnectOptions};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 use url::Url;
@@ -35,6 +35,64 @@ async fn it_connects_without_password() -> anyhow::Result<()> {
     assert!(!vars.is_empty());
 
     conn.close().await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_connects_with_zlib_compression() -> anyhow::Result<()> {
+    let url = Url::parse(&env::var("DATABASE_URL").context("expected DATABASE_URL")?)
+        .context("error parsing DATABASE_URL")?;
+    let mut conn = MySqlConnectOptions::from_url(&url)?
+        .compression(Compression::Zlib.default())
+        .connect()
+        .await?;
+
+    let rows = sqlx::raw_sql(r#"SHOW SESSION STATUS LIKE 'Compression'"#)
+        .fetch_all(&mut conn)
+        .await?;
+
+    let result = rows
+        .first()
+        .map(|r| r.try_get::<String, _>(1).unwrap_or_default())
+        .unwrap_or_default();
+
+    assert!(!rows.is_empty());
+    assert_eq!(result, "ON");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+#[cfg(all(
+    not(any(
+        mariadb = "verylatest",
+        mariadb = "10_6",
+        mariadb = "10_11",
+        mariadb = "11_4",
+        mariadb = "11_8",
+    )),
+    feature = "mysql"
+))]
+async fn it_connects_with_zstd_compression() -> anyhow::Result<()> {
+    let url = Url::parse(&env::var("DATABASE_URL").context("expected DATABASE_URL")?)
+        .context("error parsing DATABASE_URL")?;
+    let mut conn = MySqlConnectOptions::from_url(&url)?
+        .compression(Compression::Zstd.default())
+        .connect()
+        .await?;
+
+    let rows = sqlx::raw_sql(r#"SHOW SESSION STATUS LIKE 'Compression'"#)
+        .fetch_all(&mut conn)
+        .await?;
+
+    let result = rows
+        .first()
+        .map(|r| r.try_get::<String, _>(1).unwrap_or_default())
+        .unwrap_or_default();
+
+    assert!(!rows.is_empty());
+    assert_eq!(result, "ON");
 
     Ok(())
 }
@@ -543,6 +601,91 @@ CREATE TEMPORARY TABLE large_table (data LONGBLOB);
         "#,
     )
     .await?;
+
+    let data = vec![0x41; 0xFF_FF_FF * 2];
+
+    sqlx::query("INSERT INTO large_table (data) VALUES (?)")
+        .bind(&data)
+        .execute(&mut conn)
+        .await?;
+
+    let ret: Vec<u8> = sqlx::query_scalar("SELECT * FROM large_table")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, data);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+#[cfg(all(
+    not(any(
+        mariadb = "verylatest",
+        mariadb = "10_6",
+        mariadb = "10_11",
+        mariadb = "11_4",
+        mariadb = "11_8",
+    )),
+    feature = "mysql"
+))]
+async fn it_can_handle_split_packets_with_zstd_compression() -> anyhow::Result<()> {
+    let url = Url::parse(&env::var("DATABASE_URL").context("expected DATABASE_URL")?)
+        .context("error parsing DATABASE_URL")?;
+
+    let options = MySqlConnectOptions::from_url(&url)?.compression(Compression::Zstd.best());
+
+    // This will only take effect on new connections
+    options
+        .connect()
+        .await?
+        .execute("SET GLOBAL max_allowed_packet = 4294967297")
+        .await?;
+
+    let mut conn = MySqlConnectOptions::from_url(&url)?
+        .compression(Compression::Zstd.best())
+        .connect()
+        .await?;
+    conn.execute(r#" CREATE TEMPORARY TABLE large_table (data LONGBLOB);"#)
+        .await?;
+
+    let data = vec![0x41; 0xFF_FF_FF * 2];
+
+    sqlx::query("INSERT INTO large_table (data) VALUES (?)")
+        .bind(&data)
+        .execute(&mut conn)
+        .await?;
+
+    let ret: Vec<u8> = sqlx::query_scalar("SELECT * FROM large_table")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(ret, data);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_handle_split_packets_with_zlib_compression() -> anyhow::Result<()> {
+    let url = Url::parse(&env::var("DATABASE_URL").context("expected DATABASE_URL")?)
+        .context("error parsing DATABASE_URL")?;
+
+    let options = MySqlConnectOptions::from_url(&url)?.compression(Compression::Zlib.best());
+
+    // This will only take effect on new connections
+    options
+        .connect()
+        .await?
+        .execute("SET GLOBAL max_allowed_packet = 4294967297")
+        .await?;
+
+    let mut conn = MySqlConnectOptions::from_url(&url)?
+        .compression(Compression::Zstd.best())
+        .connect()
+        .await?;
+
+    conn.execute(r#"CREATE TEMPORARY TABLE large_table (data LONGBLOB);"#)
+        .await?;
 
     let data = vec![0x41; 0xFF_FF_FF * 2];
 

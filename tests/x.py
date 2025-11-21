@@ -211,7 +211,7 @@ for runtime in ["async-std", "tokio"]:
             # https://github.com/docker-library/mysql/issues/567
             if not(version == "5_7" and tls == "rustls"):
                 run(
-                    f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
+                    f"cargo test --no-default-features --features any,mysql,macros,mysql-compression,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mysql {version}",
                     service=f"mysql_{version}",
                     tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
@@ -220,7 +220,7 @@ for runtime in ["async-std", "tokio"]:
             ## +client-ssl
             if tls != "none" and not(version == "5_7" and tls == "rustls"):
                 run(
-                    f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
+                    f"cargo test --no-default-features --features any,mysql,macros,mysql-compression,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mysql {version}_client_ssl no-password",
                     database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
                     service=f"mysql_{version}_client_ssl",
@@ -233,7 +233,7 @@ for runtime in ["async-std", "tokio"]:
 
         for version in ["verylatest", "10_11", "10_6", "10_5", "10_4"]:
             run(
-                f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
+                f"cargo test --no-default-features --features any,mysql,macros,mysql-compression,_unstable-all-types,runtime-{runtime},tls-{tls}",
                 comment=f"test mariadb {version}",
                 service=f"mariadb_{version}",
                 tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
@@ -242,7 +242,7 @@ for runtime in ["async-std", "tokio"]:
             ## +client-ssl
             if tls != "none":
                 run(
-                    f"cargo test --no-default-features --features any,mysql,macros,_unstable-all-types,runtime-{runtime},tls-{tls}",
+                    f"cargo test --no-default-features --features any,mysql,macros,mysql-compression,_unstable-all-types,runtime-{runtime},tls-{tls}",
                     comment=f"test mariadb {version}_client_ssl no-password",
                     database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=%2Ftests%2Fcerts%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
                     service=f"mariadb_{version}_client_ssl",

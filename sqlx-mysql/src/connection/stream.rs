@@ -1,19 +1,21 @@
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
 
-use bytes::{Buf, Bytes, BytesMut};
-
+use crate::connection::compression::CompressionMySqlStream;
 use crate::error::Error;
 use crate::io::MySqlBufExt;
 use crate::io::{ProtocolDecode, ProtocolEncode};
 use crate::net::{BufferedSocket, Socket};
+#[cfg(feature = "compression")]
+use crate::options::Compression;
 use crate::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::protocol::{Capabilities, Packet};
 use crate::{MySqlConnectOptions, MySqlDatabaseError};
+use bytes::{Buf, Bytes, BytesMut};
 
 pub struct MySqlStream<S = Box<dyn Socket>> {
     // Wrapping the socket in `Box` allows us to unsize in-place.
-    pub(crate) socket: BufferedSocket<S>,
+    pub(crate) compression_stream: CompressionMySqlStream<S>,
     pub(crate) server_version: (u16, u16, u16),
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
@@ -49,19 +51,27 @@ impl<S: Socket> MySqlStream<S> {
             capabilities |= Capabilities::CONNECT_WITH_DB;
         }
 
+        #[cfg(feature = "compression")]
+        if let Some(compression) = options.compression {
+            match compression.0 {
+                Compression::Zlib => capabilities |= Capabilities::COMPRESS,
+                Compression::Zstd => capabilities |= Capabilities::ZSTD_COMPRESSION_ALGORITHM,
+            }
+        }
+
         Self {
             waiting: VecDeque::new(),
             capabilities,
             server_version: (0, 0, 0),
             sequence_id: 0,
-            socket: BufferedSocket::new(socket),
+            compression_stream: CompressionMySqlStream::not_compressed(BufferedSocket::new(socket)),
             is_tls: false,
         }
     }
 
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.socket.write_buffer().is_empty() {
-            self.socket.flush().await?;
+        if !self.write_buffer().is_empty() {
+            self.flush().await?;
         }
 
         while !self.waiting.is_empty() {
@@ -112,7 +122,7 @@ impl<S: Socket> MySqlStream<S> {
     where
         T: ProtocolEncode<'en, Capabilities>,
     {
-        self.socket
+        self.compression_stream
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
     }
 
@@ -120,7 +130,7 @@ impl<S: Socket> MySqlStream<S> {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
 
-        let mut header: Bytes = self.socket.read(4).await?;
+        let mut header: Bytes = self.compression_stream.read_with(4, ()).await?;
 
         // cannot overflow
         #[allow(clippy::cast_possible_truncation)]
@@ -129,9 +139,7 @@ impl<S: Socket> MySqlStream<S> {
 
         self.sequence_id = sequence_id.wrapping_add(1);
 
-        let payload: Bytes = self.socket.read(packet_size).await?;
-
-        // TODO: packet compression
+        let payload: Bytes = self.compression_stream.read_with(packet_size, ()).await?;
 
         Ok(payload)
     }
@@ -207,7 +215,22 @@ impl<S: Socket> MySqlStream<S> {
 
     pub fn boxed_socket(self) -> MySqlStream {
         MySqlStream {
-            socket: self.socket.boxed(),
+            compression_stream: self.compression_stream.boxed(),
+            server_version: self.server_version,
+            capabilities: self.capabilities,
+            sequence_id: self.sequence_id,
+            waiting: self.waiting,
+            is_tls: self.is_tls,
+        }
+    }
+
+    pub fn maybe_enable_compression(self, options: &MySqlConnectOptions) -> Self {
+        MySqlStream {
+            compression_stream: CompressionMySqlStream::create(
+                self.compression_stream.socket,
+                &self.capabilities,
+                options.compression,
+            ),
             server_version: self.server_version,
             capabilities: self.capabilities,
             sequence_id: self.sequence_id,
@@ -221,12 +244,12 @@ impl<S> Deref for MySqlStream<S> {
     type Target = BufferedSocket<S>;
 
     fn deref(&self) -> &Self::Target {
-        &self.socket
+        &self.compression_stream.socket
     }
 }
 
 impl<S> DerefMut for MySqlStream<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.socket
+        &mut self.compression_stream.socket
     }
 }

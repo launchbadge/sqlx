@@ -1,11 +1,11 @@
-use std::str::FromStr;
-
+use super::MySqlConnectOptions;
+use crate::error::Error;
+#[cfg(feature = "compression")]
+use crate::Compression;
+use crate::MySqlSslMode;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use sqlx_core::Url;
-
-use crate::{error::Error, MySqlSslMode};
-
-use super::MySqlConnectOptions;
+use std::str::FromStr;
 
 impl MySqlConnectOptions {
     pub(crate) fn parse_from_url(url: &Url) -> Result<Self, Error> {
@@ -78,6 +78,29 @@ impl MySqlConnectOptions {
 
                 "timezone" | "time-zone" => {
                     options = options.timezone(Some(value.to_string()));
+                }
+
+                #[cfg(feature = "compression")]
+                "compression" => {
+                    let (algorithm, level) = value.split_once(":").ok_or_else(|| {
+                        Error::Configuration(
+                            format!(
+                                "Invalid compression parameter. Expected algorithm:level, but got '{}'",
+                                value
+                            )
+                                .into(),
+                        )
+                    })?;
+                    let compression = match algorithm {
+                        "zlib" => Ok(Compression::Zlib),
+                        "zstd" => Ok(Compression::Zstd),
+                        _ => Err(Error::Configuration(
+                            format!("Unknown compression algorithm: {}", algorithm).into(),
+                        )),
+                    }?;
+                    let compression_config =
+                        compression.level(level.parse().map_err(Error::config)?)?;
+                    options = options.compression(compression_config);
                 }
 
                 _ => {}
@@ -196,4 +219,20 @@ fn it_parses_timezone() {
         .parse()
         .unwrap();
     assert_eq!(opts.timezone.as_deref(), Some("+08:00"));
+}
+
+#[test]
+#[cfg(feature = "compression")]
+fn it_parses_compression() {
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?compression=zstd:10"
+        .parse()
+        .unwrap();
+
+    assert_eq!(opts.compression, Compression::Zstd.level(10).ok());
+
+    let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?compression=zlib:2"
+        .parse()
+        .unwrap();
+
+    assert_eq!(opts.compression, Compression::Zlib.level(2).ok());
 }
