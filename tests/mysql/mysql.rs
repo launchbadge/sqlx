@@ -642,10 +642,8 @@ async fn it_can_handle_split_packets_with_zstd_compression() -> anyhow::Result<(
         .execute("SET GLOBAL max_allowed_packet = 4294967297")
         .await?;
 
-    let mut conn = MySqlConnectOptions::from_url(&url)?
-        .compression(Compression::Zstd.best())
-        .connect()
-        .await?;
+    let mut conn = options.await?;
+
     conn.execute(r#" CREATE TEMPORARY TABLE large_table (data LONGBLOB);"#)
         .await?;
 
@@ -679,10 +677,7 @@ async fn it_can_handle_split_packets_with_zlib_compression() -> anyhow::Result<(
         .execute("SET GLOBAL max_allowed_packet = 4294967297")
         .await?;
 
-    let mut conn = MySqlConnectOptions::from_url(&url)?
-        .compression(Compression::Zstd.best())
-        .connect()
-        .await?;
+    let mut conn = options.await?;
 
     conn.execute(r#"CREATE TEMPORARY TABLE large_table (data LONGBLOB);"#)
         .await?;
