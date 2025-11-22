@@ -15,7 +15,7 @@ pub(crate) struct CompressionMySqlStream<S = Box<dyn Socket>> {
 
 impl<S: Socket> CompressionMySqlStream<S> {
     pub(crate) fn not_compressed(socket: BufferedSocket<S>) -> Self {
-        let stream = CompressionStream::NotCompressed(NoCompressionStream {});
+        let stream = CompressionStream::NotCompressed;
         Self { stream, socket }
     }
 
@@ -56,9 +56,7 @@ impl<S: Socket> CompressionMySqlStream<S> {
         T: ProtocolDecode<'de, C>,
     {
         match self.stream {
-            CompressionStream::NotCompressed(ref mut s) => {
-                s.read_with(byte_len, context, &mut self.socket).await
-            }
+            CompressionStream::NotCompressed => self.socket.read_with(byte_len, context).await,
             #[cfg(feature = "compression")]
             CompressionStream::Compressed(ref mut s) => {
                 s.read_with(byte_len, context, &mut self.socket).await
@@ -75,9 +73,7 @@ impl<S: Socket> CompressionMySqlStream<S> {
         T: ProtocolEncode<'en, (Capabilities, &'stream mut u8)>,
     {
         match self.stream {
-            CompressionStream::NotCompressed(ref mut s) => {
-                s.write_with(value, context, &mut self.socket)
-            }
+            CompressionStream::NotCompressed => self.socket.write_with(value, context),
             #[cfg(feature = "compression")]
             CompressionStream::Compressed(ref mut s) => {
                 s.write_with(value, context, &mut self.socket)
@@ -87,36 +83,9 @@ impl<S: Socket> CompressionMySqlStream<S> {
 }
 
 enum CompressionStream {
-    NotCompressed(NoCompressionStream),
+    NotCompressed,
     #[cfg(feature = "compression")]
     Compressed(CompressedStream),
-}
-
-struct NoCompressionStream {}
-impl NoCompressionStream {
-    async fn read_with<'de, T, C, S: Socket>(
-        &mut self,
-        byte_len: usize,
-        context: C,
-        buffered_socket: &mut BufferedSocket<S>,
-    ) -> Result<T, Error>
-    where
-        T: ProtocolDecode<'de, C>,
-    {
-        buffered_socket.read_with(byte_len, context).await
-    }
-
-    fn write_with<'en, 'stream, T, C, S: Socket>(
-        &mut self,
-        packet: T,
-        context: C,
-        buffered_socket: &mut BufferedSocket<S>,
-    ) -> Result<(), Error>
-    where
-        T: ProtocolEncode<'en, C>,
-    {
-        buffered_socket.write_with(packet, context)
-    }
 }
 
 #[cfg(feature = "compression")]
