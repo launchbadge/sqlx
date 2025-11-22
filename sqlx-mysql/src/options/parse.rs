@@ -1,8 +1,8 @@
 use super::MySqlConnectOptions;
 use crate::error::Error;
-#[cfg(feature = "compression")]
-use crate::Compression;
 use crate::MySqlSslMode;
+#[cfg(feature = "compression")]
+use crate::{Compression, CompressionConfig};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use sqlx_core::Url;
 use std::str::FromStr;
@@ -166,6 +166,15 @@ impl MySqlConnectOptions {
                 .append_pair("socket", &socket.to_string_lossy());
         }
 
+        #[cfg(feature = "compression")]
+        if let Some(compression_config) = &self.compression {
+            let value = match compression_config {
+                CompressionConfig(Compression::Zstd, level) => format!("zstd:{}", level),
+                CompressionConfig(Compression::Zlib, level) => format!("zlib:{}", level),
+            };
+            url.query_pairs_mut().append_pair("compression", &value);
+        }
+
         url
     }
 }
@@ -204,6 +213,25 @@ fn it_returns_the_parsed_url() {
     // MySqlConnectOptions defaults
     let query_string = "ssl-mode=PREFERRED&charset=utf8mb4&statement-cache-capacity=100";
     expected_url.set_query(Some(query_string));
+
+    assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+#[cfg(feature = "compression")]
+fn it_returns_the_build_url_with_compression_param() {
+    let url = "mysql://username:p@ssw0rd@hostname:3306/database";
+    let opts = MySqlConnectOptions::from_str(url)
+        .unwrap()
+        .compression(Compression::Zstd.fast());
+
+    let mut expected_url = Url::parse(url).unwrap();
+    let mut query_string = String::new();
+    // MySqlConnectOptions defaults
+    query_string += "ssl-mode=PREFERRED&charset=utf8mb4&statement-cache-capacity=100";
+    query_string += "&compression=zstd%3A1";
+
+    expected_url.set_query(Some(&query_string));
 
     assert_eq!(expected_url, opts.build_url());
 }
