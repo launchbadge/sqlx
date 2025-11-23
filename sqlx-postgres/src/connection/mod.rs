@@ -23,7 +23,8 @@ use sqlx_core::sql_str::SqlSafeStr;
 
 pub use self::stream::PgStream;
 
-mod explain;
+#[cfg(feature = "offline")]
+mod describe;
 mod establish;
 mod executor;
 mod resolve;

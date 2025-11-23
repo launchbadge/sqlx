@@ -63,7 +63,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["any", "macros", "migrate", "json"]
 
 derive = ["sqlx-macros/derive"]
-macros = ["derive", "sqlx-macros/macros"]
+macros = ["derive", "sqlx-macros/macros", "sqlx-core/offline", "sqlx-mysql?/offline", "sqlx-postgres?/offline", "sqlx-sqlite?/offline"]
 migrate = ["sqlx-core/migrate", "sqlx-macros?/migrate", "sqlx-mysql?/migrate", "sqlx-postgres?/migrate", "sqlx-sqlite?/migrate"]
 
 # Enable parsing of `sqlx.toml` for configuring macros and migrations.
@@ -211,7 +211,7 @@ features = ["time", "net", "sync", "fs", "io-util", "rt"]
 default-features = false
 
 [dependencies]
-sqlx-core = { workspace = true, features = ["offline", "migrate"] }
+sqlx-core = { workspace = true, features = ["migrate"] }
 sqlx-macros = { workspace = true, optional = true }
 
 sqlx-mysql = { workspace = true, optional = true }

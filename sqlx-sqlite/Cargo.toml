@@ -77,7 +77,7 @@ uuid = { workspace = true, optional = true }
 
 url = { version = "2.2.2" }
 percent-encoding = "2.1.0"
-serde_urlencoded = "0.7"
+form_urlencoded = "1.2.2"
 
 flume = { version = "0.11.0", default-features = false, features = ["async"] }
 

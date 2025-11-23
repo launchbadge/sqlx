@@ -12,7 +12,7 @@ rust-version.workspace = true
 [features]
 json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
-offline = ["sqlx-core/offline", "serde/derive"]
+offline = ["sqlx-core/offline", "serde/derive", "bitflags/serde"]
 migrate = ["sqlx-core/migrate"]
 
 # Type Integration features
@@ -52,7 +52,7 @@ uuid = { workspace = true, optional = true }
 # Misc
 atoi = "2.0"
 base64 = { version = "0.22.0", default-features = false, features = ["std"] }
-bitflags = { version = "2", default-features = false, features = ["serde"] }
+bitflags = { version = "2", default-features = false }
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 either = "1.6.1"
