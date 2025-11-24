@@ -3,7 +3,7 @@ use std::fs;
 use proc_macro2::{Ident, Span};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{Expr, LitBool, LitStr, Token};
+use syn::{bracketed, Expr, LitBool, LitStr, Meta, Token};
 use syn::{ExprArray, Type};
 
 /// Macro input shared by `query!()` and `query_file!()`
@@ -12,7 +12,7 @@ pub struct QueryMacroInput {
 
     pub(super) src_span: Span,
 
-    pub(super) record_type: RecordType,
+    pub(super) output_type: OutputType,
 
     pub(super) arg_exprs: Vec<Expr>,
 
@@ -26,26 +26,20 @@ enum QuerySrc {
     File(String),
 }
 
-pub enum RecordType {
-    Given(Type),
+pub enum OutputType {
+    GivenRecord(Type),
     Scalar,
-    Generated,
+    GeneratedRecord(Vec<Meta>),
 }
 
 impl Parse for QueryMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut query_src: Option<(QuerySrc, Span)> = None;
         let mut args: Option<Vec<Expr>> = None;
-        let mut record_type = RecordType::Generated;
+        let mut output_type = OutputType::GeneratedRecord(Vec::new());
         let mut checked = true;
 
-        let mut expect_comma = false;
-
         while !input.is_empty() {
-            if expect_comma {
-                let _ = input.parse::<syn::token::Comma>()?;
-            }
-
             let key: Ident = input.parse()?;
 
             let _ = input.parse::<syn::token::Eq>()?;
@@ -64,13 +58,13 @@ impl Parse for QueryMacroInput {
                 let exprs = input.parse::<ExprArray>()?;
                 args = Some(exprs.elems.into_iter().collect())
             } else if key == "record" {
-                if !matches!(record_type, RecordType::Generated) {
+                if !matches!(output_type, OutputType::GeneratedRecord(_)) {
                     return Err(input.error("colliding `scalar` or `record` key"));
                 }
 
-                record_type = RecordType::Given(input.parse()?);
+                output_type = OutputType::GivenRecord(input.parse()?);
             } else if key == "scalar" {
-                if !matches!(record_type, RecordType::Generated) {
+                if !matches!(output_type, OutputType::GeneratedRecord(_)) {
                     return Err(input.error("colliding `scalar` or `record` key"));
                 }
 
@@ -78,7 +72,16 @@ impl Parse for QueryMacroInput {
                 // a `query_as_scalar!()` variant seems less useful than just overriding the type
                 // of the column in SQL
                 input.parse::<syn::Token![_]>()?;
-                record_type = RecordType::Scalar;
+                output_type = OutputType::Scalar;
+            } else if key == "attrs" {
+                let OutputType::GeneratedRecord(ref mut attrs) = output_type else {
+                    return Err(input.error("can only set attributes for generated type"));
+                };
+                let content;
+                bracketed!(content in input);
+                *attrs = Punctuated::<Meta, Token![,]>::parse_terminated(&content)?
+                    .into_iter()
+                    .collect();
             } else if key == "checked" {
                 let lit_bool = input.parse::<LitBool>()?;
                 checked = lit_bool.value;
@@ -87,7 +90,11 @@ impl Parse for QueryMacroInput {
                 return Err(syn::Error::new_spanned(key, message));
             }
 
-            expect_comma = true;
+            if input.is_empty() {
+                break;
+            } else {
+                input.parse::<Token![,]>()?;
+            }
         }
 
         let (src, src_span) =
@@ -100,7 +107,7 @@ impl Parse for QueryMacroInput {
         Ok(QueryMacroInput {
             sql: src.resolve(src_span)?,
             src_span,
-            record_type,
+            output_type,
             arg_exprs,
             checked,
             file_path,
