@@ -21,6 +21,8 @@ _tls-native-tls = ["sqlx-core/_tls-native-tls"]
 _tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs"]
 _tls-rustls-ring-webpki = ["sqlx-core/_tls-rustls-ring-webpki"]
 _tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots"]
+_tls-rustls-aws-lc-rs-native-roots = ["sqlx-core/_tls-rustls-aws-lc-rs-native-roots"]
+_tls-rustls-no-provider-native-roots = ["sqlx-core/_tls-rustls-no-provider-native-roots"]
 
 _sqlite = []
 

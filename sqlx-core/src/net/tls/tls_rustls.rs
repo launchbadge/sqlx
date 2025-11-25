@@ -92,16 +92,36 @@ where
     S: Socket,
 {
     #[cfg(all(
-        feature = "_tls-rustls-aws-lc-rs",
+        any(
+            feature = "_tls-rustls-aws-lc-rs",
+            feature = "_tls-rustls-aws-lc-rs-native-roots"
+        ),
         not(feature = "_tls-rustls-ring-webpki"),
-        not(feature = "_tls-rustls-ring-native-roots")
+        not(feature = "_tls-rustls-ring-native-roots"),
+        not(feature = "_tls-rustls-no-provider-native-roots")
     ))]
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    #[cfg(any(
-        feature = "_tls-rustls-ring-webpki",
-        feature = "_tls-rustls-ring-native-roots"
+    #[cfg(all(
+        any(
+            feature = "_tls-rustls-ring-webpki",
+            feature = "_tls-rustls-ring-native-roots"
+        ),
+        not(feature = "_tls-rustls-aws-lc-rs-native-roots"),
+        not(feature = "_tls-rustls-no-provider-native-roots")
     ))]
     let provider = Arc::new(rustls::crypto::ring::default_provider());
+
+    #[cfg(all(
+        feature = "_tls-rustls-no-provider-native-roots",
+        not(feature = "_tls-rustls-ring-webpki"),
+        not(feature = "_tls-rustls-ring-native-roots"),
+        not(feature = "_tls-rustls-aws-lc-rs"),
+        not(feature = "_tls-rustls-aws-lc-rs-native-roots"),
+    ))]
+    let provider = CryptoProvider::get_default()
+        .ok_or_else(|| Error::Configuration(
+            "no process-level CryptoProvider available -- call CryptoProvider::install_default() before this point".into()
+        ))?.clone();
 
     // Unwrapping is safe here because we use a default provider.
     let config = ClientConfig::builder_with_provider(provider.clone())
@@ -137,6 +157,17 @@ where
                 .with_no_client_auth()
         }
     } else {
+        #[cfg(all(
+            not(feature = "_tls-rustls-ring-native-roots"),
+            not(feature = "_tls-rustls-aws-lc-rs-native-roots"),
+            not(feature = "_tls-rustls-no-provider-native-roots")
+        ))]
+        let mut cert_store = import_root_certs();
+        #[cfg(any(
+            feature = "_tls-rustls-ring-native-roots",
+            feature = "_tls-rustls-aws-lc-rs-native-roots",
+            feature = "_tls-rustls-no-provider-native-roots"
+        ))]
         let mut cert_store = import_root_certs();
 
         if let Some(ca) = tls_config.root_cert_path {
@@ -213,7 +244,12 @@ fn import_root_certs() -> RootCertStore {
     RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
 }
 
-#[cfg(feature = "rustls-native-certs")]
+#[cfg(any(
+    feature = "rustls-native-certs",
+    feature = "_tls-rustls-ring-native-roots",
+    feature = "_tls-rustls-aws-lc-rs-native-roots",
+    feature = "_tls-rustls-no-provider-native-roots"
+))]
 fn import_root_certs() -> RootCertStore {
     let mut root_cert_store = RootCertStore::empty();
 
