@@ -106,8 +106,6 @@ where
             feature = "_tls-rustls-ring-webpki",
             feature = "_tls-rustls-ring-native-roots"
         ),
-        not(feature = "_tls-rustls-aws-lc-rs-native-roots"),
-        not(feature = "_tls-rustls-no-provider-native-roots")
     ))]
     let provider = Arc::new(rustls::crypto::ring::default_provider());
 
