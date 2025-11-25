@@ -153,17 +153,6 @@ where
                 .with_no_client_auth()
         }
     } else {
-        #[cfg(all(
-            not(feature = "_tls-rustls-ring-native-roots"),
-            not(feature = "_tls-rustls-aws-lc-rs-native-roots"),
-            not(feature = "_tls-rustls-no-provider-native-roots")
-        ))]
-        let mut cert_store = import_root_certs();
-        #[cfg(any(
-            feature = "_tls-rustls-ring-native-roots",
-            feature = "_tls-rustls-aws-lc-rs-native-roots",
-            feature = "_tls-rustls-no-provider-native-roots"
-        ))]
         let mut cert_store = import_root_certs();
 
         if let Some(ca) = tls_config.root_cert_path {
@@ -240,12 +229,7 @@ fn import_root_certs() -> RootCertStore {
     RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
 }
 
-#[cfg(any(
-    feature = "rustls-native-certs",
-    feature = "_tls-rustls-ring-native-roots",
-    feature = "_tls-rustls-aws-lc-rs-native-roots",
-    feature = "_tls-rustls-no-provider-native-roots"
-))]
+#[cfg(feature = "rustls-native-certs")]
 fn import_root_certs() -> RootCertStore {
     let mut root_cert_store = RootCertStore::empty();
 
