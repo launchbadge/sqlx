@@ -2,13 +2,15 @@ use sqlx::pool::PoolOptions;
 use sqlx::{Connection, Database, Error, Pool};
 use std::env;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 pub fn setup_if_needed() {
     let _ = dotenvy::dotenv();
     let _ = tracing_subscriber::fmt::Subscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
-        .with_test_writer()
-        .finish();
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        // .with_test_writer()
+        .try_init();
 }
 
 // Make a new connection

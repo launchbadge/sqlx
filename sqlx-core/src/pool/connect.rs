@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
-use crate::pool::shard::DisconnectedSlot;
+use crate::pool::connection_set::DisconnectedSlot;
 #[cfg(doc)]
 use crate::pool::PoolOptions;
 use crate::sync::{AsyncMutex, AsyncMutexGuard};
@@ -646,7 +646,7 @@ async fn connect_with_backoff<DB: Database>(
 
         match res {
             ControlFlow::Break(Ok(conn)) => {
-                tracing::trace!(
+                tracing::debug!(
                     target: "sqlx::pool::connect",
                     %connection_id,
                     attempt,
@@ -654,18 +654,16 @@ async fn connect_with_backoff<DB: Database>(
                     "connection established",
                 );
 
-                return Ok(PoolConnection::new(
-                    slot.put(ConnectionInner {
-                        raw: conn,
-                        id: connection_id,
-                        created_at: now,
-                        last_released_at: now,
-                    }),
-                    pool.0.clone(),
-                ));
+                return Ok(PoolConnection::new(slot.put(ConnectionInner {
+                    pool: Arc::downgrade(&pool.0),
+                    raw: conn,
+                    id: connection_id,
+                    created_at: now,
+                    last_released_at: now,
+                })));
             }
             ControlFlow::Break(Err(e)) => {
-                tracing::warn!(
+                tracing::error!(
                     target: "sqlx::pool::connect",
                     %connection_id,
                     attempt,

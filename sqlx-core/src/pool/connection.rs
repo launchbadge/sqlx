@@ -1,33 +1,35 @@
 use std::fmt::{self, Debug, Formatter};
 use std::future::{self, Future};
+use std::io;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 
-use super::inner::{is_beyond_max_lifetime, PoolInner};
+use super::inner::PoolInner;
 use crate::pool::connect::{ConnectPermit, ConnectTaskShared, ConnectionId};
+use crate::pool::connection_set::{ConnectedSlot, DisconnectedSlot};
 use crate::pool::options::PoolConnectionMetadata;
-use crate::pool::shard::{ConnectedSlot, DisconnectedSlot};
-use crate::pool::Pool;
+use crate::pool::{Pool, PoolOptions};
 use crate::rt;
 
 const RETURN_TO_POOL_TIMEOUT: Duration = Duration::from_secs(5);
-const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<DB: Database> {
     conn: Option<ConnectedSlot<ConnectionInner<DB>>>,
-    pub(crate) pool: Arc<PoolInner<DB>>,
     close_on_drop: bool,
 }
 
 pub(super) struct ConnectionInner<DB: Database> {
+    // Note: must be `Weak` to prevent a reference cycle
+    pub(crate) pool: Weak<PoolInner<DB>>,
     pub(super) raw: DB::Connection,
     pub(super) id: ConnectionId,
     pub(super) created_at: Instant,
@@ -72,11 +74,10 @@ impl<DB: Database> AsMut<DB::Connection> for PoolConnection<DB> {
 }
 
 impl<DB: Database> PoolConnection<DB> {
-    pub(super) fn new(live: ConnectedSlot<ConnectionInner<DB>>, pool: Arc<PoolInner<DB>>) -> Self {
+    pub(super) fn new(live: ConnectedSlot<ConnectionInner<DB>>) -> Self {
         Self {
             conn: Some(live),
             close_on_drop: false,
-            pool,
         }
     }
 
@@ -140,10 +141,13 @@ impl<DB: Database> PoolConnection<DB> {
     #[doc(hidden)]
     pub fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         let conn = self.conn.take();
-        let pool = self.pool.clone();
 
         async move {
             let Some(conn) = conn else {
+                return;
+            };
+
+            let Some(pool) = Weak::upgrade(&conn.pool) else {
                 return;
             };
 
@@ -161,7 +165,7 @@ impl<DB: Database> PoolConnection<DB> {
         async move {
             if let Some(conn) = conn {
                 // Don't hold the connection forever if it hangs while trying to close
-                rt::timeout(CLOSE_ON_DROP_TIMEOUT, close(conn)).await.ok();
+                rt::timeout(CLOSE_TIMEOUT, close(conn)).await.ok();
             }
         }
     }
@@ -195,7 +199,7 @@ impl<DB: Database> Drop for PoolConnection<DB> {
         }
 
         // We still need to spawn a task to maintain `min_connections`.
-        if self.conn.is_some() || self.pool.options.min_connections > 0 {
+        if self.conn.is_some() {
             crate::rt::spawn(self.return_to_pool());
         }
     }
@@ -220,6 +224,48 @@ impl<DB: Database> ConnectionInner<DB> {
             idle_for: now.saturating_duration_since(self.last_released_at),
         }
     }
+
+    pub fn is_beyond_max_lifetime(&self, options: &PoolOptions<DB>) -> bool {
+        if let Some(max_lifetime) = options.max_lifetime {
+            let age = self.created_at.elapsed();
+
+            if age > max_lifetime {
+                tracing::info!(
+                    target: "sqlx::pool",
+                    connection_id=%self.id,
+                    ?age,
+                    "connection is beyond `max_lifetime`, closing"
+                );
+
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn is_beyond_idle_timeout(&self, options: &PoolOptions<DB>) -> bool {
+        if let Some(idle_timeout) = options.idle_timeout {
+            let now = Instant::now();
+
+            let age = now.duration_since(self.created_at);
+            let idle_duration = now.duration_since(self.last_released_at);
+
+            if idle_duration > idle_timeout {
+                tracing::info!(
+                    target: "sqlx::pool",
+                    connection_id=%self.id,
+                    ?age,
+                    ?idle_duration,
+                    "connection is beyond `idle_timeout`, closing"
+                );
+
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 pub(crate) async fn close<DB: Database>(
@@ -231,14 +277,19 @@ pub(crate) async fn close<DB: Database>(
 
     let (conn, slot) = ConnectedSlot::take(conn);
 
-    let res = conn.raw.close().await.inspect_err(|error| {
-        tracing::debug!(
-            target: "sqlx::pool",
-            %connection_id,
-            %error,
-            "error occurred while closing the pool connection"
-        );
-    });
+    let res = rt::timeout(CLOSE_TIMEOUT, conn.raw.close())
+        .await
+        .unwrap_or_else(|_| {
+            Err(io::Error::new(io::ErrorKind::TimedOut, "timed out sending close packet").into())
+        })
+        .inspect_err(|error| {
+            tracing::debug!(
+                target: "sqlx::pool",
+                %connection_id,
+                %error,
+                "error occurred while closing the pool connection"
+            );
+        });
 
     (res, slot)
 }
@@ -255,14 +306,19 @@ pub(crate) async fn close_hard<DB: Database>(
 
     let (conn, slot) = ConnectedSlot::take(conn);
 
-    let res = conn.raw.close_hard().await.inspect_err(|error| {
-        tracing::debug!(
-            target: "sqlx::pool",
-            %connection_id,
-            %error,
-            "error occurred while closing the pool connection"
-        );
-    });
+    let res = rt::timeout(CLOSE_TIMEOUT, conn.raw.close_hard())
+        .await
+        .unwrap_or_else(|_| {
+            Err(io::Error::new(io::ErrorKind::TimedOut, "timed out sending close packet").into())
+        })
+        .inspect_err(|error| {
+            tracing::debug!(
+                target: "sqlx::pool",
+                %connection_id,
+                %error,
+                "error occurred while closing the pool connection"
+            );
+        });
 
     (res, slot)
 }
@@ -282,7 +338,7 @@ async fn return_to_pool<DB: Database>(
 
     // If the connection is beyond max lifetime, close the connection and
     // immediately create a new connection
-    if is_beyond_max_lifetime(&conn, &pool.options) {
+    if conn.is_beyond_max_lifetime(&pool.options) {
         let (_res, slot) = close(conn).await;
         return Err(slot);
     }
@@ -314,6 +370,7 @@ async fn return_to_pool<DB: Database>(
     // to recover from cancellations
     if let Err(error) = conn.raw.ping().await {
         tracing::warn!(
+            target: "sqlx::pool",
             %error,
             "error occurred while testing the connection on-release",
         );

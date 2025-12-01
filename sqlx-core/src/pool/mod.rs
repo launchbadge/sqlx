@@ -56,20 +56,19 @@
 
 use std::fmt;
 use std::future::Future;
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
-
-use event_listener::EventListener;
-use futures_core::FusedFuture;
-use futures_util::FutureExt;
 
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
+use crate::ext::future::race;
 use crate::sql_str::SqlSafeStr;
 use crate::transaction::Transaction;
-
+use event_listener::EventListener;
+use futures_core::FusedFuture;
+use tracing::Instrument;
 pub use self::connect::{PoolConnectMetadata, PoolConnector};
 pub use self::connection::PoolConnection;
 use self::inner::PoolInner;
@@ -90,7 +89,9 @@ mod inner;
 // mod idle;
 mod options;
 
-mod shard;
+// mod shard;
+
+mod connection_set;
 
 /// An asynchronous pool of SQLx database connections.
 ///
@@ -362,16 +363,21 @@ impl<DB: Database> Pool<DB> {
     pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
         let shared = self.0.clone();
         async move { shared.acquire().await }
+            .instrument(tracing::error_span!(target: "sqlx::pool", "acquire"))
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool
     /// or there are tasks waiting for a connection which have yet to wake.
+    ///
+    /// # Note: Bypasses `before_acquire`
+    /// Since this function is not `async`, it cannot await the future returned by
+    /// [`before_acquire`][PoolOptions::before_acquire] without blocking.
+    ///
+    /// Instead, it simply returns the connection immediately.
     pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
-        self.0
-            .try_acquire()
-            .map(|conn| PoolConnection::new(conn, self.0.clone()))
+        self.0.try_acquire().map(|conn| PoolConnection::new(conn))
     }
 
     /// Retrieves a connection and immediately begins a new transaction.
@@ -577,42 +583,19 @@ impl CloseEvent {
     ///
     /// Cancels the future and returns `Err(PoolClosed)` if/when the pool is closed.
     /// If the pool was already closed, the future is never run.
+    #[inline(always)]
     pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output, Error> {
-        // Check that the pool wasn't closed already.
-        //
-        // We use `poll_immediate()` as it will use the correct waker instead of
-        // a no-op one like `.now_or_never()`, but it won't actually suspend execution here.
-        futures_util::future::poll_immediate(&mut *self)
-            .await
-            .map_or(Ok(()), |_| Err(Error::PoolClosed))?;
-
-        let mut fut = pin!(fut);
-
-        // I find that this is clearer in intent than `futures_util::future::select()`
-        // or `futures_util::select_biased!{}` (which isn't enabled anyway).
-        std::future::poll_fn(|cx| {
-            // Poll `fut` first as the wakeup event is more likely for it than `self`.
-            if let Poll::Ready(ret) = fut.as_mut().poll(cx) {
-                return Poll::Ready(Ok(ret));
-            }
-
-            // Can't really factor out mapping to `Err(Error::PoolClosed)` though it seems like
-            // we should because that results in a different `Ok` type each time.
-            //
-            // Ideally we'd map to something like `Result<!, Error>` but using `!` as a type
-            // is not allowed on stable Rust yet.
-            self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
-        })
-        .await
+        race(fut, self).await.map_err(|_| Error::PoolClosed)
     }
 }
 
 impl Future for CloseEvent {
     type Output = ();
 
+    #[inline(always)]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if let Some(listener) = &mut self.listener {
-            ready!(listener.poll_unpin(cx));
+            ready!(Pin::new(listener).poll(cx));
         }
 
         // `EventListener` doesn't like being polled after it yields, and even if it did it
