@@ -1,10 +1,13 @@
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 use std::time::{Duration, Instant};
 
 use cfg_if::cfg_if;
+use futures_core::Stream;
+use futures_util::StreamExt;
+use pin_project_lite::pin_project;
 
 #[cfg(feature = "_rt-async-io")]
 pub mod rt_async_io;
@@ -59,19 +62,13 @@ pub async fn timeout_at<F: Future>(deadline: Instant, f: F) -> Result<F::Output,
             .map_err(|_| TimeoutError);
     }
 
-    #[cfg(feature = "_rt-async-std")]
-    {
-        let Some(duration) = deadline.checked_duration_since(Instant::now()) else {
-            return Err(TimeoutError);
-        };
-
-        async_std::future::timeout(duration, f)
-            .await
-            .map_err(|_| TimeoutError)
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-io")] {
+            rt_async_io::timeout_at(deadline, f).await
+        } else {
+            missing_rt((deadline, f))
+        }
     }
-
-    #[cfg(not(feature = "_rt-async-std"))]
-    missing_rt((deadline, f))
 }
 
 pub async fn sleep(duration: Duration) {
@@ -104,6 +101,135 @@ pub async fn sleep_until(instant: Instant) {
     }
 }
 
+// https://github.com/taiki-e/pin-project-lite/issues/3
+#[cfg(all(feature = "_rt-tokio", feature = "_rt-async-io"))]
+pin_project! {
+    #[project = IntervalProjected]
+    pub enum Interval {
+        Tokio {
+            // Bespoke impl because `tokio::time::Interval` allocates when we could just pin instead
+            #[pin]
+            sleep: tokio::time::Sleep,
+            period: Duration,
+        },
+        AsyncIo {
+            #[pin]
+            timer: async_io::Timer,
+        },
+    }
+}
+
+#[cfg(all(feature = "_rt-tokio", not(feature = "_rt-async-io")))]
+pin_project! {
+    #[project = IntervalProjected]
+    pub enum Interval {
+        Tokio {
+            #[pin]
+            sleep: tokio::time::Sleep,
+            period: Duration,
+        },
+    }
+}
+
+#[cfg(all(not(feature = "_rt-tokio"), feature = "_rt-async-io"))]
+pin_project! {
+    #[project = IntervalProjected]
+    pub enum Interval {
+        AsyncIo {
+            #[pin]
+            timer: async_io::Timer,
+        },
+    }
+}
+
+#[cfg(not(any(feature = "_rt-tokio", feature = "_rt-async-io")))]
+pub enum Interval {}
+
+pub fn interval_after(period: Duration) -> Interval {
+    #[cfg(feature = "_rt-tokio")]
+    if rt_tokio::available() {
+        return Interval::Tokio {
+            sleep: tokio::time::sleep(period),
+            period,
+        };
+    }
+
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-io")] {
+            Interval::AsyncIo { timer: async_io::Timer::interval(period) }
+        } else {
+            missing_rt(period)
+        }
+    }
+}
+
+impl Interval {
+    #[inline(always)]
+    pub fn tick(mut self: Pin<&mut Self>) -> impl Future<Output = Instant> + use<'_> {
+        std::future::poll_fn(move |cx| self.as_mut().poll_tick(cx))
+    }
+
+    #[inline(always)]
+    pub fn as_timeout<F: Future>(self: Pin<&mut Self>, fut: F) -> AsTimeout<'_, F> {
+        AsTimeout {
+            interval: self,
+            future: fut,
+        }
+    }
+
+    #[inline(always)]
+    pub fn poll_tick(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Instant> {
+        cfg_if! {
+            if #[cfg(any(feature = "_rt-tokio", feature = "_rt-async-io"))] {
+                 match self.project() {
+                    #[cfg(feature = "_rt-tokio")]
+                    IntervalProjected::Tokio { mut sleep, period  } => {
+                        ready!(sleep.as_mut().poll(cx));
+                        let now = Instant::now();
+                        sleep.reset((now + *period).into());
+                        Poll::Ready(now)
+                    }
+                    #[cfg(feature = "_rt-async-io")]
+                    IntervalProjected::AsyncIo { mut timer } => {
+                        Poll::Ready(ready!(timer
+                            .as_mut()
+                            .poll_next(cx))
+                            .expect("BUG: `async_io::Timer::next()` should always yield"))
+                    }
+                }
+            } else {
+                unreachable!()
+            }
+        }
+    }
+}
+
+pin_project! {
+    pub struct AsTimeout<'i, F> {
+        interval: Pin<&'i mut Interval>,
+        #[pin]
+        future: F,
+    }
+}
+
+impl<F> Future for AsTimeout<'_, F>
+where
+    F: Future,
+{
+    type Output = Option<F::Output>;
+
+    #[inline(always)]
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+
+        if let Poll::Ready(out) = this.future.poll(cx) {
+            return Poll::Ready(Some(out));
+        }
+
+        this.interval.as_mut().poll_tick(cx).map(|_| None)
+    }
+}
+
 #[track_caller]
 pub fn spawn<F>(fut: F) -> JoinHandle<F::Output>
 where
@@ -124,6 +250,29 @@ where
             JoinHandle::AsyncStd(async_std::task::spawn(fut))
         } else {
             missing_rt(fut)
+        }
+    }
+}
+
+pub fn try_spawn<F>(fut: F) -> Option<JoinHandle<F::Output>>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    #[cfg(feature = "_rt-tokio")]
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        return Some(JoinHandle::Tokio(handle.spawn(fut)));
+    }
+
+    cfg_if! {
+        if #[cfg(feature = "_rt-async-global-executor")] {
+            Some(JoinHandle::AsyncTask(Some(async_global_executor::spawn(fut))))
+        } else if #[cfg(feature = "_rt-smol")] {
+            Some(JoinHandle::AsyncTask(Some(smol::spawn(fut))))
+        } else if #[cfg(feature = "_rt-async-std")] {
+            Some(JoinHandle::AsyncStd(async_std::task::spawn(fut)))
+        } else {
+            None
         }
     }
 }
