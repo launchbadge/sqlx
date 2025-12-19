@@ -44,9 +44,9 @@ async fn get_or_create_template(
     let tpl_name = template_db_name(&hash);
 
     // Use MySQL's GET_LOCK for synchronization across processes
-    // Timeout of -1 means wait indefinitely
+    // Use 300 second timeout (MariaDB may not handle -1 correctly)
     // GET_LOCK returns 1 if successful, 0 if timed out, NULL on error
-    let lock_result: Option<i32> = query_scalar("SELECT GET_LOCK(?, -1)")
+    let lock_result: Option<i32> = query_scalar("SELECT GET_LOCK(?, 300)")
         .bind("sqlx_template_lock")
         .fetch_one(&mut *conn)
         .await?;
@@ -114,10 +114,7 @@ async fn get_or_create_template(
 
     let needs_migrations = match &migration_count {
         Ok(count) => {
-            eprintln!(
-                "template {tpl_name}: found {} existing migrations",
-                count
-            );
+            eprintln!("template {tpl_name}: found {} existing migrations", count);
             *count == 0
         }
         Err(e) => {
