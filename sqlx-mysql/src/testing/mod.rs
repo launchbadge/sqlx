@@ -95,18 +95,19 @@ async fn get_or_create_template(
     .await?;
 
     // Check if this is a fresh database or one left over from a previous run
-    // by checking if it already has the migrations table with entries
+    // by checking if it already has migrations recorded
     let template_opts = master_opts.clone().database(&tpl_name);
     let mut template_conn: MySqlConnection = template_opts.connect().await?;
 
-    let migrations_exist: Option<i64> = query_scalar(
-        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = '_sqlx_migrations'"
-    )
-    .bind(&tpl_name)
-    .fetch_optional(&mut template_conn)
-    .await?;
+    // Try to count migrations - if the table doesn't exist or is empty, we need to run migrations
+    let migration_count: Result<i64, _> = query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+        .fetch_one(&mut template_conn)
+        .await;
 
-    let needs_migrations = migrations_exist.unwrap_or(0) == 0;
+    let needs_migrations = match migration_count {
+        Ok(count) => count == 0, // Table exists but is empty
+        Err(_) => true,          // Table doesn't exist (error 1146) or other error
+    };
 
     // Only run migrations if the database is fresh (no migrations table)
     if needs_migrations {
