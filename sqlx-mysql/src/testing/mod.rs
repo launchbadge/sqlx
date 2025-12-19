@@ -45,10 +45,18 @@ async fn get_or_create_template(
 
     // Use MySQL's GET_LOCK for synchronization across processes
     // Timeout of -1 means wait indefinitely
-    query("SELECT GET_LOCK(?, -1)")
+    // GET_LOCK returns 1 if successful, 0 if timed out, NULL on error
+    let lock_result: Option<i32> = query_scalar("SELECT GET_LOCK(?, -1)")
         .bind("sqlx_template_lock")
-        .execute(&mut *conn)
+        .fetch_one(&mut *conn)
         .await?;
+
+    if lock_result != Some(1) {
+        return Err(Error::Protocol(format!(
+            "Failed to acquire template lock, GET_LOCK returned: {:?}",
+            lock_result
+        )));
+    }
 
     // Ensure template tracking table exists
     conn.execute(
@@ -104,9 +112,21 @@ async fn get_or_create_template(
         .fetch_one(&mut template_conn)
         .await;
 
-    let needs_migrations = match migration_count {
-        Ok(count) => count == 0, // Table exists but is empty
-        Err(_) => true,          // Table doesn't exist (error 1146) or other error
+    let needs_migrations = match &migration_count {
+        Ok(count) => {
+            eprintln!(
+                "template {tpl_name}: found {} existing migrations",
+                count
+            );
+            *count == 0
+        }
+        Err(e) => {
+            eprintln!(
+                "template {tpl_name}: migration check error (table may not exist): {}",
+                e
+            );
+            true
+        }
     };
 
     // Only run migrations if the database is fresh (no migrations table)
