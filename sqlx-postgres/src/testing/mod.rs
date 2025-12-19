@@ -183,6 +183,8 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             .clone()
             .database(&db_name),
         db_name,
+        // TODO: Implement template cloning for Postgres in a follow-up PR
+        from_template: false,
     })
 }
 

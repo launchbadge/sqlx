@@ -1,9 +1,12 @@
 use std::future::Future;
 use std::time::Duration;
 
-use base64::{engine::general_purpose::URL_SAFE, Engine as _};
+use base64::{
+    engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
+    Engine as _,
+};
 pub use fixtures::FixtureSnapshot;
-use sha2::{Digest, Sha512};
+use sha2::{Digest, Sha256, Sha512};
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
@@ -13,6 +16,35 @@ use crate::migrate::{Migrate, Migrator};
 use crate::pool::{Pool, PoolConnection, PoolOptions};
 
 mod fixtures;
+
+/// Compute a combined hash of all migrations for template invalidation.
+///
+/// This hash is used to name template databases. When migrations change,
+/// a new hash is generated, resulting in a new template being created.
+pub fn migrations_hash(migrator: &Migrator) -> String {
+    let mut hasher = Sha256::new();
+
+    for migration in migrator.iter() {
+        // Include version, type, and checksum in the hash
+        hasher.update(migration.version.to_le_bytes());
+        hasher.update([migration.migration_type as u8]);
+        hasher.update(&*migration.checksum);
+    }
+
+    let hash = hasher.finalize();
+    // Use first 16 bytes (128 bits) for a reasonably short but unique name
+    URL_SAFE_NO_PAD.encode(&hash[..16])
+}
+
+/// Generate a template database name from a migrations hash.
+///
+/// Template names follow the pattern `_sqlx_template_<hash>` and are kept
+/// under 63 characters to respect database identifier limits.
+pub fn template_db_name(migrations_hash: &str) -> String {
+    // Replace any characters that might cause issues in database names
+    let safe_hash = migrations_hash.replace(['-', '+', '/'], "_");
+    format!("_sqlx_template_{}", safe_hash)
+}
 
 pub trait TestSupport: Database {
     /// Get parameters to construct a `Pool` suitable for testing.
@@ -82,6 +114,9 @@ pub struct TestContext<DB: Database> {
     pub pool_opts: PoolOptions<DB>,
     pub connect_opts: <DB::Connection as Connection>::Options,
     pub db_name: String,
+    /// Whether this test database was created from a template.
+    /// When true, migrations have already been applied and should be skipped.
+    pub from_template: bool,
 }
 
 impl<DB, Fut> TestFn for fn(Pool<DB>) -> Fut
@@ -226,7 +261,12 @@ where
             .await
             .expect("failed to connect to setup test database");
 
-        setup_test_db::<DB>(&test_context.connect_opts, &args).await;
+        setup_test_db::<DB>(
+            &test_context.connect_opts,
+            &args,
+            test_context.from_template,
+        )
+        .await;
 
         let res = test_fn(test_context.pool_opts, test_context.connect_opts).await;
 
@@ -246,6 +286,7 @@ where
 async fn setup_test_db<DB: Database>(
     copts: &<DB::Connection as Connection>::Options,
     args: &TestArgs,
+    from_template: bool,
 ) where
     DB::Connection: Migrate + Sized,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
@@ -255,11 +296,15 @@ async fn setup_test_db<DB: Database>(
         .await
         .expect("failed to connect to test database");
 
-    if let Some(migrator) = args.migrator {
-        migrator
-            .run_direct(None, &mut conn)
-            .await
-            .expect("failed to apply migrations");
+    // Skip migrations if the database was cloned from a template
+    // (migrations were already applied to the template)
+    if !from_template {
+        if let Some(migrator) = args.migrator {
+            migrator
+                .run_direct(None, &mut conn)
+                .await
+                .expect("failed to apply migrations");
+        }
     }
 
     for fixture in args.fixtures {

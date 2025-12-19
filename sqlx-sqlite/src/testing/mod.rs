@@ -58,6 +58,8 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Sqlite>, Error> {
         // The main limitation is going to be the number of concurrent running tests.
         pool_opts: PoolOptions::new().max_connections(1000),
         db_name: db_path,
+        // SQLite doesn't use template cloning (file copy could be added in the future)
+        from_template: false,
     })
 }
 

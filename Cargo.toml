@@ -392,6 +392,11 @@ path = "tests/mysql/test-attr.rs"
 required-features = ["mysql", "macros", "migrate"]
 
 [[test]]
+name = "mysql-template"
+path = "tests/mysql/template.rs"
+required-features = ["mysql", "macros", "migrate"]
+
+[[test]]
 name = "mysql-migrate"
 path = "tests/mysql/migrate.rs"
 required-features = ["mysql", "macros", "migrate"]

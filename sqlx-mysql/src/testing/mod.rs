@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::ops::Deref;
+use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -9,15 +10,273 @@ use crate::executor::Executor;
 use crate::pool::{Pool, PoolOptions};
 use crate::query::query;
 use crate::{MySql, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
-use sqlx_core::connection::Connection;
+use sqlx_core::connection::{ConnectOptions, Connection};
 use sqlx_core::query_builder::QueryBuilder;
 use sqlx_core::query_scalar::query_scalar;
 use sqlx_core::sql_str::AssertSqlSafe;
+use sqlx_core::testing::{migrations_hash, template_db_name};
 
 pub(crate) use sqlx_core::testing::*;
 
 // Using a blocking `OnceLock` here because the critical sections are short.
 static MASTER_POOL: OnceLock<Pool<MySql>> = OnceLock::new();
+
+/// Environment variable to disable template cloning.
+const SQLX_TEST_NO_TEMPLATE: &str = "SQLX_TEST_NO_TEMPLATE";
+
+/// Check if template cloning is enabled.
+fn templates_enabled() -> bool {
+    std::env::var(SQLX_TEST_NO_TEMPLATE).is_err()
+}
+
+/// Get or create a template database with migrations applied.
+/// Returns the template database name if successful, or None if templates are disabled.
+async fn get_or_create_template(
+    conn: &mut MySqlConnection,
+    master_opts: &MySqlConnectOptions,
+    migrator: &sqlx_core::migrate::Migrator,
+) -> Result<Option<String>, Error> {
+    if !templates_enabled() {
+        return Ok(None);
+    }
+
+    let hash = migrations_hash(migrator);
+    let tpl_name = template_db_name(&hash);
+
+    // Use MySQL's GET_LOCK for synchronization across processes
+    // Timeout of -1 means wait indefinitely
+    query("SELECT GET_LOCK(?, -1)")
+        .bind("sqlx_template_lock")
+        .execute(&mut *conn)
+        .await?;
+
+    // Ensure template tracking table exists
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS _sqlx_test_templates (
+            template_name VARCHAR(255) PRIMARY KEY,
+            migrations_hash VARCHAR(64) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY (migrations_hash)
+        )
+        "#,
+    )
+    .await?;
+
+    // Check if template already exists
+    let existing: Option<String> =
+        query_scalar("SELECT template_name FROM _sqlx_test_templates WHERE migrations_hash = ?")
+            .bind(&hash)
+            .fetch_optional(&mut *conn)
+            .await?;
+
+    if let Some(existing_name) = existing {
+        // Template exists, update last_used_at and return
+        query("UPDATE _sqlx_test_templates SET last_used_at = CURRENT_TIMESTAMP WHERE template_name = ?")
+            .bind(&existing_name)
+            .execute(&mut *conn)
+            .await?;
+
+        // Release lock
+        query("SELECT RELEASE_LOCK(?)")
+            .bind("sqlx_template_lock")
+            .execute(&mut *conn)
+            .await?;
+
+        return Ok(Some(existing_name));
+    }
+
+    // Create new template database
+    conn.execute(AssertSqlSafe(format!("CREATE DATABASE `{tpl_name}`")))
+        .await?;
+
+    // Connect to template and run migrations
+    let template_opts = master_opts.clone().database(&tpl_name);
+    let mut template_conn: MySqlConnection = template_opts.connect().await?;
+
+    if let Err(e) = migrator.run_direct(None, &mut template_conn).await {
+        // Clean up on failure
+        template_conn.close().await.ok();
+        conn.execute(AssertSqlSafe(format!(
+            "DROP DATABASE IF EXISTS `{tpl_name}`"
+        )))
+        .await
+        .ok();
+        query("SELECT RELEASE_LOCK(?)")
+            .bind("sqlx_template_lock")
+            .execute(&mut *conn)
+            .await?;
+        return Err(Error::Protocol(format!(
+            "Failed to apply migrations to template: {}",
+            e
+        )));
+    }
+
+    template_conn.close().await?;
+
+    // Register template
+    query("INSERT INTO _sqlx_test_templates (template_name, migrations_hash) VALUES (?, ?)")
+        .bind(&tpl_name)
+        .bind(&hash)
+        .execute(&mut *conn)
+        .await?;
+
+    // Release lock
+    query("SELECT RELEASE_LOCK(?)")
+        .bind("sqlx_template_lock")
+        .execute(&mut *conn)
+        .await?;
+
+    eprintln!("created template database {tpl_name}");
+
+    Ok(Some(tpl_name))
+}
+
+/// Clone a template database to a new test database using mysqldump.
+/// Falls back to in-process schema copy if mysqldump is not available.
+async fn clone_database(
+    conn: &mut MySqlConnection,
+    master_opts: &MySqlConnectOptions,
+    template_name: &str,
+    new_db_name: &str,
+) -> Result<(), Error> {
+    // First, create the new empty database
+    conn.execute(AssertSqlSafe(format!("CREATE DATABASE `{new_db_name}`")))
+        .await?;
+
+    // Try mysqldump approach first (faster for large schemas)
+    if clone_with_mysqldump(master_opts, template_name, new_db_name).is_ok() {
+        return Ok(());
+    }
+
+    // Fall back to in-process schema copy
+    clone_in_process(conn, master_opts, template_name, new_db_name).await
+}
+
+/// Clone database using mysqldump and mysql commands.
+/// Uses synchronous process execution for cross-runtime compatibility.
+fn clone_with_mysqldump(
+    opts: &MySqlConnectOptions,
+    template_name: &str,
+    new_db_name: &str,
+) -> Result<(), Error> {
+    use std::io::Write;
+    use std::process::Command;
+
+    let host = &opts.host;
+    let port = opts.port.to_string();
+    let user = &opts.username;
+
+    // Build mysqldump command
+    let mut dump_cmd = Command::new("mysqldump");
+    dump_cmd
+        .arg("--no-data")
+        .arg("--routines")
+        .arg("--triggers")
+        .arg("-h")
+        .arg(host)
+        .arg("-P")
+        .arg(&port)
+        .arg("-u")
+        .arg(user);
+
+    if let Some(ref password) = opts.password {
+        dump_cmd.arg(format!("-p{}", password));
+    }
+
+    dump_cmd.arg(template_name);
+    dump_cmd.stdout(Stdio::piped());
+    dump_cmd.stderr(Stdio::null());
+
+    let dump_output = dump_cmd
+        .output()
+        .map_err(|e| Error::Protocol(format!("Failed to run mysqldump: {}", e)))?;
+
+    if !dump_output.status.success() {
+        return Err(Error::Protocol("mysqldump failed".into()));
+    }
+
+    // Build mysql command to import
+    let mut import_cmd = Command::new("mysql");
+    import_cmd
+        .arg("-h")
+        .arg(host)
+        .arg("-P")
+        .arg(&port)
+        .arg("-u")
+        .arg(user);
+
+    if let Some(ref password) = opts.password {
+        import_cmd.arg(format!("-p{}", password));
+    }
+
+    import_cmd.arg(new_db_name);
+    import_cmd.stdin(Stdio::piped());
+    import_cmd.stdout(Stdio::null());
+    import_cmd.stderr(Stdio::null());
+
+    let mut import_child = import_cmd
+        .spawn()
+        .map_err(|e| Error::Protocol(format!("Failed to spawn mysql: {}", e)))?;
+
+    // Write dump output to mysql stdin
+    if let Some(ref mut stdin) = import_child.stdin {
+        stdin
+            .write_all(&dump_output.stdout)
+            .map_err(|e| Error::Protocol(format!("Failed to write to mysql stdin: {}", e)))?;
+    }
+
+    let import_status = import_child
+        .wait()
+        .map_err(|e| Error::Protocol(format!("Failed to wait for mysql: {}", e)))?;
+
+    if !import_status.success() {
+        return Err(Error::Protocol("mysql import failed".into()));
+    }
+
+    Ok(())
+}
+
+/// Clone database using in-process SQL commands (fallback).
+async fn clone_in_process(
+    conn: &mut MySqlConnection,
+    master_opts: &MySqlConnectOptions,
+    template_name: &str,
+    new_db_name: &str,
+) -> Result<(), Error> {
+    // Get all tables from template
+    let tables: Vec<String> = query_scalar(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'",
+    )
+    .bind(template_name)
+    .fetch_all(&mut *conn)
+    .await?;
+
+    // Connect to the new database for copying
+    let new_db_opts = master_opts.clone().database(new_db_name);
+    let mut new_conn: MySqlConnection = new_db_opts.connect().await?;
+
+    for table in &tables {
+        // Copy table structure
+        new_conn
+            .execute(AssertSqlSafe(format!(
+                "CREATE TABLE `{new_db_name}`.`{table}` LIKE `{template_name}`.`{table}`"
+            )))
+            .await?;
+
+        // Copy table data (for migrations table, etc.)
+        new_conn
+            .execute(AssertSqlSafe(format!(
+                "INSERT INTO `{new_db_name}`.`{table}` SELECT * FROM `{template_name}`.`{table}`"
+            )))
+            .await?;
+    }
+
+    new_conn.close().await?;
+
+    Ok(())
+}
 
 impl TestSupport for MySql {
     fn test_context(
@@ -108,7 +367,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .max_connections(20)
         // Immediately close master connections. Tokio's I/O streams don't like hopping runtimes.
         .after_release(|_conn, _| Box::pin(async move { Ok(false) }))
-        .connect_lazy_with(master_opts);
+        .connect_lazy_with(master_opts.clone());
 
     let master_pool = match once_lock_try_insert_polyfill(&MASTER_POOL, pool) {
         Ok(inserted) => inserted,
@@ -144,7 +403,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
             -- BLOB/TEXT columns can only be used as index keys with a prefix length:
             -- https://dev.mysql.com/doc/refman/8.4/en/column-indexes.html#column-indexes-prefix
             primary key(db_name(63))
-        );        
+        );
     "#,
     )
     .await?;
@@ -158,10 +417,60 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(AssertSqlSafe(format!("create database {db_name}")))
-        .await?;
-
-    eprintln!("created database {db_name}");
+    // Try to use template cloning if migrations are provided
+    let from_template = if let Some(migrator) = args.migrator {
+        match get_or_create_template(&mut conn, &master_opts, migrator).await {
+            Ok(Some(template_name)) => {
+                // Clone from template (fast path)
+                match clone_database(&mut conn, &master_opts, &template_name, &db_name).await {
+                    Ok(()) => {
+                        eprintln!("cloned database {db_name} from template {template_name}");
+                        true
+                    }
+                    Err(e) => {
+                        // Clean up partial database and fall back to empty database
+                        eprintln!(
+                            "failed to clone template, falling back to empty database: {}",
+                            e
+                        );
+                        conn.execute(AssertSqlSafe(format!(
+                            "drop database if exists `{db_name}`"
+                        )))
+                        .await
+                        .ok();
+                        conn.execute(AssertSqlSafe(format!("create database `{db_name}`")))
+                            .await?;
+                        eprintln!("created database {db_name}");
+                        false
+                    }
+                }
+            }
+            Ok(None) => {
+                // Templates disabled or not available
+                conn.execute(AssertSqlSafe(format!("create database `{db_name}`")))
+                    .await?;
+                eprintln!("created database {db_name}");
+                false
+            }
+            Err(e) => {
+                // Template creation failed, fall back to empty database
+                eprintln!(
+                    "failed to create template, falling back to empty database: {}",
+                    e
+                );
+                conn.execute(AssertSqlSafe(format!("create database `{db_name}`")))
+                    .await?;
+                eprintln!("created database {db_name}");
+                false
+            }
+        }
+    } else {
+        // No migrations, create empty database
+        conn.execute(AssertSqlSafe(format!("create database `{db_name}`")))
+            .await?;
+        eprintln!("created database {db_name}");
+        false
+    };
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
@@ -178,6 +487,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<MySql>, Error> {
             .clone()
             .database(&db_name),
         db_name,
+        from_template,
     })
 }
 
