@@ -64,7 +64,7 @@ async fn get_or_create_template(
     )
     .await?;
 
-    // Check if template already exists
+    // Check if template already exists in tracking table
     let existing: Option<String> =
         query_scalar("SELECT template_name FROM _sqlx_test_templates WHERE migrations_hash = ?")
             .bind(&hash)
@@ -87,36 +87,52 @@ async fn get_or_create_template(
         return Ok(Some(existing_name));
     }
 
-    // Create new template database
-    conn.execute(AssertSqlSafe(format!("CREATE DATABASE `{tpl_name}`")))
-        .await?;
+    // Create new template database (use IF NOT EXISTS for idempotency)
+    // The database might exist from a previous run without being registered
+    conn.execute(AssertSqlSafe(format!(
+        "CREATE DATABASE IF NOT EXISTS `{tpl_name}`"
+    )))
+    .await?;
 
-    // Connect to template and run migrations
+    // Check if this is a fresh database or one left over from a previous run
+    // by checking if it already has the migrations table with entries
     let template_opts = master_opts.clone().database(&tpl_name);
     let mut template_conn: MySqlConnection = template_opts.connect().await?;
 
-    if let Err(e) = migrator.run_direct(None, &mut template_conn).await {
-        // Clean up on failure
-        template_conn.close().await.ok();
-        conn.execute(AssertSqlSafe(format!(
-            "DROP DATABASE IF EXISTS `{tpl_name}`"
-        )))
-        .await
-        .ok();
-        query("SELECT RELEASE_LOCK(?)")
-            .bind("sqlx_template_lock")
-            .execute(&mut *conn)
-            .await?;
-        return Err(Error::Protocol(format!(
-            "Failed to apply migrations to template: {}",
-            e
-        )));
+    let migrations_exist: Option<i64> = query_scalar(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = '_sqlx_migrations'"
+    )
+    .bind(&tpl_name)
+    .fetch_optional(&mut template_conn)
+    .await?;
+
+    let needs_migrations = migrations_exist.unwrap_or(0) == 0;
+
+    // Only run migrations if the database is fresh (no migrations table)
+    if needs_migrations {
+        if let Err(e) = migrator.run_direct(None, &mut template_conn).await {
+            // Clean up on failure
+            template_conn.close().await.ok();
+            conn.execute(AssertSqlSafe(format!(
+                "DROP DATABASE IF EXISTS `{tpl_name}`"
+            )))
+            .await
+            .ok();
+            query("SELECT RELEASE_LOCK(?)")
+                .bind("sqlx_template_lock")
+                .execute(&mut *conn)
+                .await?;
+            return Err(Error::Protocol(format!(
+                "Failed to apply migrations to template: {}",
+                e
+            )));
+        }
     }
 
     template_conn.close().await?;
 
-    // Register template
-    query("INSERT INTO _sqlx_test_templates (template_name, migrations_hash) VALUES (?, ?)")
+    // Register template (use INSERT IGNORE in case it was already registered by another process)
+    query("INSERT IGNORE INTO _sqlx_test_templates (template_name, migrations_hash) VALUES (?, ?)")
         .bind(&tpl_name)
         .bind(&hash)
         .execute(&mut *conn)
