@@ -45,7 +45,6 @@ jobs:
           - ubuntu-latest
           # FIXME: migrations tests fail on Windows for whatever reason
           # - windows-latest
-          - macOS-13
           - macOS-latest
 
     timeout-minutes: 30
@@ -302,7 +301,6 @@ jobs:
         os:
           - ubuntu-latest
           - windows-latest
-          - macOS-13
           - macOS-latest
         include:
           - os: ubuntu-latest
@@ -312,9 +310,6 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bin: target/debug/cargo-sqlx.exe
-          - os: macOS-13
-            target: x86_64-apple-darwin
-            bin: target/debug/cargo-sqlx
           - os: macOS-latest
             target: aarch64-apple-darwin
             bin: target/debug/cargo-sqlx
