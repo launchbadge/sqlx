@@ -1,6 +1,6 @@
 use crate::io::MySqlBufMutExt;
 use crate::io::{BufMutExt, ProtocolEncode};
-#[cfg(feature = "compression")]
+#[cfg(feature = "zstd-compression")]
 use crate::options::Compression;
 use crate::protocol::auth::AuthPlugin;
 use crate::protocol::connect::ssl_request::SslRequest;
@@ -28,9 +28,9 @@ pub struct HandshakeResponse<'a> {
     /// Opaque authentication response
     pub auth_response: Option<&'a [u8]>,
 
-    /// compression algorithm
-    #[cfg_attr(not(feature = "compression"), allow(dead_code))]
-    pub compression: Option<CompressionConfig>,
+    /// compression configurations
+    #[cfg_attr(not(feature = "zstd-compression"), allow(dead_code))]
+    pub compression_configs: &'a [CompressionConfig],
 }
 
 impl ProtocolEncode<'_, Capabilities> for HandshakeResponse<'_> {
@@ -83,10 +83,15 @@ impl ProtocolEncode<'_, Capabilities> for HandshakeResponse<'_> {
             }
         }
 
-        #[cfg(feature = "compression")]
+        #[cfg(feature = "zstd-compression")]
         if context.contains(Capabilities::ZSTD_COMPRESSION_ALGORITHM) {
-            if let Some(CompressionConfig(Compression::Zstd, level)) = self.compression {
-                buf.push(level)
+            let compression_config = self
+                .compression_configs
+                .iter()
+                .find(|c| c.0 == Compression::Zstd);
+
+            if let Some(CompressionConfig(Compression::Zstd, level)) = compression_config {
+                buf.push(*level)
             }
         }
 

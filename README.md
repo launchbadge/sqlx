@@ -177,7 +177,9 @@ be removed in the future.
 
 -   `mysql`: Add support for the MySQL/MariaDB database server.
 
--   `mysql-compression`: Add compression support for MySQL/MariaDB database server.
+-   `mysql-zlib-compression`: Add zlib compression support for MySQL/MariaDB database server.
+
+-   `mysql-zstd-compression`: Add std compression support for MySQL database server.
 
 -   `mssql`: Add support for the MSSQL database server.
 

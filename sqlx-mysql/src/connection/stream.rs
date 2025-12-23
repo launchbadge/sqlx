@@ -6,7 +6,7 @@ use crate::error::Error;
 use crate::io::MySqlBufExt;
 use crate::io::{ProtocolDecode, ProtocolEncode};
 use crate::net::{BufferedSocket, Socket};
-#[cfg(feature = "compression")]
+#[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
 use crate::options::Compression;
 use crate::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::protocol::{Capabilities, Packet};
@@ -51,13 +51,13 @@ impl<S: Socket> MySqlStream<S> {
             capabilities |= Capabilities::CONNECT_WITH_DB;
         }
 
-        #[cfg(feature = "compression")]
-        if let Some(compression) = options.compression {
-            match compression.0 {
-                Compression::Zlib => capabilities |= Capabilities::COMPRESS,
-                Compression::Zstd => capabilities |= Capabilities::ZSTD_COMPRESSION_ALGORITHM,
-            }
-        }
+        #[cfg(any(feature = "zstd-compression", feature = "zlib-compression"))]
+        options.compression_configs.iter().for_each(|c| match c.0 {
+            #[cfg(feature = "zlib-compression")]
+            Compression::Zlib => capabilities |= Capabilities::COMPRESS,
+            #[cfg(feature = "zstd-compression")]
+            Compression::Zstd => capabilities |= Capabilities::ZSTD_COMPRESSION_ALGORITHM,
+        });
 
         Self {
             waiting: VecDeque::new(),
@@ -113,17 +113,26 @@ impl<S: Socket> MySqlStream<S> {
         T: ProtocolEncode<'en, Capabilities>,
     {
         self.sequence_id = 0;
-        self.write_packet(payload)?;
+        self.write_packet(payload).await?;
         self.flush().await?;
         Ok(())
     }
 
-    pub(crate) fn write_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
+    pub(crate) async fn write_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
     where
         T: ProtocolEncode<'en, Capabilities>,
     {
         self.compression_stream
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
+            .await
+    }
+
+    pub(crate) fn write_uncompressed_packet<'en, T>(&mut self, payload: T) -> Result<(), Error>
+    where
+        T: ProtocolEncode<'en, Capabilities>,
+    {
+        self.compression_stream
+            .uncompressed_write_with(Packet(payload), (self.capabilities, &mut self.sequence_id))
     }
 
     async fn recv_packet_part(&mut self) -> Result<Bytes, Error> {
@@ -229,7 +238,7 @@ impl<S: Socket> MySqlStream<S> {
             compression_stream: CompressionMySqlStream::create(
                 self.compression_stream.socket,
                 &self.capabilities,
-                options.compression,
+                options.get_compression(),
             ),
             server_version: self.server_version,
             capabilities: self.capabilities,

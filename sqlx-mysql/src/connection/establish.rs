@@ -104,15 +104,17 @@ impl<'a> DoHandshake<'a> {
             None
         };
 
-        stream.write_packet(HandshakeResponse {
-            charset: super::INITIAL_CHARSET,
-            max_packet_size: MAX_PACKET_SIZE,
-            username: &options.username,
-            database: options.database.as_deref(),
-            auth_plugin: plugin,
-            auth_response: auth_response.as_deref(),
-            compression: options.compression,
-        })?;
+        stream
+            .write_packet(HandshakeResponse {
+                charset: super::INITIAL_CHARSET,
+                max_packet_size: MAX_PACKET_SIZE,
+                username: &options.username,
+                database: options.database.as_deref(),
+                auth_plugin: plugin,
+                auth_response: auth_response.as_deref(),
+                compression_configs: options.get_compression(),
+            })
+            .await?;
 
         stream.flush().await?;
 
@@ -141,7 +143,7 @@ impl<'a> DoHandshake<'a> {
                         )
                         .await?;
 
-                    stream.write_packet(AuthSwitchResponse(response))?;
+                    stream.write_packet(AuthSwitchResponse(response)).await?;
                     stream.flush().await?;
                 }
 

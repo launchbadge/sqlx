@@ -67,10 +67,12 @@ pub(super) async fn maybe_upgrade<S: Socket>(
     };
 
     // Request TLS upgrade
-    stream.write_packet(SslRequest {
-        max_packet_size: super::MAX_PACKET_SIZE,
-        charset: super::INITIAL_CHARSET,
-    })?;
+    stream
+        .write_packet(SslRequest {
+            max_packet_size: super::MAX_PACKET_SIZE,
+            charset: super::INITIAL_CHARSET,
+        })
+        .await?;
 
     stream.flush().await?;
 

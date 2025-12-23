@@ -14,7 +14,8 @@ json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
-compression = ["zstd", "flate2"]
+zstd-compression = ["zstd"]
+zlib-compression = ["flate2"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "sqlx-core/bigdecimal"]

@@ -1,7 +1,7 @@
 use super::MySqlConnectOptions;
 use crate::error::Error;
 use crate::MySqlSslMode;
-#[cfg(feature = "compression")]
+#[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
 use crate::{Compression, CompressionConfig};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use sqlx_core::Url;
@@ -80,27 +80,34 @@ impl MySqlConnectOptions {
                     options = options.timezone(Some(value.to_string()));
                 }
 
-                #[cfg(feature = "compression")]
+                #[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
                 "compression" => {
-                    let (algorithm, level) = value.split_once(":").ok_or_else(|| {
-                        Error::Configuration(
-                            format!(
-                                "Invalid compression parameter. Expected algorithm:level, but got '{}'",
-                                value
+                    let mut configs: Vec<CompressionConfig> = vec![];
+                    for c in value.split(",") {
+                        let (algorithm, level) = c
+                            .split_once(":")
+                            .ok_or_else(|| {
+                            Error::Configuration(
+                                format!(
+                                    "Invalid compression parameter. Expected algorithm:level, but got '{}'",
+                                    value
+                                ).into(),
                             )
-                                .into(),
-                        )
-                    })?;
-                    let compression = match algorithm {
-                        "zlib" => Ok(Compression::Zlib),
-                        "zstd" => Ok(Compression::Zstd),
-                        _ => Err(Error::Configuration(
-                            format!("Unknown compression algorithm: {}", algorithm).into(),
-                        )),
-                    }?;
-                    let compression_config =
-                        compression.level(level.parse().map_err(Error::config)?)?;
-                    options = options.compression(compression_config);
+                        })?;
+                        let compression = match algorithm {
+                            #[cfg(feature = "zlib-compression")]
+                            "zlib" => Ok(Compression::Zlib),
+                            #[cfg(feature = "zstd-compression")]
+                            "zstd" => Ok(Compression::Zstd),
+                            _ => Err(Error::Configuration(
+                                format!("Unknown compression algorithm: {}", algorithm).into(),
+                            )),
+                        }?;
+                        let compression_config =
+                            compression.level(level.parse().map_err(Error::config)?)?;
+                        configs.push(compression_config);
+                    }
+                    options = options.compression(configs);
                 }
 
                 _ => {}
@@ -166,13 +173,21 @@ impl MySqlConnectOptions {
                 .append_pair("socket", &socket.to_string_lossy());
         }
 
-        #[cfg(feature = "compression")]
-        if let Some(compression_config) = &self.compression {
-            let value = match compression_config {
-                CompressionConfig(Compression::Zstd, level) => format!("zstd:{}", level),
-                CompressionConfig(Compression::Zlib, level) => format!("zlib:{}", level),
-            };
-            url.query_pairs_mut().append_pair("compression", &value);
+        #[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
+        if !&self.compression_configs.is_empty() {
+            let values = self
+                .compression_configs
+                .iter()
+                .map(|c| match c {
+                    #[cfg(feature = "zstd-compression")]
+                    CompressionConfig(Compression::Zstd, level) => format!("zstd:{}", level),
+                    #[cfg(feature = "zlib-compression")]
+                    CompressionConfig(Compression::Zlib, level) => format!("zlib:{}", level),
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+
+            url.query_pairs_mut().append_pair("compression", &values);
         }
 
         url
@@ -218,18 +233,37 @@ fn it_returns_the_parsed_url() {
 }
 
 #[test]
-#[cfg(feature = "compression")]
-fn it_returns_the_build_url_with_compression_param() {
+#[cfg(feature = "zstd-compression")]
+fn it_returns_the_build_url_with_zstd_compression_param() {
     let url = "mysql://username:p@ssw0rd@hostname:3306/database";
     let opts = MySqlConnectOptions::from_str(url)
         .unwrap()
-        .compression(Compression::Zstd.fast());
+        .compression(vec![Compression::Zstd.fast()]);
 
     let mut expected_url = Url::parse(url).unwrap();
     let mut query_string = String::new();
     // MySqlConnectOptions defaults
     query_string += "ssl-mode=PREFERRED&charset=utf8mb4&statement-cache-capacity=100";
     query_string += "&compression=zstd%3A1";
+
+    expected_url.set_query(Some(&query_string));
+
+    assert_eq!(expected_url, opts.build_url());
+}
+
+#[test]
+#[cfg(feature = "zlib-compression")]
+fn it_returns_the_build_url_with_compression_params() {
+    let url = "mysql://username:p@ssw0rd@hostname:3306/database";
+    let opts = MySqlConnectOptions::from_str(url)
+        .unwrap()
+        .compression(vec![Compression::Zlib.best()]);
+
+    let mut expected_url = Url::parse(url).unwrap();
+    let mut query_string = String::new();
+    // MySqlConnectOptions defaults
+    query_string += "ssl-mode=PREFERRED&charset=utf8mb4&statement-cache-capacity=100";
+    query_string += "&compression=zlib%3A9";
 
     expected_url.set_query(Some(&query_string));
 
@@ -250,17 +284,44 @@ fn it_parses_timezone() {
 }
 
 #[test]
-#[cfg(feature = "compression")]
+#[cfg(feature = "zstd-compression")]
 fn it_parses_compression() {
     let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?compression=zstd:10"
         .parse()
         .unwrap();
 
-    assert_eq!(opts.compression, Compression::Zstd.level(10).ok());
+    assert_eq!(
+        opts.get_compression(),
+        &[Compression::Zstd.level(10).unwrap()]
+    );
+}
 
+#[test]
+#[cfg(feature = "zlib-compression")]
+fn it_parses_zlib_compression() {
     let opts: MySqlConnectOptions = "mysql://user:password@hostname/database?compression=zlib:2"
         .parse()
         .unwrap();
 
-    assert_eq!(opts.compression, Compression::Zlib.level(2).ok());
+    assert_eq!(
+        opts.get_compression(),
+        &[Compression::Zlib.level(2).unwrap()]
+    );
+}
+
+#[test]
+#[cfg(all(feature = "zlib-compression", feature = "zstd-compression"))]
+fn it_parses_list_of_compression_algorithms() {
+    let opts: MySqlConnectOptions =
+        "mysql://user:password@hostname/database?compression=zlib:1,zstd:2"
+            .parse()
+            .unwrap();
+
+    assert_eq!(
+        opts.get_compression(),
+        &[
+            Compression::Zlib.level(1).unwrap(),
+            Compression::Zstd.level(2).unwrap()
+        ]
+    );
 }

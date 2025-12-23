@@ -1,4 +1,4 @@
-#[cfg(feature = "compression")]
+#[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
 use sqlx_core::Error;
 use std::path::{Path, PathBuf};
 
@@ -82,30 +82,36 @@ pub struct MySqlConnectOptions {
     pub(crate) no_engine_substitution: bool,
     pub(crate) timezone: Option<String>,
     pub(crate) set_names: bool,
-    pub(crate) compression: Option<CompressionConfig>,
+    pub(crate) compression_configs: Vec<CompressionConfig>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct CompressionConfig(
     pub(crate) Compression,
-    #[cfg_attr(not(feature = "compression"), allow(dead_code))] pub(crate) u8,
+    #[cfg_attr(
+        not(all(feature = "zlib-compression", feature = "zstd-compression")),
+        allow(dead_code)
+    )]
+    pub(crate) u8,
 );
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Compression {
-    #[cfg(feature = "compression")]
+    #[cfg(feature = "zlib-compression")]
     Zlib,
-    #[cfg(feature = "compression")]
+    #[cfg(feature = "zstd-compression")]
     Zstd,
 }
 
-#[cfg(feature = "compression")]
+#[cfg(any(feature = "zlib-compression", feature = "zstd-compression"))]
 impl Compression {
     /// Selects a default compression level optimized for both encoding speed and output size.
     pub fn default(self) -> CompressionConfig {
         match self {
-            Compression::Zlib => CompressionConfig(self, 5),
-            Compression::Zstd => CompressionConfig(self, 11),
+            #[cfg(feature = "zlib-compression")]
+            Compression::Zlib => CompressionConfig(self, 6),
+            #[cfg(feature = "zstd-compression")]
+            Compression::Zstd => CompressionConfig(self, 3),
         }
     }
 
@@ -114,10 +120,18 @@ impl Compression {
         CompressionConfig(self, 1)
     }
 
-    /// Optimize for the size of data being encoded.
+    /// Optimize for maximum compression ratio.
+    ///
+    /// This mode favors smaller output size at the cost of significantly slower
+    /// compression speed. At high levels, compression itself may become the main
+    /// bottleneck rather than I/O or network transfer.
+    ///
+    /// Recommended only for offline or non-latency-sensitive workloads.
     pub fn best(self) -> CompressionConfig {
         match self {
+            #[cfg(feature = "zlib-compression")]
             Compression::Zlib => CompressionConfig(self, 9),
+            #[cfg(feature = "zstd-compression")]
             Compression::Zstd => CompressionConfig(self, 22),
         }
     }
@@ -128,6 +142,12 @@ impl Compression {
     ///
     /// - **Zstd:** `1` to `22`
     /// - **Zlib:** `1` to `9`
+    ///
+    /// For **Zstd**, the configured level is applied on the server side.
+    ///
+    /// For **Zlib**, this setting affects only outgoing packets. Incoming data is
+    /// always decompressed using the server-defined compression level, which is
+    /// fixed at `6` and cannot be changed.
     ///
     /// If the provided level is valid for the selected algorithm, a new
     /// [`CompressionConfig`] is returned.
@@ -142,16 +162,22 @@ impl Compression {
     ///
     /// ```rust
     /// # use sqlx_mysql::Compression;
-    ///
-    /// let ok = Compression::Zstd.level(5);
-    /// assert!(ok.is_ok());
-    ///
+    /// # #[cfg(feature = "zstd-compression")]
+    /// # {
+    /// let good = Compression::Zstd.level(5);
+    /// assert!(good.is_ok());
+    /// # }
+    /// # #[cfg(feature = "zlib-compression")]
+    /// # {
     /// let bad = Compression::Zlib.level(42);
     /// assert!(bad.is_err());
+    /// # }
     /// ```
     pub fn level(self, value: u8) -> Result<CompressionConfig, Error> {
         let range = match self {
+            #[cfg(feature = "zstd-compression")]
             Compression::Zstd => 1..=22,
+            #[cfg(feature = "zlib-compression")]
             Compression::Zlib => 1..=9,
         };
 
@@ -200,7 +226,7 @@ impl MySqlConnectOptions {
             no_engine_substitution: true,
             timezone: Some(String::from("+00:00")),
             set_names: true,
-            compression: None,
+            compression_configs: vec![],
         }
     }
 
@@ -505,21 +531,29 @@ impl MySqlConnectOptions {
         self
     }
 
-    /// Sets the compression mode for the connection.
+    /// Sets the compression configuration for the connection.
     ///
-    /// Data is uncompressed by default.
-    /// Ensure that the server supports the selected compression algorithm;
-    /// if it does not, the client will fall back to uncompressed mode.
+    /// Compression is disabled by default.
+    ///
+    /// The client will negotiate compression with the server using the provided
+    /// configurations, in the given order. The first compression algorithm
+    /// supported by the server will be selected. If none of the specified
+    /// algorithms are supported, the connection falls back to uncompressed mode.
     ///
     /// # Example
     ///
     /// ```rust
     /// # use sqlx_mysql::{MySqlConnectOptions, Compression};
     /// let options = MySqlConnectOptions::new()
-    ///     .compression(Compression::Zlib.fast());
+    ///     .compression(vec![
+    ///#        #[cfg(feature = "zlib-compression")]
+    ///         Compression::Zlib.fast(),
+    ///#        #[cfg(feature = "zstd-compression")]
+    ///         Compression::Zstd.default(),
+    ///     ]);
     /// ```
-    pub fn compression(mut self, compression: CompressionConfig) -> Self {
-        self.compression = Some(compression);
+    pub fn compression(mut self, compression: Vec<CompressionConfig>) -> Self {
+        self.compression_configs = compression;
         self
     }
 }
@@ -640,14 +674,16 @@ impl MySqlConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// #![cfg(feature = "compression")]
+    /// # #[cfg(feature = "zlib-compression")]
+    /// # {
     /// # use sqlx_mysql::{Compression, CompressionConfig, MySqlConnectOptions};
     /// let options = MySqlConnectOptions::new()
-    ///     .compression(Compression::Zlib.fast());
+    ///     .compression(vec![Compression::Zlib.fast()]);
     ///
-    /// assert!(options.get_compression().is_some());
+    /// assert_eq!(options.get_compression(), &[Compression::Zlib.fast()]);
+    /// # }
     /// ```
-    pub fn get_compression(&self) -> Option<CompressionConfig> {
-        self.compression
+    pub fn get_compression(&self) -> &[CompressionConfig] {
+        &self.compression_configs
     }
 }

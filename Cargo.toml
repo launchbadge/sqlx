@@ -162,7 +162,8 @@ regexp = ["sqlx-sqlite?/regexp"]
 bstr = ["sqlx-core/bstr"]
 
 # compression
-mysql-compression = ["sqlx-mysql/compression"]
+mysql-zstd-compression = ["sqlx-mysql/zstd-compression"]
+mysql-zlib-compression = ["sqlx-mysql/zlib-compression"]
 
 [workspace.dependencies]
 # Core Crates
@@ -362,7 +363,7 @@ required-features = ["sqlite"]
 [[test]]
 name = "mysql"
 path = "tests/mysql/mysql.rs"
-required-features = ["mysql", "compression"]
+required-features = ["mysql"]
 
 [[test]]
 name = "mysql-types"
@@ -403,6 +404,12 @@ required-features = ["mysql", "macros", "migrate"]
 name = "mysql-rustsec"
 path = "tests/mysql/rustsec.rs"
 required-features = ["mysql"]
+
+[[test]]
+name = "mysql-compression"
+path = "tests/mysql/compression.rs"
+required-features = ["mysql"]
+
 
 #
 # PostgreSQL
