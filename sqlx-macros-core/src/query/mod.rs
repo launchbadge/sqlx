@@ -10,7 +10,7 @@ use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
 
 use crate::database::DatabaseExt;
 use crate::query::data::{hash_string, DynQueryData, QueryData};
-use crate::query::input::RecordType;
+use crate::query::input::OutputType;
 use crate::query::metadata::MacrosEnv;
 use either::Either;
 use metadata::Metadata;
@@ -227,8 +227,8 @@ where
             ::sqlx::__query_with_result::<#db_path, _>(#sql, #query_args)
         }
     } else {
-        match input.record_type {
-            RecordType::Generated => {
+        match input.output_type {
+            OutputType::GeneratedRecord(ref attrs) => {
                 let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 let record_name: Type = syn::parse_str("Record").unwrap();
@@ -250,6 +250,7 @@ where
                 let mut record_tokens = quote! {
                     #[derive(Debug)]
                     #[allow(non_snake_case)]
+                    #(#[#attrs])*
                     struct #record_name {
                         #(#record_fields)*
                     }
@@ -264,12 +265,12 @@ where
 
                 record_tokens
             }
-            RecordType::Given(ref out_ty) => {
+            OutputType::GivenRecord(ref out_ty) => {
                 let columns = output::columns_to_rust::<DB>(&data.describe, config, &mut warnings)?;
 
                 output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
             }
-            RecordType::Scalar => output::quote_query_scalar::<DB>(
+            OutputType::Scalar => output::quote_query_scalar::<DB>(
                 &input,
                 config,
                 &mut warnings,

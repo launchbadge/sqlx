@@ -869,3 +869,86 @@ macro_rules! migrate {
         $crate::sqlx_macros::migrate!()
     }};
 }
+
+/// A variant of [`query!`][`crate::query!`] that combines the functionality of the other query
+/// macros.
+/// - [`query_unchecked!`][`crate::query_unchecked!]
+/// - [`query_file!`][`crate::query_file!]
+/// - [`query_file_unchecked!`][`crate::query_file_unchecked!]
+/// - [`query_as!`][`crate::query_as!]
+/// - [`query_file_as!`][`crate::query_file_as!]
+/// - [`query_as_unchecked!`][`crate::query_as_unchecked!]
+/// - [`query_file_as_unchecked!`][`crate::query_file_as_unchecked!]
+/// - [`query_scalar!`][`crate::query_scalar!]
+/// - [`query_file_scalar!`][`crate::query_file_scalar!]
+/// - [`query_scalar_unchecked!`][`crate::query_scalar_unchecked!]
+/// - [`query_file_scalar_unchecked!`][`crate::query_file_scalar_unchecked!]
+///
+/// The syntax is
+/// - Flags (Optional)
+/// - Query
+/// - Parameters (Optional)
+/// - Type (Optional)
+///
+/// # Flags
+/// Zero or more flags. Currently the only supported flag is `unchecked`, which changes the
+/// checking behavior to be like [`query_unchecked!`][`crate::query_unchecked!`]
+///
+/// # Query
+/// A string literal, or `file("path")` to read the query from a file.
+///
+/// The query itself is the same as in [`query!`][`crate::query!`] with regards to type and
+/// nullability overrides.
+///
+/// This macro does not support joining multiple literals into a single query with `+`.
+///
+/// # Parameters
+/// A comma separated list of expressions wrapped in parenthesis.
+///
+/// The syntax is intended to look like a function call.
+///
+/// # Type
+/// Information about the desired return type can be given after a `:`,
+/// if this section is omitted the type will be inferred, and will derive `Debug` only.
+///
+/// There are multiple options for what can come after the `:`
+/// - An identifier: behaves like [`query_as!`][`crate::query_as!`]
+/// - `scalar`: behaves like [`query_scalar!`][`crate::query_scalar!`]
+/// - Zero or more attributes: infers the return type, and applies the provided attributes in
+///   addition to deriving `Debug`
+#[macro_export]
+macro_rules! queryx {
+    (@query ($($acc:tt)*) unchecked $($rest:tt)*) => {
+        $crate::queryx!(@query (checked = false, $($acc)*) $($rest)*)
+    };
+    (@query ($($acc:tt)*) $query:literal $($rest:tt)*) => {
+        $crate::queryx!(@args (source = $query, $($acc)*) $($rest)*)
+    };
+    (@query ($($acc:tt)*) file($path:literal) $($rest:tt)*) => {
+        $crate::queryx!(@args (source_file = $path, $($acc)*) $($rest)*)
+    };
+    (@args ($($acc:tt)*) $(($($args:expr),* $(,)?))? $(: $($rest:tt)*)?) => {
+        $crate::queryx!(@type ($(args = [$($args),*],)? $($acc)*) $($($rest)*)?)
+    };
+
+    (@type ($($acc:tt)*) ) => {
+        $crate::sqlx_macros::expand_query!($($acc)*)
+    };
+    (@type ($($acc:tt)*) $given_type:ty ) => {
+        $crate::sqlx_macros::expand_query!(record = $given_type, $($acc)*)
+    };
+    (@type ($($acc:tt)*) FromRow $type:ty ) => {
+        $crate::sqlx_macros::expand_query!(from_row = $type, $($acc)*)
+    };
+    (@type ($($acc:tt)*) $(#[$attrs:meta])* ) => {
+        $crate::sqlx_macros::expand_query!(attrs = [$($attrs),*], $($acc)*)
+    };
+    (@type ($($acc:tt)*) scalar ) => {
+        $crate::sqlx_macros::expand_query!(scalar = _, $($acc)*)
+    };
+
+    // Entrypoint
+    ($($rest:tt)*) => {
+        $crate::queryx!(@query () $($rest)*)
+    };
+}
