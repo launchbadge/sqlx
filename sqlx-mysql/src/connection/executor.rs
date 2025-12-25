@@ -1,6 +1,5 @@
 use super::MySqlStream;
 use crate::connection::stream::Waiting;
-use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
@@ -10,7 +9,7 @@ use crate::protocol::response::Status;
 use crate::protocol::statement::{
     BinaryRow, Execute as StatementExecute, Prepare, PrepareOk, StmtClose,
 };
-use crate::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
+use crate::protocol::text::{ColumnDefinition, Query, TextRow};
 use crate::statement::{MySqlStatement, MySqlStatementMetadata};
 use crate::HashMap;
 use crate::{
@@ -359,7 +358,11 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
+    #[cfg(feature = "offline")]
+    fn describe<'e>(
+        self,
+        sql: SqlStr,
+    ) -> BoxFuture<'e, Result<crate::describe::Describe<MySql>, Error>>
     where
         'c: 'e,
     {
@@ -379,11 +382,11 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
                 .iter()
                 .map(|col| {
                     col.flags
-                        .map(|flags| !flags.contains(ColumnFlags::NOT_NULL))
+                        .map(|flags| !flags.contains(crate::protocol::text::ColumnFlags::NOT_NULL))
                 })
                 .collect();
 
-            Ok(Describe {
+            Ok(crate::describe::Describe {
                 parameters: Some(Either::Right(metadata.parameters)),
                 columns,
                 nullable,
