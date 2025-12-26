@@ -83,5 +83,5 @@ This adds a required x509 v3 extension:
 Create a signed certificate using our CA key and the CSR:
 
 ```
-openssl x509 -req -CA ca.crt -CAkey keys/ca.key -in server.csr -out server.crt -days 3650 -CAcreateserial
+openssl x509 -req -CA ca.crt -CAkey keys/ca.key -in server.csr -out server.crt -days 3650 -CAcreateserial -copy_extensions copy
 ```
