@@ -1,4 +1,3 @@
-use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::io::{PortalId, StatementId};
@@ -475,7 +474,11 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    #[cfg(feature = "offline")]
+    fn describe<'e>(
+        self,
+        sql: SqlStr,
+    ) -> BoxFuture<'e, Result<crate::describe::Describe<Self::Database>, Error>>
     where
         'c: 'e,
     {
@@ -488,7 +491,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
             let nullable = self.get_nullable_for_columns(stmt_id, &metadata).await?;
 
-            Ok(Describe {
+            Ok(crate::describe::Describe {
                 columns: metadata.columns.clone(),
                 nullable,
                 parameters: Some(Either::Left(metadata.parameters.clone())),
