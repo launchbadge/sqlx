@@ -33,21 +33,21 @@ impl PgConnection {
             ("TimeZone", "UTC"),
         ];
 
-        if let Some(ref extra_float_digits) = options.extra_float_digits {
+        if let Some(extra_float_digits) = options.get_extra_float_digits() {
             params.push(("extra_float_digits", extra_float_digits));
         }
 
-        if let Some(ref application_name) = options.application_name {
+        if let Some(application_name) = options.get_application_name() {
             params.push(("application_name", application_name));
         }
 
-        if let Some(ref options) = options.options {
+        if let Some(options) = options.get_options() {
             params.push(("options", options));
         }
 
         stream.write(Startup {
-            username: Some(&options.username),
-            database: options.database.as_deref(),
+            username: Some(options.get_username()),
+            database: Some(options.get_database()),
             params: &params,
         })?;
 
@@ -77,7 +77,7 @@ impl PgConnection {
 
                         stream
                             .send(Password::Cleartext(
-                                options.password.as_deref().unwrap_or_default(),
+                                options.get_password().unwrap_or_default(),
                             ))
                             .await?;
                     }
@@ -90,8 +90,8 @@ impl PgConnection {
 
                         stream
                             .send(Password::Md5 {
-                                username: &options.username,
-                                password: options.password.as_deref().unwrap_or_default(),
+                                username: options.get_username(),
+                                password: options.get_password().unwrap_or_default(),
                                 salt: body.salt,
                             })
                             .await?;

@@ -53,7 +53,7 @@ pub(crate) async fn authenticate(
     BASE64_STANDARD.encode_string(GS2_HEADER, &mut channel_binding);
 
     // "n=" saslname ;; Usernames are prepared using SASLprep.
-    let username = format!("{}={}", USERNAME_ATTR, options.username);
+    let username = format!("{}={}", USERNAME_ATTR, options.get_username());
     let username = match saslprep(&username) {
         Ok(v) => v,
         // TODO(danielakhterov): Remove panic when we have proper support for configuration errors
@@ -88,7 +88,7 @@ pub(crate) async fn authenticate(
 
     // SaltedPassword := Hi(Normalize(password), salt, i)
     let salted_password = hi(
-        options.password.as_deref().unwrap_or_default(),
+        options.get_password().unwrap_or_default(),
         &cont.salt,
         cont.iterations,
     )
