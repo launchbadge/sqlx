@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 impl PgConnectOptions {
     pub(crate) fn parse_from_url(url: &Url) -> Result<Self, Error> {
+        #[allow(deprecated)]
         let mut options = Self::new_without_pgpass();
 
         if let Some(host) = url.host_str() {
@@ -111,6 +112,137 @@ impl PgConnectOptions {
         let options = options.apply_pgpass();
 
         Ok(options)
+    }
+
+    /// Parse a connection URL without reading environment variables or `.pgpass`.
+    ///
+    /// This is similar to [`parse_from_url`](Self::parse_from_url) but uses
+    /// [`default_without_env()`](Self::default_without_env) as the baseline,
+    /// ensuring no environment variables influence the connection options.
+    pub(crate) fn parse_from_url_without_env(url: &Url) -> Result<Self, Error> {
+        let mut options = Self::default_without_env();
+
+        if let Some(host) = url.host_str() {
+            let host_decoded = percent_decode_str(host);
+            options = match host_decoded.clone().next() {
+                Some(b'/') => options.socket(&*host_decoded.decode_utf8().map_err(Error::config)?),
+                _ => options.host(host),
+            }
+        }
+
+        if let Some(port) = url.port() {
+            options = options.port(port);
+        }
+
+        let username = url.username();
+        if !username.is_empty() {
+            options = options.username(
+                &percent_decode_str(username)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
+        }
+
+        if let Some(password) = url.password() {
+            options = options.password(
+                &percent_decode_str(password)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
+        }
+
+        let path = url.path().trim_start_matches('/');
+        if !path.is_empty() {
+            options = options.database(
+                &percent_decode_str(path)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
+        }
+
+        for (key, value) in url.query_pairs().into_iter() {
+            match &*key {
+                "sslmode" | "ssl-mode" => {
+                    options = options.ssl_mode(value.parse().map_err(Error::config)?);
+                }
+
+                "sslrootcert" | "ssl-root-cert" | "ssl-ca" => {
+                    options = options.ssl_root_cert(&*value);
+                }
+
+                "sslcert" | "ssl-cert" => options = options.ssl_client_cert(&*value),
+
+                "sslkey" | "ssl-key" => options = options.ssl_client_key(&*value),
+
+                "statement-cache-capacity" => {
+                    options =
+                        options.statement_cache_capacity(value.parse().map_err(Error::config)?);
+                }
+
+                "host" => {
+                    if value.starts_with('/') {
+                        options = options.socket(&*value);
+                    } else {
+                        options = options.host(&value);
+                    }
+                }
+
+                "hostaddr" => {
+                    value.parse::<IpAddr>().map_err(Error::config)?;
+                    options = options.host(&value)
+                }
+
+                "port" => options = options.port(value.parse().map_err(Error::config)?),
+
+                "dbname" => options = options.database(&value),
+
+                "user" => options = options.username(&value),
+
+                "password" => options = options.password(&value),
+
+                "application_name" => options = options.application_name(&value),
+
+                "options" => {
+                    if let Some(options) = options.options.as_mut() {
+                        options.push(' ');
+                        options.push_str(&value);
+                    } else {
+                        options.options = Some(value.to_string());
+                    }
+                }
+
+                k if k.starts_with("options[") => {
+                    if let Some(key) = k.strip_prefix("options[").unwrap().strip_suffix(']') {
+                        options = options.options([(key, &*value)]);
+                    }
+                }
+
+                _ => tracing::warn!(%key, %value, "ignoring unrecognized connect parameter"),
+            }
+        }
+
+        // Note: we don't apply pgpass or env here
+        Ok(options)
+    }
+
+    /// Parse a connection URL without reading environment variables or `.pgpass`.
+    ///
+    /// This is similar to [`FromStr`] but ensures no environment variables
+    /// or `.pgpass` files influence the connection options. All connection
+    /// parameters must be explicitly specified in the URL or will use the
+    /// hardcoded defaults from [`default_without_env()`](Self::default_without_env).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::from_url_without_env(
+    ///     "postgres://postgres:password@localhost:5432/mydb"
+    /// ).unwrap();
+    /// ```
+    pub fn from_url_without_env(url: &str) -> Result<Self, Error> {
+        let url: Url = url.parse().map_err(Error::config)?;
+        Self::parse_from_url_without_env(&url)
     }
 
     pub(crate) fn build_url(&self) -> Url {
@@ -339,4 +471,35 @@ fn built_url_can_be_parsed() {
     let parsed = PgConnectOptions::from_str(opts.build_url().as_ref());
 
     assert!(parsed.is_ok());
+}
+
+#[test]
+fn test_from_url_without_env() {
+    // Test that from_url_without_env uses hardcoded defaults, not environment
+    let url = "postgres://testuser:testpass@testhost:5433/testdb";
+    let opts = PgConnectOptions::from_url_without_env(url).unwrap();
+
+    assert_eq!(opts.get_host(), "testhost");
+    assert_eq!(opts.get_port(), 5433);
+    assert_eq!(opts.get_username(), "testuser");
+    assert_eq!(opts.get_database(), Some("testdb"));
+
+    // Test minimal URL uses hardcoded defaults
+    let url = "postgres://";
+    let opts = PgConnectOptions::from_url_without_env(url).unwrap();
+
+    // Should use hardcoded defaults, not environment variables
+    assert_eq!(opts.get_port(), 5432);
+    assert_eq!(opts.get_username(), "postgres"); // Hardcoded default, not OS username
+    assert_eq!(opts.get_ssl_mode(), PgSslMode::Prefer);
+
+    // Test URL with query parameters
+    let url = "postgres://user@host/db?sslmode=require&application_name=myapp";
+    let opts = PgConnectOptions::from_url_without_env(url).unwrap();
+
+    assert_eq!(opts.get_username(), "user");
+    assert_eq!(opts.get_host(), "host");
+    assert_eq!(opts.get_database(), Some("db"));
+    assert_eq!(opts.get_ssl_mode(), PgSslMode::Require);
+    assert_eq!(opts.get_application_name(), Some("myapp"));
 }
