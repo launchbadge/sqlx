@@ -20,7 +20,7 @@ use crate::{private_tracing_dynamic_event, rt};
 use event_listener::listener;
 use futures_util::future::{self};
 use std::time::{Duration, Instant};
-use tracing::Level;
+use tracing::{Instrument, Level};
 
 const GRACEFUL_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_BEFORE_ACQUIRE_TIMEOUT: Duration = Duration::from_secs(60);
@@ -181,7 +181,7 @@ impl<DB: Database> PoolInner<DB> {
         tracing::trace!("waiting for any connection");
 
         let disconnected = match self.connections.acquire_any().await {
-            Ok(conn) => match finish_acquire(self, conn).await {
+            Ok(conn) => match self.finish_acquire(conn).await {
                 Ok(conn) => return Ok(conn),
                 Err(slot) => slot,
             },
@@ -199,12 +199,21 @@ impl<DB: Database> PoolInner<DB> {
             match race(&mut connect_task, self.connections.acquire_connected()).await {
                 Ok(Ok(conn)) => return Ok(conn),
                 Ok(Err(e)) => return Err(e),
-                Err(conn) => match finish_acquire(self, conn).await {
+                Err(conn) => match self.finish_acquire(conn).await {
                     Ok(conn) => return Ok(conn),
                     Err(_) => continue,
                 },
             }
         }
+    }
+
+    #[inline(always)]
+    async fn finish_acquire(self: &Arc<Self>, conn: ConnectedSlot<ConnectionInner<DB>>) -> Result<PoolConnection<DB>, DisconnectedSlot<ConnectionInner<DB>>> {
+        let span = tracing::trace_span!(target: "sqlx::pool", "finish_acquire", connection_id=?conn.id);
+
+        finish_acquire(self, conn)
+            .instrument(span)
+            .await
     }
 
     pub(crate) async fn try_min_connections(

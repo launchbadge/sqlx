@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use tracing::Instrument;
 
 pub struct ConnectionSet<C> {
     global: Arc<Global>,
@@ -120,21 +121,36 @@ impl<C> ConnectionSet<C> {
     }
 
     async fn acquire_inner(&self, pref: AcquirePreference) -> SlotGuard<C> {
-                let preferred_slot = current_thread_id() % self.slots.len();
-
-        tracing::trace!(preferred_slot, ?pref, "acquire_inner");
+        let preferred_slot = current_thread_id() % self.slots.len();
 
         // Always try to lock the connection associated with our thread ID
         let mut acquire_preferred = pin!(self.slots[preferred_slot].acquire(pref));
 
+        let alternate_slot = (preferred_slot + 547usize.wrapping_mul(
+            Arc::strong_count(&self.slots[preferred_slot].connection)
+        )) % self.slots.len();
+
+        let mut acquire_alternate = pin!(self.slots[alternate_slot].acquire(pref));
+
         let mut listen_global = pin!(self.global.listen(pref));
 
-        let mut yielded = false;
+        let mut yielded_1 = false;
+        let mut yielded_2 = false;
 
         std::future::poll_fn(|cx| {
             if let Poll::Ready(locked) = acquire_preferred.as_mut().poll(cx) {
                 return Poll::Ready(locked);
             }
+
+            if let Poll::Ready(locked) = acquire_alternate.as_mut().poll(cx) {
+                return Poll::Ready(locked);
+            }
+
+            // if !yielded_1 {
+            //     cx.waker().wake_by_ref();
+            //     yielded_1 = true;
+            //     return Poll::Pending;
+            // }
 
             if let Poll::Ready(slot) = listen_global.as_mut().poll(cx) {
                 if let Some(locked) = self.slots[slot].try_acquire(pref) {
@@ -144,9 +160,9 @@ impl<C> ConnectionSet<C> {
                 listen_global.as_mut().set(self.global.listen(pref));
             }
 
-            if !yielded {
+            if !yielded_2 {
                 cx.waker().wake_by_ref();
-                yielded = true;
+                yielded_2 = true;
                 return Poll::Pending;
             }
 
@@ -156,6 +172,12 @@ impl<C> ConnectionSet<C> {
 
             Poll::Pending
         })
+            .instrument(tracing::trace_span!(
+                target: "sqlx::pool::connection_set",
+                "acquire_inner",
+                preferred_slot,
+                ?pref,
+            ))
         .await
     }
 
@@ -174,14 +196,24 @@ impl<C> ConnectionSet<C> {
     }
 
     fn try_acquire(&self, pref: AcquirePreference) -> Option<SlotGuard<C>> {
-        let mut search_slot = current_thread_id() % self.slots.len();
+        let preferred_slot = current_thread_id() % self.slots.len();
 
-        for _ in 0..self.slots.len() {
-            if let Some(locked) = self.slots[search_slot].try_acquire(pref) {
-                return Some(locked);
+        let (slots_before, slots_after) = self.slots.split_at(preferred_slot);
+
+        let (preferred_slot, slots_after) = slots_after.split_first().unwrap();
+
+        if let Some(locked) = preferred_slot.try_acquire(pref) {
+            return Some(locked);
+        }
+
+        for slot in slots_before.iter().chain(slots_after).rev() {
+            if self.global.locked_set[slot.index].load(Ordering::Relaxed) {
+                continue;
             }
 
-            search_slot = self.next_slot(search_slot);
+            if let Some(locked) = slot.try_acquire(pref) {
+                return Some(locked);
+            }
         }
 
         None
@@ -398,6 +430,7 @@ impl<C> SlotGuard<C> {
             let connected = locked.is_some();
             self.slot.set_is_connected(connected);
             self.slot.locked.store(false, Ordering::Release);
+            self.slot.global.locked_set[self.slot.index].store(false, Ordering::Relaxed);
             connected
         })
     }
