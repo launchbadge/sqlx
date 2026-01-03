@@ -44,7 +44,7 @@ async fn prepare(
     let mut param_types = Vec::with_capacity(parameters.len());
 
     for ty in parameters {
-        param_types.push(conn.resolve_type_id(&ty.0).await?);
+        param_types.push(conn.resolve_type_id(persistent, &ty.0).await?);
     }
 
     // flush and wait until we are re-ready
@@ -85,15 +85,33 @@ async fn prepare(
         // each SYNC produces one READY FOR QUERY
         conn.recv_ready_for_query().await?;
 
-        let parameters = conn.handle_parameter_description(parameters).await?;
+        let parameters = conn
+            .handle_parameter_description(persistent, parameters)
+            .await?;
 
         let (columns, column_names) = conn
-            .handle_row_description(rows, true, fetch_column_origin)
+            .handle_row_description(rows, persistent, true, fetch_column_origin)
             .await?;
 
         // ensure that if we did fetch custom data, we wait until we are fully ready before
         // continuing
         conn.wait_until_ready().await?;
+
+        // if not persistent, we must Parse/Describe again, as handle_parameter_description/handle_row_description
+        // will overwrite the current unnamed prepared statement.
+        //
+        // we don't need to send sync/wait for response
+        if !persistent {
+            conn.inner.stream.write_msg(Parse {
+                param_types: &param_types,
+                query: sql,
+                statement: id,
+            })?;
+
+            conn.inner
+                .stream
+                .write_msg(message::Describe::Statement(id))?;
+        }
 
         Arc::new(PgStatementMetadata {
             parameters,
@@ -246,7 +264,9 @@ impl PgConnection {
             metadata = metadata_;
 
             // patch holes created during encoding
-            arguments.apply_patches(self, &metadata.parameters).await?;
+            arguments
+                .apply_patches(self, &metadata.parameters, persistent)
+                .await?;
 
             // consume messages till `ReadyForQuery` before bind and execute
             self.wait_until_ready().await?;
@@ -347,7 +367,7 @@ impl PgConnection {
                     BackendMessageFormat::RowDescription => {
                         // indicates that a *new* set of rows are about to be returned
                         let (columns, column_names) = self
-                            .handle_row_description(Some(message.decode()?), false, false)
+                            .handle_row_description(Some(message.decode()?), persistent, false, false)
                             .await?;
 
                         metadata = Arc::new(PgStatementMetadata {
