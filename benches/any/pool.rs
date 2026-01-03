@@ -4,6 +4,10 @@ use std::fmt::{Display, Formatter};
 use std::thread;
 use std::time::{Duration, Instant};
 use tracing::Instrument;
+use tracing_flame::FlameLayer;
+use tracing_subscriber::{EnvFilter, Layer};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[derive(Debug)]
 struct Input {
@@ -24,7 +28,27 @@ impl Display for Input {
 
 fn bench_pool(c: &mut Criterion) {
     sqlx::any::install_default_drivers();
-    tracing_subscriber::fmt::try_init().ok();
+
+    let _guard = if let Ok(path) = dotenvy::var("FLAMEGRAPH_OUT") {
+        let (layer, guard) = FlameLayer::with_file(&path)
+            .expect(&format!("error opening path {path:?} (`FLAMEGRAPH_OUT`)"));
+
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env())
+            )
+            .with(layer.with_threads_collapsed(true))
+            .try_init()
+            .ok();
+
+        tracing::info!("Writing flamegraph to {path:?}");
+
+        Some(guard)
+    } else {
+        tracing_subscriber::fmt::try_init().ok();
+
+        None
+    };
 
     let database_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
