@@ -74,6 +74,14 @@ impl MigrationType {
         }
     }
 
+    /// Ordering helper to sort ups before downs when versions tie.
+    pub fn direction_order(&self) -> u8 {
+        match self {
+            MigrationType::ReversibleDown => 1,
+            MigrationType::Simple | MigrationType::ReversibleUp => 0,
+        }
+    }
+
     #[deprecated = "unused"]
     pub fn infer(migrator: &Migrator, reversible: bool) -> MigrationType {
         match migrator.iter().last() {
