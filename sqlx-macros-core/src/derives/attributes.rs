@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote_spanned;
 use syn::{
-    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitStr,
-    Meta, Token, Type, Variant, LitInt
+    parenthesized, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, Field, LitInt,
+    LitStr, Meta, Token, Type, Variant,
 };
 
 macro_rules! assert_attribute {
@@ -204,7 +204,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         try_from,
         skip,
         json,
-        ordinal
+        ordinal,
     })
 }
 

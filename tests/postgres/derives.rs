@@ -748,7 +748,7 @@ pub async fn test_ordinal() -> anyhow::Result<()> {
     assert_eq!(Some(10000), account.balance);
     assert_eq!(true, account.active);
 
-    Ok(()) 
+    Ok(())
 }
 
 #[cfg(feature = "macros")]
