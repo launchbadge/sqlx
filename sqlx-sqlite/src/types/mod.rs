@@ -236,5 +236,6 @@ mod text;
 #[cfg(feature = "time")]
 mod time;
 mod uint;
+mod url;
 #[cfg(feature = "uuid")]
 mod uuid;

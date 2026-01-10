@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::rc::Rc;
 use std::sync::Arc;
+use url::Url;
 
 test_type!(null<Option<i32>>(Sqlite,
     "NULL" == None::<i32>
@@ -217,6 +218,8 @@ test_type!(test_box_slice<Box<[u8]>>(Sqlite, "X'01020304'" == Box::<[u8]>::from(
 test_type!(test_cow_slice<Cow<'_, [u8]>>(Sqlite, "X'01020304'" == Cow::<'static, [u8]>::from(&[1,2,3,4])));
 test_type!(test_arc_slice<Arc<[u8]>>(Sqlite, "X'01020304'" == Arc::<[u8]>::from([1,2,3,4])));
 test_type!(test_rc_slice<Rc<[u8]>>(Sqlite, "X'01020304'" == Rc::<[u8]>::from([1,2,3,4])));
+
+test_type!(test_url<Url>(Sqlite, "'https://example.com/'" == Url::parse("https://example.com/").unwrap()));
 
 #[sqlx_macros::test]
 async fn test_text_adapter() -> anyhow::Result<()> {
