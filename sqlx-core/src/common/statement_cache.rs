@@ -72,4 +72,8 @@ impl<T> StatementCache<T> {
     pub fn is_enabled(&self) -> bool {
         self.capacity() > 0
     }
+
+    pub fn iter(&self) -> impl Iterator<Item=&T> {
+        self.inner.iter().map(|(_, v)| v)
+    }
 }
