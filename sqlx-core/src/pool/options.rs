@@ -310,7 +310,8 @@ impl<DB: Database> PoolOptions<DB> {
         self.idle_timeout
     }
 
-    /// Set the timeout for pinging connections when they are returned to the pool.
+    /// Set the ping (health check) timeout. Ping is used when a connection is returned to the pool
+    /// or when a connection is acquired and test_before_acquire is true.
     ///
     /// If the ping takes longer than this, the connection is closed and a warning is logged.
     ///
@@ -320,7 +321,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    /// Get the timeout for pinging connections when they are returned to the pool.
+    /// Get the ping (health check) timeout.
     pub fn get_ping_timeout(&self) -> Option<Duration> {
         self.ping_timeout
     }
