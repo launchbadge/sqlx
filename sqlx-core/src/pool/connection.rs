@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 use std::future::{self, Future};
+use std::io;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -14,6 +15,29 @@ use super::inner::{is_beyond_max_lifetime, DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
 
 const CLOSE_ON_DROP_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Helper function to execute a ping with an optional timeout.
+///
+/// If `timeout` is `Some(Duration::ZERO)`, immediately returns a timeout error
+/// for deterministic testing behavior.
+async fn ping_with_timeout<F>(timeout: Option<Duration>, ping: F) -> Result<(), Error>
+where
+    F: Future<Output = Result<(), Error>>,
+{
+    match timeout {
+        Some(timeout) if timeout.is_zero() => {
+            // Duration::ZERO means "always timeout immediately"
+            // This provides deterministic behavior for testing
+            Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "ping timed out")))
+        }
+        Some(timeout) => {
+            crate::rt::timeout(timeout, ping)
+                .await
+                .unwrap_or_else(|_| Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "ping timed out"))))
+        }
+        None => ping.await,
+    }
+}
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -311,7 +335,8 @@ impl<DB: Database> Floating<DB, Live<DB>> {
         // returned to the pool; also of course, if it was dropped due to an error
         // this is simply a band-aid as SQLx-next connections should be able
         // to recover from cancellations
-        if let Err(error) = self.raw.ping().await {
+        let ping_result = ping_with_timeout(self.guard.pool.options.ping_timeout, self.raw.ping()).await;
+        if let Err(error) = ping_result {
             tracing::warn!(
                 %error,
                 "error occurred while testing the connection on-release",
@@ -370,7 +395,7 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
     }
 
     pub async fn ping(&mut self) -> Result<(), Error> {
-        self.live.raw.ping().await
+        ping_with_timeout(self.guard.pool.options.ping_timeout, self.live.raw.ping()).await
     }
 
     pub fn into_live(self) -> Floating<DB, Live<DB>> {

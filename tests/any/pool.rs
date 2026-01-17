@@ -268,3 +268,103 @@ async fn test_connection_maintenance() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn pool_ping_timeout_on_return() -> anyhow::Result<()> {
+    sqlx::any::install_default_drivers();
+
+    // With a reasonable timeout, connections should be returned to the pool
+    let pool = AnyPoolOptions::new()
+        .ping_timeout(Duration::from_secs(10))
+        .max_connections(1)
+        .connect(&dotenvy::var("DATABASE_URL")?)
+        .await?;
+
+    let mut conn = pool.acquire().await?;
+    sqlx::query("SELECT 1").fetch_one(&mut *conn).await?;
+    conn.return_to_pool().await;
+
+    assert_eq!(pool.num_idle(), 1);
+    drop(pool);
+
+    // With a zero timeout, connections should be discarded on return
+    let pool = AnyPoolOptions::new()
+        .ping_timeout(Duration::ZERO)
+        .max_connections(1)
+        .connect(&dotenvy::var("DATABASE_URL")?)
+        .await?;
+
+    let mut conn = pool.acquire().await?;
+    sqlx::query("SELECT 1").fetch_one(&mut *conn).await?;
+    conn.return_to_pool().await;
+
+    assert_eq!(pool.num_idle(), 0);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn pool_ping_timeout_on_acquire() -> anyhow::Result<()> {
+    sqlx::any::install_default_drivers();
+
+    // Helper to wait for idle connections
+    async fn wait_for_idle(pool: &sqlx::AnyPool, expected: usize) {
+        for _ in 0..100 {
+            if pool.num_idle() == expected {
+                return;
+            }
+            sqlx_core::rt::sleep(Duration::from_millis(50)).await;
+        }
+        panic!("timed out waiting for {} idle connections, got {}", expected, pool.num_idle());
+    }
+
+    // With a reasonable timeout, idle connections should be used
+    let connect_count = Arc::new(AtomicUsize::new(0));
+    let connect_count_ = connect_count.clone();
+    let pool = AnyPoolOptions::new()
+        .ping_timeout(Duration::from_secs(10))
+        .test_before_acquire(true)
+        .min_connections(1)
+        .max_connections(1)
+        .after_connect(move |_conn, _meta| {
+            connect_count_.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Ok(()) })
+        })
+        .connect(&dotenvy::var("DATABASE_URL")?)
+        .await?;
+
+    wait_for_idle(&pool, 1).await;
+    assert_eq!(connect_count.load(Ordering::SeqCst), 1);
+
+    // Acquire should reuse the same connection
+    let _conn = pool.acquire().await?;
+    assert_eq!(connect_count.load(Ordering::SeqCst), 1);
+    drop(pool);
+
+    // With a zero timeout, idle connections should fail ping and be replaced
+    let connect_count = Arc::new(AtomicUsize::new(0));
+    let connect_count_ = connect_count.clone();
+    let pool = AnyPoolOptions::new()
+        .ping_timeout(Duration::ZERO)
+        .test_before_acquire(true)
+        .min_connections(1)
+        .max_connections(1)
+        // Disable timeouts to prevent the reaper from interfering
+        .idle_timeout(None)
+        .max_lifetime(None)
+        .after_connect(move |_conn, _meta| {
+            connect_count_.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Ok(()) })
+        })
+        .connect_lazy(&dotenvy::var("DATABASE_URL")?)?;
+
+    wait_for_idle(&pool, 1).await;
+    assert_eq!(connect_count.load(Ordering::SeqCst), 1);
+
+    // Acquire - ping will fail and the caller will go ahead and open a new
+    // connection. Importantly, the caller won't observe any error.
+    let _conn = pool.acquire().await?;
+    assert_eq!(connect_count.load(Ordering::SeqCst), 2);
+
+    Ok(())
+}
