@@ -315,7 +315,11 @@ async fn pool_ping_timeout_on_acquire() -> anyhow::Result<()> {
             }
             sqlx_core::rt::sleep(Duration::from_millis(50)).await;
         }
-        panic!("timed out waiting for {} idle connections, got {}", expected, pool.num_idle());
+        panic!(
+            "timed out waiting for {} idle connections, got {}",
+            expected,
+            pool.num_idle()
+        );
     }
 
     // With a reasonable timeout, idle connections should be used

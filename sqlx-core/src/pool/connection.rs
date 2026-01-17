@@ -28,13 +28,17 @@ where
         Some(timeout) if timeout.is_zero() => {
             // Duration::ZERO means "always timeout immediately"
             // This provides deterministic behavior for testing
-            Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "ping timed out")))
+            Err(Error::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "ping timed out",
+            )))
         }
-        Some(timeout) => {
-            crate::rt::timeout(timeout, ping)
-                .await
-                .unwrap_or_else(|_| Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "ping timed out"))))
-        }
+        Some(timeout) => crate::rt::timeout(timeout, ping).await.unwrap_or_else(|_| {
+            Err(Error::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "ping timed out",
+            )))
+        }),
         None => ping.await,
     }
 }
@@ -335,7 +339,8 @@ impl<DB: Database> Floating<DB, Live<DB>> {
         // returned to the pool; also of course, if it was dropped due to an error
         // this is simply a band-aid as SQLx-next connections should be able
         // to recover from cancellations
-        let ping_result = ping_with_timeout(self.guard.pool.options.ping_timeout, self.raw.ping()).await;
+        let ping_result =
+            ping_with_timeout(self.guard.pool.options.ping_timeout, self.raw.ping()).await;
         if let Err(error) = ping_result {
             tracing::warn!(
                 %error,
