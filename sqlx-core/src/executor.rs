@@ -1,5 +1,4 @@
 use crate::database::Database;
-use crate::describe::Describe;
 use crate::error::{BoxDynError, Error};
 use crate::sql_str::{SqlSafeStr, SqlStr};
 
@@ -178,7 +177,11 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe<'e>(self, sql: SqlStr) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    #[cfg(feature = "offline")]
+    fn describe<'e>(
+        self,
+        sql: SqlStr,
+    ) -> BoxFuture<'e, Result<crate::describe::Describe<Self::Database>, Error>>
     where
         'c: 'e;
 }

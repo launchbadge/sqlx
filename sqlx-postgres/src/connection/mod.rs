@@ -23,9 +23,11 @@ use sqlx_core::sql_str::SqlSafeStr;
 
 pub use self::stream::PgStream;
 
-pub(crate) mod describe;
+#[cfg(feature = "offline")]
+mod describe;
 mod establish;
 mod executor;
+mod resolve;
 mod sasl;
 mod stream;
 mod tls;

@@ -9,14 +9,13 @@ use sqlx_core::sql_str::SqlStr;
 use std::{future, pin::pin};
 
 use sqlx_core::any::{
-    Any, AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
+    AnyArguments, AnyColumn, AnyConnectOptions, AnyConnectionBackend, AnyQueryResult, AnyRow,
     AnyStatement, AnyTypeInfo, AnyTypeInfoKind,
 };
 
 use crate::type_info::PgType;
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
-use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 use sqlx_core::ext::ustr::UStr;
 use sqlx_core::transaction::TransactionManager;
@@ -141,7 +140,11 @@ impl AnyConnectionBackend for PgConnection {
         })
     }
 
-    fn describe<'c>(&mut self, sql: SqlStr) -> BoxFuture<'_, sqlx_core::Result<Describe<Any>>> {
+    #[cfg(feature = "offline")]
+    fn describe<'c>(
+        &mut self,
+        sql: SqlStr,
+    ) -> BoxFuture<'_, sqlx_core::Result<sqlx_core::describe::Describe<sqlx_core::any::Any>>> {
         Box::pin(async move {
             let describe = Executor::describe(self, sql).await?;
 
@@ -172,7 +175,7 @@ impl AnyConnectionBackend for PgConnection {
                 None => None,
             };
 
-            Ok(Describe {
+            Ok(sqlx_core::describe::Describe {
                 columns,
                 parameters,
                 nullable: describe.nullable,
