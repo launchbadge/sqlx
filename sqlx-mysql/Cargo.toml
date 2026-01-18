@@ -65,7 +65,6 @@ percent-encoding = "2.1.0"
 smallvec = "1.7.0"
 stringprep = "0.1.2"
 tracing = { version = "0.1.37", features = ["log"] }
-whoami = { version = "1.2.1", default-features = false }
 
 dotenvy.workspace = true
 thiserror.workspace = true
