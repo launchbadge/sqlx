@@ -120,6 +120,7 @@ _sqlite = []
 any = ["sqlx-core/any", "sqlx-mysql?/any", "sqlx-postgres?/any", "sqlx-sqlite?/any"]
 postgres = ["sqlx-postgres", "sqlx-macros?/postgres"]
 mysql = ["sqlx-mysql", "sqlx-macros?/mysql"]
+mysql-rsa = ["mysql", "sqlx-mysql/rsa", "sqlx-macros?/mysql-rsa"]
 sqlite = ["sqlite-bundled", "sqlite-deserialize", "sqlite-load-extension", "sqlite-unlock-notify"]
 
 # SQLite base features
@@ -168,7 +169,7 @@ sqlx-macros-core = { version = "=0.9.0-alpha.1", path = "sqlx-macros-core" }
 sqlx-macros = { version = "=0.9.0-alpha.1", path = "sqlx-macros" }
 
 # Driver crates
-sqlx-mysql = { version = "=0.9.0-alpha.1", path = "sqlx-mysql" }
+sqlx-mysql = { version = "=0.9.0-alpha.1", path = "sqlx-mysql", default-features = false }
 sqlx-postgres = { version = "=0.9.0-alpha.1", path = "sqlx-postgres" }
 sqlx-sqlite = { version = "=0.9.0-alpha.1", path = "sqlx-sqlite" }
 
@@ -214,7 +215,7 @@ default-features = false
 sqlx-core = { workspace = true, features = ["offline", "migrate"] }
 sqlx-macros = { workspace = true, optional = true }
 
-sqlx-mysql = { workspace = true, optional = true }
+sqlx-mysql = { workspace = true, optional = true, default-features = false }
 sqlx-postgres = { workspace = true, optional = true }
 sqlx-sqlite = { workspace = true, optional = true }
 
