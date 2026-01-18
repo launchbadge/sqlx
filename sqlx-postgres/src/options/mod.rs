@@ -69,6 +69,7 @@ impl PgConnectOptions {
         } else if let Ok(username) = whoami::username() {
             username
         } else {
+            // keep the same fallback as previous version
             "unknown".to_string()
         };
 
