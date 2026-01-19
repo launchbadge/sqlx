@@ -57,6 +57,19 @@ impl MySqlConnection {
             .status_flags
             .intersects(Status::SERVER_STATUS_IN_TRANS)
     }
+
+    pub async fn nuke_cached_statements(&mut self) -> Result<(), Error> {
+        for (statement_id, _) in self.inner.cache_statement.iter() {
+            self.inner
+                .stream
+                .send_packet(StmtClose {
+                    statement: *statement_id,
+                })
+                .await?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Debug for MySqlConnection {
