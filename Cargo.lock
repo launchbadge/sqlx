@@ -3965,6 +3965,7 @@ dependencies = [
  "num-bigint",
  "rand",
  "rust_decimal",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
