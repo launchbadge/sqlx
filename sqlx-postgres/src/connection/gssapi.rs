@@ -18,7 +18,7 @@ pub async fn authenticate(stream: &mut PgStream, options: &PgConnectOptions) -> 
     let principal = gssapi_principal
         .as_ref()
         .map(Cow::Borrowed)
-        .unwrap_or(Cow::Owned(format!("postgres/{host}")));
+        .unwrap_or_else(|| Cow::Owned(format!("postgres/{host}")));
     let (mut ctx, token) =
         cross_krb5::ClientCtx::new(InitiateFlags::empty(), None, &principal, None)
             .map_err(|e| Error::GssApi(e.into()))?;
