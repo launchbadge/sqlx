@@ -18,25 +18,19 @@ use crate::query_scalar::query_scalar;
 use crate::{PgConnectOptions, PgConnection, Postgres};
 
 fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error> {
-    let mut options = PgConnectOptions::from_str(url)?;
+    let options = PgConnectOptions::from_str(url)?;
 
     // pull out the name of the database to create
-    let database = options
-        .database
-        .as_deref()
-        .unwrap_or(&options.username)
-        .to_owned();
+    let database = options.get_database().to_owned();
 
     // switch us to the maintenance database
     // use `postgres` _unless_ the database is postgres, in which case, use `template1`
     // this matches the behavior of the `createdb` util
-    options.database = if database == "postgres" {
-        Some("template1".into())
+    if database == "postgres" {
+        Ok((options.database("template1"), database))
     } else {
-        Some("postgres".into())
-    };
-
-    Ok((options, database))
+        Ok((options.database("postgres"), database))
+    }
 }
 
 impl MigrateDatabase for Postgres {

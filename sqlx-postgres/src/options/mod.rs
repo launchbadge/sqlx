@@ -103,10 +103,10 @@ impl PgConnectOptions {
     pub(crate) fn apply_pgpass(mut self) -> Self {
         if self.password.is_none() {
             self.password = pgpass::load_password(
-                &self.host,
-                self.port,
-                &self.username,
-                self.database.as_deref(),
+                self.get_host(),
+                self.get_port(),
+                self.get_username(),
+                self.get_database(),
             );
         }
 
@@ -526,18 +526,34 @@ impl PgConnectOptions {
         &self.username
     }
 
+    /// Get the password.
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .password("53C237");
+    /// assert_eq!(options.get_password(), Some("53C237"));
+    /// ```
+    pub fn get_password(&self) -> Option<&str> {
+        self.password.as_deref()
+    }
+
     /// Get the current database name.
+    ///
+    /// Defaults to username if not given.
     ///
     /// # Example
     ///
     /// ```rust
     /// # use sqlx_postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new()
-    ///     .database("postgres");
-    /// assert!(options.get_database().is_some());
+    /// let options = PgConnectOptions::new().database("postgres");
+    /// assert_eq!(options.get_database(), "postgres");
+    ///
+    /// let options = PgConnectOptions::new().username("alice");
+    /// assert_eq!(options.get_database(), "alice");
     /// ```
-    pub fn get_database(&self) -> Option<&str> {
-        self.database.as_deref()
+    pub fn get_database(&self) -> &str {
+        self.database.as_deref().unwrap_or(&self.username)
     }
 
     /// Get the SSL mode.
@@ -565,6 +581,19 @@ impl PgConnectOptions {
     /// ```
     pub fn get_application_name(&self) -> Option<&str> {
         self.application_name.as_deref()
+    }
+
+    /// Get the extra float digits.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new();
+    /// assert_eq!(options.get_extra_float_digits(), Some("2"));
+    /// ```
+    pub fn get_extra_float_digits(&self) -> std::option::Option<&str> {
+        self.extra_float_digits.as_deref()
     }
 
     /// Get the options.

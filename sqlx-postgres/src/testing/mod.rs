@@ -108,14 +108,14 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
         Err((existing, pool)) => {
             // Sanity checks.
             assert_eq!(
-                existing.connect_options().host,
-                pool.connect_options().host,
+                existing.connect_options().get_host(),
+                pool.connect_options().get_host(),
                 "DATABASE_URL changed at runtime, host differs"
             );
 
             assert_eq!(
-                existing.connect_options().database,
-                pool.connect_options().database,
+                existing.connect_options().get_database(),
+                pool.connect_options().get_database(),
                 "DATABASE_URL changed at runtime, database differs"
             );
 
