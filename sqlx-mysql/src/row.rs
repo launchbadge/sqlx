@@ -42,10 +42,21 @@ impl Row for MySqlRow {
 
 impl ColumnIndex<MySqlRow> for &'_ str {
     fn index(&self, row: &MySqlRow) -> Result<usize, Error> {
-        row.column_names
-            .get(*self)
-            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
-            .copied()
+        // Work around Issue #2206, <https://github.com/launchbadge/sqlx/issues/2206>
+        //
+        // column_names is empty so will always fail, but user expects this to work.
+        // Check the individual columns.
+        if row.column_names.is_empty() {
+            row.columns
+                .iter()
+                .find_map(|c| (*c.name == **self).then_some(c.ordinal))
+                .ok_or_else(|| Error::ColumnNotFound((*self).into()))
+        } else {
+            row.column_names
+                .get(*self)
+                .ok_or_else(|| Error::ColumnNotFound((*self).into()))
+                .copied()
+        }
     }
 }
 
