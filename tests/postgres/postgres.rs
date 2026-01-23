@@ -255,6 +255,10 @@ async fn it_works_with_cache_disabled() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    tracing::info!("starting test");
+
     let pool = sqlx_test::pool::<Postgres>().await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
@@ -1146,7 +1150,7 @@ async fn test_listener_try_recv_buffered() -> anyhow::Result<()> {
     assert!(listener.next_buffered().is_none());
 
     // Activate connection.
-    sqlx::query!("SELECT 1 AS one")
+    sqlx::query("SELECT 1 AS one")
         .fetch_all(&mut listener)
         .await?;
 
@@ -2086,6 +2090,7 @@ async fn test_issue_3052() {
 }
 
 #[sqlx_macros::test]
+#[cfg(feature = "chrono")]
 async fn test_bind_iter() -> anyhow::Result<()> {
     use sqlx::postgres::PgBindIterExt;
     use sqlx::types::chrono::{DateTime, Utc};

@@ -1,11 +1,14 @@
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
+use crate::pool::connect::{ConnectTaskShared, ConnectionId, DefaultConnector};
 use crate::pool::inner::PoolInner;
-use crate::pool::Pool;
+use crate::pool::{Pool, PoolConnector};
 use futures_core::future::BoxFuture;
+use futures_util::{stream, TryStreamExt};
 use log::LevelFilter;
 use std::fmt::{self, Debug, Formatter};
+use std::num::NonZero;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -44,14 +47,6 @@ use std::time::{Duration, Instant};
 /// the perspectives of both API designer and consumer.
 pub struct PoolOptions<DB: Database> {
     pub(crate) test_before_acquire: bool,
-    pub(crate) after_connect: Option<
-        Arc<
-            dyn Fn(&mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
-                + 'static
-                + Send
-                + Sync,
-        >,
-    >,
     pub(crate) before_acquire: Option<
         Arc<
             dyn Fn(
@@ -74,12 +69,14 @@ pub struct PoolOptions<DB: Database> {
                 + Sync,
         >,
     >,
-    pub(crate) max_connections: u32,
+    pub(crate) max_connections: usize,
+    pub(crate) shards: NonZero<usize>,
     pub(crate) acquire_time_level: LevelFilter,
     pub(crate) acquire_slow_level: LevelFilter,
     pub(crate) acquire_slow_threshold: Duration,
     pub(crate) acquire_timeout: Duration,
-    pub(crate) min_connections: u32,
+    pub(crate) connect_timeout: Option<Duration>,
+    pub(crate) min_connections: usize,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) fair: bool,
@@ -94,14 +91,15 @@ impl<DB: Database> Clone for PoolOptions<DB> {
     fn clone(&self) -> Self {
         PoolOptions {
             test_before_acquire: self.test_before_acquire,
-            after_connect: self.after_connect.clone(),
             before_acquire: self.before_acquire.clone(),
             after_release: self.after_release.clone(),
             max_connections: self.max_connections,
+            shards: self.shards,
             acquire_time_level: self.acquire_time_level,
             acquire_slow_threshold: self.acquire_slow_threshold,
             acquire_slow_level: self.acquire_slow_level,
             acquire_timeout: self.acquire_timeout,
+            connect_timeout: self.connect_timeout,
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
             idle_timeout: self.idle_timeout,
@@ -143,13 +141,13 @@ impl<DB: Database> PoolOptions<DB> {
     pub fn new() -> Self {
         Self {
             // User-specifiable routines
-            after_connect: None,
             before_acquire: None,
             after_release: None,
             test_before_acquire: true,
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             min_connections: 0,
+            shards: NonZero::<usize>::MIN,
             // Logging all acquires is opt-in
             acquire_time_level: LevelFilter::Off,
             // Default to warning, because an acquire timeout will be an error
@@ -158,6 +156,7 @@ impl<DB: Database> PoolOptions<DB> {
             // to not flag typical time to add a new connection to a pool.
             acquire_slow_threshold: Duration::from_secs(2),
             acquire_timeout: Duration::from_secs(30),
+            connect_timeout: None,
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
             fair: true,
@@ -170,13 +169,13 @@ impl<DB: Database> PoolOptions<DB> {
     /// Be mindful of the connection limits for your database as well as other applications
     /// which may want to connect to the same database (or even multiple instances of the same
     /// application in high-availability deployments).
-    pub fn max_connections(mut self, max: u32) -> Self {
+    pub fn max_connections(mut self, max: usize) -> Self {
         self.max_connections = max;
         self
     }
 
     /// Get the maximum number of connections that this pool should maintain
-    pub fn get_max_connections(&self) -> u32 {
+    pub fn get_max_connections(&self) -> usize {
         self.max_connections
     }
 
@@ -202,14 +201,66 @@ impl<DB: Database> PoolOptions<DB> {
     /// [`max_lifetime`]: Self::max_lifetime
     /// [`idle_timeout`]: Self::idle_timeout
     /// [`max_connections`]: Self::max_connections
-    pub fn min_connections(mut self, min: u32) -> Self {
+    pub fn min_connections(mut self, min: usize) -> Self {
         self.min_connections = min;
         self
     }
 
     /// Get the minimum number of connections to maintain at all times.
-    pub fn get_min_connections(&self) -> u32 {
+    pub fn get_min_connections(&self) -> usize {
         self.min_connections
+    }
+
+    /// Set the number of shards to split the internal structures into.
+    ///
+    /// The default value is dynamically determined based on the configured number of worker threads
+    /// in the current runtime (if that information is available),
+    /// or [`std::thread::available_parallelism()`],
+    /// or 1 otherwise.
+    ///
+    /// Each shard is assigned an equal share of [`max_connections`][Self::max_connections]
+    /// and its own queue of tasks waiting to acquire a connection.
+    ///
+    /// Then, when accessing the pool, each thread selects a "local" shard based on its
+    /// [thread ID][std::thread::Thread::id]<sup>1</sup>.
+    ///
+    /// If the number of shards equals the number of threads (which they do by default),
+    /// and worker threads are spawned sequentially (which they generally are),
+    /// each thread should access a different shard, which should significantly reduce
+    /// cache coherence overhead on multicore systems.
+    ///
+    /// If the number of shards does not evenly divide `max_connections`,
+    /// the implementation makes a best-effort to distribute them as evenly as possible
+    /// (if `remainder = max_connections % shards` and `remainder != 0`,
+    /// then `remainder` shards will get one additional connection each).
+    ///
+    /// The implementation then clamps the number of connections in a shard to the range `[1, 64]`.
+    ///
+    /// ### Details
+    /// When a task calls [`Pool::acquire()`] (or any other method that calls `acquire()`),
+    /// it will first attempt to acquire a connection from its thread-local shard, or lock an empty
+    /// slot to open a new connection (acquiring an idle connection and opening a new connection
+    /// happen concurrently to minimize acquire time).
+    ///
+    /// Failing that, it joins the wait list on the shard. Released connections are passed to
+    /// waiting tasks in a first-come, first-serve order per shard.
+    ///
+    /// If the task cannot acquire a connection after a short delay,
+    /// it tries to acquire a connection from another shard.
+    ///
+    /// If the task _still_ cannot acquire a connection after a longer delay,
+    /// it joins a global wait list. Tasks in the global wait list are the highest priority
+    /// for released connections, implementing a kind of eventual fairness.
+    ///
+    /// <sup>1</sup> because, as of writing, [`std::thread::ThreadId::as_u64`] is unstable,
+    /// the current implementation assigns each thread its own sequential ID in a `thread_local!()`.
+    pub fn shards(mut self, shards: NonZero<usize>) -> Self {
+        self.shards = shards;
+        self
+    }
+
+    pub fn get_shards(&self) -> usize {
+        self.shards.get()
     }
 
     /// Enable logging of time taken to acquire a connection from the connection pool via
@@ -266,6 +317,23 @@ impl<DB: Database> PoolOptions<DB> {
     /// Get the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
     pub fn get_acquire_timeout(&self) -> Duration {
         self.acquire_timeout
+    }
+
+    /// Set the maximum amount of time to spend attempting to open a connection.
+    ///
+    /// This timeout happens independently of [`acquire_timeout`][Self::acquire_timeout].
+    ///
+    /// If shorter than `acquire_timeout`, this will cause the last connec
+    pub fn connect_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.connect_timeout = timeout.into();
+        self
+    }
+
+    /// Get the maximum amount of time to spend attempting to open a connection.
+    ///
+    /// This timeout happens independently of [`acquire_timeout`][Self::acquire_timeout].
+    pub fn get_connect_timeout(&self) -> Option<Duration> {
+        self.connect_timeout
     }
 
     /// Set the maximum lifetime of individual connections.
@@ -336,57 +404,6 @@ impl<DB: Database> PoolOptions<DB> {
     #[doc(hidden)]
     pub fn __fair(mut self, fair: bool) -> Self {
         self.fair = fair;
-        self
-    }
-
-    /// Perform an asynchronous action after connecting to the database.
-    ///
-    /// If the operation returns with an error then the error is logged, the connection is closed
-    /// and a new one is opened in its place and the callback is invoked again.
-    ///
-    /// This occurs in a backoff loop to avoid high CPU usage and spamming logs during a transient
-    /// error condition.
-    ///
-    /// Note that this may be called for internally opened connections, such as when maintaining
-    /// [`min_connections`][Self::min_connections], that are then immediately returned to the pool
-    /// without invoking [`after_release`][Self::after_release].
-    ///
-    /// # Example: Additional Parameters
-    /// This callback may be used to set additional configuration parameters
-    /// that are not exposed by the database's `ConnectOptions`.
-    ///
-    /// This example is written for PostgreSQL but can likely be adapted to other databases.
-    ///
-    /// ```no_run
-    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use sqlx::Executor;
-    /// use sqlx::postgres::PgPoolOptions;
-    ///
-    /// let pool = PgPoolOptions::new()
-    ///     .after_connect(|conn, _meta| Box::pin(async move {
-    ///         // When directly invoking `Executor` methods,
-    ///         // it is possible to execute multiple statements with one call.
-    ///         conn.execute("SET application_name = 'your_app'; SET search_path = 'my_schema';")
-    ///             .await?;
-    ///
-    ///         Ok(())
-    ///     }))
-    ///     .connect("postgres:// …").await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
-    pub fn after_connect<F>(mut self, callback: F) -> Self
-    where
-        // We're passing the `PoolConnectionMetadata` here mostly for future-proofing.
-        // `age` and `idle_for` are obviously not useful for fresh connections.
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
-            + 'static
-            + Send
-            + Sync,
-    {
-        self.after_connect = Some(Arc::new(callback));
         self
     }
 
@@ -538,21 +555,28 @@ impl<DB: Database> PoolOptions<DB> {
         self,
         options: <DB::Connection as Connection>::Options,
     ) -> Result<Pool<DB>, Error> {
+        self.connect_with_connector(DefaultConnector(options)).await
+    }
+
+    /// Create a new pool from this `PoolOptions` and immediately open at least one connection.
+    ///
+    /// This ensures the configuration is correct.
+    ///
+    /// The total number of connections opened is <code>max(1, [min_connections][Self::min_connections])</code>.
+    ///
+    /// See [PoolConnector] for examples.
+    pub async fn connect_with_connector(
+        self,
+        connector: impl PoolConnector<DB>,
+    ) -> Result<Pool<DB>, Error> {
         // Don't take longer than `acquire_timeout` starting from when this is called.
         let deadline = Instant::now() + self.acquire_timeout;
 
-        let inner = PoolInner::new_arc(self, options);
+        let inner = PoolInner::new_arc(self, connector);
 
         if inner.options.min_connections > 0 {
-            // If the idle reaper is spawned then this will race with the call from that task
-            // and may not report any connection errors.
-            inner.try_min_connections(deadline).await?;
+            inner.try_min_connections(Some(deadline)).await?;
         }
-
-        // If `min_connections` is nonzero then we'll likely just pull a connection
-        // from the idle queue here, but it should at least get tested first.
-        let conn = inner.acquire().await?;
-        inner.release(conn);
 
         Ok(Pool(inner))
     }
@@ -578,7 +602,11 @@ impl<DB: Database> PoolOptions<DB> {
     /// optimistically establish that many connections for the pool.
     pub fn connect_lazy_with(self, options: <DB::Connection as Connection>::Options) -> Pool<DB> {
         // `min_connections` is guaranteed by the idle reaper now.
-        Pool(PoolInner::new_arc(self, options))
+        self.connect_lazy_with_connector(DefaultConnector(options))
+    }
+
+    pub fn connect_lazy_with_connector(self, connector: impl PoolConnector<DB>) -> Pool<DB> {
+        Pool(PoolInner::new_arc(self, connector))
     }
 }
 
@@ -593,4 +621,29 @@ impl<DB: Database> Debug for PoolOptions<DB> {
             .field("test_before_acquire", &self.test_before_acquire)
             .finish()
     }
+}
+
+fn default_shards() -> NonZero<usize> {
+    #[cfg(feature = "_rt-tokio")]
+    if let Ok(rt) = tokio::runtime::Handle::try_current() {
+        return rt
+            .metrics()
+            .num_workers()
+            .try_into()
+            .unwrap_or(NonZero::<usize>::MIN);
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    if let Some(val) = std::env::var("ASYNC_STD_THREAD_COUNT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        return val;
+    }
+
+    if let Ok(val) = std::thread::available_parallelism() {
+        return val;
+    }
+
+    NonZero::<usize>::MIN
 }
