@@ -3,6 +3,70 @@ Mark an `async fn` as a test with SQLx support.
 The test will automatically be executed in the async runtime according to the chosen
 `runtime-{async-std, tokio}` feature. If more than one runtime feature is enabled, `runtime-tokio` is preferred.
 
+TL;DR:
+If you want the quickest introduction to sqlx (without setup or installs), you can use a built-in sqlite db, and the testing framework (which leverages `cargo test`):
+
+```rust
+// in cargo.toml...
+// sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls", "sqlite", "migrate"] }
+// tokio = "1.40.0"
+
+
+use sqlx::{Pool, Sqlite, Row};
+
+#[sqlx::test]
+async fn basic_test(pool: Pool<Sqlite>) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+
+    let a = sqlx::query("SELECT * FROM foo").execute(&mut *conn).await;
+
+    // every time you run this there will be an empty db
+    assert!(a.is_err()); // should error with no table called foo
+
+    let id = sqlx::query(
+        r#"
+          CREATE TABLE foo (
+            contact_id INTEGER PRIMARY KEY,
+            first_name TEXT NOT NULL
+          );
+        "#,
+    )
+    .execute(&mut *conn)
+    .await?
+    .last_insert_rowid();
+
+    assert!(id == 0);
+
+    let id = sqlx::query(
+        r#"
+          INSERT INTO foo (contact_id, first_name)
+          VALUES
+            (1, "hello");
+        "#,
+    )
+    .execute(&mut *conn)
+    .await?
+    .last_insert_rowid();
+
+    assert!(id == 1);
+
+    let res = sqlx::query(
+        r#"
+          SELECT * FROM foo
+          WHERE contact_id=1
+        "#,
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+
+    // get() requires trait Row
+    assert!(&res.get::<String, _>("first_name") == "hello");
+
+    Ok(())
+}
+
+```
+
 By default, this behaves identically to `#[tokio::test]`<sup>1</sup> or `#[async_std::test]`:
 
 ```rust
@@ -70,7 +134,7 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
 
     let foo = sqlx::query("SELECT * FROM foo")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(foo.get::<String, _>("bar"), "foobar!");
@@ -102,7 +166,7 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
 
     let foo = sqlx::query("SELECT * FROM foo")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(foo.get::<String, _>("bar"), "foobar!");
@@ -139,7 +203,7 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
     let mut conn = pool.acquire().await?;
 
     let foo = sqlx::query("SELECT * FROM foo")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(foo.get::<String, _>("bar"), "foobar!");
@@ -163,7 +227,7 @@ async fn basic_test(pool: PgPool) -> sqlx::Result<()> {
     conn.execute("CREATE TABLE foo(bar text)").await?;
 
     let foo = sqlx::query("SELECT * FROM foo")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(foo.get::<String, _>("bar"), "foobar!");
