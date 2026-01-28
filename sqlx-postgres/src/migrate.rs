@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -8,6 +7,7 @@ pub(crate) use sqlx_core::migrate::MigrateError;
 pub(crate) use sqlx_core::migrate::{AppliedMigration, Migration};
 pub(crate) use sqlx_core::migrate::{Migrate, MigrateDatabase};
 use sqlx_core::sql_str::AssertSqlSafe;
+use sqlx_core::Url;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
@@ -18,7 +18,29 @@ use crate::query_scalar::query_scalar;
 use crate::{PgConnectOptions, PgConnection, Postgres};
 
 fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error> {
-    let mut options = PgConnectOptions::from_str(url)?;
+    let mut url: Url = url.parse().map_err(Error::config)?;
+
+    // check for user provided `?maintenance_database=example`
+    let mut maintenance_database = None;
+    if url.query_pairs().any(|(k, _)| k == "maintenance_database") {
+        let remaining: Vec<(String, String)> = url
+            .query_pairs()
+            .into_owned()
+            .filter_map(|(k, v)| {
+                if k == "maintenance_database" {
+                    if maintenance_database.is_none() {
+                        maintenance_database = Some(v);
+                    }
+                    None
+                } else {
+                    Some((k, v))
+                }
+            })
+            .collect();
+        url.query_pairs_mut().clear().extend_pairs(remaining);
+    }
+
+    let mut options = PgConnectOptions::parse_from_url(&url)?;
 
     // pull out the name of the database to create
     let database = options
@@ -28,13 +50,17 @@ fn parse_for_maintenance(url: &str) -> Result<(PgConnectOptions, String), Error>
         .to_owned();
 
     // switch us to the maintenance database
-    // use `postgres` _unless_ the database is postgres, in which case, use `template1`
-    // this matches the behavior of the `createdb` util
-    options.database = if database == "postgres" {
-        Some("template1".into())
+    if maintenance_database.is_some() {
+        options.database = maintenance_database;
     } else {
-        Some("postgres".into())
-    };
+        // use `postgres` _unless_ the database is postgres, in which case, use `template1`
+        // this matches the behavior of the `createdb` util
+        options.database = if database == "postgres" {
+            Some("template1".into())
+        } else {
+            Some("postgres".into())
+        };
+    }
 
     Ok((options, database))
 }
