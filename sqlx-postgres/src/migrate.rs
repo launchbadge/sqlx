@@ -376,3 +376,32 @@ fn generate_lock_id(database_name: &str) -> i64 {
     // 0x3d32ad9e chosen by fair dice roll
     0x3d32ad9e * (CRC_IEEE.checksum(database_name.as_bytes()) as i64)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_for_maintenance;
+
+    #[test]
+    fn test_parse_for_maintenance() {
+        let (opts, db) = parse_for_maintenance("postgres://user:pass@host/mydb").unwrap();
+        assert_eq!(opts.database.as_deref(), Some("postgres"));
+        assert_eq!(db, "mydb");
+
+        let (opts, db) = parse_for_maintenance("postgres://user:pass@host/postgres").unwrap();
+        assert_eq!(opts.database.as_deref(), Some("template1"));
+        assert_eq!(db, "postgres");
+
+        let (opts, db) =
+            parse_for_maintenance("postgres://user:pass@host/mydb?maintenance_database=defaultdb")
+                .unwrap();
+        assert_eq!(opts.database.as_deref(), Some("defaultdb"));
+        assert_eq!(db, "mydb");
+
+        let (opts, db) = parse_for_maintenance(
+            "postgres://user:pass@host/mydb?sslmode=require&maintenance_database=defaultdb",
+        )
+        .unwrap();
+        assert_eq!(opts.database.as_deref(), Some("defaultdb"));
+        assert_eq!(db, "mydb");
+    }
+}
