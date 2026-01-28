@@ -28,7 +28,7 @@ pub fn load_password(
 
         etcetera::base_strategy::Windows::new()
             .ok()
-            .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
+            .map(|basedirs| basedirs.data_dir().join("postgresql").join("pgpass.conf"))
     };
     load_password_from_file(default_file?, host, port, username, database)
 }
