@@ -42,7 +42,7 @@ use std::sync::Arc;
 
 To bypass this error, manually audit for potential injection vulnerabilities and wrap with `AssertSqlSafe()`.
 For details, see the docs for `SqlSafeStr`.\n",
-    note = "by default, this trait is only implemented for `&'static str`, not all `&str` like the compiler error may suggest"
+    note = "this trait is only implemented for `&'static str`, not all `&str` like the compiler error may suggest"
 )]
 pub trait SqlSafeStr {
     /// Convert `self` to a [`SqlStr`].
