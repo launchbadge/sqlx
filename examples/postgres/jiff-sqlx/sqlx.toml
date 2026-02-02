@@ -1,0 +1,7 @@
+[macros.type-overrides]
+'DATE' = 'jiff_sqlx::Date'
+'TIME' = 'jiff_sqlx::Time'
+'TIMESTAMP' = 'jiff_sqlx::DateTime'
+'TIMESTAMPTZ' = 'jiff_sqlx::Timestamp'
+# Note: only decoding is supported.
+'INTERVAL' = 'jiff_sqlx::Span'
