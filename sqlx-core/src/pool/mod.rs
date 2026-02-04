@@ -60,6 +60,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
 
+pub use self::connect::{PoolConnectMetadata, PoolConnector};
+pub use self::connection::PoolConnection;
+use self::inner::PoolInner;
+#[doc(hidden)]
+pub use self::maybe::MaybePoolConnection;
+pub use self::options::{PoolConnectionMetadata, PoolOptions};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
@@ -69,12 +75,6 @@ use crate::transaction::Transaction;
 use event_listener::EventListener;
 use futures_core::FusedFuture;
 use tracing::Instrument;
-pub use self::connect::{PoolConnectMetadata, PoolConnector};
-pub use self::connection::PoolConnection;
-use self::inner::PoolInner;
-#[doc(hidden)]
-pub use self::maybe::MaybePoolConnection;
-pub use self::options::{PoolConnectionMetadata, PoolOptions};
 
 #[macro_use]
 mod executor;

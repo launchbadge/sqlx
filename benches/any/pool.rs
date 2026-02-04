@@ -5,9 +5,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tracing::Instrument;
 use tracing_flame::FlameLayer;
-use tracing_subscriber::{EnvFilter, Layer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, Layer};
 
 #[derive(Debug)]
 struct Input {
@@ -34,9 +34,7 @@ fn bench_pool(c: &mut Criterion) {
             .expect(&format!("error opening path {path:?} (`FLAMEGRAPH_OUT`)"));
 
         tracing_subscriber::registry()
-            .with(
-                tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env())
-            )
+            .with(tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env()))
             .with(layer.with_threads_collapsed(true))
             .try_init()
             .ok();

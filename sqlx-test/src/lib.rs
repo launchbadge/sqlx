@@ -1,8 +1,8 @@
 use sqlx::pool::PoolOptions;
 use sqlx::{Connection, Database, Error, Pool};
 use std::env;
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::EnvFilter;
 
 pub fn setup_if_needed() {
     let _ = dotenvy::dotenv();

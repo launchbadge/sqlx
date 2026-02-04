@@ -208,12 +208,14 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     #[inline(always)]
-    async fn finish_acquire(self: &Arc<Self>, conn: ConnectedSlot<ConnectionInner<DB>>) -> Result<PoolConnection<DB>, DisconnectedSlot<ConnectionInner<DB>>> {
-        let span = tracing::trace_span!(target: "sqlx::pool", "finish_acquire", connection_id=?conn.id);
+    async fn finish_acquire(
+        self: &Arc<Self>,
+        conn: ConnectedSlot<ConnectionInner<DB>>,
+    ) -> Result<PoolConnection<DB>, DisconnectedSlot<ConnectionInner<DB>>> {
+        let span =
+            tracing::trace_span!(target: "sqlx::pool", "finish_acquire", connection_id=?conn.id);
 
-        finish_acquire(self, conn)
-            .instrument(span)
-            .await
+        finish_acquire(self, conn).instrument(span).await
     }
 
     pub(crate) async fn try_min_connections(
