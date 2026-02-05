@@ -20,3 +20,6 @@ ipaddr.so
 
 # Temporary files from running the tests locally like they would be run from CI
 .sqlx
+
+# We no longer check-in a `Cargo.lock`
+Cargo.lock
