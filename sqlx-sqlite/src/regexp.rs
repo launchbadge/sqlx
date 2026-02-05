@@ -15,7 +15,6 @@
 //!   - <https://docs.rs/sqlx/0.6.2/sqlx/sqlite/struct.LockedSqliteHandle.html#method.as_raw_handle>
 
 use libsqlite3_sys as ffi;
-use log::error;
 use regex::Regex;
 use std::sync::Arc;
 
@@ -62,7 +61,7 @@ unsafe extern "C" fn sqlite3_regexp_func(
 ) {
     // check the arg size. sqlite3 should already ensure this is only 2 args but we want to double check
     if n_arg != 2 {
-        eprintln!("n_arg expected to be 2, is {n_arg}");
+        tracing::error!("n_arg expected to be 2, is {n_arg}");
         ffi::sqlite3_result_error_code(ctx, ffi::SQLITE_CONSTRAINT_FUNCTION);
         return;
     }
@@ -117,7 +116,7 @@ unsafe fn get_regex_from_arg(
     let regex = match Regex::new(value) {
         Ok(regex) => Arc::new(regex),
         Err(e) => {
-            error!("Invalid regex {value:?}: {e:?}");
+            tracing::error!("Invalid regex {value:?}: {e:?}");
             ffi::sqlite3_result_error_code(ctx, ffi::SQLITE_CONSTRAINT_FUNCTION);
             return None;
         }
@@ -153,7 +152,7 @@ unsafe fn get_text_from_arg<'a>(
         match std::str::from_utf8(slice) {
             Ok(result) => Some(result),
             Err(e) => {
-                log::error!("Incoming text is not valid UTF8: {e:?}");
+                tracing::error!("Incoming text is not valid UTF8: {e:?}");
                 ffi::sqlite3_result_error_code(ctx, ffi::SQLITE_CONSTRAINT_FUNCTION);
                 None
             }

@@ -219,11 +219,11 @@ fn import_root_certs() -> RootCertStore {
 
     let load_results = rustls_native_certs::load_native_certs();
     for e in load_results.errors {
-        log::warn!("Error loading native certificates: {e:?}");
+        tracing::warn!("Error loading native certificates: {e:?}");
     }
     for cert in load_results.certs {
         if let Err(e) = root_cert_store.add(cert) {
-            log::warn!("rustls failed to parse native certificate: {e:?}");
+            tracing::warn!("rustls failed to parse native certificate: {e:?}");
         }
     }
 

@@ -46,7 +46,7 @@ impl<'a> DoHandshake<'a> {
                 MySqlSslMode::Disabled | MySqlSslMode::Preferred
             )
         {
-            log::warn!("Security warning: sending cleartext passwords without requiring SSL");
+            tracing::warn!("Security warning: sending cleartext passwords without requiring SSL");
         }
 
         Ok(Self { options })
