@@ -25,7 +25,7 @@ _rt-async-io = ["async-io", "async-fs"] # see note at async-fs declaration
 _rt-async-std = ["async-std", "_rt-async-io"]
 _rt-async-task = ["async-task"]
 _rt-smol = ["smol", "_rt-async-io", "_rt-async-task"]
-_rt-tokio = ["tokio", "tokio-stream"]
+_rt-tokio = ["tokio"]
 
 _tls-native-tls = ["native-tls"]
 _tls-rustls-aws-lc-rs = ["_tls-rustls", "rustls/aws-lc-rs", "webpki-roots"]
@@ -92,8 +92,6 @@ serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
 toml = { version = "0.8.16", optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
-#sqlformat = "0.2.0"
-tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
 url = { version = "2.2.2" }

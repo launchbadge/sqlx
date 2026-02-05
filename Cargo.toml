@@ -25,6 +25,8 @@ members = [
     "examples/sqlite/todos",
     "examples/sqlite/extension",
 ]
+# `rust-version` aware resolver
+resolver = "3"
 
 [workspace.package]
 version = "0.9.0-alpha.1"
@@ -190,6 +192,7 @@ uuid = "1.1.2"
 # Common utility crates
 cfg-if = "1.0.0"
 dotenvy = { version = "0.15.0", default-features = false }
+rand = { version = "0.8.5", default-features = false }
 thiserror = { version = "2.0.17", default-features = false, features = ["std"] }
 
 # Runtimes
@@ -232,7 +235,6 @@ paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"
 url = "2.2.2"
-rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempfile = "3.10.1"
