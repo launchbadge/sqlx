@@ -48,7 +48,6 @@ bitflags = { version = "2", default-features = false, features = ["serde"] }
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 either = "1.6.1"
-generic-array = { version = "0.14.4", default-features = false }
 log = "0.4.18"
 percent-encoding = "2.1.0"
 rand = { workspace = true, default-features = false, features = ["std", "std_rng"] }

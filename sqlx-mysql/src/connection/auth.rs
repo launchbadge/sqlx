@@ -1,7 +1,6 @@
 use bytes::buf::Chain;
 use bytes::Bytes;
-use digest::{Digest, OutputSizeUser};
-use generic_array::GenericArray;
+use digest::Digest;
 use rand::thread_rng;
 use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 use sha1::Sha1;
@@ -74,10 +73,7 @@ impl AuthPlugin {
     }
 }
 
-fn scramble_sha1(
-    password: &str,
-    nonce: &Chain<Bytes, Bytes>,
-) -> GenericArray<u8, <Sha1 as OutputSizeUser>::OutputSize> {
+fn scramble_sha1(password: &str, nonce: &Chain<Bytes, Bytes>) -> [u8; 20] {
     // SHA1( password ) ^ SHA1( seed + SHA1( SHA1( password ) ) )
     // https://mariadb.com/kb/en/connection/#mysql_native_password-plugin
 
@@ -99,13 +95,10 @@ fn scramble_sha1(
 
     xor_eq(&mut pw_hash, &pw_seed_hash_hash);
 
-    pw_hash
+    pw_hash.into()
 }
 
-fn scramble_sha256(
-    password: &str,
-    nonce: &Chain<Bytes, Bytes>,
-) -> GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize> {
+fn scramble_sha256(password: &str, nonce: &Chain<Bytes, Bytes>) -> [u8; 32] {
     // XOR(SHA256(password), SHA256(seed, SHA256(SHA256(password))))
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/#sha-2-encrypted-password
     let mut ctx = Sha256::new();
@@ -126,7 +119,7 @@ fn scramble_sha256(
 
     xor_eq(&mut pw_hash, &pw_seed_hash_hash);
 
-    pw_hash
+    pw_hash.into()
 }
 
 async fn encrypt_rsa<'s>(
