@@ -11,9 +11,9 @@ rust-version.workspace = true
 
 [features]
 any = ["sqlx-core/any"]
-json = ["sqlx-core/json"]
+json = ["dep:serde", "dep:serde_json", "sqlx-core/json"]
 migrate = ["sqlx-core/migrate"]
-offline = ["sqlx-core/offline"]
+offline = ["json", "sqlx-core/offline", "smallvec/serde"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "dep:num-bigint", "sqlx-core/bigdecimal"]
@@ -62,7 +62,7 @@ itoa = "1.0.1"
 log = "0.4.18"
 memchr = { version = "2.4.1", default-features = false }
 num-bigint = { version = "0.4.3", optional = true }
-smallvec = { version = "1.7.0", features = ["serde"] }
+smallvec = { version = "1.7.0" }
 stringprep = "0.1.2"
 tracing = { version = "0.1.37", features = ["log"] }
 whoami = { version = "2.0.2", default-features = false }
@@ -70,13 +70,11 @@ whoami = { version = "2.0.2", default-features = false }
 dotenvy.workspace = true
 thiserror.workspace = true
 
-serde = { version = "1.0.144", features = ["derive"] }
-serde_json = { version = "1.0.85", features = ["raw_value"] }
+serde = { version = "1.0.144", optional = true, features = ["derive"] }
+serde_json = { version = "1.0.85", optional = true, features = ["raw_value"] }
 
 [dependencies.sqlx-core]
 workspace = true
-# We use JSON in the driver implementation itself so there's no reason not to enable it here.
-features = ["json"]
 
 [dev-dependencies.sqlx]
 # FIXME: https://github.com/rust-lang/cargo/issues/15622

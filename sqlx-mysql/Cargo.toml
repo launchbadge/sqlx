@@ -13,7 +13,7 @@ rust-version.workspace = true
 default = []
 json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
-offline = ["sqlx-core/offline", "serde/derive"]
+offline = ["sqlx-core/offline", "serde/derive", "bitflags/serde"]
 migrate = ["sqlx-core/migrate"]
 rsa = ["dep:rand", "dep:rsa"]
 
@@ -50,7 +50,7 @@ uuid = { workspace = true, optional = true }
 
 # Misc
 atoi = "2.0"
-bitflags = { version = "2", default-features = false, features = ["serde"] }
+bitflags = { version = "2", default-features = false }
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 either = "1.6.1"
