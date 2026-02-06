@@ -185,7 +185,7 @@ ipnet = "2.3.0"
 ipnetwork = "0.21.1"
 mac_address = "1.1.5"
 rust_decimal = { version = "1.26.1", default-features = false, features = ["std"] }
-time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
+time = { version = "=0.3.45", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
 # Common utility crates
