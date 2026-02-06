@@ -110,6 +110,13 @@ impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
             | ColumnType::String
             | ColumnType::VarString
             | ColumnType::Enum => {
+                // For ENUM types, only require both have ENUM flag set.
+                // MySQL-compatible databases like TiDB may return additional flags
+                // like NOT_NULL that don't affect type compatibility.
+                if self.flags.contains(ColumnFlags::ENUM) && other.flags.contains(ColumnFlags::ENUM)
+                {
+                    return true;
+                }
                 return self.flags == other.flags;
             }
             _ => {}
