@@ -136,4 +136,8 @@ impl Connection for MySqlConnection {
     fn shrink_buffers(&mut self) {
         self.inner.stream.shrink_buffers();
     }
+
+    fn buffer_stats(&self) -> sqlx_core::net::BufferStats {
+        self.inner.stream.buffer_stats()
+    }
 }
