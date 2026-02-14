@@ -79,8 +79,8 @@ pub trait AnyConnectionBackend: std::any::Any + Debug + Send + 'static {
     /// Forward to [`Connection::buffer_stats()`].
     ///
     /// [`Connection::buffer_stats()`]: method@crate::connection::Connection::buffer_stats
-    fn buffer_stats(&self) -> crate::net::BufferStats {
-        crate::net::BufferStats::default()
+    fn buffer_stats(&self) -> Option<crate::net::BufferStats> {
+        None
     }
 
     #[doc(hidden)]

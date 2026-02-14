@@ -139,7 +139,7 @@ impl Connection for AnyConnection {
         self.backend.shrink_buffers()
     }
 
-    fn buffer_stats(&self) -> crate::net::BufferStats {
+    fn buffer_stats(&self) -> Option<crate::net::BufferStats> {
         self.backend.buffer_stats()
     }
 

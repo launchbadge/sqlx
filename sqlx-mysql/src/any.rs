@@ -61,7 +61,7 @@ impl AnyConnectionBackend for MySqlConnection {
         Connection::shrink_buffers(self);
     }
 
-    fn buffer_stats(&self) -> sqlx_core::net::BufferStats {
+    fn buffer_stats(&self) -> Option<sqlx_core::net::BufferStats> {
         Connection::buffer_stats(self)
     }
 

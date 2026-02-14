@@ -165,10 +165,9 @@ pub trait Connection: Send {
     /// capacity is 8KB for both read and write buffers, but they may grow to
     /// accommodate large queries or result sets.
     ///
-    /// For databases that don't use buffered sockets (like SQLite), this returns
-    /// a default `BufferStats` with zero values.
-    fn buffer_stats(&self) -> crate::net::BufferStats {
-        crate::net::BufferStats::default()
+    /// Returns `None` for databases that don't use buffered sockets (like SQLite).
+    fn buffer_stats(&self) -> Option<crate::net::BufferStats> {
+        None
     }
 
     #[doc(hidden)]
