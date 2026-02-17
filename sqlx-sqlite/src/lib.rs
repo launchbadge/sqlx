@@ -59,6 +59,16 @@
 //!
 //! [rusqlite-readme-building]: https://github.com/rusqlite/rusqlite?tab=readme-ov-file#notes-on-building-rusqlite-and-libsqlite3-sys
 //!
+//! ### Warning about Transactions
+//!
+//! Using write transactions with SQLx, SQLite, and concurrent writers may lead to serious performance degradation.
+//!
+//! A write statement within a transaction (or starting a transaction with `BEGIN IMMEDIATE`) takes an EXCLUSIVE lock on the database.
+//! Calling `.await` causes the task to yield so the async runtime can run other tasks.
+//! However, the runtime does not know that the given task is holding the lock and must be run before other write transactions or statements can be executed.
+//! Other tasks may be scheduled to run before the waiting task, but other writers cannot make progress until the lock is released.
+//! This deadlock will only be resolved when the waiting tasks reach their [`busy_timeout`](SqliteConnectOptions::busy_timeout).
+//!
 //! ### Optional Features
 //!
 //! The following features
@@ -144,6 +154,16 @@ pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
 impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 
 /// An alias for [`Transaction`][sqlx_core::transaction::Transaction], specialized for SQLite.
+///
+/// ### Warning about Transactions
+///
+/// Using write transactions with SQLx, SQLite, and concurrent writers may lead to serious performance degradation.
+///
+/// A write statement within a transaction (or starting a transaction with `BEGIN IMMEDIATE`) takes an EXCLUSIVE lock on the database.
+/// Calling `.await` causes the task to yield so the async runtime can run other tasks.
+/// However, the runtime does not know that the given task is holding the lock and must be run before other write transactions or statements can be executed.
+/// Other tasks may be scheduled to run before the waiting task, but other writers cannot make progress until the lock is released.
+/// This deadlock will only be resolved when the waiting tasks reach their [`busy_timeout`](SqliteConnectOptions::busy_timeout).
 pub type SqliteTransaction<'c> = sqlx_core::transaction::Transaction<'c, Sqlite>;
 
 // NOTE: required due to the lack of lazy normalization
