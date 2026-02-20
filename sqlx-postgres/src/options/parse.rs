@@ -89,6 +89,11 @@ impl PgConnectOptions {
 
                 "application_name" => options = options.application_name(&value),
 
+                "extra_float_digits" => {
+                    options = options
+                        .extra_float_digits(value.parse::<i8>().map_err(Error::config)?);
+                }
+
                 "options" => {
                     if let Some(options) = options.options.as_mut() {
                         options.push(' ');
@@ -165,6 +170,11 @@ impl PgConnectOptions {
             "statement-cache-capacity",
             &self.statement_cache_capacity.to_string(),
         );
+
+        if let Some(ref extra_float_digits) = self.extra_float_digits {
+            url.query_pairs_mut()
+                .append_pair("extra_float_digits", extra_float_digits);
+        }
 
         url
     }
@@ -251,6 +261,37 @@ fn it_parses_application_name_correctly_from_parameter() {
 }
 
 #[test]
+fn it_parses_extra_float_digits_correctly_from_parameter() {
+    let url = "postgres:///?extra_float_digits=2";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(Some("2"), opts.extra_float_digits.as_deref());
+}
+
+#[test]
+fn it_parses_extra_float_digits_negative_value() {
+    let url = "postgres:///?extra_float_digits=-1";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!(Some("-1"), opts.extra_float_digits.as_deref());
+}
+
+#[test]
+fn it_parses_multiple_query_parameters() {
+    let url = "postgres://user:password@localhost:5432/mydb?sslmode=require&application_name=myapp&extra_float_digits=3";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+
+    assert_eq!("user", opts.username);
+    assert_eq!(Some("password"), opts.password.as_deref());
+    assert_eq!("localhost", &opts.host);
+    assert_eq!(5432, opts.port);
+    assert_eq!(Some("mydb"), opts.database.as_deref());
+    assert!(matches!(opts.ssl_mode, PgSslMode::Require));
+    assert_eq!(Some("myapp"), opts.application_name.as_deref());
+    assert_eq!(Some("3"), opts.extra_float_digits.as_deref());
+}
+
+#[test]
 fn it_parses_username_with_at_sign_correctly() {
     let url = "postgres://user@hostname:password@hostname:5432/database";
     let opts = PgConnectOptions::from_str(url).unwrap();
@@ -310,7 +351,7 @@ fn it_returns_the_parsed_url_when_socket() {
 
     let mut expected_url = Url::parse(url).unwrap();
     // PgConnectOptions defaults
-    let query_string = "sslmode=prefer&statement-cache-capacity=100";
+    let query_string = "sslmode=prefer&statement-cache-capacity=100&extra_float_digits=2";
     let port = 5432;
     expected_url.set_query(Some(query_string));
     let _ = expected_url.set_port(Some(port));
@@ -325,7 +366,7 @@ fn it_returns_the_parsed_url_when_host() {
 
     let mut expected_url = Url::parse(url).unwrap();
     // PgConnectOptions defaults
-    let query_string = "sslmode=prefer&statement-cache-capacity=100";
+    let query_string = "sslmode=prefer&statement-cache-capacity=100&extra_float_digits=2";
     expected_url.set_query(Some(query_string));
 
     assert_eq!(expected_url, opts.build_url());
