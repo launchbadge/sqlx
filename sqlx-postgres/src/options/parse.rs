@@ -90,8 +90,8 @@ impl PgConnectOptions {
                 "application_name" => options = options.application_name(&value),
 
                 "extra_float_digits" => {
-                    options = options
-                        .extra_float_digits(value.parse::<i8>().map_err(Error::config)?);
+                    options =
+                        options.extra_float_digits(value.parse::<i8>().map_err(Error::config)?);
                 }
 
                 "options" => {
