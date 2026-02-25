@@ -66,6 +66,7 @@ pub struct TestArgs {
     pub test_path: &'static str,
     pub migrator: Option<&'static Migrator>,
     pub fixtures: &'static [TestFixture],
+    pub locking: bool,
 }
 
 pub trait TestFn {
@@ -158,6 +159,7 @@ impl TestArgs {
             test_path,
             migrator: None,
             fixtures: &[],
+            locking: true,
         }
     }
 
@@ -167,6 +169,10 @@ impl TestArgs {
 
     pub fn fixtures(&mut self, fixtures: &'static [TestFixture]) {
         self.fixtures = fixtures;
+    }
+
+    pub fn set_locking(&mut self, locking: bool) {
+        self.locking = locking;
     }
 }
 
@@ -255,7 +261,24 @@ async fn setup_test_db<DB: Database>(
         .await
         .expect("failed to connect to test database");
 
-    if let Some(migrator) = args.migrator {
+    if let Some(static_migrator) = args.migrator {
+        // When test locking is disabled, also disable locking in the migrator.
+        // This is required for databases that don't support advisory locks (e.g. CockroachDB).
+        let owned_migrator;
+        let migrator = if args.locking {
+            static_migrator
+        } else {
+            owned_migrator = Migrator {
+                locking: false,
+                migrations: static_migrator.migrations.clone(),
+                ignore_missing: static_migrator.ignore_missing,
+                no_tx: static_migrator.no_tx,
+                table_name: static_migrator.table_name.clone(),
+                create_schemas: static_migrator.create_schemas.clone(),
+            };
+            &owned_migrator
+        };
+
         migrator
             .run_direct(None, &mut conn)
             .await

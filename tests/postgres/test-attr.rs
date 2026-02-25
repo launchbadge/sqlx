@@ -199,3 +199,26 @@ macro_rules! macro_using_test {
     };
 }
 macro_using_test!("tests/postgres/migrations");
+
+// Verify that `locking = false` compiles and produces a valid test.
+//
+// This test is NOT safe to run concurrently with other `#[sqlx::test]` tests against the
+// same Postgres server because the advisory lock exists to guard a race in
+// `CREATE SCHEMA IF NOT EXISTS`. The `locking = false` flag is intended for databases
+// like CockroachDB that serialize DDL and don't support advisory locks.
+//
+// We use `migrations = false` and `#[ignore]` so this compiles (proving the attribute
+// parses correctly) but doesn't race with other tests in CI.
+#[sqlx::test(migrations = false, locking = false)]
+#[ignore]
+async fn it_works_without_locking(pool: PgPool) -> sqlx::Result<()> {
+    let mut conn = pool.acquire().await?;
+
+    let db_name: String = sqlx::query_scalar("SELECT current_database()")
+        .fetch_one(&mut *conn)
+        .await?;
+
+    assert!(db_name.starts_with("_sqlx_test"), "dbname: {db_name:?}");
+
+    Ok(())
+}

@@ -6,6 +6,7 @@ use syn::parse::Parser;
 struct Args {
     fixtures: Vec<(FixturesType, Vec<syn::LitStr>)>,
     migrations: MigrationsOpt,
+    locking: Option<bool>,
 }
 
 #[cfg(feature = "migrate")]
@@ -143,6 +144,11 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
         fixtures.append(&mut res)
     }
 
+    let locking = args
+        .locking
+        .map(|value| quote! { args.set_locking(#value); })
+        .unwrap_or_default();
+
     let migrations = match args.migrations {
         MigrationsOpt::ExplicitPath(path) => {
             let migrator = crate::migrate::expand(Some(path))?;
@@ -180,6 +186,8 @@ fn expand_advanced(args: AttributeArgs, input: syn::ItemFn) -> crate::Result<Tok
 
             args.fixtures(&[#(#fixtures),*]);
 
+            #locking
+
             // We need to give a coercion site or else we get "unimplemented trait" errors.
             let f: fn(#(#fn_arg_types),*) -> _ = #name;
 
@@ -197,6 +205,7 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
 
     let mut fixtures = Vec::new();
     let mut migrations = MigrationsOpt::InferredPath;
+    let mut locking = None;
 
     for arg in attr_args {
         let path = arg.path().clone();
@@ -292,10 +301,28 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
 
                 migrations = MigrationsOpt::ExplicitMigrator(lit.parse()?);
             }
+            Meta::NameValue(MetaNameValue { value, .. }) if path.is_ident("locking") => {
+                if locking.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "cannot have more than one `locking` arg",
+                    ));
+                }
+
+                let Expr::Lit(syn::ExprLit {
+                    lit: Lit::Bool(lit),
+                    ..
+                }) = value
+                else {
+                    return Err(syn::Error::new_spanned(path, "expected `true` or `false`"));
+                };
+
+                locking = Some(lit.value);
+            }
             arg => {
                 return Err(syn::Error::new_spanned(
                     arg,
-                    r#"expected `fixtures("<filename>", ...)` or `migrations = "<path>" | false` or `migrator = "<rust path>"`"#,
+                    r#"expected `fixtures("<filename>", ...)` or `migrations = "<path>" | false` or `migrator = "<rust path>"` or `locking = true | false`"#,
                 ))
             }
         }
@@ -304,6 +331,7 @@ fn parse_args(attr_args: AttributeArgs) -> syn::Result<Args> {
     Ok(Args {
         fixtures,
         migrations,
+        locking,
     })
 }
 
