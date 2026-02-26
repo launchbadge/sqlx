@@ -1,86 +1,100 @@
 use std::borrow::Cow;
 use std::env::var_os;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, Read};
 use std::path::PathBuf;
 
-/// try to load a password from the various pgpass file locations
-pub fn load_password(
-    host: &str,
-    port: u16,
-    username: &str,
-    database: Option<&str>,
-) -> Option<String> {
-    let custom_file = var_os("PGPASSFILE");
-    if let Some(file) = custom_file {
-        if let Some(password) =
-            load_password_from_file(PathBuf::from(file), host, port, username, database)
+/// PostgreSQL passfile content.
+#[derive(Clone, Debug, Default)]
+pub struct PGPassFile(String);
+
+impl PGPassFile {
+    /// Loads the first valid passfile discovered.
+    ///
+    /// Loading is attempted in the following order:
+    /// 1. Path given via the `PGPASSFILE` environment variable.
+    /// 2. Default path (`~/.pgpass` on Linux and
+    ///    `%APPDATA%/postgres/pgpass.conf` on Windows)
+    ///
+    /// If loading of any file fails, the function proceeds to the next.
+    /// Returns `None` in case no file can be loaded.
+    pub fn load() -> Option<Self> {
+        let custom_file = var_os("PGPASSFILE");
+        if let Some(file) = custom_file {
+            if let Some(password) = Self::load_from_file(PathBuf::from(file)) {
+                return Some(password);
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        let default_file = home::home_dir().map(|path| path.join(".pgpass"));
+        #[cfg(target_os = "windows")]
+        let default_file = {
+            use etcetera::BaseStrategy;
+
+            etcetera::base_strategy::Windows::new()
+                .ok()
+                .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
+        };
+        Self::load_from_file(default_file?)
+    }
+
+    /// Returns the PostgreSQL passfile loaded from the given path.
+    fn load_from_file(path: PathBuf) -> Option<Self> {
+        let mut file = File::open(&path)
+            .map_err(|e| {
+                match e.kind() {
+                    std::io::ErrorKind::NotFound => {
+                        tracing::debug!(
+                            path = %path.display(),
+                            "`.pgpass` file not found",
+                        );
+                    }
+                    _ => {
+                        tracing::warn!(
+                            path = %path.display(),
+                            "Failed to open `.pgpass` file: {e:?}",
+                        );
+                    }
+                };
+            })
+            .ok()?;
+
+        #[cfg(target_os = "linux")]
         {
-            return Some(password);
+            use std::os::unix::fs::PermissionsExt;
+
+            // check file permissions on linux
+
+            let metadata = file.metadata().ok()?;
+            let permissions = metadata.permissions();
+            let mode = permissions.mode();
+            if mode & 0o77 != 0 {
+                tracing::warn!(
+                    path = %path.display(),
+                    permissions = format!("{mode:o}"),
+                    "Ignoring path. Permissions are not strict enough",
+                );
+                return None;
+            }
         }
+
+        let mut passfile = Self::default();
+        file.read_to_string(&mut passfile.0).ok()?;
+
+        Some(passfile)
     }
 
-    #[cfg(not(target_os = "windows"))]
-    let default_file = home::home_dir().map(|path| path.join(".pgpass"));
-    #[cfg(target_os = "windows")]
-    let default_file = {
-        use etcetera::BaseStrategy;
-
-        etcetera::base_strategy::Windows::new()
-            .ok()
-            .map(|basedirs| basedirs.data_dir().join("postgres").join("pgpass.conf"))
-    };
-    load_password_from_file(default_file?, host, port, username, database)
-}
-
-/// try to extract a password from a pgpass file
-fn load_password_from_file(
-    path: PathBuf,
-    host: &str,
-    port: u16,
-    username: &str,
-    database: Option<&str>,
-) -> Option<String> {
-    let file = File::open(&path)
-        .map_err(|e| {
-            match e.kind() {
-                std::io::ErrorKind::NotFound => {
-                    tracing::debug!(
-                        path = %path.display(),
-                        "`.pgpass` file not found",
-                    );
-                }
-                _ => {
-                    tracing::warn!(
-                        path = %path.display(),
-                        "Failed to open `.pgpass` file: {e:?}",
-                    );
-                }
-            };
-        })
-        .ok()?;
-
-    #[cfg(target_os = "linux")]
-    {
-        use std::os::unix::fs::PermissionsExt;
-
-        // check file permissions on linux
-
-        let metadata = file.metadata().ok()?;
-        let permissions = metadata.permissions();
-        let mode = permissions.mode();
-        if mode & 0o77 != 0 {
-            tracing::warn!(
-                path = %path.display(),
-                permissions = format!("{mode:o}"),
-                "Ignoring path. Permissions are not strict enough",
-            );
-            return None;
-        }
+    /// Returns the password matched by the given parameters.
+    pub fn password_if_matching(
+        &self,
+        hostname: &str,
+        port: u16,
+        database: Option<&str>,
+        username: &str,
+    ) -> Option<String> {
+        load_password_from_reader(self.0.as_bytes(), hostname, port, username, database)
     }
-
-    let reader = BufReader::new(file);
-    load_password_from_reader(reader, host, port, username, database)
 }
 
 fn load_password_from_reader(

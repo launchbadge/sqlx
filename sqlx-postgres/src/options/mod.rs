@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 pub use ssl_mode::PgSslMode;
 
+use crate::options::pgpass::PGPassFile;
 use crate::{connection::LogSettings, net::tls::CertificateInput};
 
 mod connect;
@@ -20,6 +21,7 @@ pub struct PgConnectOptions {
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
+    pub(crate) passfile: PGPassFile,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
@@ -81,6 +83,7 @@ impl PgConnectOptions {
             socket: None,
             username,
             password: var("PGPASSWORD").ok(),
+            passfile: PGPassFile::default(),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
@@ -101,14 +104,7 @@ impl PgConnectOptions {
     }
 
     pub(crate) fn apply_pgpass(mut self) -> Self {
-        if self.password.is_none() {
-            self.password = pgpass::load_password(
-                &self.host,
-                self.port,
-                &self.username,
-                self.database.as_deref(),
-            );
-        }
+        self.passfile = PGPassFile::load().unwrap_or_default();
 
         self
     }
@@ -524,6 +520,28 @@ impl PgConnectOptions {
     /// ```
     pub fn get_username(&self) -> &str {
         &self.username
+    }
+
+    /// Get the password.
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .password("53C237");
+    /// assert_eq!(options.get_password().as_deref(), Some("53C237"));
+    /// ```
+    pub fn get_password(&self) -> Option<Cow<'_, str>> {
+        if self.password.is_some() {
+            return self.password.as_deref().map(Cow::Borrowed);
+        }
+        self.passfile
+            .password_if_matching(
+                &self.host,
+                self.port,
+                self.database.as_deref(),
+                &self.username,
+            )
+            .map(Cow::Owned)
     }
 
     /// Get the current database name.
