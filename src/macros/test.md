@@ -228,7 +228,7 @@ apply and which to omit. However, since each fixture is applied separately (sent
 in an implicit `BEGIN` and `COMMIT`), you will want to make sure to order the fixtures such that foreign key
 requirements are always satisfied, or else you might get errors.
 
-### Disabling Advisory Locking (requires `migrate` feature)
+### Disabling Advisory Locking
 
 By default, `#[sqlx::test]` acquires a PostgreSQL advisory lock (`pg_advisory_xact_lock`) before creating the test
 database schema and also locks during migrations. This prevents a race condition when multiple tests run concurrently.
@@ -237,23 +237,17 @@ Some databases speak the PostgreSQL wire protocol but do not implement advisory 
 For example, CockroachDB does not support `pg_advisory_xact_lock`
 (see [cockroachdb/cockroach#13546](https://github.com/cockroachdb/cockroach/issues/13546)).
 
-You can disable locking with the `locking` attribute:
+You can disable advisory locking by adding `sqlx-advisory-locking=false` to your `DATABASE_URL`:
 
-```rust,no_run
-# #[cfg(all(feature = "migrate", feature = "postgres"))]
-# mod example {
-use sqlx::PgPool;
-
-#[sqlx::test(locking = false)]
-async fn test_on_cockroachdb(pool: PgPool) -> sqlx::Result<()> {
-    // The test database was created without advisory locks.
-    // Migrations also run without advisory locks.
-    Ok(())
-}
-# }
+```text
+DATABASE_URL="postgres://localhost/mydb?sqlx-advisory-locking=false"
 ```
 
-This follows the same pattern as [`Migrator::set_locking(false)`](crate::migrate::Migrator::set_locking).
+This affects all `#[sqlx::test]` tests: both the test database schema setup and migrations
+will skip advisory locks. No per-test annotation is needed.
+
+See also [`PgConnectOptions::advisory_locking()`](crate::postgres::PgConnectOptions::advisory_locking)
+and [`Migrator::set_locking()`](crate::migrate::Migrator::set_locking).
 
 **Note:** Disabling locking means concurrent test processes may race during schema setup. The DDL statements
 use `IF NOT EXISTS` so this is generally safe, but you should be aware of the trade-off.

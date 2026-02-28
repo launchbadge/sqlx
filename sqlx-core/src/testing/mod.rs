@@ -66,7 +66,6 @@ pub struct TestArgs {
     pub test_path: &'static str,
     pub migrator: Option<&'static Migrator>,
     pub fixtures: &'static [TestFixture],
-    pub locking: bool,
 }
 
 pub trait TestFn {
@@ -83,6 +82,7 @@ pub struct TestContext<DB: Database> {
     pub pool_opts: PoolOptions<DB>,
     pub connect_opts: <DB::Connection as Connection>::Options,
     pub db_name: String,
+    pub locking: bool,
 }
 
 impl<DB, Fut> TestFn for fn(Pool<DB>) -> Fut
@@ -159,7 +159,6 @@ impl TestArgs {
             test_path,
             migrator: None,
             fixtures: &[],
-            locking: true,
         }
     }
 
@@ -169,10 +168,6 @@ impl TestArgs {
 
     pub fn fixtures(&mut self, fixtures: &'static [TestFixture]) {
         self.fixtures = fixtures;
-    }
-
-    pub fn set_locking(&mut self, locking: bool) {
-        self.locking = locking;
     }
 }
 
@@ -232,7 +227,7 @@ where
             .await
             .expect("failed to connect to setup test database");
 
-        setup_test_db::<DB>(&test_context.connect_opts, &args).await;
+        setup_test_db::<DB>(&test_context.connect_opts, &args, test_context.locking).await;
 
         let res = test_fn(test_context.pool_opts, test_context.connect_opts).await;
 
@@ -252,6 +247,7 @@ where
 async fn setup_test_db<DB: Database>(
     copts: &<DB::Connection as Connection>::Options,
     args: &TestArgs,
+    locking: bool,
 ) where
     DB::Connection: Migrate + Sized,
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
@@ -262,10 +258,10 @@ async fn setup_test_db<DB: Database>(
         .expect("failed to connect to test database");
 
     if let Some(static_migrator) = args.migrator {
-        // When test locking is disabled, also disable locking in the migrator.
+        // When advisory locking is disabled, also disable it in the migrator.
         // This is required for databases that don't support advisory locks (e.g. CockroachDB).
         let owned_migrator;
-        let migrator = if args.locking {
+        let migrator = if locking {
             static_migrator
         } else {
             owned_migrator = Migrator {

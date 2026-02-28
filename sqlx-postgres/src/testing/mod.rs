@@ -93,6 +93,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let master_opts = PgConnectOptions::from_str(&url).expect("failed to parse DATABASE_URL");
+    let advisory_locking = master_opts.advisory_locking;
 
     let pool = PoolOptions::new()
         // Postgres' normal connection limit is 100 plus 3 superuser connections
@@ -134,9 +135,9 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
     // The lock and DDL must be in a single `execute` call so they share one implicit
     // transaction — `pg_advisory_xact_lock` is released at transaction end.
     //
-    // Can be disabled with `#[sqlx::test(locking = false)]` for databases that do not
-    // implement advisory locks, such as CockroachDB.
-    let lock_sql = if args.locking {
+    // Can be disabled with `?sqlx-advisory-locking=false` in DATABASE_URL for databases
+    // that do not implement advisory locks, such as CockroachDB.
+    let lock_sql = if advisory_locking {
         "select pg_advisory_xact_lock(8318549251334697844);"
     } else {
         ""
@@ -196,6 +197,7 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             .clone()
             .database(&db_name),
         db_name,
+        locking: advisory_locking,
     })
 }
 
