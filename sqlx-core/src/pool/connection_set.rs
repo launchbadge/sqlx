@@ -109,12 +109,6 @@ impl<C> ConnectionSet<C> {
             .assert_connected()
     }
 
-    pub async fn acquire_disconnected(&self) -> DisconnectedSlot<C> {
-        self.acquire_inner(AcquirePreference::Disconnected)
-            .await
-            .assert_disconnected()
-    }
-
     /// Attempt to acquire the connection associated with the current thread.
     pub async fn acquire_any(&self) -> Result<ConnectedSlot<C>, DisconnectedSlot<C>> {
         self.acquire_inner(AcquirePreference::Either)
@@ -250,7 +244,7 @@ impl<C> ConnectionSet<C> {
         })
     }
 
-    pub async fn drain(&self, ref close: impl AsyncFn(ConnectedSlot<C>) -> DisconnectedSlot<C>) {
+    pub async fn drain(&self, close: impl AsyncFn(ConnectedSlot<C>) -> DisconnectedSlot<C>) {
         let mut closing = FuturesUnordered::new();
 
         // We could try to be more efficient by only populating the `FuturesUnordered` for
@@ -273,16 +267,6 @@ impl<C> ConnectionSet<C> {
         }
 
         while closing.next().await.is_some() {}
-    }
-
-    #[inline(always)]
-    fn next_slot(&self, slot: usize) -> usize {
-        // By adding a number that is coprime to `slots.len()` before taking the modulo,
-        // we can visit each slot in a pseudo-random order, spreading the demand evenly.
-        //
-        // Interestingly, this pattern returns to the original slot after `slots.len()` iterations,
-        // because of congruence: https://en.wikipedia.org/wiki/Modular_arithmetic#Congruence
-        (slot + 547) % self.slots.len()
     }
 }
 
@@ -329,12 +313,10 @@ impl<C> DisconnectedSlot<C> {
 impl AcquirePreference {
     #[inline(always)]
     fn wants_connected(&self, is_connected: bool) -> bool {
-        match (self, is_connected) {
-            (Self::Connected, true) => true,
-            (Self::Disconnected, false) => true,
-            (Self::Either, _) => true,
-            _ => false,
-        }
+        matches!(
+            (self, is_connected),
+            (Self::Connected, true) | (Self::Disconnected, false) | (Self::Either, _)
+        )
     }
 }
 

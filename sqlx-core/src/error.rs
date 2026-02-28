@@ -6,7 +6,6 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
-use std::sync::Arc;
 
 use crate::type_info::TypeInfo;
 use crate::types::Type;

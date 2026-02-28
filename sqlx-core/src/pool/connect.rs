@@ -6,20 +6,19 @@ use crate::pool::{Pool, PoolConnection};
 use crate::rt::JoinHandle;
 use crate::{rt, Error};
 use ease_off::EaseOff;
-use event_listener::{listener, Event, EventListener};
+use event_listener::{listener, Event};
 use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use crate::pool::connection_set::DisconnectedSlot;
 #[cfg(doc)]
 use crate::pool::PoolOptions;
-use crate::sync::{AsyncMutex, AsyncMutexGuard};
+use crate::sync::AsyncMutexGuard;
 use ease_off::core::EaseOffCore;
-use std::io;
 use std::ops::ControlFlow;
 use std::pin::{pin, Pin};
 use std::task::{ready, Context, Poll};
