@@ -355,6 +355,12 @@ fn it_parses_advisory_locking_correctly() {
     let opts = PgConnectOptions::from_str(url).unwrap();
     assert!(opts.advisory_locking);
 
+    // Works after other parameters
+    let url = "postgres://localhost?application_name=myapp&sqlx-advisory-locking=false";
+    let opts = PgConnectOptions::from_str(url).unwrap();
+    assert!(!opts.advisory_locking);
+    assert_eq!(opts.application_name.as_deref(), Some("myapp"));
+
     // Default is true
     let url = "postgres://localhost";
     let opts = PgConnectOptions::from_str(url).unwrap();
