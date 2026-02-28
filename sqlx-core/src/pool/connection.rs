@@ -10,10 +10,10 @@ use crate::database::Database;
 use crate::error::Error;
 
 use super::inner::PoolInner;
-use crate::pool::connect::{ConnectPermit, ConnectTaskShared, ConnectionId};
+use crate::pool::connect::ConnectionId;
 use crate::pool::connection_set::{ConnectedSlot, DisconnectedSlot};
 use crate::pool::options::PoolConnectionMetadata;
-use crate::pool::{Pool, PoolOptions};
+use crate::pool::PoolOptions;
 use crate::rt;
 
 const RETURN_TO_POOL_TIMEOUT: Duration = Duration::from_secs(5);

@@ -14,7 +14,7 @@ use std::task::{Context, Poll};
 use crate::connection::Connection;
 use crate::ext::future::race;
 use crate::logger::private_level_filter_to_trace_level;
-use crate::pool::connect::{ConnectTaskShared, ConnectionCounter, ConnectionId, DynConnector};
+use crate::pool::connect::{ConnectTaskShared, ConnectionId, DynConnector};
 use crate::pool::connection_set::{ConnectedSlot, ConnectionSet, DisconnectedSlot};
 use crate::{private_tracing_dynamic_event, rt};
 use event_listener::listener;
@@ -22,12 +22,10 @@ use futures_util::future::{self};
 use std::time::{Duration, Instant};
 use tracing::{Instrument, Level};
 
-const GRACEFUL_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
 const TEST_BEFORE_ACQUIRE_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connector: DynConnector<DB>,
-    pub(super) counter: ConnectionCounter,
     pub(super) connections: ConnectionSet<ConnectionInner<DB>>,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
@@ -43,7 +41,6 @@ impl<DB: Database> PoolInner<DB> {
     ) -> Arc<Self> {
         let pool = Arc::new(Self {
             connector: DynConnector::new(connector),
-            counter: ConnectionCounter::new(),
             connections: ConnectionSet::new(options.min_connections..=options.max_connections),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
@@ -88,10 +85,6 @@ impl<DB: Database> PoolInner<DB> {
         CloseEvent {
             listener: (!self.is_closed()).then(|| self.on_closed.listen()),
         }
-    }
-
-    pub(super) fn parent(&self) -> Option<&Pool<DB>> {
-        self.options.parent_pool.as_ref()
     }
 
     #[inline]

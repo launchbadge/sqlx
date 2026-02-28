@@ -1,15 +1,12 @@
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
 use crate::pool::connection::ConnectionInner;
-use crate::pool::inner::PoolInner;
 use crate::pool::{Pool, PoolConnection};
 use crate::rt::JoinHandle;
 use crate::{rt, Error};
-use ease_off::EaseOff;
 use event_listener::{listener, Event};
 use std::fmt::{Display, Formatter};
 use std::future::Future;
-use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -17,7 +14,6 @@ use std::time::Instant;
 use crate::pool::connection_set::DisconnectedSlot;
 #[cfg(doc)]
 use crate::pool::PoolOptions;
-use crate::sync::AsyncMutexGuard;
 use ease_off::core::EaseOffCore;
 use std::ops::ControlFlow;
 use std::pin::{pin, Pin};
@@ -438,12 +434,6 @@ impl ConnectTaskShared {
     }
 }
 
-pub struct ConnectionCounter {
-    count: AtomicUsize,
-    next_id: AtomicUsize,
-    connect_available: Event,
-}
-
 /// An opaque connection ID, unique for every connection attempt with the same pool.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConnectionId(usize);
@@ -453,141 +443,6 @@ impl ConnectionId {
         static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
         ConnectionId(NEXT_ID.fetch_add(1, Ordering::AcqRel))
-    }
-}
-
-impl ConnectionCounter {
-    pub fn new() -> Self {
-        Self {
-            count: AtomicUsize::new(0),
-            next_id: AtomicUsize::new(1),
-            connect_available: Event::new(),
-        }
-    }
-
-    pub fn connections(&self) -> usize {
-        self.count.load(Ordering::Acquire)
-    }
-
-    pub async fn drain(&self) {
-        while self.count.load(Ordering::Acquire) > 0 {
-            listener!(self.connect_available => permit_released);
-            permit_released.await;
-        }
-    }
-
-    /// Attempt to acquire a permit from both this instance, and the parent pool, if applicable.
-    ///
-    /// Returns the permit, and the ID of the new connection.
-    pub fn try_acquire_permit<DB: Database>(
-        &self,
-        pool: &Arc<PoolInner<DB>>,
-    ) -> Option<(ConnectionId, ConnectPermit<DB>)> {
-        debug_assert!(ptr::addr_eq(self, &pool.counter));
-
-        // Don't skip the queue.
-        if pool.options.fair && self.connect_available.total_listeners() > 0 {
-            return None;
-        }
-
-        let prev_size = self
-            .count
-            .fetch_update(Ordering::Release, Ordering::Acquire, |connections| {
-                (connections < pool.options.max_connections).then_some(connections + 1)
-            })
-            .ok()?;
-
-        let size = prev_size + 1;
-
-        tracing::trace!(target: "sqlx::pool::connect", size, "increased size");
-
-        Some((
-            ConnectionId(self.next_id.fetch_add(1, Ordering::SeqCst)),
-            ConnectPermit {
-                pool: Some(Arc::clone(pool)),
-            },
-        ))
-    }
-
-    /// Attempt to acquire a permit from both this instance, and the parent pool, if applicable.
-    ///
-    /// Returns the permit, and the current size of the pool.
-    pub async fn acquire_permit<DB: Database>(
-        &self,
-        pool: &Arc<PoolInner<DB>>,
-    ) -> (ConnectionId, ConnectPermit<DB>) {
-        // Check that `self` can increase size first before we check the parent.
-        let acquired = self.acquire_permit_self(pool).await;
-
-        if let Some(parent) = pool.parent() {
-            let (_, permit) = parent.0.counter.acquire_permit_self(&parent.0).await;
-
-            // consume the parent permit
-            permit.consume();
-        }
-
-        acquired
-    }
-
-    // Separate method because `async fn`s cannot be recursive.
-    /// Attempt to acquire a [`ConnectPermit`] from this instance and this instance only.
-    async fn acquire_permit_self<DB: Database>(
-        &self,
-        pool: &Arc<PoolInner<DB>>,
-    ) -> (ConnectionId, ConnectPermit<DB>) {
-        for attempt in 1usize.. {
-            if let Some(acquired) = self.try_acquire_permit(pool) {
-                return acquired;
-            }
-
-            if attempt == 2 {
-                tracing::warn!(
-                    "unable to acquire a connect permit after sleeping; this may indicate a bug"
-                );
-            }
-
-            listener!(self.connect_available => connect_available);
-            connect_available.await;
-        }
-
-        panic!("BUG: was never able to acquire a connection despite waking many times")
-    }
-
-    pub fn release_permit<DB: Database>(&self, pool: &PoolInner<DB>) {
-        debug_assert!(ptr::addr_eq(self, &pool.counter));
-
-        self.count.fetch_sub(1, Ordering::Release);
-        self.connect_available.notify(1usize);
-
-        if let Some(parent) = &pool.options.parent_pool {
-            parent.0.counter.release_permit(&parent.0);
-        }
-    }
-}
-
-pub struct ConnectPermit<DB: Database> {
-    pool: Option<Arc<PoolInner<DB>>>,
-}
-
-impl<DB: Database> ConnectPermit<DB> {
-    pub fn float_existing(pool: Arc<PoolInner<DB>>) -> Self {
-        Self { pool: Some(pool) }
-    }
-
-    pub fn pool(&self) -> &Arc<PoolInner<DB>> {
-        self.pool.as_ref().unwrap()
-    }
-
-    pub fn consume(mut self) {
-        self.pool = None;
-    }
-}
-
-impl<DB: Database> Drop for ConnectPermit<DB> {
-    fn drop(&mut self) {
-        if let Some(pool) = self.pool.take() {
-            pool.counter.release_permit(&pool);
-        }
     }
 }
 

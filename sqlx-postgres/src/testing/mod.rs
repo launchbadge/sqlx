@@ -152,13 +152,9 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
 
     Ok(TestContext {
         pool_opts: PoolOptions::new()
-            // Don't allow a single test to take all the connections.
-            // Most tests shouldn't require more than 5 connections concurrently,
-            // or else they're likely doing too much in one test.
-            .max_connections(5)
+            .max_connections(args.max_connections)
             // Close connections ASAP if left in the idle queue.
-            .idle_timeout(Some(Duration::from_secs(1)))
-            .parent(master_pool.clone()),
+            .idle_timeout(Some(Duration::from_secs(1))),
         connect_opts: master_opts.database(&db_name),
         db_name,
     })
