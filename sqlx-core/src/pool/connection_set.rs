@@ -2,17 +2,11 @@ use crate::ext::future::race;
 use crate::rt;
 use crate::sync::{AsyncMutex, AsyncMutexGuardArc};
 use event_listener::{listener, Event, EventListener, IntoNotification};
-use futures_util::future::{Fuse, FusedFuture};
 use futures_util::stream::FuturesUnordered;
-use futures_util::{FutureExt, StreamExt};
-use std::cmp;
-use std::future::Future;
-use std::ops::{Deref, DerefMut, RangeInclusive, RangeToInclusive};
-use std::pin::{pin, Pin};
+use futures_util::StreamExt;
+use std::ops::{Deref, DerefMut, RangeInclusive};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::task::{ready, Poll};
-use std::time::Duration;
 use tracing::Instrument;
 
 pub struct ConnectionSet<C> {

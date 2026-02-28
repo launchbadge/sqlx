@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::{self, Future};
 use std::io;
 use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 use std::time::{Duration, Instant};
 
 use crate::connection::Connection;

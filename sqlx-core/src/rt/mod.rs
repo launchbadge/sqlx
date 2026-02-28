@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 
 use cfg_if::cfg_if;
 use futures_core::Stream;
-use futures_util::StreamExt;
 use pin_project_lite::pin_project;
 
 #[cfg(feature = "_rt-async-io")]
@@ -220,7 +219,7 @@ where
 
     #[inline(always)]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut this = self.project();
+        let this = self.project();
 
         if let Poll::Ready(out) = this.future.poll(cx) {
             return Poll::Ready(Some(out));

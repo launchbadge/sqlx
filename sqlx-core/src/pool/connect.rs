@@ -366,7 +366,6 @@ impl<DB: Database> DynConnector<DB> {
 
 pub struct ConnectTask<DB: Database> {
     handle: JoinHandle<crate::Result<PoolConnection<DB>>>,
-    shared: Arc<ConnectTaskShared>,
 }
 
 pub struct ConnectTaskShared {
@@ -400,17 +399,7 @@ impl<DB: Database> ConnectTask<DB> {
             shared.clone(),
         ));
 
-        Self { handle, shared }
-    }
-
-    pub fn cancel(&self) -> Option<Error> {
-        self.shared.cancel_event.notify(1);
-
-        self.shared
-            .last_error
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
+        Self { handle }
     }
 }
 
