@@ -110,7 +110,7 @@ impl MssqlConnection {
                         let days = (naive.date() - epoch).num_days() as u32;
                         let total_ns = naive.time().num_seconds_from_midnight() as u64
                             * 1_000_000_000
-                            + naive.time().nanosecond() as u64 % 1_000_000_000;
+                            + (naive.time().nanosecond() as u64 % 1_000_000_000);
                         let increments = total_ns / 100;
                         let offset_minutes =
                             v.offset().local_minus_utc() / 60;
