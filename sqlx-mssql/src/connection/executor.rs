@@ -105,12 +105,14 @@ impl MssqlConnection {
                     #[cfg(feature = "chrono")]
                     MssqlArgumentValue::DateTimeFixedOffset(v) => {
                         use chrono::Timelike as _;
+                        // Year 1 is always a valid date
                         let epoch = chrono::NaiveDate::from_ymd_opt(1, 1, 1).unwrap();
                         let naive = v.naive_local();
                         let days = (naive.date() - epoch).num_days() as u32;
-                        let total_ns = naive.time().num_seconds_from_midnight() as u64
+                        let time = naive.time();
+                        let total_ns = time.num_seconds_from_midnight() as u64
                             * 1_000_000_000
-                            + (naive.time().nanosecond() as u64 % 1_000_000_000);
+                            + (time.nanosecond() as u64 % 1_000_000_000);
                         let increments = total_ns / 100;
                         let offset_minutes =
                             v.offset().local_minus_utc() / 60;
