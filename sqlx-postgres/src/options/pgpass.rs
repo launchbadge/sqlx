@@ -21,7 +21,9 @@ pub fn load_password(
     }
 
     #[cfg(not(target_os = "windows"))]
-    let default_file = home::home_dir().map(|path| path.join(".pgpass"));
+    // home_dir fixed in 1.85 (rust-lang/rust#132515) and un-deprecated in 1.87 (rust-lang/rust#137327)
+    #[allow(deprecated)]
+    let default_file = std::env::home_dir().map(|path| path.join(".pgpass"));
     #[cfg(target_os = "windows")]
     let default_file = {
         use etcetera::BaseStrategy;
