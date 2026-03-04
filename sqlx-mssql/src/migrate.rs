@@ -70,13 +70,16 @@ impl MigrateDatabase for Mssql {
         let mut conn = options.connect().await?;
 
         // Force close existing connections before dropping
-        let escaped = database.replace('\'', "''").replace(']', "]]");
+        // Use separate escaped values for the two different quoting contexts:
+        // bracket-quoted identifiers ([...]) vs single-quoted string literals ('...')
+        let bracket_escaped = database.replace(']', "]]");
+        let quote_escaped = database.replace('\'', "''");
         let _ = conn
             .execute(AssertSqlSafe(format!(
-                "IF DB_ID('{escaped}') IS NOT NULL \
+                "IF DB_ID('{quote_escaped}') IS NOT NULL \
                  BEGIN \
-                     ALTER DATABASE [{escaped}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; \
-                     DROP DATABASE [{escaped}]; \
+                     ALTER DATABASE [{bracket_escaped}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; \
+                     DROP DATABASE [{bracket_escaped}]; \
                  END"
             )))
             .await?;
@@ -91,10 +94,13 @@ impl Migrate for MssqlConnection {
         schema_name: &'e str,
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
-            let escaped = schema_name.replace('\'', "''").replace(']', "]]");
+            let quote_escaped = schema_name.replace('\'', "''");
+            // Inside EXEC('...'), the identifier must be bracket-escaped AND
+            // single-quote-escaped (since it's nested inside a string literal).
+            let exec_escaped = schema_name.replace(']', "]]").replace('\'', "''");
             self.execute(AssertSqlSafe(format!(
-                r#"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{escaped}')
-                   EXEC('CREATE SCHEMA [{escaped}]')"#
+                r#"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{quote_escaped}')
+                   EXEC('CREATE SCHEMA [{exec_escaped}]')"#
             )))
             .await?;
 
