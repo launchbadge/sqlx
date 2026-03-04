@@ -41,12 +41,13 @@ impl MigrateDatabase for Mssql {
         let (options, database) = parse_for_maintenance(url)?;
         let mut conn = options.connect().await?;
 
-        let escaped = database.replace(']', "]]");
-        let _ = conn
-            .execute(AssertSqlSafe(format!(
-                "CREATE DATABASE [{escaped}]"
-            )))
-            .await?;
+        query(
+            "DECLARE @sql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(@p1); \
+             EXEC sp_executesql @sql;"
+        )
+        .bind(database)
+        .execute(&mut conn)
+        .await?;
 
         Ok(())
     }
@@ -69,20 +70,19 @@ impl MigrateDatabase for Mssql {
         let (options, database) = parse_for_maintenance(url)?;
         let mut conn = options.connect().await?;
 
-        // Force close existing connections before dropping
-        // Use separate escaped values for the two different quoting contexts:
-        // bracket-quoted identifiers ([...]) vs single-quoted string literals ('...')
-        let bracket_escaped = database.replace(']', "]]");
-        let quote_escaped = database.replace('\'', "''");
-        let _ = conn
-            .execute(AssertSqlSafe(format!(
-                "IF DB_ID('{quote_escaped}') IS NOT NULL \
-                 BEGIN \
-                     ALTER DATABASE [{bracket_escaped}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; \
-                     DROP DATABASE [{bracket_escaped}]; \
-                 END"
-            )))
-            .await?;
+        query(
+            "IF DB_ID(@p1) IS NOT NULL \
+             BEGIN \
+                 DECLARE @sql NVARCHAR(MAX); \
+                 SET @sql = N'ALTER DATABASE ' + QUOTENAME(@p1) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE'; \
+                 EXEC sp_executesql @sql; \
+                 SET @sql = N'DROP DATABASE ' + QUOTENAME(@p1); \
+                 EXEC sp_executesql @sql; \
+             END"
+        )
+        .bind(database)
+        .execute(&mut conn)
+        .await?;
 
         Ok(())
     }
@@ -94,14 +94,15 @@ impl Migrate for MssqlConnection {
         schema_name: &'e str,
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
-            let quote_escaped = schema_name.replace('\'', "''");
-            // Inside EXEC('...'), the identifier must be bracket-escaped AND
-            // single-quote-escaped (since it's nested inside a string literal).
-            let exec_escaped = schema_name.replace(']', "]]").replace('\'', "''");
-            self.execute(AssertSqlSafe(format!(
-                r#"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{quote_escaped}')
-                   EXEC('CREATE SCHEMA [{exec_escaped}]')"#
-            )))
+            query(
+                "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = @p1) \
+                 BEGIN \
+                     DECLARE @sql NVARCHAR(MAX) = N'CREATE SCHEMA ' + QUOTENAME(@p1); \
+                     EXEC sp_executesql @sql; \
+                 END"
+            )
+            .bind(schema_name)
+            .execute(&mut *self)
             .await?;
 
             Ok(())
