@@ -348,7 +348,7 @@ async fn collect_results<'a>(
                 let values: Vec<MssqlData> = row
                     .into_iter()
                     .map(|data| column_data_to_mssql_data(&data))
-                    .collect();
+                    .collect::<Result<Vec<_>, _>>()?;
 
                 rows_affected += 1;
                 logger.increment_rows_returned();
