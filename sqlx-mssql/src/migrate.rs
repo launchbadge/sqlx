@@ -14,6 +14,11 @@ use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
 use crate::{Mssql, MssqlConnectOptions, MssqlConnection};
 
+/// Escape a table name for safe use as an MSSQL bracket-quoted identifier (`[...]`).
+fn escape_table_name(table_name: &str) -> String {
+    format!("[{}]", table_name.replace(']', "]]"))
+}
+
 fn parse_for_maintenance(url: &str) -> Result<(MssqlConnectOptions, String), Error> {
     let mut options = MssqlConnectOptions::from_str(url)?;
 
@@ -102,10 +107,12 @@ impl Migrate for MssqlConnection {
         table_name: &'e str,
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
+            let lit = table_name.replace('\'', "''");
+            let ident = escape_table_name(table_name);
             self.execute(AssertSqlSafe(format!(
                 r#"
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{table_name}')
-CREATE TABLE {table_name} (
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{lit}')
+CREATE TABLE {ident} (
     version BIGINT PRIMARY KEY,
     description NVARCHAR(MAX) NOT NULL,
     installed_on DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -126,8 +133,9 @@ CREATE TABLE {table_name} (
         table_name: &'e str,
     ) -> BoxFuture<'e, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
+            let ident = escape_table_name(table_name);
             let row: Option<(i64,)> = query_as(AssertSqlSafe(format!(
-                "SELECT TOP 1 version FROM {table_name} WHERE success = 0 ORDER BY version"
+                "SELECT TOP 1 version FROM {ident} WHERE success = 0 ORDER BY version"
             )))
             .fetch_optional(self)
             .await?;
@@ -141,8 +149,9 @@ CREATE TABLE {table_name} (
         table_name: &'e str,
     ) -> BoxFuture<'e, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
+            let ident = escape_table_name(table_name);
             let rows: Vec<(i64, Vec<u8>)> = query_as(AssertSqlSafe(format!(
-                "SELECT version, checksum FROM {table_name} ORDER BY version"
+                "SELECT version, checksum FROM {ident} ORDER BY version"
             )))
             .fetch_all(self)
             .await?;
@@ -212,10 +221,12 @@ CREATE TABLE {table_name} (
             // might be lost. We accept this small risk since this value is not super important.
             let elapsed = start.elapsed();
 
+            let ident = escape_table_name(table_name);
+
             #[allow(clippy::cast_possible_truncation)]
             let _ = query(AssertSqlSafe(format!(
                 r#"
-    UPDATE {table_name}
+    UPDATE {ident}
     SET execution_time = @p1
     WHERE version = @p2
                 "#
@@ -262,9 +273,10 @@ async fn execute_migration(
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
+    let ident = escape_table_name(table_name);
     let _ = query(AssertSqlSafe(format!(
         r#"
-    INSERT INTO {table_name} ( version, description, success, checksum, execution_time )
+    INSERT INTO {ident} ( version, description, success, checksum, execution_time )
     VALUES ( @p1, @p2, 1, @p3, -1 )
         "#
     )))
@@ -287,8 +299,9 @@ async fn revert_migration(
         .await
         .map_err(|e| MigrateError::ExecuteMigration(e, migration.version))?;
 
+    let ident = escape_table_name(table_name);
     let _ = query(AssertSqlSafe(format!(
-        r#"DELETE FROM {table_name} WHERE version = @p1"#
+        r#"DELETE FROM {ident} WHERE version = @p1"#
     )))
     .bind(migration.version)
     .execute(conn)
