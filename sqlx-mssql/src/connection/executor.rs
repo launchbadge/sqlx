@@ -459,18 +459,16 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     {
         Box::pin(async move {
             // Use sp_describe_first_result_set to get column metadata
-            let describe_sql = format!(
-                "EXEC sp_describe_first_result_set @tsql = N'{}'",
-                sql.as_str().replace('\'', "''")
+            let mut describe_query = tiberius::Query::new(
+                "EXEC sp_describe_first_result_set @tsql = @p1",
             );
+            describe_query.bind(sql.as_str());
 
             let mut columns = Vec::new();
             let mut column_names = HashMap::new();
 
-            let stream = self
-                .inner
-                .client
-                .simple_query(&describe_sql)
+            let stream = describe_query
+                .query(&mut self.inner.client)
                 .await
                 .map_err(tiberius_err)?;
 
@@ -531,15 +529,13 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     {
         Box::pin(async move {
             // Query sp_describe_first_result_set directly so we can extract nullable info
-            let describe_sql = format!(
-                "EXEC sp_describe_first_result_set @tsql = N'{}'",
-                sql.as_str().replace('\'', "''")
+            let mut describe_query = tiberius::Query::new(
+                "EXEC sp_describe_first_result_set @tsql = @p1",
             );
+            describe_query.bind(sql.as_str());
 
-            let stream = self
-                .inner
-                .client
-                .simple_query(&describe_sql)
+            let stream = describe_query
+                .query(&mut self.inner.client)
                 .await
                 .map_err(tiberius_err)?;
 
@@ -586,14 +582,12 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
             }
 
             // Count parameters using sp_describe_undeclared_parameters
-            let param_sql = format!(
-                "EXEC sp_describe_undeclared_parameters @tsql = N'{}'",
-                sql.as_str().replace('\'', "''")
+            let mut param_query = tiberius::Query::new(
+                "EXEC sp_describe_undeclared_parameters @tsql = @p1",
             );
-            let param_count = match self
-                .inner
-                .client
-                .simple_query(&param_sql)
+            param_query.bind(sql.as_str());
+            let param_count = match param_query
+                .query(&mut self.inner.client)
                 .await
             {
                 Ok(stream) => stream
@@ -601,7 +595,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                     .await
                     .map_err(tiberius_err)?
                     .len(),
-                Err(_) => 0,
+                Err(e) => {
+                    tracing::debug!("sp_describe_undeclared_parameters failed: {e}");
+                    0
+                }
             };
 
             Ok(crate::describe::Describe {
