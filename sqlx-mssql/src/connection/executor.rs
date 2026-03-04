@@ -34,6 +34,29 @@ impl<'a> tiberius::IntoSql<'a> for ColumnDataWrapper<'a> {
     }
 }
 
+/// Maximum days-since-epoch (0001-01-01) that fits in the 3-byte TDS date
+/// encoding. `tiberius::time::Date::new()` panics if `days > 0x00FFFFFF`.
+#[cfg(any(feature = "chrono", feature = "time"))]
+const MAX_DAYS: u32 = 0x00FF_FFFF;
+
+/// Convert a signed days-since-epoch count to `u32`, returning
+/// `Error::Encode` if negative or exceeding the TDS 3-byte limit.
+#[cfg(any(feature = "chrono", feature = "time"))]
+fn days_since_epoch_to_u32(days: i64) -> Result<u32, Error> {
+    u32::try_from(days)
+        .ok()
+        .filter(|&d| d <= MAX_DAYS)
+        .ok_or_else(|| {
+            Error::Encode(
+                format!(
+                    "date out of range for SQL Server: {days} days since epoch \
+                     (must be 0..={MAX_DAYS})"
+                )
+                .into(),
+            )
+        })
+}
+
 impl MssqlConnection {
     /// Execute a query, eagerly collecting all results.
     ///
@@ -108,7 +131,7 @@ impl MssqlConnection {
                         // Year 1 is always a valid date
                         let epoch = chrono::NaiveDate::from_ymd_opt(1, 1, 1).unwrap();
                         let naive = v.naive_local();
-                        let days = (naive.date() - epoch).num_days() as u32;
+                        let days = days_since_epoch_to_u32((naive.date() - epoch).num_days())?;
                         let time = naive.time();
                         let total_ns = time.num_seconds_from_midnight() as u64
                             * 1_000_000_000
@@ -150,7 +173,7 @@ impl MssqlConnection {
                     #[cfg(feature = "time")]
                     MssqlArgumentValue::TimeDate(v) => {
                         let epoch = time::Date::from_ordinal_date(1, 1).unwrap();
-                        let days = (*v - epoch).whole_days() as u32;
+                        let days = days_since_epoch_to_u32((*v - epoch).whole_days())?;
                         let cd = tiberius::ColumnData::Date(Some(
                             tiberius::time::Date::new(days),
                         ));
@@ -175,7 +198,7 @@ impl MssqlConnection {
                         let date = v.date();
                         let time = v.time();
                         let epoch = time::Date::from_ordinal_date(1, 1).unwrap();
-                        let days = (date - epoch).whole_days() as u32;
+                        let days = days_since_epoch_to_u32((date - epoch).whole_days())?;
                         let (h, m, s, ns) = time.as_hms_nano();
                         let total_ns = h as u64 * 3_600_000_000_000
                             + m as u64 * 60_000_000_000
@@ -196,7 +219,7 @@ impl MssqlConnection {
                         let offset_minutes = v.offset().whole_seconds() / 60;
                         let date = v.date();
                         let time = v.time();
-                        let days = (date - epoch).whole_days() as u32;
+                        let days = days_since_epoch_to_u32((date - epoch).whole_days())?;
                         let (h, m, s, ns) = time.as_hms_nano();
                         let total_ns = h as u64 * 3_600_000_000_000
                             + m as u64 * 60_000_000_000
@@ -538,5 +561,39 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                 nullable,
             })
         })
+    }
+}
+
+#[cfg(test)]
+#[cfg(any(feature = "chrono", feature = "time"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn days_since_epoch_zero() {
+        assert_eq!(days_since_epoch_to_u32(0).unwrap(), 0);
+    }
+
+    #[test]
+    fn days_since_epoch_max_date() {
+        // 9999-12-31 is 3_652_058 days from 0001-01-01
+        assert_eq!(days_since_epoch_to_u32(3_652_058).unwrap(), 3_652_058);
+    }
+
+    #[test]
+    fn days_since_epoch_negative() {
+        let err = days_since_epoch_to_u32(-1).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn days_since_epoch_overflow() {
+        let err = days_since_epoch_to_u32(i64::from(MAX_DAYS) + 1).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn days_since_epoch_at_max() {
+        assert_eq!(days_since_epoch_to_u32(i64::from(MAX_DAYS)).unwrap(), MAX_DAYS);
     }
 }
