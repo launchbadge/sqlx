@@ -269,8 +269,34 @@ pub(crate) fn column_data_to_mssql_data(
             )))
         }
 
-        // All None variants and unhandled types map to Null
-        _ => Ok(MssqlData::Null),
+        // All None variants represent SQL NULL
+        tiberius::ColumnData::U8(None)
+        | tiberius::ColumnData::I16(None)
+        | tiberius::ColumnData::I32(None)
+        | tiberius::ColumnData::I64(None)
+        | tiberius::ColumnData::F32(None)
+        | tiberius::ColumnData::F64(None)
+        | tiberius::ColumnData::Bit(None)
+        | tiberius::ColumnData::String(None)
+        | tiberius::ColumnData::Guid(None)
+        | tiberius::ColumnData::Binary(None)
+        | tiberius::ColumnData::Numeric(None)
+        | tiberius::ColumnData::Xml(None)
+        | tiberius::ColumnData::DateTime(None)
+        | tiberius::ColumnData::SmallDateTime(None)
+        | tiberius::ColumnData::DateTime2(None)
+        | tiberius::ColumnData::DateTimeOffset(None)
+        | tiberius::ColumnData::Date(None)
+        | tiberius::ColumnData::Time(None) => Ok(MssqlData::Null),
+
+        // Unhandled Some(...) variant — real data the driver can't convert
+        other => {
+            let debug = format!("{other:?}");
+            let truncated = if debug.len() > 200 { &debug[..200] } else { &debug };
+            Err(Error::Protocol(
+                format!("unsupported tiberius ColumnData variant: {truncated}").into(),
+            ))
+        }
     }
 }
 
