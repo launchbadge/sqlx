@@ -263,7 +263,13 @@ impl MssqlConnection {
                         use bigdecimal::ToPrimitive;
                         // Convert BigDecimal to tiberius Numeric
                         let (bigint, exponent) = v.as_bigint_and_exponent();
-                        let scale = exponent.max(0) as u8;
+                        let scale = exponent.max(0);
+                        if scale > 38 {
+                            return Err(Error::Encode(
+                                format!("BigDecimal scale {scale} exceeds SQL Server maximum of 38").into(),
+                            ));
+                        }
+                        let scale = scale as u8;
                         // Convert to i128 for Numeric
                         let value: i128 = bigint.to_i128().ok_or_else(|| {
                             Error::Encode(
