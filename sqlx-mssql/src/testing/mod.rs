@@ -11,7 +11,6 @@ use crate::query::query;
 use crate::{Mssql, MssqlConnectOptions, MssqlConnection};
 use sqlx_core::connection::Connection;
 use sqlx_core::query_scalar::query_scalar;
-use sqlx_core::sql_str::AssertSqlSafe;
 
 pub(crate) use sqlx_core::testing::*;
 
@@ -52,16 +51,20 @@ impl TestSupport for Mssql {
         let mut deleted_count = 0usize;
 
         for db_name in &delete_db_names {
-            let escaped = db_name.replace('\'', "''").replace(']', "]]");
-            let drop_sql = format!(
-                "IF DB_ID('{escaped}') IS NOT NULL \
+            match query(
+                "IF DB_ID(@p1) IS NOT NULL \
                  BEGIN \
-                     ALTER DATABASE [{escaped}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; \
-                     DROP DATABASE [{escaped}]; \
-                 END"
-            );
-
-            match conn.execute(AssertSqlSafe(drop_sql)).await {
+                     DECLARE @sql NVARCHAR(MAX); \
+                     SET @sql = N'ALTER DATABASE ' + QUOTENAME(@p1) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE'; \
+                     EXEC sp_executesql @sql; \
+                     SET @sql = N'DROP DATABASE ' + QUOTENAME(@p1); \
+                     EXEC sp_executesql @sql; \
+                 END",
+            )
+            .bind(db_name)
+            .execute(&mut conn)
+            .await
+            {
                 Ok(_deleted) => {
                     deleted_count += 1;
                 }
@@ -149,8 +152,13 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Mssql>, Error> {
         .execute(&mut *conn)
         .await?;
 
-    conn.execute(AssertSqlSafe(format!("CREATE DATABASE [{db_name}]")))
-        .await?;
+    query(
+        "DECLARE @sql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(@p1); \
+         EXEC sp_executesql @sql;",
+    )
+    .bind(&db_name)
+    .execute(&mut *conn)
+    .await?;
 
     eprintln!("created database {db_name}");
 
@@ -169,15 +177,19 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Mssql>, Error> {
 }
 
 async fn do_cleanup(conn: &mut MssqlConnection, db_name: &str) -> Result<(), Error> {
-    let escaped = db_name.replace('\'', "''").replace(']', "]]");
-    let drop_sql = format!(
-        "IF DB_ID('{escaped}') IS NOT NULL \
+    query(
+        "IF DB_ID(@p1) IS NOT NULL \
          BEGIN \
-             ALTER DATABASE [{escaped}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; \
-             DROP DATABASE [{escaped}]; \
-         END"
-    );
-    conn.execute(AssertSqlSafe(drop_sql)).await?;
+             DECLARE @sql NVARCHAR(MAX); \
+             SET @sql = N'ALTER DATABASE ' + QUOTENAME(@p1) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE'; \
+             EXEC sp_executesql @sql; \
+             SET @sql = N'DROP DATABASE ' + QUOTENAME(@p1); \
+             EXEC sp_executesql @sql; \
+         END",
+    )
+    .bind(db_name)
+    .execute(&mut *conn)
+    .await?;
     query("DELETE FROM _sqlx_test_databases WHERE db_name = @p1")
         .bind(db_name)
         .execute(&mut *conn)

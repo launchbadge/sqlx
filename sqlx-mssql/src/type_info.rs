@@ -51,9 +51,8 @@ pub(crate) fn type_name_for_tiberius(col_type: &tiberius::ColumnType) -> &'stati
         tiberius::ColumnType::Float8 => "FLOAT",
         tiberius::ColumnType::Datetime | tiberius::ColumnType::Datetimen => "DATETIME",
         tiberius::ColumnType::Datetime2 => "DATETIME2",
-        tiberius::ColumnType::Datetime4 | tiberius::ColumnType::DatetimeOffsetn => {
-            "DATETIMEOFFSET"
-        }
+        tiberius::ColumnType::Datetime4 => "SMALLDATETIME",
+        tiberius::ColumnType::DatetimeOffsetn => "DATETIMEOFFSET",
         tiberius::ColumnType::Daten => "DATE",
         tiberius::ColumnType::Timen => "TIME",
         tiberius::ColumnType::Decimaln | tiberius::ColumnType::Numericn => "DECIMAL",

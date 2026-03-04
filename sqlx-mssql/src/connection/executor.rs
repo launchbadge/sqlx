@@ -223,9 +223,15 @@ impl MssqlConnection {
                         if v.is_sign_negative() {
                             value = -value;
                         }
+                        let scale = v.scale();
+                        if scale > 37 {
+                            return Err(Error::Encode(
+                                format!("rust_decimal scale {scale} exceeds SQL Server maximum of 37").into(),
+                            ));
+                        }
                         query.bind(tiberius::numeric::Numeric::new_with_scale(
                             value,
-                            v.scale() as u8,
+                            scale as u8,
                         ));
                     }
                     #[cfg(feature = "time")]
