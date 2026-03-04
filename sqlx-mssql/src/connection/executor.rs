@@ -77,6 +77,44 @@ fn offset_minutes_to_i16(offset_minutes: i32) -> Result<i16, Error> {
     }
 }
 
+/// Convert a `BigDecimal` into the `(i128, u8)` pair that
+/// `tiberius::numeric::Numeric::new_with_scale` expects.
+///
+/// Handles two edge cases:
+/// - **Negative exponents** (e.g. `BigDecimal(9, -3)` = 9000): rescales to
+///   exponent 0 so SQL Server receives the correct magnitude.
+/// - **Scale > 37**: SQL Server NUMERIC max scale is 37, and tiberius
+///   asserts `scale < 38`. Returns `Error::Encode` instead of panicking.
+#[cfg(feature = "bigdecimal")]
+fn bigdecimal_to_numeric(v: &bigdecimal::BigDecimal) -> Result<(i128, u8), Error> {
+    use bigdecimal::ToPrimitive;
+
+    let (bigint, exponent) = v.as_bigint_and_exponent();
+    let (bigint, exponent) = if exponent < 0 {
+        v.with_scale(0).into_bigint_and_exponent()
+    } else {
+        (bigint, exponent)
+    };
+
+    if exponent > 37 {
+        return Err(Error::Encode(
+            format!(
+                "BigDecimal scale {exponent} exceeds SQL Server maximum of 37"
+            )
+            .into(),
+        ));
+    }
+    let scale = exponent as u8;
+
+    let value: i128 = bigint.to_i128().ok_or_else(|| {
+        Error::Encode(
+            format!("BigDecimal value too large for SQL NUMERIC: {v}").into(),
+        )
+    })?;
+
+    Ok((value, scale))
+}
+
 impl MssqlConnection {
     /// Execute a query, eagerly collecting all results.
     ///
@@ -260,22 +298,7 @@ impl MssqlConnection {
                     }
                     #[cfg(feature = "bigdecimal")]
                     MssqlArgumentValue::BigDecimal(v) => {
-                        use bigdecimal::ToPrimitive;
-                        // Convert BigDecimal to tiberius Numeric
-                        let (bigint, exponent) = v.as_bigint_and_exponent();
-                        let scale = exponent.max(0);
-                        if scale > 38 {
-                            return Err(Error::Encode(
-                                format!("BigDecimal scale {scale} exceeds SQL Server maximum of 38").into(),
-                            ));
-                        }
-                        let scale = scale as u8;
-                        // Convert to i128 for Numeric
-                        let value: i128 = bigint.to_i128().ok_or_else(|| {
-                            Error::Encode(
-                                format!("BigDecimal value too large for SQL NUMERIC: {v}").into(),
-                            )
-                        })?;
+                        let (value, scale) = bigdecimal_to_numeric(&v)?;
                         let cd = tiberius::ColumnData::Numeric(Some(
                             tiberius::numeric::Numeric::new_with_scale(value, scale),
                         ));
@@ -650,5 +673,104 @@ mod tests {
     fn offset_minutes_i16_overflow() {
         let err = offset_minutes_to_i16(i32::MAX).unwrap_err();
         assert!(matches!(err, Error::Encode(_)));
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn positive_scale_simple() {
+        // 123.45 → bigint=12345, exponent=2 → scale=2
+        let bd = bigdecimal::BigDecimal::from_str("123.45").unwrap();
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, 12345);
+        assert_eq!(scale, 2);
+    }
+
+    #[test]
+    fn zero_scale() {
+        // 42 → bigint=42, exponent=0 → scale=0
+        let bd = bigdecimal::BigDecimal::from_str("42").unwrap();
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, 42);
+        assert_eq!(scale, 0);
+    }
+
+    #[test]
+    fn negative_exponent_rescales() {
+        // Explicitly construct BigDecimal(123, -3) = 123 * 10^3 = 123000.
+        // This is the internal form that triggers the negative-exponent path.
+        let bd = bigdecimal::BigDecimal::new(123.into(), -3);
+        let (bigint_raw, exp_raw) = bd.as_bigint_and_exponent();
+        assert_eq!(exp_raw, -3, "precondition: exponent must be negative");
+        assert_eq!(bigint_raw, 123.into(), "precondition: raw bigint is 123");
+
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        // After rescaling: 123000 with scale 0
+        assert_eq!(value, 123000);
+        assert_eq!(scale, 0);
+    }
+
+    #[test]
+    fn negative_exponent_large_magnitude() {
+        // 5e10 = 50_000_000_000 → internally (5, -10)
+        let bd = bigdecimal::BigDecimal::from_str("5e10").unwrap();
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, 50_000_000_000);
+        assert_eq!(scale, 0);
+    }
+
+    #[test]
+    fn scale_at_max_37() {
+        // Scale exactly 37 is the maximum tiberius allows
+        let bd = bigdecimal::BigDecimal::new(1.into(), 37);
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, 1);
+        assert_eq!(scale, 37);
+    }
+
+    #[test]
+    fn scale_38_rejected() {
+        // Scale 38 triggers tiberius assert!(scale < 38); must be rejected
+        let bd = bigdecimal::BigDecimal::new(1.into(), 38);
+        let err = bigdecimal_to_numeric(&bd).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn scale_39_rejected() {
+        let bd = bigdecimal::BigDecimal::new(1.into(), 39);
+        let err = bigdecimal_to_numeric(&bd).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn scale_256_rejected_not_truncated() {
+        // The original bug: `as u8` would silently truncate 256 → 0.
+        // Must return an error, not scale=0.
+        let bd = bigdecimal::BigDecimal::new(1.into(), 256);
+        let err = bigdecimal_to_numeric(&bd).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn negative_value() {
+        // -99.9 → bigint=-999, scale=1
+        let bd = bigdecimal::BigDecimal::from_str("-99.9").unwrap();
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, -999);
+        assert_eq!(scale, 1);
+    }
+
+    #[test]
+    fn zero_value() {
+        let bd = bigdecimal::BigDecimal::from_str("0").unwrap();
+        let (value, scale) = bigdecimal_to_numeric(&bd).unwrap();
+        assert_eq!(value, 0);
+        assert_eq!(scale, 0);
     }
 }
