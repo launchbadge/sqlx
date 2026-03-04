@@ -57,6 +57,26 @@ fn days_since_epoch_to_u32(days: i64) -> Result<u32, Error> {
         })
 }
 
+/// Convert a signed offset-in-minutes to `i16`, returning
+/// `Error::Encode` if outside the SQL Server range (-840..=840).
+#[cfg(any(feature = "chrono", feature = "time"))]
+fn offset_minutes_to_i16(offset_minutes: i32) -> Result<i16, Error> {
+    const MIN_OFFSET: i32 = -840;
+    const MAX_OFFSET: i32 = 840;
+    if (MIN_OFFSET..=MAX_OFFSET).contains(&offset_minutes) {
+        // -840..=840 fits in i16, so this cast is infallible.
+        Ok(offset_minutes as i16)
+    } else {
+        Err(Error::Encode(
+            format!(
+                "timezone offset out of range for SQL Server: {offset_minutes} minutes \
+                 (must be {MIN_OFFSET}..={MAX_OFFSET})"
+            )
+            .into(),
+        ))
+    }
+}
+
 impl MssqlConnection {
     /// Execute a query, eagerly collecting all results.
     ///
@@ -146,7 +166,7 @@ impl MssqlConnection {
                         let cd = tiberius::ColumnData::DateTimeOffset(Some(
                             tiberius::time::DateTimeOffset::new(
                                 dt2,
-                                offset_minutes as i16,
+                                offset_minutes_to_i16(offset_minutes)?,
                             ),
                         ));
                         query.bind(ColumnDataWrapper(cd));
@@ -233,7 +253,7 @@ impl MssqlConnection {
                         let cd = tiberius::ColumnData::DateTimeOffset(Some(
                             tiberius::time::DateTimeOffset::new(
                                 dt2,
-                                offset_minutes as i16,
+                                offset_minutes_to_i16(offset_minutes)?,
                             ),
                         ));
                         query.bind(ColumnDataWrapper(cd));
@@ -595,5 +615,34 @@ mod tests {
     #[test]
     fn days_since_epoch_at_max() {
         assert_eq!(days_since_epoch_to_u32(i64::from(MAX_DAYS)).unwrap(), MAX_DAYS);
+    }
+
+    #[test]
+    fn offset_minutes_zero() {
+        assert_eq!(offset_minutes_to_i16(0).unwrap(), 0);
+    }
+
+    #[test]
+    fn offset_minutes_positive_max() {
+        assert_eq!(offset_minutes_to_i16(840).unwrap(), 840);
+    }
+
+    #[test]
+    fn offset_minutes_negative_max() {
+        assert_eq!(offset_minutes_to_i16(-840).unwrap(), -840);
+    }
+
+    #[test]
+    fn offset_minutes_out_of_sql_range() {
+        let err = offset_minutes_to_i16(841).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+        let err = offset_minutes_to_i16(-841).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
+    }
+
+    #[test]
+    fn offset_minutes_i16_overflow() {
+        let err = offset_minutes_to_i16(i32::MAX).unwrap_err();
+        assert!(matches!(err, Error::Encode(_)));
     }
 }
