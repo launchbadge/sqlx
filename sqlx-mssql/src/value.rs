@@ -115,26 +115,30 @@ impl<'r> ValueRef<'r> for MssqlValueRef<'r> {
 
 /// Convert a `tiberius::ColumnData` into our owned `MssqlData`.
 pub(crate) fn column_data_to_mssql_data(
-    data: &tiberius::ColumnData<'_>,
+    data: tiberius::ColumnData<'_>,
 ) -> Result<MssqlData, Error> {
     match data {
-        tiberius::ColumnData::U8(Some(v)) => Ok(MssqlData::U8(*v)),
-        tiberius::ColumnData::I16(Some(v)) => Ok(MssqlData::I16(*v)),
-        tiberius::ColumnData::I32(Some(v)) => Ok(MssqlData::I32(*v)),
-        tiberius::ColumnData::I64(Some(v)) => Ok(MssqlData::I64(*v)),
-        tiberius::ColumnData::F32(Some(v)) => Ok(MssqlData::F32(*v)),
-        tiberius::ColumnData::F64(Some(v)) => Ok(MssqlData::F64(*v)),
-        tiberius::ColumnData::Bit(Some(v)) => Ok(MssqlData::Bool(*v)),
-        tiberius::ColumnData::String(Some(v)) => Ok(MssqlData::String(v.to_string())),
-        tiberius::ColumnData::Binary(Some(v)) => Ok(MssqlData::Binary(v.to_vec())),
+        tiberius::ColumnData::U8(Some(v)) => Ok(MssqlData::U8(v)),
+        tiberius::ColumnData::I16(Some(v)) => Ok(MssqlData::I16(v)),
+        tiberius::ColumnData::I32(Some(v)) => Ok(MssqlData::I32(v)),
+        tiberius::ColumnData::I64(Some(v)) => Ok(MssqlData::I64(v)),
+        tiberius::ColumnData::F32(Some(v)) => Ok(MssqlData::F32(v)),
+        tiberius::ColumnData::F64(Some(v)) => Ok(MssqlData::F64(v)),
+        tiberius::ColumnData::Bit(Some(v)) => Ok(MssqlData::Bool(v)),
+        tiberius::ColumnData::String(Some(v)) => Ok(MssqlData::String(v.into_owned())),
+        tiberius::ColumnData::Binary(Some(v)) => Ok(MssqlData::Binary(v.into_owned())),
+        tiberius::ColumnData::Xml(Some(xml)) => {
+            Ok(MssqlData::String(xml.into_owned().into_string()))
+        }
 
         #[cfg(feature = "chrono")]
         tiberius::ColumnData::DateTime2(Some(dt2)) => {
             let date = chrono_date_from_days(dt2.date().days() as i64, 1)?;
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
+            let t = dt2.time();
             #[allow(clippy::cast_possible_wrap)]
-            let ns = dt2.time().increments() as i64
-                * 10i64.pow(9u32.saturating_sub(dt2.time().scale() as u32));
+            let ns = t.increments() as i64
+                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
@@ -169,8 +173,8 @@ pub(crate) fn column_data_to_mssql_data(
         tiberius::ColumnData::Time(Some(t)) => {
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
             #[allow(clippy::cast_possible_wrap)]
-            let ns =
-                t.increments() as i64 * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() as i64
+                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
@@ -180,9 +184,10 @@ pub(crate) fn column_data_to_mssql_data(
         tiberius::ColumnData::DateTimeOffset(Some(dto)) => {
             let date = chrono_date_from_days(dto.datetime2().date().days() as i64, 1)?;
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
+            let t = dto.datetime2().time();
             #[allow(clippy::cast_possible_wrap)]
-            let ns = dto.datetime2().time().increments() as i64
-                * 10i64.pow(9u32.saturating_sub(dto.datetime2().time().scale() as u32));
+            let ns = t.increments() as i64
+                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
@@ -202,7 +207,7 @@ pub(crate) fn column_data_to_mssql_data(
         }
 
         #[cfg(feature = "uuid")]
-        tiberius::ColumnData::Guid(Some(v)) => Ok(MssqlData::Uuid(*v)),
+        tiberius::ColumnData::Guid(Some(v)) => Ok(MssqlData::Uuid(v)),
 
         #[cfg(feature = "rust_decimal")]
         tiberius::ColumnData::Numeric(Some(n)) => {
@@ -225,8 +230,9 @@ pub(crate) fn column_data_to_mssql_data(
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::DateTime2(Some(dt2)) => {
             let date = time_date_from_days(i64::from(dt2.date().days()), 1)?;
-            let ns = dt2.time().increments()
-                * 10u64.pow(9u32.saturating_sub(dt2.time().scale() as u32));
+            let t = dt2.time();
+            let ns = t.increments()
+                * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
             let time = time_from_sec_fragments(ns)?;
             Ok(MssqlData::TimePrimitiveDateTime(time::PrimitiveDateTime::new(date, time)))
         }
@@ -247,8 +253,9 @@ pub(crate) fn column_data_to_mssql_data(
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::DateTimeOffset(Some(dto)) => {
             let date = time_date_from_days(i64::from(dto.datetime2().date().days()), 1)?;
-            let ns = dto.datetime2().time().increments()
-                * 10u64.pow(9u32.saturating_sub(dto.datetime2().time().scale() as u32));
+            let t = dto.datetime2().time();
+            let ns = t.increments()
+                * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
             let time = time_from_sec_fragments(ns)?;
             let naive = time::PrimitiveDateTime::new(date, time);
             let offset_secs = dto.offset() as i32 * 60;
@@ -287,10 +294,21 @@ pub(crate) fn column_data_to_mssql_data(
         | tiberius::ColumnData::Date(None)
         | tiberius::ColumnData::Time(None) => Ok(MssqlData::Null),
 
-        // Unhandled Some(...) variant — real data the driver can't convert
+        // Unhandled Some(...) variant — real data the driver can't convert.
+        // Currently unreachable with all features enabled, but kept for forward
+        // compatibility when tiberius adds new variants.
+        #[allow(unreachable_patterns)]
         other => {
             let debug = format!("{other:?}");
-            let truncated = if debug.len() > 200 { &debug[..200] } else { &debug };
+            let truncated = if debug.len() > 200 {
+                let mut end = 200;
+                while !debug.is_char_boundary(end) {
+                    end -= 1;
+                }
+                &debug[..end]
+            } else {
+                &debug
+            };
             Err(Error::Protocol(format!(
                 "unsupported tiberius ColumnData variant: {truncated}"
             )))

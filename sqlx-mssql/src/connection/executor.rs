@@ -194,9 +194,9 @@ impl MssqlConnection {
                         let naive = v.naive_local();
                         let days = days_since_epoch_to_u32((naive.date() - epoch).num_days())?;
                         let time = naive.time();
-                        let total_ns = time.num_seconds_from_midnight() as u64
+                        let total_ns = u64::from(time.num_seconds_from_midnight())
                             * 1_000_000_000
-                            + (time.nanosecond() as u64 % 1_000_000_000);
+                            + (u64::from(time.nanosecond()) % 1_000_000_000);
                         let increments = total_ns / 100;
                         let offset_minutes =
                             v.offset().local_minus_utc() / 60;
@@ -254,10 +254,10 @@ impl MssqlConnection {
                     #[cfg(feature = "time")]
                     MssqlArgumentValue::TimeTime(v) => {
                         let (h, m, s, ns) = v.as_hms_nano();
-                        let total_ns = h as u64 * 3_600_000_000_000
-                            + m as u64 * 60_000_000_000
-                            + s as u64 * 1_000_000_000
-                            + ns as u64;
+                        let total_ns = u64::from(h) * 3_600_000_000_000
+                            + u64::from(m) * 60_000_000_000
+                            + u64::from(s) * 1_000_000_000
+                            + u64::from(ns);
                         // Scale 7 = 100ns increments
                         let increments = total_ns / 100;
                         let cd = tiberius::ColumnData::Time(Some(
@@ -272,10 +272,10 @@ impl MssqlConnection {
                         let epoch = time::Date::from_ordinal_date(1, 1).unwrap();
                         let days = days_since_epoch_to_u32((date - epoch).whole_days())?;
                         let (h, m, s, ns) = time.as_hms_nano();
-                        let total_ns = h as u64 * 3_600_000_000_000
-                            + m as u64 * 60_000_000_000
-                            + s as u64 * 1_000_000_000
-                            + ns as u64;
+                        let total_ns = u64::from(h) * 3_600_000_000_000
+                            + u64::from(m) * 60_000_000_000
+                            + u64::from(s) * 1_000_000_000
+                            + u64::from(ns);
                         let increments = total_ns / 100;
                         let cd = tiberius::ColumnData::DateTime2(Some(
                             tiberius::time::DateTime2::new(
@@ -293,10 +293,10 @@ impl MssqlConnection {
                         let time = v.time();
                         let days = days_since_epoch_to_u32((date - epoch).whole_days())?;
                         let (h, m, s, ns) = time.as_hms_nano();
-                        let total_ns = h as u64 * 3_600_000_000_000
-                            + m as u64 * 60_000_000_000
-                            + s as u64 * 1_000_000_000
-                            + ns as u64;
+                        let total_ns = u64::from(h) * 3_600_000_000_000
+                            + u64::from(m) * 60_000_000_000
+                            + u64::from(s) * 1_000_000_000
+                            + u64::from(ns);
                         let increments = total_ns / 100;
                         let dt2 = tiberius::time::DateTime2::new(
                             tiberius::time::Date::new(days),
@@ -390,7 +390,7 @@ async fn collect_results(
                 // Convert tiberius row to MssqlRow by iterating over cells
                 let values: Vec<MssqlData> = row
                     .into_iter()
-                    .map(|data| column_data_to_mssql_data(&data))
+                    .map(column_data_to_mssql_data)
                     .collect::<Result<Vec<_>, _>>()?;
 
                 rows_affected += 1;
