@@ -46,7 +46,7 @@ impl MssqlConnectOptions {
             );
         }
 
-        for (key, value) in url.query_pairs().into_iter() {
+        for (key, value) in url.query_pairs() {
             match &*key {
                 "sslmode" | "ssl_mode" => {
                     options = options.ssl_mode(match &*value {

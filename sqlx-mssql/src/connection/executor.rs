@@ -15,7 +15,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 use sqlx_core::column::{ColumnOrigin, TableColumn};
-use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr, SqlStr};
+use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr as _, SqlStr};
 use std::sync::Arc;
 
 /// Newtype wrapper to bridge `tiberius::ColumnData` into `tiberius::IntoSql`.
@@ -64,7 +64,8 @@ fn offset_minutes_to_i16(offset_minutes: i32) -> Result<i16, Error> {
     const MIN_OFFSET: i32 = -840;
     const MAX_OFFSET: i32 = 840;
     if (MIN_OFFSET..=MAX_OFFSET).contains(&offset_minutes) {
-        // -840..=840 fits in i16, so this cast is infallible.
+        // SAFETY: range check above guarantees -840..=840, which fits in i16.
+        #[allow(clippy::cast_possible_truncation)]
         Ok(offset_minutes as i16)
     } else {
         Err(Error::Encode(
@@ -104,6 +105,8 @@ fn bigdecimal_to_numeric(v: &bigdecimal::BigDecimal) -> Result<(i128, u8), Error
             .into(),
         ));
     }
+    // SAFETY: guarded by `exponent > 37` check above; 0..=37 fits in u8.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let scale = exponent as u8;
 
     let value: i128 = bigint.to_i128().ok_or_else(|| {
@@ -216,6 +219,8 @@ impl MssqlConnection {
                     #[cfg(feature = "rust_decimal")]
                     MssqlArgumentValue::Decimal(v) => {
                         let unpacked = v.unpack();
+                        // SAFETY: rust_decimal mantissa is ≤96 bits (hi:mid:lo are u32s), fits in i128.
+                        #[allow(clippy::cast_possible_wrap)]
                         let mut value = (((unpacked.hi as u128) << 64)
                             + ((unpacked.mid as u128) << 32)
                             + unpacked.lo as u128)
@@ -229,9 +234,12 @@ impl MssqlConnection {
                                 format!("rust_decimal scale {scale} exceeds SQL Server maximum of 37").into(),
                             ));
                         }
+                        // SAFETY: guarded by `scale > 37` check above; 0..=37 fits in u8.
+                        #[allow(clippy::cast_possible_truncation)]
+                        let scale_u8 = scale as u8;
                         query.bind(tiberius::numeric::Numeric::new_with_scale(
                             value,
-                            scale as u8,
+                            scale_u8,
                         ));
                     }
                     #[cfg(feature = "time")]
@@ -304,7 +312,7 @@ impl MssqlConnection {
                     }
                     #[cfg(feature = "bigdecimal")]
                     MssqlArgumentValue::BigDecimal(v) => {
-                        let (value, scale) = bigdecimal_to_numeric(&v)?;
+                        let (value, scale) = bigdecimal_to_numeric(v)?;
                         let cd = tiberius::ColumnData::Numeric(Some(
                             tiberius::numeric::Numeric::new_with_scale(value, scale),
                         ));
@@ -331,8 +339,8 @@ impl MssqlConnection {
 }
 
 /// Collect all results from a tiberius QueryStream into a Vec.
-async fn collect_results<'a>(
-    mut stream: tiberius::QueryStream<'a>,
+async fn collect_results(
+    mut stream: tiberius::QueryStream<'_>,
     results: &mut Vec<Either<MssqlQueryResult, MssqlRow>>,
     logger: &mut QueryLogger,
 ) -> Result<(), Error> {
@@ -403,6 +411,55 @@ async fn collect_results<'a>(
     Ok(())
 }
 
+/// Build column metadata from `sp_describe_first_result_set` result rows.
+///
+/// Returns `(columns, column_names, nullable)` where `nullable` contains one
+/// `Option<bool>` per column (extracted from the `is_nullable` field).
+fn build_columns_from_describe_rows(
+    rows: &[tiberius::Row],
+) -> (Vec<MssqlColumn>, HashMap<UStr, usize>, Vec<Option<bool>>) {
+    let mut columns = Vec::with_capacity(rows.len());
+    let mut column_names = HashMap::with_capacity(rows.len());
+    let mut nullable = Vec::with_capacity(rows.len());
+
+    for (ordinal, row) in rows.iter().enumerate() {
+        let name: &str = row.get("name").unwrap_or("");
+        let type_name: &str = row.get("system_type_name").unwrap_or("UNKNOWN");
+        let type_info = MssqlTypeInfo::new(type_name.to_uppercase());
+        let is_nullable: Option<bool> = row.get("is_nullable");
+
+        let source_table: Option<&str> = row.get("source_table");
+        let source_schema: Option<&str> = row.get("source_schema");
+        let source_column: Option<&str> = row.get("source_column");
+
+        let origin = match (source_table, source_column) {
+            (Some(table), Some(col)) if !table.is_empty() && !col.is_empty() => {
+                let table_str = match source_schema {
+                    Some(s) if !s.is_empty() => format!("{s}.{table}"),
+                    _ => table.to_string(),
+                };
+                ColumnOrigin::Table(TableColumn {
+                    table: table_str.into(),
+                    name: col.into(),
+                })
+            }
+            _ => ColumnOrigin::Expression,
+        };
+
+        let ustr_name = UStr::new(name);
+        column_names.insert(ustr_name.clone(), ordinal);
+        columns.push(MssqlColumn {
+            ordinal,
+            name: ustr_name,
+            type_info,
+            origin,
+        });
+        nullable.push(is_nullable);
+    }
+
+    (columns, column_names, nullable)
+}
+
 impl<'c> Executor<'c> for &'c mut MssqlConnection {
     type Database = Mssql;
 
@@ -464,14 +521,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            // Use sp_describe_first_result_set to get column metadata
             let mut describe_query = tiberius::Query::new(
                 "EXEC sp_describe_first_result_set @tsql = @p1",
             );
             describe_query.bind(sql.as_str());
-
-            let mut columns = Vec::new();
-            let mut column_names = HashMap::new();
 
             let stream = describe_query
                 .query(&mut self.inner.client)
@@ -479,39 +532,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                 .map_err(tiberius_err)?;
 
             let rows: Vec<tiberius::Row> = stream.into_first_result().await.map_err(tiberius_err)?;
-
-            for (ordinal, row) in rows.iter().enumerate() {
-                let name: &str = row.get("name").unwrap_or("");
-                let type_name: &str = row.get("system_type_name").unwrap_or("UNKNOWN");
-                let type_info = MssqlTypeInfo::new(type_name.to_uppercase());
-
-                let source_table: Option<&str> = row.get("source_table");
-                let source_schema: Option<&str> = row.get("source_schema");
-                let source_column: Option<&str> = row.get("source_column");
-
-                let origin = match (source_table, source_column) {
-                    (Some(table), Some(col)) if !table.is_empty() && !col.is_empty() => {
-                        let table_str = match source_schema {
-                            Some(s) if !s.is_empty() => format!("{s}.{table}"),
-                            _ => table.to_string(),
-                        };
-                        ColumnOrigin::Table(TableColumn {
-                            table: table_str.into(),
-                            name: col.into(),
-                        })
-                    }
-                    _ => ColumnOrigin::Expression,
-                };
-
-                let ustr_name = UStr::new(name);
-                column_names.insert(ustr_name.clone(), ordinal);
-                columns.push(MssqlColumn {
-                    ordinal,
-                    name: ustr_name,
-                    type_info,
-                    origin,
-                });
-            }
+            let (columns, column_names, _nullable) = build_columns_from_describe_rows(&rows);
 
             Ok(MssqlStatement {
                 sql,
@@ -534,7 +555,6 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            // Query sp_describe_first_result_set directly so we can extract nullable info
             let mut describe_query = tiberius::Query::new(
                 "EXEC sp_describe_first_result_set @tsql = @p1",
             );
@@ -548,44 +568,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
             let rows: Vec<tiberius::Row> =
                 stream.into_first_result().await.map_err(tiberius_err)?;
 
-            let mut columns = Vec::new();
-            let mut column_names = HashMap::new();
-            let mut nullable = Vec::new();
-
-            for (ordinal, row) in rows.iter().enumerate() {
-                let name: &str = row.get("name").unwrap_or("");
-                let type_name: &str = row.get("system_type_name").unwrap_or("UNKNOWN");
-                let type_info = MssqlTypeInfo::new(type_name.to_uppercase());
-                let is_nullable: Option<bool> = row.get("is_nullable");
-
-                let source_table: Option<&str> = row.get("source_table");
-                let source_schema: Option<&str> = row.get("source_schema");
-                let source_column: Option<&str> = row.get("source_column");
-
-                let origin = match (source_table, source_column) {
-                    (Some(table), Some(col)) if !table.is_empty() && !col.is_empty() => {
-                        let table_str = match source_schema {
-                            Some(s) if !s.is_empty() => format!("{s}.{table}"),
-                            _ => table.to_string(),
-                        };
-                        ColumnOrigin::Table(TableColumn {
-                            table: table_str.into(),
-                            name: col.into(),
-                        })
-                    }
-                    _ => ColumnOrigin::Expression,
-                };
-
-                let ustr_name = UStr::new(name);
-                column_names.insert(ustr_name.clone(), ordinal);
-                columns.push(MssqlColumn {
-                    ordinal,
-                    name: ustr_name,
-                    type_info,
-                    origin,
-                });
-                nullable.push(is_nullable);
-            }
+            let (columns, _column_names, nullable) = build_columns_from_describe_rows(&rows);
 
             // Count parameters using sp_describe_undeclared_parameters
             let mut param_query = tiberius::Query::new(

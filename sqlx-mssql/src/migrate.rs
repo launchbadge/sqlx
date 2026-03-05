@@ -114,21 +114,24 @@ impl Migrate for MssqlConnection {
         table_name: &'e str,
     ) -> BoxFuture<'e, Result<(), MigrateError>> {
         Box::pin(async move {
-            let lit = table_name.replace('\'', "''");
             let ident = escape_table_name(table_name);
-            self.execute(AssertSqlSafe(format!(
-                r#"
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{lit}')
-CREATE TABLE {ident} (
-    version BIGINT PRIMARY KEY,
-    description NVARCHAR(MAX) NOT NULL,
-    installed_on DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    success BIT NOT NULL,
-    checksum VARBINARY(MAX) NOT NULL,
-    execution_time BIGINT NOT NULL
-);
-                "#
+            // Atomic check-and-create: the IF NOT EXISTS and CREATE TABLE run
+            // in a single batch so concurrent migrators cannot race.
+            // The WHERE clause is parameterized; the identifier must use
+            // bracket-escaping because DDL identifiers can't be parameterized.
+            query(AssertSqlSafe(format!(
+                "IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = @p1) \
+                 CREATE TABLE {ident} ( \
+                     version BIGINT PRIMARY KEY, \
+                     description NVARCHAR(MAX) NOT NULL, \
+                     installed_on DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(), \
+                     success BIT NOT NULL, \
+                     checksum VARBINARY(MAX) NOT NULL, \
+                     execution_time BIGINT NOT NULL \
+                 );"
             )))
+            .bind(table_name)
+            .execute(&mut *self)
             .await?;
 
             Ok(())

@@ -68,12 +68,12 @@ impl MssqlAdvisoryLockMode {
 /// let lock = MssqlAdvisoryLock::new("my_app_lock");
 ///
 /// // Using the RAII guard (preferred):
-/// let guard = lock.acquire_guard(conn).await?;
+/// let guard = lock.acquire_guard(&mut *conn).await?;
 /// // ... do work under the lock, using `&mut *guard` as a connection ...
 /// guard.release_now().await?;
 ///
 /// // Or manual management:
-/// lock.acquire(conn).await?;
+/// lock.acquire(&mut *conn).await?;
 /// // ... do work ...
 /// lock.release(conn).await?;
 /// # Ok(())
@@ -138,18 +138,16 @@ impl MssqlAdvisoryLock {
     /// Returns an error if `sp_getapplock` returns a negative status code
     /// (e.g. lock request was cancelled or a deadlock was detected).
     pub async fn acquire(&self, conn: &mut MssqlConnection) -> Result<(), Error> {
-        let mode = self.mode.as_str();
-        let sql = format!(
+        let status: i32 = query_scalar(
             "DECLARE @r INT; \
-             EXEC @r = sp_getapplock @Resource = @p1, @LockMode = '{mode}', \
+             EXEC @r = sp_getapplock @Resource = @p1, @LockMode = @p2, \
              @LockOwner = 'Session', @LockTimeout = -1; \
-             SELECT @r;"
-        );
-
-        let status: i32 = query_scalar(sqlx_core::sql_str::AssertSqlSafe(sql))
-            .bind(&self.resource)
-            .fetch_one(&mut *conn)
-            .await?;
+             SELECT @r;",
+        )
+        .bind(&self.resource)
+        .bind(self.mode.as_str())
+        .fetch_one(&mut *conn)
+        .await?;
 
         if status < 0 {
             return Err(Error::Protocol(format!(
@@ -167,18 +165,16 @@ impl MssqlAdvisoryLock {
     /// Returns `Ok(true)` if the lock was acquired, `Ok(false)` if it was not
     /// available (timeout).
     pub async fn try_acquire(&self, conn: &mut MssqlConnection) -> Result<bool, Error> {
-        let mode = self.mode.as_str();
-        let sql = format!(
+        let status: i32 = query_scalar(
             "DECLARE @r INT; \
-             EXEC @r = sp_getapplock @Resource = @p1, @LockMode = '{mode}', \
+             EXEC @r = sp_getapplock @Resource = @p1, @LockMode = @p2, \
              @LockOwner = 'Session', @LockTimeout = 0; \
-             SELECT @r;"
-        );
-
-        let status: i32 = query_scalar(sqlx_core::sql_str::AssertSqlSafe(sql))
-            .bind(&self.resource)
-            .fetch_one(&mut *conn)
-            .await?;
+             SELECT @r;",
+        )
+        .bind(&self.resource)
+        .bind(self.mode.as_str())
+        .fetch_one(&mut *conn)
+        .await?;
 
         if status >= 0 {
             // 0 = granted synchronously, 1 = granted after wait

@@ -21,7 +21,7 @@ impl MssqlArguments {
         let is_null = value.encode(&mut self.values)?;
         if is_null.is_null() {
             // If the encoder signaled null but didn't push a value, push a Null
-            if self.values.last().map_or(true, |v| !matches!(v, MssqlArgumentValue::Null)) {
+            if self.values.last().is_none_or(|v| !matches!(v, MssqlArgumentValue::Null)) {
                 self.values.push(MssqlArgumentValue::Null);
             }
         }

@@ -94,7 +94,7 @@ impl TestSupport for Mssql {
     }
 
     async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {
-        todo!()
+        Err(Error::Configuration("snapshots are not yet supported for MSSQL".into()))
     }
 }
 

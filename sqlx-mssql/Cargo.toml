@@ -55,7 +55,6 @@ either = "1.6.1"
 log = "0.4.18"
 tracing = { version = "0.1.37", features = ["log"] }
 percent-encoding = "2.1.0"
-atoi = "2.0"
 
 dotenvy.workspace = true
 thiserror.workspace = true

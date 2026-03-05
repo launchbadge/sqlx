@@ -30,7 +30,7 @@ impl MssqlDatabaseError {
         self.class
     }
 
-    /// The human-readable error message.
+    /// The server name that generated the error, if available.
     pub fn server(&self) -> Option<&str> {
         self.server.as_deref()
     }

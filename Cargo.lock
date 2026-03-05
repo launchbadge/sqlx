@@ -4179,7 +4179,6 @@ name = "sqlx-mssql"
 version = "0.9.0-alpha.1"
 dependencies = [
  "async-std",
- "atoi",
  "bigdecimal 0.4.8",
  "bytes",
  "chrono",

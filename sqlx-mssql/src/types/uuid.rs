@@ -54,8 +54,7 @@ impl Encode<'_, Mssql> for uuid::fmt::Hyphenated {
         &self,
         buf: &mut Vec<MssqlArgumentValue>,
     ) -> Result<IsNull, BoxDynError> {
-        let uuid = Uuid::parse_str(&self.to_string())?;
-        buf.push(MssqlArgumentValue::Uuid(uuid));
+        buf.push(MssqlArgumentValue::Uuid(*self.as_uuid()));
         Ok(IsNull::No)
     }
 }
