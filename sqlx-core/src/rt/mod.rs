@@ -1,11 +1,10 @@
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 use cfg_if::cfg_if;
-use futures_core::Stream;
 use pin_project_lite::pin_project;
 
 #[cfg(feature = "_rt-async-io")]
@@ -180,6 +179,8 @@ impl Interval {
     pub fn poll_tick(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Instant> {
         cfg_if! {
             if #[cfg(any(feature = "_rt-tokio", feature = "_rt-async-io"))] {
+                use std::task::ready;
+
                  match self.project() {
                     #[cfg(feature = "_rt-tokio")]
                     IntervalProjected::Tokio { mut sleep, period  } => {
@@ -190,6 +191,8 @@ impl Interval {
                     }
                     #[cfg(feature = "_rt-async-io")]
                     IntervalProjected::AsyncIo { mut timer } => {
+                        use futures_core::Stream;
+
                         Poll::Ready(ready!(timer
                             .as_mut()
                             .poll_next(cx))
