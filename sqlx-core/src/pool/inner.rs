@@ -33,6 +33,9 @@ pub(crate) struct PoolInner<DB: Database> {
     pub(super) options: PoolOptions<DB>,
     pub(crate) acquire_time_level: Option<Level>,
     pub(crate) acquire_slow_level: Option<Level>,
+    /// Counter for phantom-permit retries, used by tests to verify backoff behavior.
+    #[cfg(test)]
+    pub(super) phantom_retries: AtomicU32,
 }
 
 impl<DB: Database> PoolInner<DB> {
@@ -62,6 +65,8 @@ impl<DB: Database> PoolInner<DB> {
             acquire_time_level: private_level_filter_to_trace_level(options.acquire_time_level),
             acquire_slow_level: private_level_filter_to_trace_level(options.acquire_slow_level),
             options,
+            #[cfg(test)]
+            phantom_retries: AtomicU32::new(0),
         };
 
         let pool = Arc::new(pool);
@@ -293,6 +298,8 @@ impl<DB: Database> PoolInner<DB> {
                             // repeated phantom permit acquisitions. The backoff also gives
                             // time for checked-out connections to be returned to the pool.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
+                            #[cfg(test)]
+                            self.phantom_retries.fetch_add(1, Ordering::Relaxed);
                             let backoff = Duration::from_millis(1 << cmp::min(backoff_count, 8));
                             crate::rt::sleep(backoff).await;
                             backoff_count += 1;

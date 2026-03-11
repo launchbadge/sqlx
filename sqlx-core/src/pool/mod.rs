@@ -671,6 +671,7 @@ fn assert_pool_traits() {
 #[cfg(all(feature = "any", feature = "_rt-tokio"))]
 mod phantom_permit_tests {
     use super::*;
+    use std::sync::atomic::Ordering as AtomicOrdering;
     use std::time::{Duration, Instant};
 
     /// Reproduces the phantom permit spin loop that occurs on ARM/aarch64.
@@ -687,13 +688,16 @@ mod phantom_permit_tests {
     ///   4. drop permit (re-released to semaphore)
     ///   5. goto 1
     ///
-    /// This test synthetically injects phantom permits and verifies that
-    /// `acquire()` times out cleanly via exponential backoff rather than
-    /// spinning at 100% CPU.
+    /// With the old `yield_now()` code, this loop would execute millions of
+    /// times per second, consuming 100% CPU. With exponential backoff
+    /// (1ms, 2ms, 4ms, ..., 256ms cap), only ~15 retries occur in 2 seconds.
+    ///
+    /// This test synthetically injects phantom permits and asserts on the
+    /// retry count to verify that backoff is working.
     ///
     /// Run with: cargo test -p sqlx-core --features _rt-tokio,any phantom_permit
     #[test]
-    fn test_phantom_permit_backoff_does_not_spin() {
+    fn test_phantom_permit_backoff_limits_retries() {
         use crate::any::{Any, AnyConnectOptions};
 
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -720,13 +724,8 @@ mod phantom_permit_tests {
             assert_eq!(pool.0.num_idle(), 0);
             assert!(pool.0.semaphore.permits() >= 4);
 
-            // With the old yield_now() code, this loop would execute millions
-            // of times per second, consuming 100% CPU. With exponential backoff,
-            // it should execute only ~15 times (1+2+4+8+...+256ms per iteration)
-            // before the 2-second acquire_timeout expires.
             let start = Instant::now();
             let result = pool.0.acquire().await;
-
             let elapsed = start.elapsed();
 
             // Must return PoolTimedOut, not spin forever.
@@ -737,62 +736,29 @@ mod phantom_permit_tests {
             );
 
             // The acquire should have taken roughly `acquire_timeout` wall time.
-            // If it completed much faster, something is wrong.
-            // If it were spinning with yield_now, it would still take
-            // acquire_timeout but at 100% CPU.
             assert!(
                 elapsed >= acquire_timeout - Duration::from_millis(100),
                 "acquire returned too quickly ({elapsed:?}), expected ~{acquire_timeout:?}"
             );
-        });
-    }
 
-    /// Verify that CPU is not consumed during backoff.
-    ///
-    /// Runs `acquire()` on phantom permits and measures thread CPU time.
-    /// With exponential backoff, the thread should be sleeping most of the
-    /// time, so CPU time should be a small fraction of wall time.
-    #[test]
-    fn test_phantom_permit_backoff_low_cpu_usage() {
-        use crate::any::{Any, AnyConnectOptions};
-
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        rt.block_on(async {
-            let conn_options: AnyConnectOptions = "sqlite::memory:".parse().unwrap();
-
-            let acquire_timeout = Duration::from_secs(2);
-            let pool = PoolOptions::<Any>::new()
-                .max_connections(4)
-                .acquire_timeout(acquire_timeout)
-                .connect_lazy_with(conn_options);
-
-            pool.0.inject_phantom_permits(4);
-
-            // Measure wall-clock time for acquire to timeout.
-            let wall_start = Instant::now();
-            let _ = pool.0.acquire().await;
-            let wall_elapsed = wall_start.elapsed();
-
-            // With backoff, most of the 2 seconds should be spent sleeping.
-            // The actual computation (acquire permit, pop idle, try increment)
-            // is trivial — well under 10ms total across all iterations.
+            // KEY ASSERTION: With exponential backoff (1+2+4+8+16+32+64+128+256+256+...ms),
+            // roughly 12-16 retries fit in 2 seconds. With the old yield_now() code,
+            // this would be millions of retries (yield_now returns in ~nanoseconds).
             //
-            // We can't easily measure thread CPU time portably, but we can
-            // verify the wall time is close to acquire_timeout (not truncated
-            // by a panic or unexpected early return).
+            // We use 100 as a generous upper bound that still catches a spin loop.
+            let retries = pool.0.phantom_retries.load(AtomicOrdering::Relaxed);
             assert!(
-                wall_elapsed >= Duration::from_millis(1900),
-                "acquire completed too quickly: {wall_elapsed:?}, \
-                 expected ~2s (backoff should fill the timeout)"
+                retries < 100,
+                "too many phantom permit retries ({retries}): \
+                 acquire loop is spinning instead of backing off. \
+                 With yield_now() this would be millions; with backoff, ~15."
             );
+
+            // Sanity check: we did actually retry (not just timeout immediately).
             assert!(
-                wall_elapsed < Duration::from_millis(3000),
-                "acquire took too long: {wall_elapsed:?}, \
-                 expected ~2s (may indicate a deadlock)"
+                retries >= 5,
+                "too few retries ({retries}): backoff may be too aggressive \
+                 or the test setup is wrong"
             );
         });
     }
