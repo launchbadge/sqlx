@@ -633,3 +633,21 @@ impl<DB: Database> Drop for DecrementSizeGuard<DB> {
         }
     }
 }
+
+#[cfg(test)]
+impl<DB: Database> PoolInner<DB> {
+    /// Simulate the "phantom permit" condition that can occur on ARM/aarch64
+    /// due to weak memory ordering between `idle_conns.push()` and `semaphore.release()`
+    /// in the `release()` path.
+    ///
+    /// Sets `size` to `max_connections` and injects extra semaphore permits that
+    /// don't correspond to any idle connection, reproducing the state where
+    /// `acquire()` would spin in a tight loop with the old `yield_now()` code.
+    pub(super) fn inject_phantom_permits(&self, count: usize) {
+        // Set pool size to max so try_increment_size() will fail.
+        self.size
+            .store(self.options.max_connections, Ordering::Release);
+        // Add permits that don't correspond to idle connections.
+        self.semaphore.release(count);
+    }
+}

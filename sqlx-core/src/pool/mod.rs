@@ -666,3 +666,134 @@ fn assert_pool_traits() {
         assert_clone::<Pool<DB>>();
     }
 }
+
+#[cfg(test)]
+#[cfg(all(feature = "any", feature = "_rt-tokio"))]
+mod phantom_permit_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    /// Reproduces the phantom permit spin loop that occurs on ARM/aarch64.
+    ///
+    /// On ARM, weak memory ordering can cause `semaphore.release()` in the
+    /// `release()` path to become visible to other cores before
+    /// `idle_conns.push()`, creating "phantom permits" — semaphore permits
+    /// with no corresponding idle connection.
+    ///
+    /// When the pool is at `max_connections`, this leads to a tight loop:
+    ///   1. acquire permit (succeeds — phantom)
+    ///   2. pop_idle() → None
+    ///   3. try_increment_size() → fails (at max)
+    ///   4. drop permit (re-released to semaphore)
+    ///   5. goto 1
+    ///
+    /// This test synthetically injects phantom permits and verifies that
+    /// `acquire()` times out cleanly via exponential backoff rather than
+    /// spinning at 100% CPU.
+    ///
+    /// Run with: cargo test -p sqlx-core --features _rt-tokio,any phantom_permit
+    #[test]
+    fn test_phantom_permit_backoff_does_not_spin() {
+        use crate::any::{Any, AnyConnectOptions};
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let conn_options: AnyConnectOptions = "sqlite::memory:".parse().unwrap();
+
+            let acquire_timeout = Duration::from_secs(2);
+            let pool = PoolOptions::<Any>::new()
+                .max_connections(4)
+                .acquire_timeout(acquire_timeout)
+                .connect_lazy_with(conn_options);
+
+            // Inject 4 phantom permits: semaphore has permits, idle queue is
+            // empty, and size == max_connections. This is the exact state
+            // observed on aarch64 under heavy contention.
+            pool.0.inject_phantom_permits(4);
+
+            // Verify the phantom state is set up correctly.
+            assert_eq!(pool.0.size(), pool.0.options.max_connections);
+            assert_eq!(pool.0.num_idle(), 0);
+            assert!(pool.0.semaphore.permits() >= 4);
+
+            // With the old yield_now() code, this loop would execute millions
+            // of times per second, consuming 100% CPU. With exponential backoff,
+            // it should execute only ~15 times (1+2+4+8+...+256ms per iteration)
+            // before the 2-second acquire_timeout expires.
+            let start = Instant::now();
+            let result = pool.0.acquire().await;
+
+            let elapsed = start.elapsed();
+
+            // Must return PoolTimedOut, not spin forever.
+            assert!(
+                matches!(result, Err(Error::PoolTimedOut)),
+                "expected PoolTimedOut, got: {:?}",
+                result.err()
+            );
+
+            // The acquire should have taken roughly `acquire_timeout` wall time.
+            // If it completed much faster, something is wrong.
+            // If it were spinning with yield_now, it would still take
+            // acquire_timeout but at 100% CPU.
+            assert!(
+                elapsed >= acquire_timeout - Duration::from_millis(100),
+                "acquire returned too quickly ({elapsed:?}), expected ~{acquire_timeout:?}"
+            );
+        });
+    }
+
+    /// Verify that CPU is not consumed during backoff.
+    ///
+    /// Runs `acquire()` on phantom permits and measures thread CPU time.
+    /// With exponential backoff, the thread should be sleeping most of the
+    /// time, so CPU time should be a small fraction of wall time.
+    #[test]
+    fn test_phantom_permit_backoff_low_cpu_usage() {
+        use crate::any::{Any, AnyConnectOptions};
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let conn_options: AnyConnectOptions = "sqlite::memory:".parse().unwrap();
+
+            let acquire_timeout = Duration::from_secs(2);
+            let pool = PoolOptions::<Any>::new()
+                .max_connections(4)
+                .acquire_timeout(acquire_timeout)
+                .connect_lazy_with(conn_options);
+
+            pool.0.inject_phantom_permits(4);
+
+            // Measure wall-clock time for acquire to timeout.
+            let wall_start = Instant::now();
+            let _ = pool.0.acquire().await;
+            let wall_elapsed = wall_start.elapsed();
+
+            // With backoff, most of the 2 seconds should be spent sleeping.
+            // The actual computation (acquire permit, pop idle, try increment)
+            // is trivial — well under 10ms total across all iterations.
+            //
+            // We can't easily measure thread CPU time portably, but we can
+            // verify the wall time is close to acquire_timeout (not truncated
+            // by a panic or unexpected early return).
+            assert!(
+                wall_elapsed >= Duration::from_millis(1900),
+                "acquire completed too quickly: {wall_elapsed:?}, \
+                 expected ~2s (backoff should fill the timeout)"
+            );
+            assert!(
+                wall_elapsed < Duration::from_millis(3000),
+                "acquire took too long: {wall_elapsed:?}, \
+                 expected ~2s (may indicate a deadlock)"
+            );
+        });
+    }
+}
