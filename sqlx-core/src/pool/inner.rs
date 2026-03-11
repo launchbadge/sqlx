@@ -254,6 +254,8 @@ impl<DB: Database> PoolInner<DB> {
         let acquired = crate::rt::timeout(
             self.options.acquire_timeout,
             async {
+                let mut backoff_count: u32 = 0;
+
                 loop {
                     // Handles the close-event internally
                     let permit = self.acquire_permit().await?;
@@ -279,11 +281,21 @@ impl<DB: Database> PoolInner<DB> {
                             // This can happen for a child pool that's at its connection limit,
                             // or if the pool was closed between `acquire_permit()` and
                             // `try_increment_size()`.
+                            //
+                            // It can also happen due to "phantom permits" — the semaphore
+                            // has permits available but no idle connections exist and the
+                            // pool is at max_connections. This occurs when a connection is
+                            // discarded (expired/errored) while checked out: the
+                            // DecrementSizeGuard releases a permit but the connection was
+                            // never returned to the idle queue.
+                            //
+                            // Use exponential backoff to avoid spinning at 100% CPU on
+                            // repeated phantom permit acquisitions. The backoff also gives
+                            // time for checked-out connections to be returned to the pool.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
-                            // If so, we're likely in the current-thread runtime if it's Tokio,
-                            // and so we should yield to let any spawned return_to_pool() tasks
-                            // execute.
-                            crate::rt::yield_now().await;
+                            let backoff = Duration::from_millis(1 << cmp::min(backoff_count, 8));
+                            crate::rt::sleep(backoff).await;
+                            backoff_count += 1;
                             continue;
                         }
                     };
