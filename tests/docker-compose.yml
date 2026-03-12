@@ -16,6 +16,7 @@ services:
             MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
+        command: --default-authentication-plugin=mysql_native_password
 
     mysql_8_client_ssl:
         build:
