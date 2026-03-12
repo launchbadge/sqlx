@@ -133,9 +133,9 @@ fn scramble_sha256(
 
 async fn encrypt_rsa<'s>(
     stream: &'s mut MySqlStream,
-    public_key_request_id: u8,
+    _public_key_request_id: u8,
     password: &'s str,
-    nonce: &'s Chain<Bytes, Bytes>,
+    _nonce: &'s Chain<Bytes, Bytes>,
 ) -> Result<Vec<u8>, Error> {
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
@@ -156,7 +156,7 @@ async fn encrypt_rsa<'s>(
     #[cfg(feature = "rsa")]
     {
         // client sends a public key request
-        stream.write_packet(&[public_key_request_id][..])?;
+        stream.write_packet(&[_public_key_request_id][..])?;
         stream.flush().await?;
 
         // server sends a public key response
@@ -166,7 +166,7 @@ async fn encrypt_rsa<'s>(
         // xor the password with the given nonce
         let mut pass = to_asciz(password);
 
-        let (a, b) = (nonce.first_ref(), nonce.last_ref());
+        let (a, b) = (_nonce.first_ref(), _nonce.last_ref());
         let mut nonce = Vec::with_capacity(a.len() + b.len());
         nonce.extend_from_slice(a);
         nonce.extend_from_slice(b);
