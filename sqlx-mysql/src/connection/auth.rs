@@ -2,7 +2,9 @@ use bytes::buf::Chain;
 use bytes::Bytes;
 use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
+#[cfg(feature = "rsa")]
 use rand::thread_rng;
+#[cfg(feature = "rsa")]
 use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
@@ -142,29 +144,41 @@ async fn encrypt_rsa<'s>(
         return Ok(to_asciz(password));
     }
 
-    // client sends a public key request
-    stream.write_packet(&[public_key_request_id][..])?;
-    stream.flush().await?;
+    // Non-TLS RSA password encryption requires the `rsa` feature.
+    // It is opt-in because RUSTSEC-2023-0071 (Marvin Attack timing side-channel)
+    // has no patched release; disable it when all connections use TLS.
+    #[cfg(not(feature = "rsa"))]
+    return Err(err_protocol!(
+        "sha256_password / caching_sha2_password over non-TLS requires the `rsa` feature \
+         (disabled by default due to RUSTSEC-2023-0071)"
+    ));
 
-    // server sends a public key response
-    let packet = stream.recv_packet().await?;
-    let rsa_pub_key = &packet[1..];
+    #[cfg(feature = "rsa")]
+    {
+        // client sends a public key request
+        stream.write_packet(&[public_key_request_id][..])?;
+        stream.flush().await?;
 
-    // xor the password with the given nonce
-    let mut pass = to_asciz(password);
+        // server sends a public key response
+        let packet = stream.recv_packet().await?;
+        let rsa_pub_key = &packet[1..];
 
-    let (a, b) = (nonce.first_ref(), nonce.last_ref());
-    let mut nonce = Vec::with_capacity(a.len() + b.len());
-    nonce.extend_from_slice(a);
-    nonce.extend_from_slice(b);
+        // xor the password with the given nonce
+        let mut pass = to_asciz(password);
 
-    xor_eq(&mut pass, &nonce);
+        let (a, b) = (nonce.first_ref(), nonce.last_ref());
+        let mut nonce = Vec::with_capacity(a.len() + b.len());
+        nonce.extend_from_slice(a);
+        nonce.extend_from_slice(b);
 
-    // client sends an RSA encrypted password
-    let pkey = parse_rsa_pub_key(rsa_pub_key)?;
-    let padding = Oaep::new::<sha1::Sha1>();
-    pkey.encrypt(&mut thread_rng(), padding, &pass[..])
-        .map_err(Error::protocol)
+        xor_eq(&mut pass, &nonce);
+
+        // client sends an RSA encrypted password
+        let pkey = parse_rsa_pub_key(rsa_pub_key)?;
+        let padding = Oaep::new::<sha1::Sha1>();
+        pkey.encrypt(&mut thread_rng(), padding, &pass[..])
+            .map_err(Error::protocol)
+    }
 }
 
 // XOR(x, y)
@@ -186,6 +200,7 @@ fn to_asciz(s: &str) -> Vec<u8> {
 }
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
+#[cfg(feature = "rsa")]
 fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
     let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
 
