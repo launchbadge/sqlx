@@ -47,7 +47,7 @@ impl ColumnIndex<MySqlRow> for &'_ str {
 
         // Original fast path (works for normal SELECTs)
         if let Some(&idx) = row.column_names.get(*self) {   
-            return Ok(idx);
+            Ok(idx);
         } else {
 
         // NEW: Fallback for stored procedures / CALL (your requested change)
