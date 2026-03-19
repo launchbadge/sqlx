@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 pub(crate) use sqlx_core::row::*;
 
 use crate::column::ColumnIndex;
@@ -40,12 +39,29 @@ impl Row for MySqlRow {
     }
 }
 
+
+
 impl ColumnIndex<MySqlRow> for &'_ str {
+   
     fn index(&self, row: &MySqlRow) -> Result<usize, Error> {
-        row.column_names
-            .get(*self)
-            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
-            .copied()
+
+        // Original fast path (works for normal SELECTs)
+        if let Some(&idx) = row.column_names.get(*self) {   
+            return Ok(idx);
+        } else {
+
+        // NEW: Fallback for stored procedures / CALL (your requested change)
+        // We scan the real columns and add the name→index mapping on the fly
+        for (i, col) in row.columns.iter().enumerate() {
+            if  &*col.name == *self {
+                // Optional: you could even mutate the map here if you want to "cache" it,
+                // but for simplicity we just return the index.
+
+                return Ok(i);
+            }        }
+        
+        Err(Error::ColumnNotFound((*self).into()))
+        }
     }
 }
 
@@ -54,3 +70,5 @@ impl std::fmt::Debug for MySqlRow {
         debug_row(self, f)
     }
 }
+
+
