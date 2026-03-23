@@ -199,10 +199,12 @@ impl PgAdvisoryLock {
     /// See [Postgres' documentation for the Advisory Lock Functions][advisory-funcs] for details.
     ///
     /// [advisory-funcs]: https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
-    pub async fn acquire<C: AsMut<PgConnection>>(
-        &self,
-        mut conn: C,
-    ) -> Result<PgAdvisoryLockGuard<C>> {
+    pub async fn acquire<C: AsMut<PgConnection>>(&self, conn: C) -> Result<PgAdvisoryLockGuard<C>> {
+        // We're wrapping the connection in a `PgAdvisoryLockGuard` early here on purpose. If this
+        // future is dropped, the lock will be released in the drop impl.
+        let mut guard = PgAdvisoryLockGuard::new(self.clone(), conn);
+        let conn = guard.conn.as_mut().unwrap();
+
         match &self.key {
             PgAdvisoryLockKey::BigInt(key) => {
                 crate::query::query("SELECT pg_advisory_lock($1)")
@@ -219,7 +221,7 @@ impl PgAdvisoryLock {
             }
         }
 
-        Ok(PgAdvisoryLockGuard::new(self.clone(), conn))
+        Ok(guard)
     }
 
     /// Acquires an exclusive lock using `pg_try_advisory_lock()`, returning immediately
