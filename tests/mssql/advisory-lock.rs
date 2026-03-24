@@ -64,7 +64,10 @@ async fn it_supports_shared_locks() -> anyhow::Result<()> {
     // Both connections should be able to acquire a shared lock
     lock.acquire(&mut conn1).await?;
     let acquired = lock.try_acquire(&mut conn2).await?;
-    assert!(acquired, "shared lock should be acquirable by second connection");
+    assert!(
+        acquired,
+        "shared lock should be acquirable by second connection"
+    );
 
     lock.release(&mut conn1).await?;
     lock.release(&mut conn2).await?;
@@ -79,7 +82,10 @@ async fn it_release_returns_false_when_not_held() -> anyhow::Result<()> {
     let lock = MssqlAdvisoryLock::new("sqlx_test_not_held");
 
     let released = lock.release(&mut conn).await?;
-    assert!(!released, "release should return false when lock is not held");
+    assert!(
+        !released,
+        "release should return false when lock is not held"
+    );
 
     Ok(())
 }

@@ -39,10 +39,9 @@ impl TestSupport for Mssql {
 
         let mut conn = MssqlConnection::connect(&url).await?;
 
-        let delete_db_names: Vec<String> =
-            query_scalar("SELECT db_name FROM _sqlx_test_databases")
-                .fetch_all(&mut conn)
-                .await?;
+        let delete_db_names: Vec<String> = query_scalar("SELECT db_name FROM _sqlx_test_databases")
+            .fetch_all(&mut conn)
+            .await?;
 
         if delete_db_names.is_empty() {
             return Ok(None);
@@ -94,7 +93,9 @@ impl TestSupport for Mssql {
     }
 
     async fn snapshot(_conn: &mut Self::Connection) -> Result<FixtureSnapshot<Self>, Error> {
-        Err(Error::Configuration("snapshots are not yet supported for MSSQL".into()))
+        Err(Error::Configuration(
+            "snapshots are not yet supported for MSSQL".into(),
+        ))
     }
 }
 

@@ -43,7 +43,7 @@ impl MigrateDatabase for Mssql {
 
         query(
             "DECLARE @sql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(@p1); \
-             EXEC sp_executesql @sql;"
+             EXEC sp_executesql @sql;",
         )
         .bind(database)
         .execute(&mut conn)
@@ -56,12 +56,11 @@ impl MigrateDatabase for Mssql {
         let (options, database) = parse_for_maintenance(url)?;
         let mut conn = options.connect().await?;
 
-        let exists: bool = query_scalar(
-            "SELECT CASE WHEN DB_ID(@p1) IS NOT NULL THEN 1 ELSE 0 END",
-        )
-        .bind(database)
-        .fetch_one(&mut conn)
-        .await?;
+        let exists: bool =
+            query_scalar("SELECT CASE WHEN DB_ID(@p1) IS NOT NULL THEN 1 ELSE 0 END")
+                .bind(database)
+                .fetch_one(&mut conn)
+                .await?;
 
         Ok(exists)
     }
@@ -99,7 +98,7 @@ impl Migrate for MssqlConnection {
                  BEGIN \
                      DECLARE @sql NVARCHAR(MAX) = N'CREATE SCHEMA ' + QUOTENAME(@p1); \
                      EXEC sp_executesql @sql; \
-                 END"
+                 END",
             )
             .bind(schema_name)
             .execute(&mut *self)
@@ -199,7 +198,7 @@ impl Migrate for MssqlConnection {
         Box::pin(async move {
             let _ = self
                 .execute(
-                    "EXEC sp_releaseapplock @Resource = 'sqlx_migrations', @LockOwner = 'Session'"
+                    "EXEC sp_releaseapplock @Resource = 'sqlx_migrations', @LockOwner = 'Session'",
                 )
                 .await?;
 

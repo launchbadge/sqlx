@@ -6,11 +6,9 @@ use sqlx_test::new;
 async fn it_bulk_inserts_rows() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
-    sqlx::query(
-        "CREATE TABLE #bulk_test (name NVARCHAR(50) NOT NULL, value INT NOT NULL)"
-    )
-    .execute(&mut conn)
-    .await?;
+    sqlx::query("CREATE TABLE #bulk_test (name NVARCHAR(50) NOT NULL, value INT NOT NULL)")
+        .execute(&mut conn)
+        .await?;
 
     let mut bulk = conn.bulk_insert("#bulk_test").await?;
     bulk.send(("hello", 1i32).into_row()).await?;

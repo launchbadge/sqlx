@@ -16,18 +16,12 @@ impl Type<Mssql> for NaiveDateTime {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.base_name(),
-            "DATETIME2" | "DATETIME" | "SMALLDATETIME"
-        )
+        matches!(ty.base_name(), "DATETIME2" | "DATETIME" | "SMALLDATETIME")
     }
 }
 
 impl Encode<'_, Mssql> for NaiveDateTime {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::NaiveDateTime(*self));
         Ok(IsNull::No)
     }
@@ -57,10 +51,7 @@ impl Type<Mssql> for NaiveDate {
 }
 
 impl Encode<'_, Mssql> for NaiveDate {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::NaiveDate(*self));
         Ok(IsNull::No)
     }
@@ -91,10 +82,7 @@ impl Type<Mssql> for NaiveTime {
 }
 
 impl Encode<'_, Mssql> for NaiveTime {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::NaiveTime(*self));
         Ok(IsNull::No)
     }
@@ -119,18 +107,12 @@ impl Type<Mssql> for DateTime<Utc> {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.base_name(),
-            "DATETIME2" | "DATETIMEOFFSET"
-        )
+        matches!(ty.base_name(), "DATETIME2" | "DATETIMEOFFSET")
     }
 }
 
 impl Encode<'_, Mssql> for DateTime<Utc> {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::NaiveDateTime(self.naive_utc()));
         Ok(IsNull::No)
     }
@@ -155,18 +137,12 @@ impl Type<Mssql> for DateTime<FixedOffset> {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.base_name(),
-            "DATETIMEOFFSET" | "DATETIME2"
-        )
+        matches!(ty.base_name(), "DATETIMEOFFSET" | "DATETIME2")
     }
 }
 
 impl Encode<'_, Mssql> for DateTime<FixedOffset> {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::DateTimeFixedOffset(*self));
         Ok(IsNull::No)
     }
@@ -179,7 +155,9 @@ impl Decode<'_, Mssql> for DateTime<FixedOffset> {
             MssqlData::NaiveDateTime(v) => {
                 // Assume UTC if no offset information
                 let utc = v.and_utc();
-                Ok(utc.with_timezone(&FixedOffset::east_opt(0).unwrap()))
+                Ok(utc.with_timezone(
+                    &FixedOffset::east_opt(0).expect("UTC offset 0 is always valid"),
+                ))
             }
             MssqlData::Null => Err("unexpected NULL".into()),
             _ => Err(format!("expected datetimeoffset, got {:?}", value.data).into()),

@@ -21,10 +21,7 @@ impl Type<Mssql> for Date {
 }
 
 impl Encode<'_, Mssql> for Date {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::TimeDate(*self));
         Ok(IsNull::No)
     }
@@ -54,10 +51,7 @@ impl Type<Mssql> for Time {
 }
 
 impl Encode<'_, Mssql> for Time {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::TimeTime(*self));
         Ok(IsNull::No)
     }
@@ -82,18 +76,12 @@ impl Type<Mssql> for PrimitiveDateTime {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.base_name(),
-            "DATETIME2" | "DATETIME" | "SMALLDATETIME"
-        )
+        matches!(ty.base_name(), "DATETIME2" | "DATETIME" | "SMALLDATETIME")
     }
 }
 
 impl Encode<'_, Mssql> for PrimitiveDateTime {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::TimePrimitiveDateTime(*self));
         Ok(IsNull::No)
     }
@@ -117,18 +105,12 @@ impl Type<Mssql> for OffsetDateTime {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.base_name(),
-            "DATETIMEOFFSET" | "DATETIME2"
-        )
+        matches!(ty.base_name(), "DATETIMEOFFSET" | "DATETIME2")
     }
 }
 
 impl Encode<'_, Mssql> for OffsetDateTime {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::TimeOffsetDateTime(*self));
         Ok(IsNull::No)
     }
@@ -138,9 +120,7 @@ impl Decode<'_, Mssql> for OffsetDateTime {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.data {
             MssqlData::TimeOffsetDateTime(v) => Ok(*v),
-            MssqlData::TimePrimitiveDateTime(v) => {
-                Ok(v.assume_utc())
-            }
+            MssqlData::TimePrimitiveDateTime(v) => Ok(v.assume_utc()),
             MssqlData::Null => Err("unexpected NULL".into()),
             _ => Err(format!("expected datetimeoffset, got {:?}", value.data).into()),
         }

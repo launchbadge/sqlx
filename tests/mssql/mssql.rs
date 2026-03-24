@@ -1,11 +1,11 @@
 use futures_util::TryStreamExt;
-use sqlx::mssql::{Mssql, MssqlPoolOptions};
-use sqlx::{Column, Connection, Executor, MssqlConnection, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx::mssql::MssqlRow;
+use sqlx::mssql::{Mssql, MssqlPoolOptions};
+use sqlx::mssql::{MssqlAdvisoryLock, MssqlIsolationLevel};
+use sqlx::{Column, Connection, Executor, MssqlConnection, Row, SqlSafeStr, Statement, TypeInfo};
 use sqlx_test::new;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
-use sqlx::mssql::{MssqlAdvisoryLock, MssqlIsolationLevel};
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -309,7 +309,9 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     .fetch_one(&mut *tx)
     .await?;
 
-    let statement = tx.prepare("SELECT * FROM tweet WHERE id = @p1".into_sql_str()).await?;
+    let statement = tx
+        .prepare("SELECT * FROM tweet WHERE id = @p1".into_sql_str())
+        .await?;
 
     assert_eq!(statement.column(0).name(), "id");
     assert_eq!(statement.column(1).name(), "text");
@@ -514,7 +516,11 @@ async fn it_can_inspect_column_metadata() -> anyhow::Result<()> {
 
     assert_eq!(statement.column(0).type_info().name(), "INT");
     // sp_describe_first_result_set returns "NVARCHAR(50)" for typed NVARCHAR
-    assert!(statement.column(1).type_info().name().starts_with("NVARCHAR"));
+    assert!(statement
+        .column(1)
+        .type_info()
+        .name()
+        .starts_with("NVARCHAR"));
     assert_eq!(statement.column(2).type_info().name(), "BIGINT");
 
     Ok(())
@@ -525,10 +531,9 @@ async fn it_can_reuse_connection_after_error() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
     // Cause an error
-    let res: Result<_, sqlx::Error> =
-        sqlx::query("SELECT * FROM this_table_does_not_exist_12345")
-            .execute(&mut conn)
-            .await;
+    let res: Result<_, sqlx::Error> = sqlx::query("SELECT * FROM this_table_does_not_exist_12345")
+        .execute(&mut conn)
+        .await;
     assert!(res.is_err());
 
     // Connection should still be usable
@@ -632,18 +637,14 @@ async fn it_can_use_advisory_lock_guard() -> anyhow::Result<()> {
     let mut guard = lock.acquire_guard(&mut conn).await?;
 
     // Use the connection through the guard
-    let val: (i32,) = sqlx::query_as("SELECT 99")
-        .fetch_one(&mut *guard)
-        .await?;
+    let val: (i32,) = sqlx::query_as("SELECT 99").fetch_one(&mut *guard).await?;
     assert_eq!(val.0, 99);
 
     // Release the lock and get the connection back
     let conn = guard.release_now().await?;
 
     // Verify we can still use the connection
-    let val: (i32,) = sqlx::query_as("SELECT 100")
-        .fetch_one(conn)
-        .await?;
+    let val: (i32,) = sqlx::query_as("SELECT 100").fetch_one(conn).await?;
     assert_eq!(val.0, 100);
 
     Ok(())

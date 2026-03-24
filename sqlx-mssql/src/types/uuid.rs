@@ -19,10 +19,7 @@ impl Type<Mssql> for Uuid {
 }
 
 impl Encode<'_, Mssql> for Uuid {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::Uuid(*self));
         Ok(IsNull::No)
     }
@@ -50,10 +47,7 @@ impl Type<Mssql> for uuid::fmt::Hyphenated {
 }
 
 impl Encode<'_, Mssql> for uuid::fmt::Hyphenated {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::Uuid(*self.as_uuid()));
         Ok(IsNull::No)
     }

@@ -7,10 +7,7 @@ use crate::value::MssqlData;
 use crate::{Mssql, MssqlTypeInfo, MssqlValueRef};
 
 fn int_compatible(ty: &MssqlTypeInfo) -> bool {
-    matches!(
-        ty.base_name(),
-        "TINYINT" | "SMALLINT" | "INT" | "BIGINT"
-    )
+    matches!(ty.base_name(), "TINYINT" | "SMALLINT" | "INT" | "BIGINT")
 }
 
 // u8 - MSSQL's TINYINT is unsigned (0-255)
@@ -25,10 +22,7 @@ impl Type<Mssql> for u8 {
 }
 
 impl Encode<'_, Mssql> for u8 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::U8(*self));
         Ok(IsNull::No)
     }
@@ -59,10 +53,7 @@ impl Type<Mssql> for i8 {
 }
 
 impl Encode<'_, Mssql> for i8 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         if *self < 0 {
             return Err("MSSQL TINYINT is unsigned; cannot encode negative i8".into());
         }
@@ -97,10 +88,7 @@ impl Type<Mssql> for i16 {
 }
 
 impl Encode<'_, Mssql> for i16 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::I16(*self));
         Ok(IsNull::No)
     }
@@ -131,10 +119,7 @@ impl Type<Mssql> for i32 {
 }
 
 impl Encode<'_, Mssql> for i32 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::I32(*self));
         Ok(IsNull::No)
     }
@@ -165,10 +150,7 @@ impl Type<Mssql> for i64 {
 }
 
 impl Encode<'_, Mssql> for i64 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::I64(*self));
         Ok(IsNull::No)
     }

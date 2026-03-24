@@ -33,7 +33,8 @@ impl TransactionManager for MssqlTransactionManager {
                 if depth == 0 {
                     SqlStr::from_static("BEGIN TRANSACTION")
                 } else {
-                    AssertSqlSafe(format!("SAVE TRANSACTION _sqlx_savepoint_{}", depth)).into_sql_str()
+                    AssertSqlSafe(format!("SAVE TRANSACTION _sqlx_savepoint_{}", depth))
+                        .into_sql_str()
                 }
             }
         };
@@ -66,10 +67,7 @@ impl TransactionManager for MssqlTransactionManager {
             if depth == 1 {
                 conn.execute("ROLLBACK").await?;
             } else {
-                let savepoint = format!(
-                    "ROLLBACK TRANSACTION _sqlx_savepoint_{}",
-                    depth - 1
-                );
+                let savepoint = format!("ROLLBACK TRANSACTION _sqlx_savepoint_{}", depth - 1);
                 conn.execute(AssertSqlSafe(savepoint)).await?;
             }
             conn.inner.transaction_depth = depth - 1;
@@ -94,9 +92,7 @@ impl TransactionManager for MssqlTransactionManager {
 }
 
 /// Execute pending rollback if one was triggered by `start_rollback`.
-pub(crate) async fn resolve_pending_rollback(
-    conn: &mut MssqlConnection,
-) -> Result<(), Error> {
+pub(crate) async fn resolve_pending_rollback(conn: &mut MssqlConnection) -> Result<(), Error> {
     if conn.inner.pending_rollback {
         conn.inner.pending_rollback = false;
         let depth = conn.inner.transaction_depth;

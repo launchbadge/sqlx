@@ -68,9 +68,11 @@ async fn reversible(mut conn: PoolConnection<Mssql>) -> anyhow::Result<()> {
 
 /// Ensure that we have a clean initial state.
 async fn clean_up(conn: &mut MssqlConnection) -> anyhow::Result<()> {
-    conn.execute("IF OBJECT_ID('migrations_simple_test', 'U') IS NOT NULL DROP TABLE migrations_simple_test")
-        .await
-        .ok();
+    conn.execute(
+        "IF OBJECT_ID('migrations_simple_test', 'U') IS NOT NULL DROP TABLE migrations_simple_test",
+    )
+    .await
+    .ok();
     conn.execute("IF OBJECT_ID('migrations_reversible_test', 'U') IS NOT NULL DROP TABLE migrations_reversible_test")
         .await
         .ok();

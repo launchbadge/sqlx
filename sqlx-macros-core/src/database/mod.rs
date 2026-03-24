@@ -10,7 +10,12 @@ use std::collections::hash_map;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
-#[cfg(any(feature = "postgres", feature = "mysql", feature = "mssql", feature = "_sqlite"))]
+#[cfg(any(
+    feature = "postgres",
+    feature = "mysql",
+    feature = "mssql",
+    feature = "_sqlite"
+))]
 mod impls;
 
 pub trait DatabaseExt: Database + TypeChecking {

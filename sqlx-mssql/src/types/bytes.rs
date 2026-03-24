@@ -10,10 +10,7 @@ use crate::types::Type;
 use crate::{Mssql, MssqlTypeInfo, MssqlValueRef};
 
 fn bytes_compatible(ty: &MssqlTypeInfo) -> bool {
-    matches!(
-        ty.base_name(),
-        "VARBINARY" | "BINARY" | "IMAGE"
-    )
+    matches!(ty.base_name(), "VARBINARY" | "BINARY" | "IMAGE")
 }
 
 impl Type<Mssql> for [u8] {
@@ -27,10 +24,7 @@ impl Type<Mssql> for [u8] {
 }
 
 impl Encode<'_, Mssql> for &'_ [u8] {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::Binary(self.to_vec()));
         Ok(IsNull::No)
     }
@@ -53,10 +47,7 @@ impl Type<Mssql> for Vec<u8> {
 }
 
 impl Encode<'_, Mssql> for Vec<u8> {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         <&[u8] as Encode<Mssql>>::encode(&**self, buf)
     }
 }

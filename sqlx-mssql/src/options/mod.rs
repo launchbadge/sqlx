@@ -71,7 +71,10 @@ pub struct MssqlConnectOptions {
     #[cfg(all(windows, feature = "winauth"))]
     pub(crate) windows_auth: bool,
     /// When `true`, use integrated authentication (SSPI on Windows / Kerberos on Unix).
-    #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+    #[cfg(any(
+        all(windows, feature = "winauth"),
+        all(unix, feature = "integrated-auth-gssapi")
+    ))]
     pub(crate) integrated_auth: bool,
     /// Azure AD bearer token for AAD authentication.
     pub(crate) aad_token: Option<String>,
@@ -102,7 +105,10 @@ impl MssqlConnectOptions {
             log_settings: Default::default(),
             #[cfg(all(windows, feature = "winauth"))]
             windows_auth: false,
-            #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+            #[cfg(any(
+                all(windows, feature = "winauth"),
+                all(unix, feature = "integrated-auth-gssapi")
+            ))]
             integrated_auth: false,
             aad_token: None,
         }
@@ -219,7 +225,10 @@ impl MssqlConnectOptions {
     }
 
     /// Sets whether to use integrated authentication (SSPI on Windows / Kerberos on Unix).
-    #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+    #[cfg(any(
+        all(windows, feature = "winauth"),
+        all(unix, feature = "integrated-auth-gssapi")
+    ))]
     pub fn integrated_auth(mut self, enabled: bool) -> Self {
         self.integrated_auth = enabled;
         self
@@ -275,7 +284,10 @@ impl MssqlConnectOptions {
             #[allow(unused_mut)]
             let mut handled = false;
 
-            #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+            #[cfg(any(
+                all(windows, feature = "winauth"),
+                all(unix, feature = "integrated-auth-gssapi")
+            ))]
             if !handled && self.integrated_auth {
                 config.authentication(tiberius::AuthMethod::Integrated);
                 handled = true;

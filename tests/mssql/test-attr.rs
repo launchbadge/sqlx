@@ -12,11 +12,7 @@ async fn it_gets_a_pool(pool: MssqlPool) -> sqlx::Result<()> {
         .fetch_one(&mut *conn)
         .await?;
 
-    assert!(
-        db_name.starts_with("_sqlx_test_"),
-        "db_name: {:?}",
-        db_name
-    );
+    assert!(db_name.starts_with("_sqlx_test_"), "db_name: {:?}", db_name);
 
     Ok(())
 }
@@ -74,12 +70,10 @@ async fn it_gets_posts(pool: MssqlPool) -> sqlx::Result<()> {
 #[sqlx::test(migrator = "MIGRATOR", fixtures("users", "posts", "comments"))]
 async fn it_gets_comments(pool: MssqlPool) -> sqlx::Result<()> {
     let post_1_comments: Vec<String> =
-        sqlx::query_scalar(
-            "SELECT content FROM comment WHERE post_id = @p1 ORDER BY created_at",
-        )
-        .bind(&1)
-        .fetch_all(&pool)
-        .await?;
+        sqlx::query_scalar("SELECT content FROM comment WHERE post_id = @p1 ORDER BY created_at")
+            .bind(&1)
+            .fetch_all(&pool)
+            .await?;
 
     assert_eq!(
         post_1_comments,
@@ -87,12 +81,10 @@ async fn it_gets_comments(pool: MssqlPool) -> sqlx::Result<()> {
     );
 
     let post_2_comments: Vec<String> =
-        sqlx::query_scalar(
-            "SELECT content FROM comment WHERE post_id = @p1 ORDER BY created_at",
-        )
-        .bind(&2)
-        .fetch_all(&pool)
-        .await?;
+        sqlx::query_scalar("SELECT content FROM comment WHERE post_id = @p1 ORDER BY created_at")
+            .bind(&2)
+            .fetch_all(&pool)
+            .await?;
 
     assert_eq!(post_2_comments, ["lol you're just mad you lost :P"]);
 

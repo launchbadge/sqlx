@@ -40,10 +40,7 @@ impl Type<Mssql> for MssqlXml {
 }
 
 impl Encode<'_, Mssql> for MssqlXml {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::String(self.0.clone()));
         Ok(IsNull::No)
     }

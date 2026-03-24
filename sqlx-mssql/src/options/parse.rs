@@ -63,13 +63,12 @@ impl MssqlConnectOptions {
                 }
 
                 "encrypt" => {
-                    options = options
-                        .encrypt(value.parse().map_err(Error::config)?);
+                    options = options.encrypt(value.parse().map_err(Error::config)?);
                 }
 
                 "trust_server_certificate" | "trustServerCertificate" => {
-                    options = options
-                        .trust_server_certificate(value.parse().map_err(Error::config)?);
+                    options =
+                        options.trust_server_certificate(value.parse().map_err(Error::config)?);
                 }
 
                 "instance" => {
@@ -81,25 +80,23 @@ impl MssqlConnectOptions {
                 }
 
                 "statement-cache-capacity" => {
-                    options = options
-                        .statement_cache_capacity(value.parse().map_err(Error::config)?);
+                    options =
+                        options.statement_cache_capacity(value.parse().map_err(Error::config)?);
                 }
 
-                "application_intent" | "applicationIntent" => {
-                    match &*value {
-                        "read_only" | "ReadOnly" => {
-                            options = options.application_intent_read_only(true);
-                        }
-                        "read_write" | "ReadWrite" => {
-                            options = options.application_intent_read_only(false);
-                        }
-                        _ => {
-                            return Err(Error::Configuration(
-                                format!("unknown application_intent value: {value}").into(),
-                            ))
-                        }
+                "application_intent" | "applicationIntent" => match &*value {
+                    "read_only" | "ReadOnly" => {
+                        options = options.application_intent_read_only(true);
                     }
-                }
+                    "read_write" | "ReadWrite" => {
+                        options = options.application_intent_read_only(false);
+                    }
+                    _ => {
+                        return Err(Error::Configuration(
+                            format!("unknown application_intent value: {value}").into(),
+                        ))
+                    }
+                },
 
                 "trust_server_certificate_ca" | "trustServerCertificateCa" => {
                     options = options.trust_server_certificate_ca(&value);
@@ -112,7 +109,10 @@ impl MssqlConnectOptions {
                         "windows" => {
                             options.windows_auth = true;
                         }
-                        #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+                        #[cfg(any(
+                            all(windows, feature = "winauth"),
+                            all(unix, feature = "integrated-auth-gssapi")
+                        ))]
                         "integrated" => {
                             options.integrated_auth = true;
                         }
@@ -138,12 +138,12 @@ impl MssqlConnectOptions {
         Ok(options)
     }
 
-    pub(crate) fn build_url(&self) -> Url {
+    pub(crate) fn build_url(&self) -> Result<Url, Error> {
         let mut url = Url::parse(&format!(
             "mssql://{}@{}:{}",
             self.username, self.host, self.port
         ))
-        .expect("BUG: generated un-parseable URL");
+        .map_err(|e| Error::Configuration(e.to_string().into()))?;
 
         if let Some(password) = &self.password {
             let _ = url.set_password(Some(password));
@@ -176,20 +176,21 @@ impl MssqlConnectOptions {
                 .append_pair("auth", "aad_token")
                 .append_pair("token", token);
         } else {
-            #[cfg(any(all(windows, feature = "winauth"), all(unix, feature = "integrated-auth-gssapi")))]
+            #[cfg(any(
+                all(windows, feature = "winauth"),
+                all(unix, feature = "integrated-auth-gssapi")
+            ))]
             if self.integrated_auth {
-                url.query_pairs_mut()
-                    .append_pair("auth", "integrated");
+                url.query_pairs_mut().append_pair("auth", "integrated");
             }
 
             #[cfg(all(windows, feature = "winauth"))]
             if self.windows_auth && !self.integrated_auth {
-                url.query_pairs_mut()
-                    .append_pair("auth", "windows");
+                url.query_pairs_mut().append_pair("auth", "windows");
             }
         }
 
-        url
+        Ok(url)
     }
 }
 
@@ -274,7 +275,7 @@ fn it_rejects_invalid_sslmode() {
 fn it_roundtrips_sslmode_in_url() {
     let url = "mssql://sa:password@localhost/master?sslmode=login_only";
     let opts = MssqlConnectOptions::from_str(url).unwrap();
-    let built = opts.build_url();
+    let built = opts.build_url().unwrap();
     let opts2 = MssqlConnectOptions::parse_from_url(&built).unwrap();
     assert!(matches!(opts2.ssl_mode, MssqlSslMode::LoginOnly));
 }
@@ -310,7 +311,10 @@ fn it_rejects_invalid_application_intent() {
 fn it_parses_trust_server_certificate_ca() {
     let url = "mssql://sa:password@localhost/master?trust_server_certificate_ca=/path/to/ca.pem";
     let opts = MssqlConnectOptions::from_str(url).unwrap();
-    assert_eq!(opts.trust_server_certificate_ca, Some("/path/to/ca.pem".into()));
+    assert_eq!(
+        opts.trust_server_certificate_ca,
+        Some("/path/to/ca.pem".into())
+    );
 }
 
 #[test]
@@ -320,7 +324,7 @@ fn it_roundtrips_application_intent_in_url() {
         .username("sa")
         .password("password")
         .application_intent_read_only(true);
-    let built = opts.build_url();
+    let built = opts.build_url().unwrap();
     let opts2 = MssqlConnectOptions::parse_from_url(&built).unwrap();
     assert!(opts2.application_intent_read_only);
 }
@@ -332,9 +336,12 @@ fn it_roundtrips_trust_cert_ca_in_url() {
         .username("sa")
         .password("password")
         .trust_server_certificate_ca("/etc/ssl/ca.pem");
-    let built = opts.build_url();
+    let built = opts.build_url().unwrap();
     let opts2 = MssqlConnectOptions::parse_from_url(&built).unwrap();
-    assert_eq!(opts2.trust_server_certificate_ca, Some("/etc/ssl/ca.pem".into()));
+    assert_eq!(
+        opts2.trust_server_certificate_ca,
+        Some("/etc/ssl/ca.pem".into())
+    );
 }
 
 #[test]
@@ -350,7 +357,7 @@ fn it_roundtrips_aad_token_in_url() {
         .host("localhost")
         .username("sa")
         .aad_token("my-bearer-token");
-    let built = opts.build_url();
+    let built = opts.build_url().unwrap();
     let opts2 = MssqlConnectOptions::parse_from_url(&built).unwrap();
     assert_eq!(opts2.aad_token, Some("my-bearer-token".into()));
 }

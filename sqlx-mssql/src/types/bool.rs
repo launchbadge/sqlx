@@ -12,15 +12,15 @@ impl Type<Mssql> for bool {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.base_name(), "BIT" | "TINYINT" | "INT" | "SMALLINT" | "BIGINT")
+        matches!(
+            ty.base_name(),
+            "BIT" | "TINYINT" | "INT" | "SMALLINT" | "BIGINT"
+        )
     }
 }
 
 impl Encode<'_, Mssql> for bool {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::Bool(*self));
         Ok(IsNull::No)
     }

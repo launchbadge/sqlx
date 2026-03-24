@@ -22,10 +22,7 @@ impl<T> Encode<'_, Mssql> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         let json_string = self.encode_to_string()?;
         buf.push(MssqlArgumentValue::String(json_string));
         Ok(IsNull::No)

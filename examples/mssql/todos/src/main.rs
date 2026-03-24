@@ -45,12 +45,10 @@ async fn main() -> anyhow::Result<()> {
 
 async fn add_todo(pool: &MssqlPool, description: String) -> anyhow::Result<i64> {
     // MSSQL uses OUTPUT INSERTED instead of RETURNING
-    let rec = sqlx::query(
-        "INSERT INTO todos (description) OUTPUT INSERTED.id VALUES (@p1)",
-    )
-    .bind(&description)
-    .fetch_one(pool)
-    .await?;
+    let rec = sqlx::query("INSERT INTO todos (description) OUTPUT INSERTED.id VALUES (@p1)")
+        .bind(&description)
+        .fetch_one(pool)
+        .await?;
 
     Ok(rec.get::<i64, _>("id"))
 }

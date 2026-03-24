@@ -152,7 +152,7 @@ async fn it_can_query_by_string_args() -> sqlx::Result<()> {
     let mut conn = new::<Any>().await?;
 
     let string = "Hello, world!".to_string();
-    let ref tuple = ("Hello, world!".to_string(),);
+    let tuple = &("Hello, world!".to_string(),);
 
     #[cfg(feature = "postgres")]
     const SQL: &str =

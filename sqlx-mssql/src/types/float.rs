@@ -21,10 +21,7 @@ impl Type<Mssql> for f32 {
 }
 
 impl Encode<'_, Mssql> for f32 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::F32(*self));
         Ok(IsNull::No)
     }
@@ -53,10 +50,7 @@ impl Type<Mssql> for f64 {
 }
 
 impl Encode<'_, Mssql> for f64 {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::F64(*self));
         Ok(IsNull::No)
     }

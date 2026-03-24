@@ -10,9 +10,7 @@ async fn it_begins_with_read_uncommitted() -> anyhow::Result<()> {
         .begin_with_isolation(MssqlIsolationLevel::ReadUncommitted)
         .await?;
 
-    let row = sqlx::query("SELECT 1 AS val")
-        .fetch_one(&mut *tx)
-        .await?;
+    let row = sqlx::query("SELECT 1 AS val").fetch_one(&mut *tx).await?;
     let val: i32 = row.get("val");
     assert_eq!(val, 1);
 
@@ -33,9 +31,7 @@ async fn it_begins_with_snapshot() -> anyhow::Result<()> {
         .begin_with_isolation(MssqlIsolationLevel::Snapshot)
         .await?;
 
-    let row = sqlx::query("SELECT 1 AS val")
-        .fetch_one(&mut *tx)
-        .await?;
+    let row = sqlx::query("SELECT 1 AS val").fetch_one(&mut *tx).await?;
     let val: i32 = row.get("val");
     assert_eq!(val, 1);
 
@@ -51,9 +47,7 @@ async fn it_begins_with_serializable() -> anyhow::Result<()> {
         .begin_with_isolation(MssqlIsolationLevel::Serializable)
         .await?;
 
-    let row = sqlx::query("SELECT 1 AS val")
-        .fetch_one(&mut *tx)
-        .await?;
+    let row = sqlx::query("SELECT 1 AS val").fetch_one(&mut *tx).await?;
     let val: i32 = row.get("val");
     assert_eq!(val, 1);
 

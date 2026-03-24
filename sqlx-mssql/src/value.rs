@@ -30,15 +30,15 @@ pub(crate) enum MssqlData {
     Uuid(uuid::Uuid),
     #[cfg(feature = "rust_decimal")]
     Decimal(rust_decimal::Decimal),
-    #[cfg(feature = "time")]
+    #[cfg(all(feature = "time", not(feature = "chrono")))]
     TimeDate(time::Date),
-    #[cfg(feature = "time")]
+    #[cfg(all(feature = "time", not(feature = "chrono")))]
     TimeTime(time::Time),
-    #[cfg(feature = "time")]
+    #[cfg(all(feature = "time", not(feature = "chrono")))]
     TimePrimitiveDateTime(time::PrimitiveDateTime),
-    #[cfg(feature = "time")]
+    #[cfg(all(feature = "time", not(feature = "chrono")))]
     TimeOffsetDateTime(time::OffsetDateTime),
-    #[cfg(feature = "bigdecimal")]
+    #[cfg(all(feature = "bigdecimal", not(feature = "rust_decimal")))]
     BigDecimal(bigdecimal::BigDecimal),
 }
 
@@ -137,12 +137,13 @@ pub(crate) fn column_data_to_mssql_data(
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
             let t = dt2.time();
             #[allow(clippy::cast_possible_wrap)]
-            let ns = t.increments() as i64
-                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() as i64 * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
-            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(date, time)))
+            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(
+                date, time,
+            )))
         }
         #[cfg(feature = "chrono")]
         tiberius::ColumnData::DateTime(Some(dt)) => {
@@ -151,7 +152,9 @@ pub(crate) fn column_data_to_mssql_data(
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
-            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(date, time)))
+            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(
+                date, time,
+            )))
         }
         #[cfg(feature = "chrono")]
         tiberius::ColumnData::SmallDateTime(Some(dt)) => {
@@ -163,18 +166,20 @@ pub(crate) fn column_data_to_mssql_data(
                         "invalid SmallDateTime seconds: {seconds} exceeds seconds-in-a-day"
                     ))
                 })?;
-            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(date, time)))
+            Ok(MssqlData::NaiveDateTime(chrono::NaiveDateTime::new(
+                date, time,
+            )))
         }
         #[cfg(feature = "chrono")]
-        tiberius::ColumnData::Date(Some(d)) => {
-            Ok(MssqlData::NaiveDate(chrono_date_from_days(d.days() as i64, 1)?))
-        }
+        tiberius::ColumnData::Date(Some(d)) => Ok(MssqlData::NaiveDate(chrono_date_from_days(
+            d.days() as i64,
+            1,
+        )?)),
         #[cfg(feature = "chrono")]
         tiberius::ColumnData::Time(Some(t)) => {
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
             #[allow(clippy::cast_possible_wrap)]
-            let ns = t.increments() as i64
-                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() as i64 * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
@@ -186,23 +191,23 @@ pub(crate) fn column_data_to_mssql_data(
             // SAFETY: TDS time increments at scale 7 max out at 863_999_999_999, well within i64.
             let t = dto.datetime2().time();
             #[allow(clippy::cast_possible_wrap)]
-            let ns = t.increments() as i64
-                * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() as i64 * 10i64.pow(9u32.saturating_sub(t.scale() as u32));
             // infallible: (0,0,0) is always valid
             let time = chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
                 + chrono::Duration::nanoseconds(ns);
             let naive = chrono::NaiveDateTime::new(date, time);
             let offset_secs = dto.offset() as i32 * 60;
             let fixed_offset = chrono::FixedOffset::east_opt(offset_secs).ok_or_else(|| {
-                Error::Protocol(format!(
-                    "invalid timezone offset: {offset_secs} seconds"
-                ))
+                Error::Protocol(format!("invalid timezone offset: {offset_secs} seconds"))
             })?;
-            let dt = naive.and_local_timezone(fixed_offset).single().ok_or_else(|| {
-                Error::Protocol(format!(
-                    "ambiguous or invalid local time for offset {offset_secs}s"
-                ))
-            })?;
+            let dt = naive
+                .and_local_timezone(fixed_offset)
+                .single()
+                .ok_or_else(|| {
+                    Error::Protocol(format!(
+                        "ambiguous or invalid local time for offset {offset_secs}s"
+                    ))
+                })?;
             Ok(MssqlData::DateTimeFixedOffset(dt))
         }
 
@@ -210,52 +215,53 @@ pub(crate) fn column_data_to_mssql_data(
         tiberius::ColumnData::Guid(Some(v)) => Ok(MssqlData::Uuid(v)),
 
         #[cfg(feature = "rust_decimal")]
-        tiberius::ColumnData::Numeric(Some(n)) => {
-            Ok(MssqlData::Decimal(rust_decimal::Decimal::from_i128_with_scale(
-                n.value(),
-                n.scale() as u32,
-            )))
-        }
+        tiberius::ColumnData::Numeric(Some(n)) => Ok(MssqlData::Decimal(
+            rust_decimal::Decimal::from_i128_with_scale(n.value(), n.scale() as u32),
+        )),
 
         #[cfg(all(feature = "time", not(feature = "chrono")))]
-        tiberius::ColumnData::Date(Some(d)) => {
-            Ok(MssqlData::TimeDate(time_date_from_days(i64::from(d.days()), 1)?))
-        }
+        tiberius::ColumnData::Date(Some(d)) => Ok(MssqlData::TimeDate(time_date_from_days(
+            i64::from(d.days()),
+            1,
+        )?)),
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::Time(Some(t)) => {
-            let ns = t.increments()
-                * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
             Ok(MssqlData::TimeTime(time_from_sec_fragments(ns)?))
         }
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::DateTime2(Some(dt2)) => {
             let date = time_date_from_days(i64::from(dt2.date().days()), 1)?;
             let t = dt2.time();
-            let ns = t.increments()
-                * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
             let time = time_from_sec_fragments(ns)?;
-            Ok(MssqlData::TimePrimitiveDateTime(time::PrimitiveDateTime::new(date, time)))
+            Ok(MssqlData::TimePrimitiveDateTime(
+                time::PrimitiveDateTime::new(date, time),
+            ))
         }
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::DateTime(Some(dt)) => {
             let date = time_date_from_days(i64::from(dt.days()), 1900)?;
             let ns = dt.seconds_fragments() as u64 * 1_000_000_000u64 / 300;
             let time = time_from_sec_fragments(ns)?;
-            Ok(MssqlData::TimePrimitiveDateTime(time::PrimitiveDateTime::new(date, time)))
+            Ok(MssqlData::TimePrimitiveDateTime(
+                time::PrimitiveDateTime::new(date, time),
+            ))
         }
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::SmallDateTime(Some(dt)) => {
             let date = time_date_from_days(i64::from(dt.days()), 1900)?;
             let seconds = dt.seconds_fragments() as u64 * 60;
             let time = time_from_sec_fragments(seconds * 1_000_000_000)?;
-            Ok(MssqlData::TimePrimitiveDateTime(time::PrimitiveDateTime::new(date, time)))
+            Ok(MssqlData::TimePrimitiveDateTime(
+                time::PrimitiveDateTime::new(date, time),
+            ))
         }
         #[cfg(all(feature = "time", not(feature = "chrono")))]
         tiberius::ColumnData::DateTimeOffset(Some(dto)) => {
             let date = time_date_from_days(i64::from(dto.datetime2().date().days()), 1)?;
             let t = dto.datetime2().time();
-            let ns = t.increments()
-                * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
+            let ns = t.increments() * 10u64.pow(9u32.saturating_sub(t.scale() as u32));
             let time = time_from_sec_fragments(ns)?;
             let naive = time::PrimitiveDateTime::new(date, time);
             let offset_secs = dto.offset() as i32 * 60;
@@ -317,11 +323,10 @@ pub(crate) fn column_data_to_mssql_data(
 }
 
 /// Convert days since `start_year`-01-01 to a `time::Date`.
-#[cfg(feature = "time")]
+#[cfg(all(feature = "time", not(feature = "chrono")))]
 fn time_date_from_days(days: i64, start_year: i32) -> Result<time::Date, Error> {
-    let start = time::Date::from_ordinal_date(start_year, 1).map_err(|_| {
-        Error::Protocol(format!("invalid start year for date: {start_year}"))
-    })?;
+    let start = time::Date::from_ordinal_date(start_year, 1)
+        .map_err(|_| Error::Protocol(format!("invalid start year for date: {start_year}")))?;
     start
         .checked_add(time::Duration::days(days))
         .ok_or_else(|| {
@@ -332,7 +337,7 @@ fn time_date_from_days(days: i64, start_year: i32) -> Result<time::Date, Error> 
 }
 
 /// Convert nanoseconds-since-midnight to a `time::Time`.
-#[cfg(feature = "time")]
+#[cfg(all(feature = "time", not(feature = "chrono")))]
 fn time_from_sec_fragments(nanoseconds: u64) -> Result<time::Time, Error> {
     const NANOS_PER_DAY: u64 = 86_400_000_000_000;
     if nanoseconds >= NANOS_PER_DAY {
@@ -362,9 +367,8 @@ fn time_from_sec_fragments(nanoseconds: u64) -> Result<time::Time, Error> {
 /// Convert days since `start_year`-01-01 to a `chrono::NaiveDate`.
 #[cfg(feature = "chrono")]
 fn chrono_date_from_days(days: i64, start_year: i32) -> Result<chrono::NaiveDate, Error> {
-    let start = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).ok_or_else(|| {
-        Error::Protocol(format!("invalid start year for date: {start_year}"))
-    })?;
+    let start = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1)
+        .ok_or_else(|| Error::Protocol(format!("invalid start year for date: {start_year}")))?;
     start
         .checked_add_signed(chrono::Duration::days(days))
         .ok_or_else(|| {

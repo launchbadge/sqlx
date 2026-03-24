@@ -179,8 +179,9 @@ impl<'a> TryFrom<&'a MssqlTypeInfo> for AnyTypeInfo {
                     AnyTypeInfoKind::Text
                 }
                 "UNIQUEIDENTIFIER" => AnyTypeInfoKind::Text,
-                "DATE" | "TIME" | "DATETIME" | "DATETIME2" | "SMALLDATETIME"
-                | "DATETIMEOFFSET" => AnyTypeInfoKind::Text,
+                "DATE" | "TIME" | "DATETIME" | "DATETIME2" | "SMALLDATETIME" | "DATETIMEOFFSET" => {
+                    AnyTypeInfoKind::Text
+                }
                 _ => {
                     return Err(sqlx_core::Error::AnyDriverError(
                         format!("Any driver does not support MSSQL type {type_info:?}").into(),

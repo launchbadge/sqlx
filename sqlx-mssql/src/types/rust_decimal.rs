@@ -14,15 +14,15 @@ impl Type<Mssql> for Decimal {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.base_name(), "DECIMAL" | "NUMERIC" | "MONEY" | "SMALLMONEY")
+        matches!(
+            ty.base_name(),
+            "DECIMAL" | "NUMERIC" | "MONEY" | "SMALLMONEY"
+        )
     }
 }
 
 impl Encode<'_, Mssql> for Decimal {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::Decimal(*self));
         Ok(IsNull::No)
     }

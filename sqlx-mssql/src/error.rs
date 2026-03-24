@@ -54,7 +54,11 @@ impl Debug for MssqlDatabaseError {
 
 impl Display for MssqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "(number {}, state {}): {}", self.number, self.state, self.message)
+        write!(
+            f,
+            "(number {}, state {}): {}",
+            self.number, self.state, self.message
+        )
     }
 }
 
@@ -111,11 +115,19 @@ pub(crate) fn tiberius_err(err: tiberius::error::Error) -> Error {
                 message: token_error.message().to_string(),
                 server: {
                     let s = token_error.server();
-                    if s.is_empty() { None } else { Some(s.to_string()) }
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
                 },
                 procedure: {
                     let s = token_error.procedure();
-                    if s.is_empty() { None } else { Some(s.to_string()) }
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
                 },
             }))
         }

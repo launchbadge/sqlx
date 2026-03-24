@@ -27,10 +27,7 @@ impl Type<Mssql> for str {
 }
 
 impl Encode<'_, Mssql> for &'_ str {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         buf.push(MssqlArgumentValue::String((*self).to_owned()));
         Ok(IsNull::No)
     }
@@ -53,10 +50,7 @@ impl Type<Mssql> for String {
 }
 
 impl Encode<'_, Mssql> for String {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<MssqlArgumentValue>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut Vec<MssqlArgumentValue>) -> Result<IsNull, BoxDynError> {
         <&str as Encode<Mssql>>::encode(self.as_str(), buf)
     }
 }

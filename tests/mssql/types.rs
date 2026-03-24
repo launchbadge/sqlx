@@ -250,7 +250,7 @@ mod time_tests {
     type TimePrimitiveDateTime = sqlx::types::time::PrimitiveDateTime;
     type TimeOffsetDateTime = sqlx::types::time::OffsetDateTime;
 
-    use time::macros::{date, time as time_macro, datetime};
+    use time::macros::{date, datetime, time as time_macro};
 
     test_type!(time_date<TimeDate>(Mssql,
         "CAST('2001-01-05' AS DATE)"

@@ -14,6 +14,7 @@ impl ConnectOptions for MssqlConnectOptions {
 
     fn to_url_lossy(&self) -> Url {
         self.build_url()
+            .expect("BUG: MssqlConnectOptions generated an un-parseable URL")
     }
 
     async fn connect(&self) -> Result<Self::Connection, Error>
