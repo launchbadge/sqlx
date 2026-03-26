@@ -3938,6 +3938,7 @@ dependencies = [
 name = "sqlx-postgres"
 version = "0.9.0-alpha.1"
 dependencies = [
+ "async-lock",
  "atoi",
  "base64 0.22.1",
  "bigdecimal",
