@@ -201,6 +201,11 @@ impl PgAdvisoryLock {
     /// See [Postgres' documentation for the Advisory Lock Functions][advisory-funcs] for details.
     ///
     /// [advisory-funcs]: https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
+    ///
+    /// # Cancel Safety
+    ///
+    /// This method is cancel safe. If the future is dropped before the query completes, a
+    /// `pg_advisory_unlock()` call is queued and run the next time the connection is used.
     pub async fn acquire<C: AsMut<PgConnection>>(
         &self,
         mut conn: C,
@@ -248,6 +253,12 @@ impl PgAdvisoryLock {
     /// See [Postgres' documentation for the Advisory Lock Functions][advisory-funcs] for details.
     ///
     /// [advisory-funcs]: https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
+    ///
+    /// # Cancel Safety
+    ///
+    /// This method is **not** cancel safe. If the future is dropped while the query is in-flight,
+    /// it is not possible to know whether the lock was acquired, so it cannot be safely released.
+    /// The lock may remain held until the connection is closed.
     pub async fn try_acquire<C: AsMut<PgConnection>>(
         &self,
         mut conn: C,
