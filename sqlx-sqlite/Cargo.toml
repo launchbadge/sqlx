@@ -79,7 +79,7 @@ url = { version = "2.2.2" }
 percent-encoding = "2.1.0"
 form_urlencoded = "1.2.2"
 
-flume = { version = "0.11.0", default-features = false, features = ["async"] }
+flume = { version = "0.12.0", default-features = false, features = ["async"] }
 
 atoi = "2.0"
 
