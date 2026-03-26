@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use crate::connection::stream::PgStream;
@@ -27,6 +26,10 @@ const NONCE_ATTR: &str = "r";
 /// Salting the password and deriving the client key can be expensive, so this cache stores the most
 /// recently used client key along with the parameters used to derive it.
 ///
+/// The cache is keyed on the salt and iteration count, which are the server-provided parameters
+/// that affect the HMAC result. The password is not included in the cache key because it can only
+/// change via `&mut self` on `PgConnectOptions`, which replaces the cache instance.
+///
 /// According to [RFC-7677](https://datatracker.ietf.org/doc/html/rfc7677):
 ///
 /// > This computational cost can be avoided by caching the ClientKey (assuming the Salt and hash
@@ -36,36 +39,10 @@ pub struct ClientKeyCache {
     inner: Arc<Mutex<Option<CacheInner>>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct CacheKey {
-    host: String,
-    port: u16,
-    socket: Option<PathBuf>,
-    database: Option<String>,
-    username: String,
-    password: String,
-    salt: Vec<u8>,
-    iterations: u32,
-}
-
-impl From<(&PgConnectOptions, &AuthenticationSaslContinue)> for CacheKey {
-    fn from((options, cont): (&PgConnectOptions, &AuthenticationSaslContinue)) -> Self {
-        CacheKey {
-            host: options.host.clone(),
-            port: options.port,
-            socket: options.socket.clone(),
-            database: options.database.clone(),
-            username: options.username.clone(),
-            password: options.password.clone().unwrap_or_default(),
-            salt: cont.salt.clone(),
-            iterations: cont.iterations,
-        }
-    }
-}
-
 #[derive(Debug)]
 struct CacheInner {
-    cache_key: CacheKey,
+    salt: Vec<u8>,
+    iterations: u32,
     salted_password: [u8; 32],
     client_key: Hmac<Sha256>,
 }
@@ -79,17 +56,14 @@ impl ClientKeyCache {
 
     fn get(
         &self,
-        options: &PgConnectOptions,
         cont: &AuthenticationSaslContinue,
     ) -> Option<([u8; 32], Hmac<Sha256>)> {
-        let key = CacheKey::from((options, cont));
-
         self.inner
             .lock()
             .expect("BUG: panicked while holding a lock")
             .as_ref()
             .and_then(|inner| {
-                if inner.cache_key == key {
+                if inner.salt == cont.salt && inner.iterations == cont.iterations {
                     Some((inner.salted_password, inner.client_key.clone()))
                 } else {
                     None
@@ -99,7 +73,6 @@ impl ClientKeyCache {
 
     fn set(
         &self,
-        options: &PgConnectOptions,
         cont: &AuthenticationSaslContinue,
         salted_password: [u8; 32],
         client_key: Hmac<Sha256>,
@@ -109,7 +82,8 @@ impl ClientKeyCache {
             .lock()
             .expect("BUG: panicked while holding a lock");
         *inner = Some(CacheInner {
-            cache_key: CacheKey::from((options, cont)),
+            salt: cont.salt.clone(),
+            iterations: cont.iterations,
             salted_password,
             client_key,
         });
@@ -187,7 +161,7 @@ pub(crate) async fn authenticate(
     };
 
     let (salted_password, mut mac) = {
-        if let Some(cached) = options.sasl_client_key_cache.get(options, &cont) {
+        if let Some(cached) = options.sasl_client_key_cache.get(&cont) {
             cached
         } else {
             // SaltedPassword := Hi(Normalize(password), salt, i)
@@ -203,7 +177,7 @@ pub(crate) async fn authenticate(
 
             options
                 .sasl_client_key_cache
-                .set(options, &cont, salted_password, mac.clone());
+                .set(&cont, salted_password, mac.clone());
 
             (salted_password, mac)
         }

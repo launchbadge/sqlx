@@ -193,6 +193,8 @@ impl PgConnectOptions {
     /// ```
     pub fn password(mut self, password: &str) -> Self {
         self.password = Some(password.to_owned());
+        // Invalidate the cached SASL client key, since it was derived from the old password.
+        self.sasl_client_key_cache = ClientKeyCache::new();
         self
     }
 
