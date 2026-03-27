@@ -13,7 +13,7 @@ uuid = { version = "1", features = ["serde"] }
 thiserror = "1"
 rand = "0.8"
 
-time = { version = "=0.3.45", features = ["serde"] }
+time = { version = "0.3.37", features = ["serde"] }
 
 serde = { version = "1.0.218", features = ["derive"] }
 

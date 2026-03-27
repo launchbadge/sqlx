@@ -17,7 +17,7 @@ rand = "0.8.5"
 regex = "1.6.0"
 serde = "1.0.140"
 serde_with = { version = "2.0.0", features = ["time_0_3"] }
-time = { version = "=0.3.45" }
+time = "0.3.11"
 uuid = { version = "1.1.2", features = ["serde"] }
 validator = { version = "0.16.0", features = ["derive"] }
 
