@@ -14,6 +14,7 @@ json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive", "bitflags/serde"]
 migrate = ["sqlx-core/migrate"]
+rsa = ["dep:rsa"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "sqlx-core/bigdecimal"]
@@ -38,7 +39,7 @@ hkdf = "0.12.0"
 hmac = { version = "0.12.0", default-features = false }
 md-5 = { version = "0.10.0", default-features = false }
 rand = { version = "0.8.4", default-features = false, features = ["std", "std_rng"] }
-rsa = "0.9"
+rsa = { version = "0.9", optional = true }
 sha1 = { version = "0.10.1", default-features = false }
 sha2 = { version = "0.10.0", default-features = false }
 
