@@ -33,6 +33,7 @@ sqlx-toml = ["sqlx-core/sqlx-toml", "sqlx-sqlite?/sqlx-toml"]
 
 # database
 mysql = ["sqlx-mysql"]
+mysql-rsa = ["mysql", "sqlx-mysql/rsa"]
 postgres = ["sqlx-postgres"]
 sqlite = ["_sqlite", "sqlx-sqlite/bundled"]
 sqlite-unbundled = ["_sqlite", "sqlx-sqlite/unbundled"]
@@ -55,7 +56,7 @@ uuid = ["sqlx-core/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlit
 
 [dependencies]
 sqlx-core = { workspace = true, features = ["offline"] }
-sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = true }
+sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = true, default-features = false }
 sqlx-postgres = { workspace = true, features = ["offline", "migrate"], optional = true }
 sqlx-sqlite = { workspace = true, features = ["offline", "migrate"], optional = true }
 

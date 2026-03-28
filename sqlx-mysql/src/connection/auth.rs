@@ -2,8 +2,6 @@ use bytes::buf::Chain;
 use bytes::Bytes;
 use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
-use rand::thread_rng;
-use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
@@ -161,10 +159,7 @@ async fn encrypt_rsa<'s>(
     xor_eq(&mut pass, &nonce);
 
     // client sends an RSA encrypted password
-    let pkey = parse_rsa_pub_key(rsa_pub_key)?;
-    let padding = Oaep::new::<sha1::Sha1>();
-    pkey.encrypt(&mut thread_rng(), padding, &pass[..])
-        .map_err(Error::protocol)
+    rsa_backend::encrypt(rsa_pub_key, &pass)
 }
 
 // XOR(x, y)
@@ -185,13 +180,39 @@ fn to_asciz(s: &str) -> Vec<u8> {
     z.into_bytes()
 }
 
-// https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
-fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
-    let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
+#[cfg(feature = "rsa")]
+mod rsa_backend {
+    use rand::thread_rng;
+    use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 
-    // This takes advantage of the knowledge that we know
-    // we are receiving a PKCS#8 RSA Public Key at all
-    // times from MySQL
+    use super::Error;
 
-    RsaPublicKey::from_public_key_pem(pem).map_err(Error::protocol)
+    pub(super) fn encrypt(rsa_pub_key: &[u8], pass: &[u8]) -> Result<Vec<u8>, Error> {
+        let pkey = parse_rsa_pub_key(rsa_pub_key)?;
+        let padding = Oaep::new::<sha1::Sha1>();
+        pkey.encrypt(&mut thread_rng(), padding, pass)
+            .map_err(Error::protocol)
+    }
+
+    // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
+    fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
+        let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
+
+        // This takes advantage of the knowledge that we know
+        // we are receiving a PKCS#8 RSA Public Key at all
+        // times from MySQL
+
+        RsaPublicKey::from_public_key_pem(pem).map_err(Error::protocol)
+    }
+}
+
+#[cfg(not(feature = "rsa"))]
+mod rsa_backend {
+    use super::Error;
+
+    pub(super) fn encrypt(_rsa_pub_key: &[u8], _pass: &[u8]) -> Result<Vec<u8>, Error> {
+        Err(Error::Configuration(
+            "RSA auth backend disabled; enable feature `mysql-rsa` (or `rsa` if using sqlx-mysql directly) or use TLS.".into(),
+        ))
+    }
 }
