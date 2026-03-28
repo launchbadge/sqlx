@@ -85,11 +85,12 @@ where
         let mut buf = value.as_bytes()?;
 
         if value.format() == PgValueFormat::Binary && value.type_info == PgTypeInfo::JSONB {
-            assert_eq!(
-                buf[0], 1,
-                "unsupported JSONB format version {}; please open an issue",
-                buf[0]
-            );
+            // Check JSONB version byte - PostgreSQL currently only supports version 1
+            if buf[0] != 1 {
+                return Err(
+                    format!("unsupported JSONB format version {} (expected 1)", buf[0]).into(),
+                );
+            }
 
             buf = &buf[1..];
         }
