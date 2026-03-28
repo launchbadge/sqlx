@@ -25,6 +25,7 @@ members = [
     "examples/sqlite/todos",
     "examples/sqlite/extension",
 ]
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.9.0-alpha.1"
