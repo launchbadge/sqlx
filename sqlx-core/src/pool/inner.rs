@@ -278,11 +278,17 @@ async fn finish_acquire<DB: Database>(
 
         #[inline(always)]
         fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-            self.0
-                .as_mut()
-                .expect("BUG: inner future taken")
-                .as_mut()
-                .poll(cx)
+            // Essentially an inlined `Fuse`
+            let Some(mut fut) = self.0.take() else {
+                return Poll::Pending;
+            };
+
+            if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                return Poll::Ready(res);
+            }
+
+            self.0 = Some(fut);
+            Poll::Pending
         }
     }
 
@@ -291,7 +297,9 @@ async fn finish_acquire<DB: Database>(
         F::Output: Send + 'static,
     {
         fn drop(&mut self) {
-            rt::try_spawn(self.0.take().expect("BUG: inner future taken"));
+            if let Some(fut) = self.0.take() {
+                rt::try_spawn(fut);
+            }
         }
     }
 
