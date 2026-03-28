@@ -86,13 +86,17 @@ pub(crate) async fn authenticate(
         }
     };
 
+    // Normalize(password):
+    let password = options.password.as_deref().unwrap_or_default();
+    let password = match saslprep(password) {
+        Ok(v) => v,
+        // The behavior is similar to what was observed when using SASLprep for username.
+        // TODO: Remove panic when we have proper support for configuration errors
+        Err(_) => panic!("Failed to saslprep password"),
+    };
+
     // SaltedPassword := Hi(Normalize(password), salt, i)
-    let salted_password = hi(
-        options.password.as_deref().unwrap_or_default(),
-        &cont.salt,
-        cont.iterations,
-    )
-    .await?;
+    let salted_password = hi(&password, &cont.salt, cont.iterations).await?;
 
     // ClientKey := HMAC(SaltedPassword, "Client Key")
     let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;
