@@ -162,9 +162,9 @@ const EASE_OFF: EaseOffCore = ease_off::Options::new().into_core();
 /// }
 ///
 /// impl MyConnector {
-///     fn get_connect_options(&self, attempt: usize) -> PgConnectOptions {
+///     fn get_connect_options(&self, attempt: u32) -> PgConnectOptions {
 ///         // Select servers in a round-robin.
-///         let (ref host, port) = self.host_ports[attempt % self.host_ports.len()];
+///         let (ref host, port) = self.host_ports[attempt as usize % self.host_ports.len()];
 ///
 ///         PgConnectOptions::new()
 ///             .host(host)
