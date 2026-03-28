@@ -16,6 +16,7 @@ mod ssl_mode;
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
     pub(crate) host: String,
+    pub(crate) host_addr: Option<String>,
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
@@ -59,10 +60,9 @@ impl PgConnectOptions {
             .and_then(|v| v.parse().ok())
             .unwrap_or(5432);
 
-        let host = var("PGHOSTADDR")
-            .ok()
-            .or_else(|| var("PGHOST").ok())
-            .unwrap_or_else(|| default_host(port));
+        let host = var("PGHOST").ok().unwrap_or_else(|| default_host(port));
+
+        let host_addr = var("PGHOSTADDR").ok();
 
         let username = if let Ok(username) = var("PGUSER") {
             username
@@ -78,6 +78,7 @@ impl PgConnectOptions {
         PgConnectOptions {
             port,
             host,
+            host_addr,
             socket: None,
             username,
             password: var("PGPASSWORD").ok(),
@@ -131,6 +132,33 @@ impl PgConnectOptions {
     /// ```
     pub fn host(mut self, host: &str) -> Self {
         host.clone_into(&mut self.host);
+        self
+    }
+
+    /// Sets the host address to connect to.
+    ///
+    /// This is different to the host parameter as it overwrites DNS lookups for TCP/IP
+    /// communication. This is particuarly useful when the DB port has to be
+    /// proxied to localhost for security reasons.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .host("example.com");
+    ///
+    /// // Initially, host_addr should be None (unless PGHOSTADDR env var is set)
+    /// // For this test, we assume it's not set
+    /// assert_eq!(options.get_host_addr(), None);
+    ///
+    /// let options = options.host_addr("127.0.0.1");
+    ///
+    /// // After setting, host_addr should contain the specified value
+    /// assert_eq!(options.get_host_addr(), Some("127.0.0.1"));
+    /// ```
+    pub fn host_addr(mut self, host_addr: &str) -> Self {
+        self.host_addr = Some(host_addr.to_string());
         self
     }
 
@@ -482,6 +510,28 @@ impl PgConnectOptions {
     /// ```
     pub fn get_host(&self) -> &str {
         &self.host
+    }
+
+    /// Get the current host addr.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .host("example.com");
+    ///
+    /// // Initially, host_addr should be None (unless PGHOSTADDR env var is set)
+    /// // For this test, we assume it's not set
+    /// assert_eq!(options.get_host_addr(), None);
+    ///
+    /// let options = options.host_addr("127.0.0.1");
+    ///
+    /// // After setting host_addr, it should return the configured value
+    /// assert_eq!(options.get_host_addr(), Some("127.0.0.1"));
+    /// ```
+    pub fn get_host_addr(&self) -> Option<&str> {
+        self.host_addr.as_deref()
     }
 
     /// Get the server's port.
