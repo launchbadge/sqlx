@@ -401,6 +401,11 @@ name = "mysql-rustsec"
 path = "tests/mysql/rustsec.rs"
 required-features = ["mysql"]
 
+[[test]]
+name = "mysql-any"
+path = "tests/mysql/any.rs"
+required-features = ["mysql", "any"]
+
 #
 # PostgreSQL
 #
