@@ -459,3 +459,8 @@ required-features = ["postgres"]
 name = "postgres-rustsec"
 path = "tests/postgres/rustsec.rs"
 required-features = ["postgres", "macros", "migrate"]
+
+[[test]]
+name = "postgres-any"
+path = "tests/postgres/any.rs"
+required-features = ["postgres", "any"]
