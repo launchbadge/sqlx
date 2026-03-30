@@ -299,7 +299,7 @@ required-features = ["sqlite"]
 [[test]]
 name = "sqlite-any"
 path = "tests/sqlite/any.rs"
-required-features = ["sqlite"]
+required-features = ["sqlite", "any"]
 
 [[test]]
 name = "sqlite-types"
