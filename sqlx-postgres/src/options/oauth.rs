@@ -1,59 +1,21 @@
 use std::fmt::{self, Debug, Formatter};
-use std::future::Future;
-use std::sync::Arc;
 
-use futures_core::future::BoxFuture;
-use sqlx_core::error::BoxDynError;
-
-use crate::error::Error;
-
-type Provider = dyn Fn() -> BoxFuture<'static, Result<String, BoxDynError>> + Send + Sync;
-
-/// A source of OAuth 2.0 bearer tokens for PostgreSQL's `oauth` authentication method.
+/// An OAuth 2.0 bearer token, for PostgreSQL's `oauth` authentication method.
 ///
-/// PostgreSQL 18 added the `oauth` HBA method, which authenticates a connection with an
-/// OAuth 2.0 bearer token over the SASL `OAUTHBEARER` mechanism (RFC 7628) instead of a
-/// password.
+/// This exists to keep the token out of the `Debug` output of [`PgConnectOptions`], which is
+/// derived; see the `Debug` implementation below.
 ///
-/// SQLx does not talk to an identity provider: obtaining a token is the application's job.
-/// This type wraps whatever the application already uses to get one.
-///
-/// Because tokens expire, the token is requested once per connection attempt rather than
-/// stored, so a pool that reconnects hours later presents a fresh token. Use
-/// [`PgConnectOptions::oauth_token_provider`] for that. A single token that outlives the
-/// connections made with it can be set with [`PgConnectOptions::oauth_token`].
-///
-/// [`PgConnectOptions::oauth_token_provider`]: crate::PgConnectOptions::oauth_token_provider
-/// [`PgConnectOptions::oauth_token`]: crate::PgConnectOptions::oauth_token
+/// [`PgConnectOptions`]: crate::PgConnectOptions
 #[derive(Clone)]
-pub struct PgOAuthToken {
-    provider: Arc<Provider>,
-}
+pub(crate) struct PgOAuthToken(String);
 
 impl PgOAuthToken {
-    /// Use a single, fixed token for every connection attempt.
-    pub fn new(token: impl Into<String>) -> Self {
-        let token = token.into();
-
-        Self::from_provider(move || {
-            let token = token.clone();
-            async move { Ok(token) }
-        })
+    pub(crate) fn new(token: impl Into<String>) -> Self {
+        Self(token.into())
     }
 
-    /// Call `provider` once per connection attempt to obtain a token.
-    pub fn from_provider<F, Fut>(provider: F) -> Self
-    where
-        F: Fn() -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<String, BoxDynError>> + Send + 'static,
-    {
-        Self {
-            provider: Arc::new(move || Box::pin(provider())),
-        }
-    }
-
-    pub(crate) async fn fetch(&self) -> Result<String, Error> {
-        (self.provider)().await.map_err(Error::Configuration)
+    pub(crate) fn expose(&self) -> &str {
+        &self.0
     }
 }
 
@@ -78,16 +40,6 @@ mod tests {
         let options = PgConnectOptions::new_without_pgpass().oauth_token(TOKEN);
 
         assert!(!format!("{:?}", options).contains(TOKEN));
-        assert!(!format!("{:#?}", options).contains(TOKEN));
-    }
-
-    #[test]
-    fn debug_does_not_leak_a_token_captured_by_a_provider() {
-        const TOKEN: &str = "super-secret-bearer-token";
-
-        let options = PgConnectOptions::new_without_pgpass()
-            .oauth_token_provider(|| async { Ok(TOKEN.to_string()) });
-
         assert!(!format!("{:#?}", options).contains(TOKEN));
     }
 }

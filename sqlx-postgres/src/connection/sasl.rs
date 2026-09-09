@@ -2,6 +2,7 @@ use crate::connection::oauth;
 use crate::connection::stream::PgStream;
 use crate::error::Error;
 use crate::message::{Authentication, AuthenticationSasl, SaslInitialResponse, SaslResponse};
+use crate::options::PgOAuthToken;
 use crate::rt;
 use crate::PgConnectOptions;
 use hmac::{Hmac, Mac};
@@ -49,17 +50,14 @@ pub(crate) async fn authenticate(
     }
 
     // PostgreSQL's `oauth` HBA method (added in 18) advertises OAUTHBEARER and nothing else.
-    if has_oauth {
-        if let Some(token) = &options.oauth_token {
-            return oauth::authenticate(stream, token).await;
-        }
+    // The exchange is worth making even with no token to present, because it is how the
+    // caller learns which token the server wants; see `oauth::authenticate`. SCRAM is
+    // preferred where the server offers it as well and there is no token, since a password
+    // may still get the connection in.
+    if has_oauth && (options.oauth_token.is_some() || !(has_sasl || has_sasl_plus)) {
+        let token = options.oauth_token.as_ref().map(PgOAuthToken::expose);
 
-        if !has_sasl && !has_sasl_plus {
-            return Err(err_protocol!(
-                "server requested OAUTHBEARER authentication, but no OAuth token is \
-                 configured; see `PgConnectOptions::oauth_token_provider`"
-            ));
-        }
+        return oauth::authenticate(stream, token).await;
     }
 
     if !has_sasl_plus && !has_sasl {

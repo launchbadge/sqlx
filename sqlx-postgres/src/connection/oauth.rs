@@ -1,7 +1,6 @@
 use crate::connection::stream::PgStream;
 use crate::error::Error;
 use crate::message::{OAuthBearerResponse, SaslInitialResponse, SaslResponse};
-use crate::options::PgOAuthToken;
 
 /// The only SASL mechanism PostgreSQL's `oauth` HBA method advertises.
 ///
@@ -18,15 +17,22 @@ const GS2_HEADER: &str = "n,,";
 
 const BEARER_SCHEME: &str = "Bearer ";
 
-/// Authenticate with a bearer token over SASL `OAUTHBEARER`.
+/// Authenticate over SASL `OAUTHBEARER`, presenting `token` if there is one.
 ///
-/// This is the "token-first" flow: the token travels in the SASL initial client response, so a
-/// successful authentication costs no extra round trip. SQLx never contacts the identity
-/// provider, so the discovery flow of RFC 7628 §3.2.2 is not implemented; if the server rejects
-/// the token, the exchange is closed out and the server's error is returned.
-pub(crate) async fn authenticate(stream: &mut PgStream, token: &PgOAuthToken) -> Result<(), Error> {
-    let token = token.fetch().await?;
-    let response = initial_client_response(&token)?;
+/// With a token this is the "token-first" flow: the token travels in the SASL initial client
+/// response, so a successful authentication costs no extra round trip.
+///
+/// Without one the exchange is still worth making, because it is how the caller finds out
+/// which token to get: an empty `auth` value asks the server for its OAuth parameters, and it
+/// answers with the status document that [`Error::OAuth`] carries back out. That exchange
+/// cannot succeed by design, and neither can the one where the server rejects a token, so in
+/// both cases the caller obtains a token and dials again. SQLx never contacts an identity
+/// provider itself.
+pub(crate) async fn authenticate(stream: &mut PgStream, token: Option<&str>) -> Result<(), Error> {
+    let response = match token {
+        Some(token) => initial_client_response(token)?,
+        None => discovery_client_response(),
+    };
 
     stream
         .send(SaslInitialResponse {
@@ -46,15 +52,28 @@ pub(crate) async fn authenticate(stream: &mut PgStream, token: &PgOAuthToken) ->
             // `ErrorResponse` instead of leaving the exchange hanging.
             stream.send(SaslResponse(KVSEP)).await?;
 
-            // `PgStream::recv` turns `ErrorResponse` into `Err`, which is the expected
-            // outcome here and carries the server's own diagnostic.
-            stream.recv().await?;
+            match stream.recv().await {
+                // The expected outcome, and the reason the document is what we return: the
+                // server's own error says only that authentication failed. It names neither
+                // the issuer nor the scope, so there is nothing in it for a caller that
+                // needs to go and get a token.
+                Err(Error::Database(_)) => {}
 
-            // Reached only if the server said something else entirely.
-            Err(err_protocol!(
-                "OAUTHBEARER authentication failed; server returned: {}",
-                String::from_utf8_lossy(&document)
-            ))
+                // Anything else went wrong on the way, and is not about the token.
+                Err(error) => return Err(error),
+
+                // The server has no other move here; if it made one, we no longer know what
+                // state the connection is in.
+                Ok(message) => {
+                    return Err(err_protocol!(
+                        "expected an error to close out the failed OAUTHBEARER exchange, \
+                         received {:?}",
+                        message.format
+                    ));
+                }
+            }
+
+            Err(Error::oauth(String::from_utf8_lossy(&document)))
         }
     }
 }
@@ -66,6 +85,15 @@ fn initial_client_response(token: &str) -> Result<String, Error> {
     Ok(format!(
         "{GS2_HEADER}{KVSEP}auth={BEARER_SCHEME}{token}{KVSEP}{KVSEP}"
     ))
+}
+
+/// Build a request for the server's OAuth parameters: `n,,^Aauth=^A^A`.
+///
+/// A completely empty `auth` value is how RFC 7628 §4.3 asks a server which issuer and scope
+/// a token needs; PostgreSQL answers it with the same status document it returns for a
+/// rejected token, and then fails the exchange.
+fn discovery_client_response() -> String {
+    format!("{GS2_HEADER}{KVSEP}auth={KVSEP}{KVSEP}")
 }
 
 /// Check the token against the `b64token` grammar of RFC 6750 §2.1, which is what the server
@@ -105,7 +133,7 @@ const fn is_b64token_byte(byte: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::initial_client_response;
+    use super::{discovery_client_response, initial_client_response};
 
     #[test]
     fn initial_client_response_is_token_first() {
@@ -123,6 +151,13 @@ mod tests {
 
         assert!(response.starts_with("n,,"));
         assert!(!response.starts_with('p'));
+    }
+
+    #[test]
+    fn discovery_response_carries_an_empty_auth_value() {
+        // Not `auth=Bearer `: the scheme is left out entirely, which is what the server
+        // reads as a request for its OAuth parameters rather than as a malformed token.
+        assert_eq!(discovery_client_response(), "n,,\x01auth=\x01\x01");
     }
 
     #[test]
@@ -157,6 +192,8 @@ mod tests {
 
     #[test]
     fn empty_token_is_rejected() {
+        // An empty token must not be turned into a discovery request by accident: the
+        // caller asked to authenticate with a token, so this is a configuration error.
         initial_client_response("").unwrap_err();
         initial_client_response("==").unwrap_err();
     }

@@ -1,12 +1,10 @@
 use std::borrow::Cow;
 use std::env::var;
 use std::fmt::{self, Display, Write};
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
-pub use oauth::PgOAuthToken;
-use sqlx_core::error::BoxDynError;
+pub(crate) use oauth::PgOAuthToken;
 use sqlx_core::net::tls::TlsConnector;
 pub use ssl_mode::PgSslMode;
 
@@ -130,59 +128,66 @@ impl PgConnectOptions {
         self
     }
 
-    /// Authenticate with a fixed OAuth 2.0 bearer token, for PostgreSQL's `oauth`
-    /// authentication method.
+    /// Authenticate with an OAuth 2.0 bearer token, for PostgreSQL's `oauth` authentication
+    /// method (added in PostgreSQL 18).
     ///
-    /// Prefer [`oauth_token_provider`][Self::oauth_token_provider] where the token can expire:
-    /// a token set here is used for every connection attempt, including reconnections made by a
-    /// pool long after the token was minted.
+    /// The token is presented over SASL `OAUTHBEARER` (RFC 7628), and only when the server
+    /// asks for it: it is never sent to a server that wants a password.
     ///
-    /// The token is used only when the server requests SASL `OAUTHBEARER`; it is never sent to a
-    /// server asking for a password.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_postgres::PgConnectOptions;
-    /// # fn f(token: String) -> PgConnectOptions {
-    /// PgConnectOptions::new().oauth_token(token)
-    /// # }
-    /// ```
-    pub fn oauth_token(mut self, token: impl Into<String>) -> Self {
-        self.oauth_token = Some(PgOAuthToken::new(token));
-        self
-    }
-
-    /// Obtain an OAuth 2.0 bearer token once per connection attempt, for PostgreSQL's `oauth`
-    /// authentication method.
-    ///
-    /// SQLx does not talk to an identity provider. `provider` is called immediately before the
-    /// SASL exchange and should return a currently valid token; how it is acquired, cached and
-    /// refreshed is the application's choice.
-    ///
-    /// The token is used only when the server requests SASL `OAUTHBEARER`; it is never sent to a
-    /// server asking for a password.
+    /// SQLx does not talk to an identity provider, so obtaining a token is the
+    /// application's job. A server that requires OAuth will name the issuer to get one from
+    /// if it is asked, which is what a connection with no token set does; see the example
+    /// below and [`OAuthChallenge`].
     ///
     /// Note that there is deliberately no connection-string equivalent of this option: a URL
     /// ends up in shell history, in `ps` output and in logs, which is no place for a bearer
     /// token.
     ///
+    /// # A token expires
+    ///
+    /// The token set here is presented by every connection made with these options,
+    /// including reconnections made by a pool long after the token was minted. Nothing
+    /// refreshes it, and a connection made with an expired token fails with
+    /// [`Error::OAuth`]. An application that holds a pool open for longer than its tokens
+    /// live has to mint a new token and build the pool with new options.
+    ///
     /// # Example
     ///
-    /// ```rust
-    /// # use sqlx_postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new().oauth_token_provider(|| async {
-    ///     // Called for each connection attempt, so an expired token can be refreshed.
-    ///     let token = std::env::var("EXAMPLE_OAUTH_TOKEN")?;
-    ///     Ok(token)
-    /// });
+    /// The bearer token is the whole of the exchange, so a connection either has an accepted
+    /// token or it has failed; there is no way to negotiate one part-way through. Obtaining a
+    /// token therefore means letting a connection fail, running the OAuth flow, and dialing
+    /// again:
+    ///
+    /// ```rust,no_run
+    /// # use sqlx_core::connection::Connection;
+    /// # use sqlx_core::error::{Error, OAuthChallenge};
+    /// # use sqlx_postgres::{PgConnectOptions, PgConnection};
+    /// # async fn mint_token(_challenge: &OAuthChallenge) -> sqlx_core::Result<String> {
+    /// #     unimplemented!("run an OAuth 2.0 flow against the issuer named in the challenge")
+    /// # }
+    /// # async fn f() -> sqlx_core::Result<PgConnection> {
+    /// let options = PgConnectOptions::new();
+    ///
+    /// // With no token set, the driver asks the server which one it wants. That connection
+    /// // cannot succeed; the answer comes back as an error.
+    /// let options = match PgConnection::connect_with(&options).await {
+    ///     Err(Error::OAuth(challenge)) => options.oauth_token(mint_token(&challenge).await?),
+    ///
+    ///     // The server may not want OAuth at all, in which case this already connected.
+    ///     result => return result,
+    /// };
+    ///
+    /// PgConnection::connect_with(&options).await
+    /// # }
     /// ```
-    pub fn oauth_token_provider<F, Fut>(mut self, provider: F) -> Self
-    where
-        F: Fn() -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<String, BoxDynError>> + Send + 'static,
-    {
-        self.oauth_token = Some(PgOAuthToken::from_provider(provider));
+    ///
+    /// An application that knows the issuer up front does not need the first connection: it
+    /// can mint a token and set it here directly.
+    ///
+    /// [`OAuthChallenge`]: sqlx_core::error::OAuthChallenge
+    /// [`Error::OAuth`]: sqlx_core::error::Error::OAuth
+    pub fn oauth_token(mut self, token: impl Into<String>) -> Self {
+        self.oauth_token = Some(PgOAuthToken::new(token));
         self
     }
 
