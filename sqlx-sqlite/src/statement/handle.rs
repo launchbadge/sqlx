@@ -267,12 +267,13 @@ impl StatementHandle {
             // declared without one, e.g. `CREATE TABLE foo (bar PRIMARY KEY)`. Such a column
             // has no type name to compare against, and is by definition not declared
             // `INTEGER`, so it cannot be a rowid alias.
-            let is_integer = !datatype.is_null()
+            let is_rowid_alias = primary_key != 0
+                && !datatype.is_null()
                 && CStr::from_ptr(datatype)
                     .to_bytes()
                     .eq_ignore_ascii_case("integer".as_bytes());
 
-            Ok(if primary_key != 0 && is_integer {
+            Ok(if is_rowid_alias {
                 None
             } else {
                 Some(not_null == 0)
